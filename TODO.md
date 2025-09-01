@@ -137,3 +137,58 @@
 ### Rejected Features
 
 - (X) First-class functions
+
+### Function Examples
+
+- [ ] All functions that can be applied for a certain type, could also be called from a variable from that type
+
+```edgerules
+{
+    myarray = [1,2,3,4]
+    sum1 = sum(myarray)
+    sum2 = myarray.sum 
+}
+```
+
+## FEEL Coverage
+
+| List                    | String:                  | Numeric                 | Range                   | Conversion                | Context     | Boolean    |
+|-------------------------|--------------------------|-------------------------|-------------------------|---------------------------|-------------|------------|
+| &#9744; list contains   | &#9744; substring        | &#9744; decimal         | &#9744; before          | date                      | get entries | not        |
+| &#9744; count           | &#9744; string length    | &#9744; floor           | &#9744; after           | date and time             | get value   | is defined |
+| &#9744; min             | &#9744; upper case       | &#9744; ceiling         | &#9744; meets           | time                      | put         |            |
+| &#9744; max             | &#9744; lower case       | &#9744; abs             | &#9744; met by          | number                    | put all     |            |
+| &#9745; sum             | &#9744; substring before | &#9744; modulo          | &#9744; overlaps        | string                    | context     |            |
+| &#9744; product         | &#9744; substring after  | &#9744; sqrt            | &#9744; overlaps before | duration                  |             |            |
+| &#9744; mean            | &#9744; replace          | &#9744; log             | &#9744; overlaps after  | years and months duration |             |            |
+| &#9744; median          | &#9744; contains         | &#9744; exp             | &#9744; finishes        |                           |             |            |
+| &#9744; stddev          | &#9744; starts with      | &#9744; odd             | &#9744; finished by     |                           |             |            |
+| &#9744; mode            | &#9744; ends with        | &#9744; even            | &#9744; includes        |                           |             |            |
+| &#9744; and             | &#9744; matches          | &#9744; round up        | &#9744; during          |                           |             |            |
+| &#9744; all             | &#9744; split            | &#9744; round down      | &#9744; starts          |                           |             |            |
+| &#9744; or              | &#9744; extract          | &#9744; round half up   | &#9744; started by      |                           |             |            |
+| &#9744; any             |                          | &#9744; round half down | &#9744; coincides       |                           |             |            |
+| &#9744; sublist         |                          |                         |                         |                           |             |            |
+| &#9744; append          |                          |                         |                         |                           |             |            |
+| &#9744; concatenate     |                          |                         |                         |                           |             |            |
+| &#9744; insert before   |                          |                         |                         |                           |             |            |
+| &#9744; remove          |                          |                         |                         |                           |             |            |
+| &#9744; reverse         |                          |                         |                         |                           |             |            |
+| &#9744; index of        |                          |                         |                         |                           |             |            |
+| &#9744; union           |                          |                         |                         |                           |             |            |
+| &#9744; distinct values |                          |                         |                         |                           |             |            |
+| &#9744; flatten         |                          |                         |                         |                           |             |            |
+| &#9744; sort            |                          |                         |                         |                           |             |            |
+| &#9744; string join     |                          |                         |                         |                           |             |            |
+
+## Decision tables (TBC)
+
+```edgerules
+{
+    decisionTable(applicant): [
+        rule1: [applicant.age < 18, "minor"],
+        rule2: [applicant.age >= 18, "adult"],            
+    ][.. = true].length > 0
+    result: decisionTable(applicant)
+}
+```
