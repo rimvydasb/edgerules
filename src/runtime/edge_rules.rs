@@ -1,0 +1,462 @@
+use std::cell::RefCell;
+use std::fmt::{Display, Formatter};
+use std::rc::Rc;
+use log::trace;
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_builder::ContextObjectBuilder;
+use crate::ast::context::context_object_type::EObjectContent;
+use crate::tokenizer::parser::tokenize;
+use crate::runtime::execution_context::ExecutionContext;
+use crate::ast::expression::StaticLink;
+use crate::ast::token::{DefinitionEnum, EToken, ExpressionEnum};
+use crate::ast::token::EToken::{Definition, Expression};
+use crate::ast::token::ExpressionEnum::ObjectField;
+use crate::ast::utils::array_to_code_sep;
+use crate::link::linker;
+use crate::link::node_data::{ContentHolder, Node, NodeData};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
+use crate::typesystem::values::ValueEnum;
+
+
+//--------------------------------------------------------------------------------------------------
+// Errors
+//--------------------------------------------------------------------------------------------------
+
+#[derive(Debug, PartialEq)]
+pub enum EvalError {
+    // Parse errors returned from tokenizer
+    FailedParsing(ParseErrors),
+
+    // Failed to evaluate expression, and runtime error
+    FailedExecution(RuntimeError),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct EvalResult(Rc<RefCell<ExecutionContext>>, ValueEnum);
+
+#[derive(Debug)]
+pub enum ParsedItem {
+    Expression(ExpressionEnum),
+    Definition(DefinitionEnum),
+}
+
+impl ParsedItem {
+    pub fn into_error(self) -> EvalError {
+        match self {
+            ParsedItem::Expression(expression) => {
+                EvalError::FailedParsing(ParseErrors::unexpected_token(Expression(expression), None))
+            }
+            ParsedItem::Definition(definition) => {
+                EvalError::FailedParsing(ParseErrors::unexpected_token(Definition(definition), None))
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ParseErrors(Vec<ParseErrorEnum>);
+
+impl ParseErrors {
+    pub fn unexpected_token(token: EToken, expected: Option<String>) -> Self {
+        ParseErrors(vec![UnexpectedToken(Box::new(token), expected)])
+    }
+
+    pub fn errors(&self) -> &Vec<ParseErrorEnum> {
+        &self.0
+    }
+}
+
+impl Display for ParseErrors {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", array_to_code_sep(self.0.iter(), "; "))
+    }
+}
+
+impl From<ParseErrors> for EvalError {
+    fn from(res: ParseErrors) -> Self {
+        EvalError::FailedParsing(res)
+    }
+}
+
+impl From<RuntimeError> for EvalError {
+    fn from(res: RuntimeError) -> Self {
+        EvalError::FailedExecution(res)
+    }
+}
+
+impl From<LinkingError> for EvalError {
+    fn from(res: LinkingError) -> Self {
+        EvalError::FailedExecution(RuntimeError::eval_error(res.to_string()))
+    }
+}
+
+impl From<Rc<RefCell<LinkingError>>> for EvalError {
+    fn from(res: Rc<RefCell<LinkingError>>) -> Self {
+        EvalError::FailedExecution(RuntimeError::eval_error(res.borrow().to_string()))
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Engine
+//--------------------------------------------------------------------------------------------------
+
+struct EdgeRulesEngine {}
+
+impl EdgeRulesEngine {
+    /// Code parsing to a single expression.
+    /// Returns either a single expression or a single definition.
+    /// If there are multiple expressions or definitions, then it returns a list of errors and not mapped tokens.
+    pub fn parse_code(code: &str) -> Result<ParsedItem, ParseErrors> {
+        let mut result = tokenize(&String::from(code));
+
+        if result.len() == 1 {
+            match result.pop_front() {
+                Some(Expression(expression)) => {
+                    return Ok(ParsedItem::Expression(expression));
+                }
+                Some(Definition(definition)) => {
+                    return Ok(ParsedItem::Definition(definition));
+                }
+                Some(other) => {
+                    trace!("Single unexpected token: {:?}", other);
+                    result.push_front(other);
+                }
+                _ => {
+                    trace!("No tokens found");
+                }
+            }
+        }
+
+        let mut errors: Vec<ParseErrorEnum> = Vec::new();
+        let mut failed_tokens: Vec<EToken> = Vec::new();
+
+        while let Some(token) = result.pop_front() {
+            match token {
+                EToken::ParseError(error) => {
+                    errors.push(error);
+                }
+                EToken::Unparsed(unparsed) => {
+                    errors.push(UnknownParseError(unparsed.to_string()));
+                }
+                other => {
+                    // it could be that some tokes will be valid, but not mapped to AST root
+                    failed_tokens.push(other);
+                }
+            }
+        };
+
+        if errors.is_empty() {
+            for token in failed_tokens {
+                // since no errors, I can assume that all tokens are unexpected
+                errors.push(UnexpectedToken(Box::new(token), None));
+            }
+
+            if errors.is_empty() {
+                // only if no code is provided
+                errors.push(Empty);
+            }
+        }
+
+        Err(ParseErrors(errors))
+    }
+
+    // pub fn evaluate_context(ctx: Rc<RefCell<ExecutionContext>>) {
+    //     let names = (*ctx).borrow().get_field_names().clone();
+    //
+    //     for name in names.iter() {
+    //         if let Ok(Reference(new_context)) = ExecutionContext::eval_field(Rc::clone(&ctx), name.as_str()) {
+    //             Self::evaluate_context(new_context)
+    //         }
+    //     }
+    // }
+
+    // Evaluates a single expression
+    // Server and Runtime is destroyed after evaluation so it is super inefficient, better use for testing only
+    // pub fn evaluate_code(code: &str, field: &str) -> Result<EvalResult, EvalError> {
+    //     let engine = EdgeRules::new();
+    //     engine.load_source(code)?;
+    //     let runtime = engine.to_runtime();
+    //     let result = runtime.evaluate_field(field)?;
+    //
+    //     Ok(EvalResult(Rc::clone(&runtime.context), result))
+    // }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Service
+//--------------------------------------------------------------------------------------------------
+
+/// Service is stateless
+pub struct EdgeRules {
+    pub ast_root: ContextObjectBuilder,
+}
+
+impl EdgeRules {
+    pub fn new() -> EdgeRules {
+        EdgeRules {
+            ast_root: ContextObjectBuilder::new(),
+        }
+    }
+
+    pub fn load_source(&mut self, code: &str) -> Result<(), ParseErrors> {
+        let parsed = EdgeRulesEngine::parse_code(code)?;
+
+        match parsed {
+            // @Todo: object field must be normal expression wrapped in object
+            ParsedItem::Expression(ObjectField(field, field_expression)) => {
+                self.ast_root.add_expression(field.as_str(), *field_expression);
+            }
+            ParsedItem::Expression(ExpressionEnum::StaticObject(context_object)) => {
+                self.ast_root.append(context_object);
+            }
+            ParsedItem::Definition(definition) => {
+                self.ast_root.add_definition(definition);
+            }
+            ParsedItem::Expression(unexpected) => {
+                return Err(ParseErrors::unexpected_token(Expression(unexpected), Some("value assignment expression or object".to_string())));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn to_runtime(self) -> Result<EdgeRulesRuntime, LinkingError> {
+        let static_context = self.ast_root.build();
+
+        linker::link_parts(Rc::clone(&static_context))?;
+
+        Ok(EdgeRulesRuntime::new(static_context))
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Runtime
+//--------------------------------------------------------------------------------------------------
+
+pub struct EdgeRulesRuntime {
+    pub context: Rc<RefCell<ExecutionContext>>,
+    pub static_tree: Rc<RefCell<ContextObject>>,
+}
+
+impl EdgeRulesRuntime {
+    pub fn new(static_tree: Rc<RefCell<ContextObject>>) -> EdgeRulesRuntime {
+        let context = ExecutionContext::create_root_context(static_tree.clone());
+        EdgeRulesRuntime {
+            context,
+            static_tree,
+        }
+    }
+
+    /// Evaluates a single field
+    /// @Todo: maybe forward to evaluate code if path?
+    // pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
+    //     Finder::find_and_eval(Rc::clone(&self.context), name, Finder::EVAL_ON_FIND)
+    // }
+
+    pub fn evaluate_expression(&self, expression: &ExpressionEnum) -> Result<ValueEnum, RuntimeError> {
+        expression.eval(Rc::clone(&self.context))
+    }
+
+    pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
+        let mut variable = ExpressionEnum::variable(name);
+        variable.link(Rc::clone(&self.static_tree))?;
+        variable.eval(Rc::clone(&self.context))
+    }
+
+    fn eval_all_context(ctx: Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
+        if ctx.borrow().promise_eval_all {
+            return Ok(());
+        }
+
+        ctx.borrow_mut().promise_eval_all = true;
+
+        let field_names = ctx.borrow().object.borrow().get_field_names();
+
+        trace!("eval_all_context: {}(..) for {:?}", ctx.borrow().node().node_type,field_names);
+
+        for name in field_names {
+            let name_str = name.as_str();
+
+            match ctx.borrow().get(name_str)? {
+                EObjectContent::ExpressionRef(expression) => {
+                    ctx.borrow().node().lock_field(name_str)?;
+                    let value = expression.borrow().expression.eval(Rc::clone(&ctx));
+                    ctx.borrow().stack_insert(name_str.to_string(), value);
+                    ctx.borrow().node().unlock_field(name_str);
+                }
+                EObjectContent::ObjectRef(reference) => {
+                    NodeData::attach_child(&ctx, &reference);
+                    Self::eval_all_context(Rc::clone(&reference))?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn eval_all(&self) -> Result<(), RuntimeError> {
+        Self::eval_all_context(Rc::clone(&self.context))
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Utilities
+//--------------------------------------------------------------------------------------------------
+
+pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
+    match EdgeRulesEngine::parse_code(code)? {
+        ParsedItem::Expression(expression) => Ok(expression),
+        other => Err(other.into_error()),
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Test
+//--------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+pub mod test {
+    use crate::ast::token::{EToken, EUnparsedToken};
+    use crate::runtime::edge_rules::{EvalError, expr, EdgeRules};
+
+    use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
+
+    use crate::typesystem::types::number::NumberEnum::Int;
+
+    use crate::typesystem::values::ValueEnum;
+    use crate::utils::test::{init_logger, test_code, test_code_lines};
+
+
+    #[test]
+    fn now() -> Result<(), EvalError> {
+        init_logger();
+
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_service() -> Result<(), EvalError> {
+        init_logger();
+
+        {
+            let mut service = EdgeRules::new();
+            service.load_source("value: 2 + 2")?;
+            service.load_source("value: 2 + 3")?;
+            match service.to_runtime() {
+                Ok(runtime) => {
+                    let result = runtime.evaluate_expression(&expr("value")?)?;
+                    assert_eq!(result, ValueEnum::NumberValue(Int(5)));
+                }
+                Err(error) => {
+                    panic!("Failed to link: {:?}", error);
+                }
+            }
+        }
+
+        test_code("value").expect_parse_error(UnexpectedToken(Box::new(EToken::Unparsed(EUnparsedToken::Comma)), None));
+        test_code("value: 2 + 2").expect_num("value", Int(4));
+        test_code("value: 2 + ").expect_parse_error(UnknownError("any".to_string()));
+        test_code("{ value: 2 + 2 }").expect_num("value", Int(4));
+        test_code("{ v1 : 100; value: v1 + v1 }").expect_num("value", Int(200));
+
+        Ok(())
+    }
+
+
+    #[test]
+    fn test_linking() -> Result<(), EvalError> {
+        init_logger();
+
+        test_code("{ a : 1; b : a  }")
+            .expect_type("Type<a: number, b: number>")
+            .expect_num("a", Int(1));
+
+        test_code("{ a : z; b : a; z : 8 * 2  }")
+            .expect_type("Type<a: number, b: number, z: number>")
+            .expect_num("a", Int(16));
+
+        test_code("{ a : {x : 1}; b : a.x }")
+            .expect_type("Type<a: Type<x: number>, b: number>")
+            .expect_num("b", Int(1));
+
+        test_code("{ c : b; a : {x : 1}; b : a.x }")
+            .expect_type("Type<a: Type<x: number>, b: number, c: number>")
+            .expect_num("c", Int(1));
+
+        // roundtrip test
+        test_code("{ c : b; a : {x : 1; aa: b}; b : a.x }")
+            .expect_type("Type<a: Type<x: number, aa: number>, b: number, c: number>")
+            .expect_num("c", Int(1));
+
+        // messy handover test
+        test_code("{ c : b; a : {x : {y : 1}}; b : a.x; d : c.y }")
+            .expect_type("Type<a: Type<x: Type<y: number>>, b: Type<y: number>, c: Type<y: number>, d: number>")
+            .expect_num("d", Int(1));
+
+        // deep roundtrip test
+        test_code("{ c : b; a : {x : {x : 1; aa: b}}; b : a.x.x }")
+            .expect_type("Type<a: Type<x: Type<x: number, aa: number>>, b: number, c: number>")
+            .expect_num("c", Int(1));
+
+        test_code("{ f(arg1) :  { a : arg1 } }")
+            .expect_type("Type<>");
+
+        test_code("{ f(arg1) :  { a : arg1 }; b : 1 }")
+            .expect_type("Type<b: number>")
+            .expect_num("b", Int(1));
+
+        test_code("{ f(arg1) :  { a : arg1 }; b : f(1) }")
+            .expect_type("Type<b: Type<a: number>>");
+
+        test_code("{ f(arg1) :  { a : arg1 }; b : f(1).a }")
+            .expect_type("Type<b: number>")
+            .expect_num("b", Int(1));
+
+        // possibility to call a function from a sub-context
+        test_code_lines(&[
+            "func1(a) : { result : a }",
+            "subContext : {",
+            "subResult : func1(35).result",
+            "}",
+            "value : subContext.subResult",
+        ]).expect_num("value", Int(35));
+
+        // argument as a parameter works well
+        test_code_lines(&[
+            "myInput : 35",
+            "func1(a) : { result : a }",
+            "subContext : {",
+            "subResult : func1(myInput).result",
+            "}",
+            "value : subContext.subResult",
+        ]).expect_num("value", Int(35));
+
+        Ok(())
+    }
+
+    #[test]
+    fn calendar_self_reference_in_array_elements() -> Result<(), EvalError> {
+        init_logger();
+
+        let tb = test_code_lines(&[
+            "calendar : {",
+            "    shift : 2",
+            "    days : [",
+            "        { start : calendar.shift + 1 },",
+            "        { start : calendar.shift + 31 }",
+            "    ]",
+            "    firstDay : days[0].start",
+            "    secondDay : days[1].start",
+            "}",
+        ]);
+        tb.expect_num("calendar.firstDay", Int(3));
+        tb.expect_num("calendar.secondDay", Int(33));
+
+        Ok(())
+    }
+}
+
+

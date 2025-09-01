@@ -1,0 +1,27 @@
+// application.status not found
+{
+    input : {
+        application: {
+          id: 0
+          status: 1
+
+          applicants: [
+            {
+              name: "Steve"
+              birthday: 20150301
+            }
+            {
+              name: "Marry"
+              birthday: 20120301
+            }
+          ]
+        }
+	}
+	model: {
+	  applicationRecord(application): {
+	    statusFlag: if application.status = 1 then "ok" else "no"
+	  }
+
+	  output: applicationRecord(input.application)
+	}
+}

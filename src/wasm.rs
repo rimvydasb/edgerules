@@ -1,0 +1,37 @@
+#![cfg(target_arch = "wasm32")]
+
+use wasm_bindgen::prelude::*;
+
+use crate::code_to_trace;
+use crate::runtime::edge_rules::EdgeRules;
+
+#[wasm_bindgen]
+pub fn init_panic_hook() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+}
+
+#[wasm_bindgen]
+pub fn to_trace(code: &str) -> String {
+    code_to_trace(code)
+}
+
+#[wasm_bindgen]
+pub fn evaluate_value(code: &str) -> String {
+    evaluate_field(code, "value")
+}
+
+#[wasm_bindgen]
+pub fn evaluate_field(code: &str, field: &str) -> String {
+    let mut service = EdgeRules::new();
+    match service.load_source(code) {
+        Ok(()) => match service.to_runtime() {
+            Ok(runtime) => match runtime.evaluate_field(field) {
+                Ok(v) => v.to_string(),
+                Err(e) => e.to_string(),
+            },
+            Err(e) => e.to_string(),
+        },
+        Err(e) => e.to_string(),
+    }
+}

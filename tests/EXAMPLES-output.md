@@ -1,0 +1,116 @@
+# Objects Context
+
+## Simple References
+```edgerules
+application: {
+    applDate: 20230402
+    applicants: [1,2,3]
+    testReference: applicants[0]
+}
+```
+
+output:
+```edgerules
+{
+   application : {
+      applDate : 20230402
+      applicants : [1, 2, 3]
+      testReference : 1
+   }
+}
+```
+
+## Anonymous Contexts
+*The following contexts are not assigned to any variable, but stays in the index.
+For this reason, they're treated as anonymous contexts.*
+
+```edgerules
+application: {
+    applDate: 20230402
+    applicants: [
+        {
+            id: 1
+            date: 20210102
+            age: application.applDate - date
+        },
+        {
+            id: 2
+            date: 20220102
+            age: application.applDate - date
+        }
+    ]
+}
+```
+
+output:
+```edgerules
+{
+   application : {
+      applDate : 20230402
+      applicants : [{id : 1; date : 20210102; age : application.applDate - date}, {id : 2; date : 20220102; age : application.applDate - date}]
+   }
+}
+```
+
+*Another similar calculation:*
+```edgerules
+calendar: {
+    shift: 2
+    days: [
+	    {start: calendar.shift + 1},
+	    {start: calendar.shift + 31}
+    ]
+    firstDay: days[0].start
+    secondDay: days[1].start
+}
+```
+
+output:
+```edgerules
+{
+   calendar : {
+      shift : 2
+      days : [{start : 3}, {start : 33}]
+      firstDay : 3
+      secondDay : 33
+   }
+}
+```
+
+> it is possible to get cyclic reference if refering another non-calculated line
+
+> would be good to allow collection references
+
+```edgerules
+calendar: {
+    shift: 2
+    days: [
+	    {start: calendar.shift + 1},
+	    {start: calendar.days[0].start + 5}
+    ]
+    secondDay: days[1].start
+}
+```
+
+output:
+```edgerules
+Selection must be variable or variable path → 'start' assignment side is not complete → 'days' assignment side is not complete → 'calendar' assignment side is not complete
+```
+
+> anonymous contexts are kept isolated if are deeper down in AST, because it is not quite clear how they can be accessed. For example filter is applied as an upper AST expression.
+
+```edgerules
+calendar: {
+    shift: 2
+    positiveDays: [
+	    {id: 1, start: calendar.shift + 1},
+	    {id: 2, start: calendar.days[0].start + 5}
+    ][id > 0]
+    secondDay: positiveDays[1].start
+}
+```
+
+output:
+```edgerules
+',' is not a proper context element → 'positiveDays' assignment side is not complete → 'calendar' assignment side is not complete
+```

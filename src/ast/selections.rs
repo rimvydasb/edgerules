@@ -1,0 +1,191 @@
+use std::cell::RefCell;
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
+use log::trace;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::{is_linked, Link};
+use crate::ast::token::ExpressionEnum;
+use crate::ast::token::ExpressionEnum::{Variable};
+use crate::ast::variable::VariableLink;
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_builder::ContextObjectBuilder;
+use crate::runtime::execution_context::*;
+use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::errors::ParseErrorEnum::UnknownError;
+
+use crate::typesystem::types::number::NumberEnum::{Int, SV};
+use crate::typesystem::types::{SpecialValueEnum, TypedValue, ValueType};
+use crate::typesystem::values::ValueEnum;
+use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, Reference};
+
+//--------------------------------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub struct ExpressionFilter {
+    pub source: ExpressionEnum,
+    pub method: ExpressionEnum,
+    pub method_type: Link<ValueType>,
+    pub return_type: Link<ValueType>,
+}
+
+impl Display for ExpressionFilter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}[{}]", self.source, self.method)
+    }
+}
+
+impl ExpressionFilter {
+    /// method could evaluate to:
+    /// 1. number: myList[1 + b]
+    /// 2. boolean: myList[...> 10]
+    /// source must not be boolean, object
+    pub fn build(source: ExpressionEnum, method: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
+        Ok(ExpressionFilter { source, method, return_type: LinkingError::not_linked().into(), method_type: LinkingError::not_linked().into() })
+    }
+
+    fn select_from_list(&self, values: Vec<Result<ValueEnum, RuntimeError>>, list_type: ValueType, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
+        trace!("Selecting from list with method: {}", self.method);
+        // @Todo: remove cloning
+        if self.method_type.clone()? == ValueType::BooleanType {
+            let mut filtered_values = Vec::new();
+
+            for value in values {
+                // @Todo: interesting thing is that no sub-context is created, but existing is reused. What if multiple filters are applied?
+                context.borrow_mut().context_variable = Some(value?.clone());
+                if self.method.eval(Rc::clone(&context))? == BooleanValue(true) {
+                    filtered_values.push(Ok(context.borrow_mut().context_variable.take().unwrap()));
+                }
+            }
+
+            context.borrow_mut().context_variable = None;
+
+            Ok(Array(filtered_values, list_type))
+        } else {
+            let method = self.method.eval(Rc::clone(&context))?;
+
+            if let NumberValue(Int(number)) = method {
+                return if let Some(token) = values.get(number as usize) {
+                    token.clone()
+                } else {
+                    // todo: should determine the type
+                    Ok(NumberValue(SV(SpecialValueEnum::Missing)))
+                };
+            }
+
+            RuntimeError::eval_error(format!("Cannot select a value with '{}'", method)).into()
+        }
+    }
+}
+
+impl StaticLink for ExpressionFilter {
+    fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
+        if !is_linked(&self.return_type) {
+            let source_type = self.source.link(Rc::clone(&ctx))?;
+
+            if let ValueType::ListType(list_type) = source_type {
+                let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&ctx));
+
+                // in the iteration the context variable will be of the type of the list
+                builder.set_context_type(*list_type.clone());
+
+                self.method_type = self.method.link(Rc::clone(&builder.build()));
+
+                // @Todo: what about List type?
+                let static_type = match &self.method_type.clone()? {
+
+                    // expecting multi, value return
+                    ValueType::BooleanType | ValueType::RangeType => {
+                        ValueType::ListType(list_type)
+                    }
+
+                    // expecting only single value return
+                    _ => {
+                        *list_type
+                    }
+                };
+
+                self.return_type = Ok(static_type);
+            } else {
+                self.return_type = LinkingError::expect_array_type(Some(format!("Filter subject `{}`",self.source)),source_type);
+            }
+        }
+
+        self.return_type.clone()
+    }
+}
+
+impl EvaluatableExpression for ExpressionFilter {
+    fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
+        let source_value = self.source.eval(Rc::clone(&context))?;
+
+        match source_value {
+            Array(list, list_item_type) => self.select_from_list(list, list_item_type, context),
+            _ => RuntimeError::eval_error(format!("Cannot filter '{}' because data type is {} and not an array", self.source, source_value.get_type())).into()
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub struct FieldSelection {
+    pub source: ExpressionEnum,
+    pub method: VariableLink,
+    pub return_type: Link<ValueType>,
+}
+
+impl FieldSelection {
+    pub fn build(source: ExpressionEnum, method: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
+        match method {
+            Variable(variable) => {
+                Ok(FieldSelection { source, method: variable, return_type: LinkingError::not_linked().into() })
+            }
+            _ => {
+                Err(UnknownError("Selection must be variable or variable path".to_string()))
+            }
+        }
+    }
+}
+
+impl StaticLink for FieldSelection {
+    fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
+        if !is_linked(&self.return_type) {
+            trace!("Linking selection '{}'", self);
+            match self.source.link(Rc::clone(&ctx)) {
+                Ok(ValueType::ObjectType(source_type)) => {
+                    self.return_type = self.method.link(source_type);
+                }
+                Err(error) => {
+                    return error.with_context(|| format!("While looking at source '{}'", self.source)).into();
+                }
+                Ok(other) => {
+                    return LinkingError::other_error(format!("Cannot select '{}' because data type is {} and not an object", self.source, other)).into();
+                }
+            }
+        }
+
+        self.return_type.clone()
+    }
+}
+
+impl EvaluatableExpression for FieldSelection {
+    fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
+        let source_value = self.source.eval(Rc::clone(&context))?;
+
+        trace!("Selecting from {} ({})",self.source,source_value);
+
+        match source_value {
+            Reference(reference) => self.method.eval(reference),
+            _ => RuntimeError::eval_error(format!("Cannot select '{}' because data type is {} and not an object", self.source, source_value.get_type())).into()
+        }
+    }
+}
+
+impl Display for FieldSelection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.source, self.method)
+    }
+}
+
+//--------------------------------------------------------------------------------------------------

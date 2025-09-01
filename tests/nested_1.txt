@@ -1,0 +1,29 @@
+{
+    input : {
+
+        today : 2021
+        birthday : 2022
+    },
+
+
+    record : {
+
+        age : input.birthday - input.today
+        salary : sum(1,2)
+            record : {
+
+				age : input.birthday - input.today
+				salary : sum(1,3)
+
+					record : {
+
+                    age : input.birthday - input.today
+                    salary : sum(1,4)
+                    another : {
+
+					    s :
+				}
+			}
+		}
+    }
+}

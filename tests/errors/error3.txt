@@ -1,0 +1,18 @@
+// unreachanble
+{
+   application : {
+        eligibility : 0
+   }
+
+   bureauFlag : 1
+
+   @DecisionTable
+   routingDecisionTable(application, bureauFlag) : [
+      [application.eligibility, bureauFlag, routing],
+      [1, 0, "DECLINE"],
+      [1, 0, "BUREAU"],
+      [1, 1, "ACCEPT"]
+   ]
+
+   routing : routingDecisionTable(application, bureauFlag).routing
+}

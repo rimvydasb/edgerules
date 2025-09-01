@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EdgeRules Web Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      pre { background: #f5f5f5; padding: 1rem; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>EdgeRules Web Demo</h1>
+    <div id="out"></div>
+    <script type="module">
+      import init, { evaluate_value, evaluate_field, to_trace, init_panic_hook } from '../../pkg/edge_rules.js';
+
+      const out = document.getElementById('out');
+      const log = (label, value) => {
+        const el = document.createElement('pre');
+        el.textContent = `${label}:\n${value}`;
+        out.appendChild(el);
+      };
+
+      (async () => {
+        await init();
+        init_panic_hook();
+
+        log('evaluate_value', await evaluate_value('{ value : 10 + 20 }'));
+        log('evaluate_field', await evaluate_field('{ total : sum([1,2,3]) }', 'total'));
+        log('to_trace', to_trace('{ a : 1; b : a + 2 }'));
+      })();
+    </script>
+  </body>
+  </html>

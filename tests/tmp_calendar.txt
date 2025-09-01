@@ -1,0 +1,9 @@
+calendar: {
+    shift: 2
+    days: [
+	    {start: calendar.shift + 1},
+	    {start: calendar.shift + 31}
+    ]
+    firstDay: days[0].start
+    secondDay: days[1].start
+}

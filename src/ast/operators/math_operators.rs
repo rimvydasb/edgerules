@@ -1,0 +1,262 @@
+use std::cell::RefCell;
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::token::{ExpressionEnum, EToken, EUnparsedToken};
+use crate::runtime::execution_context::*;
+use crate::ast::operators::math_operators::MathOperatorEnum::*;
+use crate::ast::token::EToken::Unparsed;
+use crate::ast::token::ExpressionEnum::{Value, Variable};
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::{Link};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::types::number::NumberEnum;
+use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::types::number::NumberEnum::{Int, Real};
+use crate::typesystem::types::ValueType::NumberType;
+use crate::typesystem::values::ValueEnum;
+use crate::typesystem::values::ValueEnum::NumberValue;
+
+//----------------------------------------------------------------------------------------------
+// Operator
+
+pub type BinaryNumberFunction = fn(a: NumberEnum, b: NumberEnum) -> Result<NumberEnum, RuntimeError>;
+
+pub trait Operator: Display + Debug + EvaluatableExpression {}
+
+#[derive(Debug, PartialEq)]
+pub struct OperatorData<T: Display> {
+    pub operator: T,
+    pub left: ExpressionEnum,
+    pub right: ExpressionEnum,
+}
+
+impl<T: Display> OperatorData<T> {
+    pub fn link(&mut self, ctx: Rc<RefCell<ContextObject>>, expected_type: ValueType) -> Link<ValueType> {
+        let left_type = self.left.link(ctx.clone())?;
+        let right_type = self.right.link(ctx)?;
+
+        // If either side is undefined (deferred linking), accept the operator type
+        // without strict checking and let runtime enforce actual types.
+        if left_type == ValueType::UndefinedType || right_type == ValueType::UndefinedType {
+            return Ok(expected_type);
+        }
+
+        let expected = LinkingError::expect_same_types(self.operator.to_string().as_str(), left_type, right_type.clone())?;
+        LinkingError::expect_single_type("Left side of operator", expected, &expected_type)?;
+        LinkingError::expect_single_type("Right side of operator", right_type, &expected_type)
+    }
+}
+
+//----------------------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MathOperatorEnum {
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+    Power,
+    Modulus,
+}
+
+impl MathOperatorEnum {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Addition => "+",
+            Subtraction => "-",
+            Multiplication => "*",
+            Division => "/",
+            Power => "^",
+            Modulus => "%",
+        }
+    }
+
+    pub fn build(operator: &str) -> EToken {
+        match MathOperatorEnum::try_from(operator) {
+            Ok(operator) => operator.into(),
+            Err(error) => EToken::ParseError(error)
+        }
+    }
+}
+
+impl TryFrom<&str> for MathOperatorEnum {
+    type Error = ParseErrorEnum;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "+" => Ok(Addition),
+            "-" => Ok(Subtraction),
+            "*" | "×" => Ok(Multiplication),
+            "/" | "÷" => Ok(Division),
+            "^" => Ok(Power),
+            "%" => Ok(Modulus),
+            _ => Err(ParseErrorEnum::UnknownParseError(format!("Unknown operator: {}", value)))
+        }
+    }
+}
+
+impl TryFrom<EToken> for MathOperatorEnum {
+    type Error = ParseErrorEnum;
+
+    fn try_from(value: EToken) -> Result<Self, Self::Error> {
+        if let Unparsed(EUnparsedToken::MathOperatorToken(operator)) = value {
+            Ok(operator)
+        } else {
+            Err(ParseErrorEnum::UnknownParseError(format!("Unknown operator: {}", value)))
+        }
+    }
+}
+
+impl Into<EToken> for MathOperatorEnum {
+    fn into(self) -> EToken {
+        Unparsed(EUnparsedToken::MathOperatorToken(self))
+    }
+}
+
+//----------------------------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub struct MathOperator {
+    pub data: OperatorData<MathOperatorEnum>,
+    pub function: BinaryNumberFunction,
+}
+
+impl TypedValue for MathOperator {
+    fn get_type(&self) -> ValueType {
+        NumberType
+    }
+}
+
+impl StaticLink for MathOperator {
+    fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
+        OperatorData::link(&mut self.data, ctx, NumberType)
+    }
+}
+
+impl MathOperator {
+    pub fn build(operator: MathOperatorEnum, left: ExpressionEnum, right: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
+        let function = match operator {
+            Addition => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                Ok(left + right)
+            },
+            Subtraction => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                Ok(left - right)
+            },
+            Multiplication => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                Ok(left * right)
+            },
+            Division => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                Ok(left / right)
+            },
+            Power => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                match (left, right) {
+                    (Int(left), Int(right)) => Ok(NumberEnum::from(left.pow(right as u32))),
+                    (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i32))),
+                    (Int(left), Real(right)) => Ok(NumberEnum::from(left.pow(right as u32))),
+                    (Real(left), Real(right)) => Ok(NumberEnum::from(left.powf(right))),
+                    (left, right) => RuntimeError::eval_error(format!("Operator '^' is not implemented for '{} ^ {}'", left, right)).into()
+                }
+            },
+            Modulus => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                Ok(left % right)
+            },
+        };
+
+        Ok(MathOperator {
+            data: OperatorData { operator, left, right },
+            function,
+        })
+    }
+}
+
+impl Operator for MathOperator {}
+
+impl PartialEq for MathOperator {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare semantic parts; function is determined by operator
+        self.data == other.data
+    }
+}
+
+impl EvaluatableExpression for MathOperator {
+    fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
+        let left_token = &self.data.left.eval(Rc::clone(&context))?;
+        let right_token = &self.data.right.eval(context)?;
+
+        match (left_token, right_token) {
+            (NumberValue(_left), NumberValue(_right)) => Ok(NumberValue((self.function)(_left.clone(), _right.clone())?)),
+            _ => RuntimeError::eval_error(format!("Operator '{}' is not implemented for '{} {} {}'", self.data.operator, left_token, self.data.operator, right_token)).into(),
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------
+// Display
+//----------------------------------------------------------------------------------------------
+
+impl Display for MathOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.data, f)
+    }
+}
+
+impl Display for MathOperatorEnum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Display for OperatorData<MathOperatorEnum> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.operator {
+            Multiplication | Division | Power => write!(f, "{} {} {}", self.left, self.operator, self.right),
+            _ => write!(f, "({} {} {})", self.left, self.operator, self.right),
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+#[derive(Debug, PartialEq)]
+pub struct NegationOperator {
+    pub left: ExpressionEnum,
+}
+
+impl NegationOperator {
+    pub fn new(left: ExpressionEnum) -> NegationOperator {
+        NegationOperator { left }
+    }
+}
+
+impl Display for NegationOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.left {
+            Value(_) | Variable(_) => write!(f, "-{}", self.left),
+            _ => write!(f, "-({})", self.left),
+        }
+    }
+}
+
+// impl TypedValue for NegationOperator {
+//     fn get_type(&self) -> ValueType {
+//         self.left.get_type()
+//     }
+// }
+
+impl StaticLink for NegationOperator {
+    fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
+        let result = self.left.link(Rc::clone(&ctx))?;
+        LinkingError::expect_type(None, result, &[NumberType])
+    }
+}
+
+impl EvaluatableExpression for NegationOperator {
+    fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
+        match self.left.eval(context)? {
+            NumberValue(number) => Ok(NumberValue(number.negate())),
+            value => RuntimeError::eval_error(format!("Cannot negate '{}'", value.get_type())).into(),
+        }
+    }
+}

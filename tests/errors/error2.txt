@@ -1,0 +1,18 @@
+// implement booleans
+{
+   application : {
+        eligibility : false
+   }
+
+   bureauFlag : true
+
+   @DecisionTable
+   routingDecisionTable(application, bureauFlag) : [
+      [application.eligibility, bureauFlag, routing],
+      [false, true, "DECLINE"],
+      [true, true, "BUREAU"],
+      [true, false, "ACCEPT"]
+   ]
+
+   routing : routingDecisionTable(application, bureauFlag).routing
+}

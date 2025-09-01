@@ -1,0 +1,28 @@
+{
+    // input data
+
+    application = {
+        effectiveTimestamp = 20220512
+        applicants = [
+            {
+                birthday = 20050101
+            },
+            {
+                birthday = 20010101
+            }
+        ]
+    }
+
+    // definitions
+
+    applicantRecord(inputData) = {
+        age = inputData.application.effectiveTimestamp - inputData.birthday
+    }
+
+    // instances
+
+    applicationRecord = {
+        inputData = application
+        applicantRecords = for record in application.applicants return applicantRecord(record)
+    }
+}

@@ -1,0 +1,74 @@
+@startuml
+'https://plantuml.com/class-diagram
+class PredefinedFunctions {
+}
+
+class UnaryFunctionDefinition {
+    +fn eval(value: ValueEnum): Result<ValueEnum, RuntimeError>
+}
+
+class BinaryFunctionDefinition {
+    +fn eval(left: ValueEnum, right: ValueEnum): Result<ValueEnum, RuntimeError>
+}
+
+class MultiFunctionDefinition {
+    +fn eval(args: Vec<ValueEnum>): Result<ValueEnum, RuntimeError>
+    +fn eval(value: ValueEnum): Result<ValueEnum, RuntimeError>
+}
+
+class UserFunctionCall {
+    definition: Link<FunctionContext>
+    return_type: Link<ValueType>
+    +fn link(self, ctx): Link<ValueType>
+}
+note right: a = insurance(1000, 0.1, 10)
+
+class UnaryFunction {
+    -arg: ExpressionEnum
+    -return_type: Link<ValueType>
+    +fn link(self, ctx): Link<ValueType>
+}
+note right: a = sin(45)
+
+class BinaryFunction {
+    -left: ExpressionEnum
+    -right: ExpressionEnum
+    -return_type: Link<ValueType>
+    +fn link(self, ctx): Link<ValueType>
+}
+note right: a = find([1,2,3],2)
+
+class MultiFunction {
+    -args: Vec<ExpressionEnum>
+    -return_type: Link<ValueType>
+    +fn link(self, ctx): Link<ValueType>
+}
+note right: a = sum(1,2,5)
+
+interface BuiltInFunctionDefinition {
+    +fn get_name(&self): str
+    +fn get_default_return(&self): Option<ValueType>
+    +fn get_input_validation(&self): Option<[ValueType]>
+}
+
+UnaryFunctionDefinition <|-- BuiltInFunctionDefinition
+BinaryFunctionDefinition <|-- BuiltInFunctionDefinition
+MultiFunctionDefinition <|-- BuiltInFunctionDefinition
+
+PredefinedFunctions *-- "n" UnaryFunctionDefinition : definition
+UnaryFunction o-- "1" UnaryFunctionDefinition : definition
+PredefinedFunctions *-- "n" MultiFunctionDefinition : definition
+MultiFunction o-- "1" MultiFunctionDefinition : definition
+PredefinedFunctions *-- "n" BinaryFunctionDefinition : definition
+BinaryFunction o-- "1" BinaryFunctionDefinition : definition
+
+interface EvaluatableExpression {
+    +fn eval(self, ctx): ...
+}
+
+BuiltInFunctionDefinition <|-- EvaluatableExpression
+UserFunctionCall <|-- EvaluatableExpression
+
+
+
+@enduml
