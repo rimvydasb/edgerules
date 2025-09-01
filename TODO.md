@@ -1,3 +1,5 @@
+## Todo / Optimization Checklist
+
 ### Build & Profiles
 
 - [ ] Release profile: enable lto = "fat", codegen-units = 1, opt-level = "z" (or
@@ -94,6 +96,15 @@
 - [ ] Dev deps:
     - [ ] Move regex, env_logger under [dev-dependencies].
 
+### Technical Debt / Non-Functional Requirements
+
+- [ ] Refactor test cases for a better navigation
+- [ ] Use FromStr https://doc.rust-lang.org/std/str/trait.FromStr.html
+- [ ] Use TryFrom https://doc.rust-lang.org/std/convert/trait.TryFrom.html & From
+- [ ] Investigate if Error should be used as https://doc.rust-lang.org/std/error/trait.Error.html and read more about
+  error propagation
+- [ ] Use OnceCell and Cell instead of Rc and RefCell in Context
+
 ###  Next steps:
 
 - [ ] Move regex and env_logger to dev-dependencies and adjust features/defaults
@@ -104,3 +115,25 @@
   interned ids (incrementally: start with storing interned u32 paths while
   keeping compatibility).
 - [ ] Micro-opt browse to take slices and avoid VecDeque conversions.
+
+### Technical Backlog
+
+- [ ] Friendly object reflections: `_fields`, `_methods`, `_objectName`, `_uid`
+- [ ] Custom domain types
+- [ ] Special values: `Missing`, `NotApplicable`, `NotFound`
+- [ ] Return statement for objects using `return` field
+- [ ] Inheritance via `merge(...)`
+- [ ] Auto types: `applicant = {...}` will get `ApplicantType`
+- [ ] Manual types: `applicant: Customer = {...}` will get `Customer` as a type
+- [ ] Higher abstractions layer (Domain Semantics) using @Annotations
+- [ ] Returns custom function call request same as `callGPT` in `getAgentAnswer`. Work on external user functions:
+  `external.callGPT`
+- [ ] Complete type inference
+- [x] Function calls
+- [ ] Optional argument labels in call expressions (`object.function(input: customer)`)
+- [ ] Function overloading: `calfunction(a: number)` and `calfunction(a: string)` can be in the same scope
+
+
+### Rejected Features
+
+- (X) First-class functions
