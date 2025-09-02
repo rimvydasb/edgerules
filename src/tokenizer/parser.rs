@@ -228,6 +228,22 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                                 )
                             }
                             //result.push_back(Unparsed(ReturnLiteral)),
+                            "true" => {
+                                ast_builder
+                                    .push_element(Expression(ExpressionEnum::from(true)))
+                            }
+
+                            "false" => {
+                                ast_builder
+                                    .push_element(Expression(ExpressionEnum::from(false)))
+                            }
+
+                            "not" => ast_builder.push_node(
+                                LogicalOperatorEnum::Not as u32,
+                                Unparsed(Literal(literal)),
+                                build_logical_operator,
+                            ),
+
                             "and" => ast_builder.push_node(
                                 LogicalOperatorEnum::And as u32,
                                 Unparsed(Literal(literal)),

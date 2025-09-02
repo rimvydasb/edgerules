@@ -721,6 +721,27 @@ pub mod factory {
     ) -> Result<EToken, ParseErrorEnum> {
         let operator = LogicalOperatorEnum::try_from(token.into_string_or_literal()?.as_str())?;
 
+        // Support unary prefix: `not <expr>`
+        if let LogicalOperatorEnum::Not = operator {
+            let right_token = right.pop_right().map_err(|err| {
+                UnknownError("'not' right side is not complete".to_string()).before(err)
+            })?;
+
+            match right_token {
+                Expression(right_expr) => {
+                    let function = LogicalOperator::build(
+                        operator,
+                        right_expr,
+                        // placeholder right operand, ignored by Not
+                        ExpressionEnum::from(true),
+                    )?;
+                    return Ok(Expression(Operator(Box::new(function))));
+                }
+                _ => return Err(UnknownError("Not completed 'not'".to_string())),
+            }
+        }
+
+        // Binary logical operators: and, or, xor
         let left_token = left.pop_left().map_err(|err| {
             UnknownError(format!("Left '{}' operator side is not complete", operator)).before(err)
         })?;

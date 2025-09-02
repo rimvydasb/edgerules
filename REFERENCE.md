@@ -13,7 +13,7 @@ This document describes the EdgeRules DSL as currently implemented in this repos
 
 - **number**: Integers and reals; arithmetic supports `+ - * / ^` and unary negation.
 - **string**: Single-quoted or double-quoted literal text.
-- **boolean**: Produced by comparisons and logical operators. No boolean literal tokens (`true/false`) are recognized.
+- **boolean**: Boolean literals `true` and `false` and results of comparisons/logical operators.
 - **list of T**: Homogeneous lists are intended; mixed types parse but type inference is basic.
 - **range**: Integer ranges `a..b` (inclusive), e.g., `1..5` yields 1,2,3,4,5. Useful with `for` and built-ins like `sum`, `count`, `max`.
 - **object (context)**: Nested named fields forming a context object.
@@ -42,8 +42,9 @@ This document describes the EdgeRules DSL as currently implemented in this repos
 
 - **Array literal**: `[expr1, expr2, ...]` (elements comma-separated).
 - **Indexing**: `list[expr]` where `expr` evaluates to a number. Out-of-bounds returns a special `Missing` value.
-- **Filtering (predicate)**: `list[ ... > 10 ]` or `list[<= 3]`.
+- **Filtering (predicate)**: `list[ ... > 10 ]`, `list[<= 3]`, or `list[not it > 10]`.
   - `...` denotes the context item during filtering (current element).
+  - `it` is an alias for the current element and can be used interchangeably with `...` (e.g., `list[not it > 10]`).
   - A predicate result produces a filtered list; a numeric result selects a single element.
   - Field selection requires an object value; select an element first if you need a field: e.g., `people[...>.age > 18][0].name` (predicate then index then select).
 - **Ranges**: `a..b` creates an inclusive integer range. Example: `for n in 1..5 return n * 2` → `[2,4,6,8,10]`.
@@ -56,7 +57,9 @@ This document describes the EdgeRules DSL as currently implemented in this repos
   - Modulo `%` exists in internal enum but is not tokenized; do not use.
 - **Comparators**: `=`, `<>`, `<`, `>`, `<=`, `>=`.
   - Type rules: both sides must have the same type. String comparison supports `=` and `<>`.
-- **Logical**: `and`, `or`, `xor` (binary). Precedence is lower than comparisons. Unary `not` is defined in types but not tokenized; do not use.
+- **Logical**: `and`, `or`, `xor` (binary) and unary `not`.
+  - Precedence (high → low): comparisons (`=`, `<>`, `<`, `>`, `<=`, `>=`) > `not` > `and`/`xor`/`or`.
+  - Example: `not it > 10` parses as `not (it > 10)`. Use parentheses to make intent explicit when combining.
 - **Parentheses**: `( ... )` to group expressions.
 
 ## Control Constructs
@@ -132,6 +135,29 @@ application : {
 }
 ```
 
+- Boolean and logic:
+```edgerules
+{  
+  a : true
+  b : false
+  allTrue  : a and not b         // true
+  anyTrue  : a or b              // true
+  justOne  : a xor b             // true
+  negate   : not (1 = 1)         // false
+  complex  : (1 < 2 and true) or (false and 2 > 3) // true
+}
+```
+
+- Filters with `not` and `it` alias:
+```edgerules
+model : {
+  nums : [1, 5, 12, 7, 15]
+  small : nums[not it > 10]        // [1,5,7]
+  smallCount : count(small)        // 3
+  mid : nums[(it > 3) and not (it > 10)] // [5,7]
+}
+```
+
 - Self-qualified references within a context:
 ```edgerules
 calendar : {
@@ -139,6 +165,22 @@ calendar : {
     days : [ { start : calendar.shift + 1 }, { start : calendar.shift + 31 } ]
     firstDay : days[0].start
     secondDay : days[1].start
+}
+```
+
+- Complex ruleset example:
+```edgerules
+eligibility : {
+  age    : 22
+  score  : 180
+  hasDebt : false
+
+  // Eligible if (adult and high score) or (no debt and 21+)
+  isAdult      : age >= 18
+  highScore    : score >= 200
+  conditionA   : isAdult and highScore
+  conditionB   : not hasDebt and age >= 21
+  result       : conditionA or conditionB   // true for the given inputs
 }
 ```
 
@@ -155,9 +197,8 @@ model : {
 
 ## Limitations (Current)
 
-- No literal `true`/`false`; booleans arise from comparisons/logical ops.
 - No string operators beyond `=`/`<>` comparison; no substring/length functions.
-- `%` and unary `not` are not tokenized; avoid using them.
+- `%` exists in internal enums but is not tokenized; avoid using it.
 - Decision tables are parsed but not linked/evaluated.
 - Field selection requires an object; selecting a field directly from a filtered list is not supported without indexing.
 - Function parameter type annotations are not enforced at parse/link time.

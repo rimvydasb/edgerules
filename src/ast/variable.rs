@@ -70,6 +70,10 @@ impl Display for VariableLink {
 impl EvaluatableExpression for VariableLink {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
         trace!(">>> evaluating variable {:?}", self.path);
+        // Alias: `it` inside filter contexts refers to the current context variable
+        if self.path.len() == 1 && self.path[0] == "it" {
+            return context.borrow().get_context_variable();
+        }
         // Support self-qualified references like `calendar.shift` inside the
         // `calendar: { ... }` context by stripping the leading self name and
         // browsing from the current context rather than root.
@@ -128,6 +132,14 @@ impl StaticLink for VariableLink {
             context.borrow().all_field_names.clone()
         );
         if !is_linked(&self.variable_type) {
+            // Alias: `it` resolves to the current context variable type if set by the caller
+            if self.path.len() == 1 && self.path[0] == "it" {
+                if let Some(context_type) = &context.borrow().context_type {
+                    return Ok(context_type.clone());
+                } else {
+                    return LinkingError::not_linked().into();
+                }
+            }
             // Same self-qualification handling as in eval: treat `contextName.*`
             // inside that context as local browse, not root lookup.
             let (start_ctx, path, find_root) = {

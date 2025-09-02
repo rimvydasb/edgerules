@@ -31,6 +31,7 @@ project might be volatile.
 - [x] ~ Traceable
 - [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
+- [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
 - [ ] Hard to fail: no infinite loops
 - [ ] Full DMN FEEL coverage
 - [ ] Strongly typed and statically typed with type inference
@@ -48,7 +49,7 @@ project might be volatile.
 - [ ] Pattern matching using `match`
 - [ ] None coalescing for optionals (`foo ?? bar` yields `foo` if `foo` has a value, otherwise `bar`)
 - [ ] `if`,`then`,`else`
-- [ ] `and`,`or`,`xor`
+- [x] `and`,`or`,`xor`,`not`
 - [ ] `@Context`
 
 ## Special Values

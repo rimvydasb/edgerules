@@ -283,6 +283,85 @@ mod test {
     }
 
     #[test]
+    fn test_boolean_literals_and_logic() {
+        use ValueEnum::BooleanValue as B;
+        info!(">>> test_boolean_literals_and_logic()");
+
+        // OR truth table
+        is_this_one_evaluating_to("value : true  or true", B(true));
+        is_this_one_evaluating_to("value : true  or false", B(true));
+        is_this_one_evaluating_to("value : false or true", B(true));
+        is_this_one_evaluating_to("value : false or false", B(false));
+
+        // AND truth table
+        is_this_one_evaluating_to("value : true  and true", B(true));
+        is_this_one_evaluating_to("value : true  and false", B(false));
+        is_this_one_evaluating_to("value : false and true", B(false));
+        is_this_one_evaluating_to("value : false and false", B(false));
+
+        // XOR truth table
+        is_this_one_evaluating_to("value : true  xor true", B(false));
+        is_this_one_evaluating_to("value : true  xor false", B(true));
+        is_this_one_evaluating_to("value : false xor true", B(true));
+        is_this_one_evaluating_to("value : false xor false", B(false));
+
+        // NOT operator
+        is_this_one_evaluating_to("value : not true", B(false));
+        is_this_one_evaluating_to("value : not false", B(true));
+        is_this_one_evaluating_to("value : not (1 = 1)", B(false));
+        is_this_one_evaluating_to("value : not (1 = 2)", B(true));
+
+        // Mixed with comparisons
+        is_this_one_evaluating_to("value : true and (1 < 2)", B(true));
+        is_this_one_evaluating_to("value : (1 = 1) and false", B(false));
+        is_this_one_evaluating_to("value : (1 = 1) or false", B(true));
+        is_this_one_evaluating_to("value : true and not false", B(true));
+        is_this_one_evaluating_to("value : (1 < 2) and not (2 < 1)", B(true));
+
+        // More complex cases simulating rulesets
+        is_this_one_evaluating_to(
+            "value : (true and (1 < 2)) or (false and (3 = 4))",
+            B(true),
+        );
+        is_this_one_evaluating_to(
+            "value : (true xor (1 = 1 and false)) or (2 < 1)",
+            B(true),
+        );
+        is_this_one_evaluating_to(
+            "value : (true and true) xor (false or (1 < 1))",
+            B(true),
+        );
+        is_this_one_evaluating_to(
+            "value : (true and (2 > 1 and (3 > 2))) and (false or (5 = 5))",
+            B(true),
+        );
+    }
+
+    #[test]
+    fn test_filter_not_alias() {
+        use ValueEnum::NumberValue as N;
+        use crate::typesystem::types::number::NumberEnum::Int;
+
+        // not with implicit context variable alias 'it'
+        is_this_one_evaluating_to(
+            "value : count([1, 5, 12, 7][not it > 10])",
+            N(Int(3)),
+        );
+
+        // not with explicit context variable '...'
+        is_this_one_evaluating_to(
+            "value : count([1, 5, 12, 7][not ... > 10])",
+            N(Int(3)),
+        );
+
+        // combine inside filter
+        is_this_one_evaluating_to(
+            "value : count([1, 5, 12, 7, 15][(it > 3) and not (it > 10)])",
+            N(Int(2)),
+        );
+    }
+
+    #[test]
     fn test_constraints() {
         info!(">>> test_constraints()");
         init_logger();

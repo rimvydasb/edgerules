@@ -40,7 +40,9 @@ pub enum EPriorities {
     ReservedWords = 5,
 
     // a = b or a = c
-    GateNot = 7,
+    // Precedence: Not binds tighter than And/Or/Xor, but looser than Comparators
+    // so expressions like `not it > 10` parse as `not (it > 10)`.
+    GateNot = 14,
     GateAnd = 9,
     GatesXor = 11,
     GatesOr = 13,
