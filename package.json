@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "description": "Helper scripts to build and run EdgeRules WASM demos",
   "scripts": {
-    "build:wasm:node": "wasm-pack build --release --target nodejs -- --features wasm && wasm-opt -Oz pkg/edge_rules_bg.wasm -o pkg/edge_rules_bg.opt.wasm || true",
-    "build:wasm:web": "wasm-pack build --release --target web -- --features wasm && wasm-opt -Oz pkg/edge_rules_bg.wasm -o pkg/edge_rules_bg.opt.wasm || true",
+    "build:wasm:node": "wasm-pack build --release --target nodejs -- --features wasm && wasm-opt -Oz --strip-debug --strip-producers --dce pkg/edge_rules_bg.wasm -o pkg/edge_rules_bg.opt.wasm",
+    "build:wasm:web": "wasm-pack build --release --target web -- --features wasm && wasm-opt -Oz --strip-debug --strip-producers --dce pkg/edge_rules_bg.wasm -o pkg/edge_rules_bg.opt.wasm",
     "demo:node": "node examples/js/node-demo.mjs",
     "demo:web": "npx -y http-server -p 8080 .",
     "build:wasi": "cargo build --release --target wasm32-wasip1 -p edge-rules --bin edgerules-wasi",

@@ -88,6 +88,7 @@ project might be volatile.
 ## Prerequisites
 
 - Node.js 18+
+- just: `cargo install just` (or `brew install just`)
 - wasm-pack: `cargo install wasm-pack` (or `brew install wasm-pack`)
 
 ## WASM (Web/Node.js)

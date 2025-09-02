@@ -76,7 +76,7 @@
     - [ ] Replace frequent format! in hot paths with lightweight error enums +
       Display built only on error. Defer string building until needed.
 - [ ] Tests:
-    - [ ] Keep regex usage behind #[cfg(test)]; migrate to [dev-dependencies].
+    - [x] Keep regex usage behind #[cfg(test)]; migrate to [dev-dependencies].
     - [ ] Add perf smoke-tests (Criterion on native) to catch regressions in
       browse/eval and array filtering.
 - [ ] Module cohesion:
