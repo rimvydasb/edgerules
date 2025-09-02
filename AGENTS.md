@@ -33,15 +33,13 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 ## Build, Test, and Development Commands
 
 - `just ensure`: Ensures targets and tools exist (wasm-pack, wasm-opt, wasmtime).
-- `just web`: Build WASM for web into pkg/ and optimize.
-- `just node`: Build WASM for Node into pkg/ and optimize.
-- `just wasi`: Build the WASI binary edgerules-wasi.wasm.
+- `just web`: Build WASM for web into `target/pkg-web/` and optimize (prints sizes).
+- `just node`: Build WASM for Node into `target/pkg-node/` and optimize (prints sizes).
+- `just wasi`: Build the WASI binary `edgerules-wasi.wasm` and run demo (prints size).
 - `just core`: Build core library for wasm32-unknown-unknown.
 - `just core-opt`: Minify core output to .min.wasm.
-- `just web-separate`: Build web to pkg-web/ and optimize.
-- `just node-separate`: Build node to pkg-node/ and optimize.
-- `just demo-web`: Serve at http://localhost:8080 (uses pkg/).
-- `just demo-node`: Run Node demo (uses pkg/).
+- `just demo-web`: Serve at http://localhost:8080 (expects `target/pkg-web/`).
+- `just demo-node`: Run Node demo (expects `target/pkg-node/`).
 - `just demo-wasi`: Run WASI demo via wasmtime.
 
 ## Coding Style & Naming Conventions

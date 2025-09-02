@@ -13,7 +13,7 @@
     <h1>EdgeRules Web Demo</h1>
     <div id="out"></div>
     <script type="module">
-      import init, { evaluate_value, evaluate_field, to_trace, init_panic_hook } from '../../pkg/edge_rules.js';
+      import init, { evaluate_value, evaluate_field, to_trace, init_panic_hook } from '../../target/pkg-web/edge_rules.js';
 
       const out = document.getElementById('out');
       const log = (label, value) => {

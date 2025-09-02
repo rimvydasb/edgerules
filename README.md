@@ -93,9 +93,9 @@ project might be volatile.
 
 ## WASM (Web/Node.js)
 
-- For Web: `npm run build:wasm:web`
-- For Node.js: `npm run build:wasm:node`
-- Optional (if Binaryen is installed): `wasm-opt -Oz -o pkg/optimized.wasm pkg/*.wasm`
+- For Web: `npm run build:wasm:web` (artifacts in `target/pkg-web/`)
+- For Node.js: `npm run build:wasm:node` (artifacts in `target/pkg-node/`)
+- Optional (if Binaryen is installed): `wasm-opt -Oz -o target/pkg-web/edge_rules_bg.min.wasm target/pkg-web/edge_rules_bg.wasm`
 
 ## WASI CLI (Wasmer/Wasmtime) (@Todo not working now)
 
@@ -105,8 +105,8 @@ project might be volatile.
 
 ## Validation and Testing (@Todo not working now)
 
-- Size check: `du -h pkg/*.wasm`
-- Run (wasmtime/wasmer): `wasmtime pkg/edge_rules_bg.opt.wasm -- "{ value: 2 + 2 }"`
+- Size check: `du -h target/pkg-web/*.wasm target/pkg-node/*.wasm`
+- Run (wasmtime/wasmer): `wasmtime target/wasm32-wasip1/release/edgerules-wasi.wasm -- "{ value: 2 + 2 }"`
 
 ## Readings
 
