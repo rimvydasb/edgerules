@@ -62,6 +62,23 @@ This document describes the EdgeRules DSL as currently implemented in this repos
   - Example: `not it > 10` parses as `not (it > 10)`. Use parentheses to make intent explicit when combining.
 - **Parentheses**: `( ... )` to group expressions.
 
+### Operator Precedence
+
+From highest to lowest. Parentheses always take precedence to group explicitly.
+
+| Level | Operators / forms                      | Notes / examples                             |
+|---|----------------------------------------|----------------------------------------------|
+| 1 | Parentheses `(...)`                     | Grouping                                      |
+| 2 | Function call `f(...)`                  | `sum([1,2,3])`                                |
+| 3 | Field/select/filter `.`, `[...]`        | `obj.field`, `list[... > 10]`                 |
+| 4 | Unary minus `-`                         | `-(a + b)`                                    |
+| 5 | Power `^`                               | `2 ^ 3`                                       |
+| 6 | Multiply/Divide `* /`                   | `a * b / c`                                   |
+| 7 | Add/Subtract `+ -`                      | `a + b - c`                                   |
+| 8 | Comparators `= <> < > <= >=`            | `a + 1 = 3` (arithmetic before compare)       |
+| 9 | Unary logical `not`                     | `not it > 10` ≡ `not (it > 10)`               |
+| 10 | Logical `and`, `xor`, `or`             | Use parentheses to disambiguate if needed     |
+
 ## Control Constructs
 
 - **If-Then-Else**: `if cond then a else b`
