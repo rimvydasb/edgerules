@@ -96,3 +96,21 @@ output:
 ```edgerules
 // output
 ```
+
+
+## Loop and built-ins:
+
+```edgerules
+model : {
+    sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+    salesCount : count(sales)
+    sales3(month, sales) : { result : sales[month] + sales[month + 1] + sales[month + 2] }
+    acc : for m in 1..(salesCount - 2) return sales3(m, sales).result
+    best : max(acc)
+}
+```
+
+output:
+```edgerules
+// output
+```

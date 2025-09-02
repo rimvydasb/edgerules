@@ -114,3 +114,28 @@ output:
 ```edgerules
 ',' is not a proper context element → 'positiveDays' assignment side is not complete → 'calendar' assignment side is not complete
 ```
+
+
+## Loop and built-ins:
+
+```edgerules
+model : {
+    sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+    salesCount : count(sales)
+    sales3(month, sales) : { result : sales[month] + sales[month + 1] + sales[month + 2] }
+    acc : for m in 1..(salesCount - 2) return sales3(m, sales).result
+    best : max(acc)
+}
+```
+
+output:
+```edgerules
+{
+   model : {
+      sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+      salesCount : 12
+      acc : [35, 16, 18, 17, 94, 84, 86, 8, 16, 8]
+      best : 94
+   }
+}
+```
