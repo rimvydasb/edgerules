@@ -1,20 +1,22 @@
-use std::collections::vec_deque::VecDeque;
-use std::fmt::{Debug};
-use std::iter::Peekable;
-use std::ops;
-use crate::ast::token::{EToken, ExpressionEnum};
-use std::str::Chars;
 use crate::ast::token::EToken::{Expression, ParseError, Unparsed};
 use crate::ast::token::EUnparsedToken::Literal;
+use crate::ast::token::{EToken, ExpressionEnum};
 use crate::typesystem::errors::ParseErrorEnum;
-use crate::typesystem::errors::ParseErrorEnum::{Empty, MissingLiteral, UnexpectedLiteral, UnexpectedToken};
-use crate::typesystem::types::{Float, Integer};
+use crate::typesystem::errors::ParseErrorEnum::{
+    Empty, MissingLiteral, UnexpectedLiteral, UnexpectedToken,
+};
 use crate::typesystem::types::number::NumberEnum;
+use crate::typesystem::types::{Float, Integer};
+use std::collections::vec_deque::VecDeque;
+use std::fmt::Debug;
+use std::iter::Peekable;
+use std::ops;
+use std::str::Chars;
 
 //----------------------------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Either<L : Debug, R : Debug> {
+pub enum Either<L: Debug, R: Debug> {
     Left(L),
     Right(R),
 }
@@ -40,7 +42,8 @@ impl TokenChain {
     }
 
     fn pop_helper<F>(&mut self, pop_fn: F) -> Result<EToken, ParseErrorEnum>
-        where F: FnOnce(&mut Self) -> Option<EToken>,
+    where
+        F: FnOnce(&mut Self) -> Option<EToken>,
     {
         if let Some(token) = pop_fn(self) {
             if let EToken::ParseError(error) = token {
@@ -62,14 +65,19 @@ impl TokenChain {
     }
 
     fn pop_expression_helper<F>(&mut self, pop_fn: F) -> Result<ExpressionEnum, ParseErrorEnum>
-        where F: FnOnce(&mut Self) -> Option<EToken>,
+    where
+        F: FnOnce(&mut Self) -> Option<EToken>,
     {
         match pop_fn(self) {
             None => Err(Empty),
             Some(EToken::Expression(expression)) => Ok(expression),
             Some(EToken::ParseError(error)) => Err(error),
-            Some(EToken::Unparsed(token)) => Err(UnexpectedToken(Box::new(EToken::Unparsed(token)), None)),
-            Some(EToken::Definition(_definition)) => Err(ParseErrorEnum::InvalidType(format!("Expected expression, got definition"))),
+            Some(EToken::Unparsed(token)) => {
+                Err(UnexpectedToken(Box::new(EToken::Unparsed(token)), None))
+            }
+            Some(EToken::Definition(_definition)) => Err(ParseErrorEnum::InvalidType(
+                "Expected expression, got definition".to_string(),
+            )),
         }
     }
 
@@ -82,21 +90,29 @@ impl TokenChain {
         self.pop_as_expected_helper(|s| s.pop_front(), expected)
     }
 
-    fn pop_as_expected_helper<F>(&mut self, pop_fn: F, expected: &str) -> Result<String, ParseErrorEnum>
-        where F: FnOnce(&mut Self) -> Option<EToken>,
+    fn pop_as_expected_helper<F>(
+        &mut self,
+        pop_fn: F,
+        expected: &str,
+    ) -> Result<String, ParseErrorEnum>
+    where
+        F: FnOnce(&mut Self) -> Option<EToken>,
     {
         if let Some(Unparsed(Literal(maybe))) = pop_fn(self) {
             return if maybe.eq(expected) {
                 Ok(maybe)
             } else {
-                Err(UnexpectedLiteral(expected.to_string(), Some(expected.to_string())))
+                Err(UnexpectedLiteral(
+                    expected.to_string(),
+                    Some(expected.to_string()),
+                ))
             };
         }
 
         Err(MissingLiteral(expected.to_string()))
     }
 
-    pub fn into_expressions(&mut self) -> Result<Vec<ExpressionEnum>, ParseErrorEnum> {
+    pub fn drain_expressions(&mut self) -> Result<Vec<ExpressionEnum>, ParseErrorEnum> {
         let mut arguments = Vec::new();
 
         while let Some(token) = self.pop_front() {
@@ -104,7 +120,7 @@ impl TokenChain {
                 ParseError(error) => return Err(error),
                 Unparsed(_) => {}
                 Expression(expression) => arguments.push(expression),
-                unknown => return Err(UnexpectedToken(Box::new(unknown), None))
+                unknown => return Err(UnexpectedToken(Box::new(unknown), None)),
             }
         }
 
@@ -249,7 +265,7 @@ impl<'a> CharStream<'a> {
     pub fn get_all_till(&mut self, symbol: char) -> String {
         let mut result = String::new();
 
-        while let Some(c) = self.iter.next() {
+        for c in self.iter.by_ref() {
             if c == symbol {
                 break;
             }
@@ -314,35 +330,40 @@ impl<'a> CharStream<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::test::*;
     use crate::tokenizer::utils::Either::{Left, Right};
+    use crate::utils::test::*;
 
     #[test]
     fn test_common() {
         init_logger();
 
         assert_eq!(
-            CharStream::new("(\"first-hit\")").parse_arguments().unwrap(),
+            CharStream::new("(\"first-hit\")")
+                .parse_arguments()
+                .unwrap(),
             vec!["first-hit"]
         );
 
-        assert_eq!(
-            CharStream::new(" (\"first-hit\")").parse_arguments(),
-            None
-        );
+        assert_eq!(CharStream::new(" (\"first-hit\")").parse_arguments(), None);
 
         assert_eq!(
-            CharStream::new("(\"first-hit\",\"another\")").parse_arguments().unwrap(),
+            CharStream::new("(\"first-hit\",\"another\")")
+                .parse_arguments()
+                .unwrap(),
             vec!["first-hit", "another"]
         );
 
         assert_eq!(
-            CharStream::new("(\"first-hit\",\"another\"").parse_arguments().unwrap(),
+            CharStream::new("(\"first-hit\",\"another\"")
+                .parse_arguments()
+                .unwrap(),
             vec!["first-hit", "another"]
         );
 
         assert_eq!(
-            CharStream::new("(\"first-hit\",\"another)").parse_arguments().unwrap(),
+            CharStream::new("(\"first-hit\",\"another)")
+                .parse_arguments()
+                .unwrap(),
             vec!["first-hit", "another)"]
         );
 
@@ -355,15 +376,42 @@ mod test {
         assert_eq!(CharStream::new("abc&123_ ").get_alphanumeric(), "abc");
 
         // testing CharStream skip_whitespace method
-        assert_eq!(CharStream::new(" abc123_ ").skip_whitespace().next().unwrap(), 'a');
-        assert_eq!(CharStream::new("xbc123_ ").skip_whitespace().next().unwrap(), 'x');
-        assert_eq!(CharStream::new("       zbc123_ ").skip_whitespace().next().unwrap(), 'z');
+        assert_eq!(
+            CharStream::new(" abc123_ ")
+                .skip_whitespace()
+                .next()
+                .unwrap(),
+            'a'
+        );
+        assert_eq!(
+            CharStream::new("xbc123_ ")
+                .skip_whitespace()
+                .next()
+                .unwrap(),
+            'x'
+        );
+        assert_eq!(
+            CharStream::new("       zbc123_ ")
+                .skip_whitespace()
+                .next()
+                .unwrap(),
+            'z'
+        );
 
         // testing CharStream get_number method
         assert_eq!(CharStream::new("123").get_number(), NumberEnum::from(123));
-        assert_eq!(CharStream::new("123.5").get_number(), NumberEnum::from(123.5));
-        assert_eq!(CharStream::new("0000.5").get_number(), NumberEnum::from(0.5));
-        assert_eq!(CharStream::new("1000.5").get_number(), NumberEnum::from(1000.5));
+        assert_eq!(
+            CharStream::new("123.5").get_number(),
+            NumberEnum::from(123.5)
+        );
+        assert_eq!(
+            CharStream::new("0000.5").get_number(),
+            NumberEnum::from(0.5)
+        );
+        assert_eq!(
+            CharStream::new("1000.5").get_number(),
+            NumberEnum::from(1000.5)
+        );
         assert_eq!(CharStream::new("0.5").get_number(), NumberEnum::from(0.5));
         assert_eq!(CharStream::new("0.5x").get_number(), NumberEnum::from(0.5));
         assert_eq!(CharStream::new("0.5.1").get_number(), NumberEnum::from(0.5));
@@ -378,13 +426,31 @@ mod test {
             assert!(stream.dot_was_skipped);
         }
         // testing CharStream get_literal_token method
-        assert_eq!(CharStream::new("abc").get_literal_token(), Left("abc".to_string()));
-        assert_eq!(CharStream::new("b c").get_literal_token(), Left("b".to_string()));
-        assert_eq!(CharStream::new("b ").get_literal_token(), Left("b".to_string()));
-        assert_eq!(CharStream::new("  ").get_literal_token(), Left("".to_string()));
+        assert_eq!(
+            CharStream::new("abc").get_literal_token(),
+            Left("abc".to_string())
+        );
+        assert_eq!(
+            CharStream::new("b c").get_literal_token(),
+            Left("b".to_string())
+        );
+        assert_eq!(
+            CharStream::new("b ").get_literal_token(),
+            Left("b".to_string())
+        );
+        assert_eq!(
+            CharStream::new("  ").get_literal_token(),
+            Left("".to_string())
+        );
 
-        assert_eq!(CharStream::new("aaa.bbb").get_literal_token(), Right(vec!["aaa".to_string(), "bbb".to_string()]));
-        assert_eq!(CharStream::new("aaa. ").get_literal_token(), Right(vec!["aaa".to_string(), "".to_string()]));
+        assert_eq!(
+            CharStream::new("aaa.bbb").get_literal_token(),
+            Right(vec!["aaa".to_string(), "bbb".to_string()])
+        );
+        assert_eq!(
+            CharStream::new("aaa. ").get_literal_token(),
+            Right(vec!["aaa".to_string(), "".to_string()])
+        );
     }
 
     #[test]

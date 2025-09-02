@@ -1,15 +1,15 @@
+use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
+use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::token::ExpressionEnum;
+use crate::ast::Link;
+use crate::link::node_data::{ContentHolder, Node, NodeData};
+use crate::typesystem::errors::LinkingError;
+use crate::typesystem::types::ValueType;
+use log::trace;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
-use std::rc::{Rc};
-use log::trace;
-use crate::ast::Link;
-use crate::ast::metaphors::metaphor::Metaphor;
-use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
-use crate::ast::token::ExpressionEnum;
-use crate::link::node_data::{ContentHolder, Node, NodeData};
-use crate::typesystem::errors::LinkingError;
-use crate::typesystem::types::{ValueType};
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
 pub struct ExpressionEntry {
@@ -26,9 +26,9 @@ impl From<ExpressionEnum> for ExpressionEntry {
     }
 }
 
-impl Into<Rc<RefCell<ExpressionEntry>>> for ExpressionEntry {
-    fn into(self) -> Rc<RefCell<ExpressionEntry>> {
-        Rc::new(RefCell::new(self))
+impl From<ExpressionEntry> for Rc<RefCell<ExpressionEntry>> {
+    fn from(val: ExpressionEntry) -> Self {
+        Rc::new(RefCell::new(val))
     }
 }
 
@@ -47,9 +47,9 @@ impl From<Box<dyn Metaphor>> for MethodEntry {
     }
 }
 
-impl Into<Rc<RefCell<MethodEntry>>> for MethodEntry {
-    fn into(self) -> Rc<RefCell<MethodEntry>> {
-        Rc::new(RefCell::new(self))
+impl From<MethodEntry> for Rc<RefCell<MethodEntry>> {
+    fn from(val: MethodEntry) -> Self {
+        Rc::new(RefCell::new(val))
     }
 }
 
@@ -86,7 +86,7 @@ impl ContentHolder<ContextObject> for ContextObject {
     /// Technically object content, but additional casting is done:
     /// returned reference is not assigned to the object itself, so it must be done outside
     fn get(&self, name: &str) -> Result<EObjectContent<ContextObject>, LinkingError> {
-        trace!("get {}.{}", self.node().node_type,name);
+        trace!("get {}.{}", self.node().node_type, name);
         if let Some(content) = self.expressions.get(name) {
             Ok(EObjectContent::ExpressionRef(Rc::clone(content)))
         } else if let Some(ctx) = self.node().get_child(name) {
@@ -108,8 +108,7 @@ impl ContentHolder<ContextObject> for ContextObject {
 // @Todo: must evaluate types as well
 impl PartialEq for ContextObject {
     fn eq(&self, other: &Self) -> bool {
-        self.node() == other.node()
-            && self.all_field_names == other.all_field_names
+        self.node() == other.node() && self.all_field_names == other.all_field_names
     }
 }
 
@@ -120,8 +119,7 @@ impl Display for ContextObject {
 }
 
 impl ContextObject {
-
-    pub fn to_rc(self) -> Rc<RefCell<ContextObject>> {
+    pub fn into_rc(self) -> Rc<RefCell<ContextObject>> {
         Rc::new(RefCell::new(self))
     }
 
@@ -138,23 +136,21 @@ impl ContextObject {
     }
 
     pub fn to_type_string(&self) -> String {
-        let mut lines : Vec<String> = Vec::new();
+        let mut lines: Vec<String> = Vec::new();
         for name in self.all_field_names.iter() {
             let content = self.get(name).unwrap();
             match content {
-                EObjectContent::ExpressionRef(entry) => {
-                    match &entry.borrow().field_type {
-                        Ok(field_type) => {
-                            lines.push(format!("{}: {}", name, field_type));
-                        }
-                        Err(err) => {
-                            lines.push(format!("{}: {}", name, err));
-                        }
+                EObjectContent::ExpressionRef(entry) => match &entry.borrow().field_type {
+                    Ok(field_type) => {
+                        lines.push(format!("{}: {}", name, field_type));
+                    }
+                    Err(err) => {
+                        lines.push(format!("{}: {}", name, err));
                     }
                 },
                 EObjectContent::ObjectRef(entry) => {
                     lines.push(format!("{}: {}", name, entry.borrow().to_type_string()));
-                },
+                }
                 _ => {}
             }
         }
@@ -168,17 +164,17 @@ impl ContextObject {
 // ---
 #[cfg(test)]
 pub mod test {
-    use std::rc::Rc;
     use log::info;
+    use std::rc::Rc;
 
-    use crate::ast::metaphors::functions::FunctionDefinition;
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
+    use crate::ast::metaphors::functions::FunctionDefinition;
     use crate::ast::token::DefinitionEnum::MetaphorDefinition;
     use crate::ast::token::ExpressionEnum;
     use crate::link::linker::{get_till_root, link_parts};
-    use crate::link::node_data::{ContentHolder};
-    use crate::runtime::edge_rules::{EvalError, expr};
-    
+    use crate::link::node_data::ContentHolder;
+    use crate::runtime::edge_rules::{expr, EvalError};
+
     use crate::utils::test::init_logger;
 
     type E = ExpressionEnum;
@@ -199,11 +195,15 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"));
             child.add_expression("y", expr("a + b")?);
-            child.add_definition(MetaphorDefinition(FunctionDefinition::build(
-                vec![],
-                "income".to_string(),
-                vec![],
-                ContextObjectBuilder::new().build()).into()));
+            child.add_definition(MetaphorDefinition(
+                FunctionDefinition::build(
+                    vec![],
+                    "income".to_string(),
+                    vec![],
+                    ContextObjectBuilder::new().build(),
+                )
+                .into(),
+            ));
             let instance = child.build();
             child_instance = Rc::clone(&instance);
             builder.add_expression("c", ExpressionEnum::StaticObject(instance));
@@ -213,24 +213,47 @@ pub mod test {
 
         link_parts(Rc::clone(&ctx))?;
 
-        assert_eq!(ctx.borrow().to_string(), "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}");
-        assert_eq!(ctx.borrow().to_type_string(), "Type<a: number, b: number, c: Type<x: string, y: number>>");
+        assert_eq!(
+            ctx.borrow().to_string(),
+            "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}"
+        );
+        assert_eq!(
+            ctx.borrow().to_type_string(),
+            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+        );
 
         assert_eq!(ctx.borrow().get("a")?.to_string(), "1");
         assert_eq!(ctx.borrow().get("b")?.to_string(), "2");
         assert!(ctx.borrow().get("x").is_err());
-        assert_eq!(ctx.borrow().get("c")?.to_string(), "{x : 'Hello'; y : a + b; income() : {}}");
+        assert_eq!(
+            ctx.borrow().get("c")?.to_string(),
+            "{x : 'Hello'; y : a + b; income() : {}}"
+        );
 
-        assert_eq!(get_till_root(Rc::clone(&ctx),"a").unwrap().content.to_string(),"1");
-        assert_eq!(get_till_root(Rc::clone(&child_instance),"a").unwrap().content.to_string(),"1");
-        assert_eq!(get_till_root(Rc::clone(&child_instance),"x").unwrap().content.to_string(),"'Hello'");
+        assert_eq!(
+            get_till_root(Rc::clone(&ctx), "a")
+                .unwrap()
+                .content
+                .to_string(),
+            "1"
+        );
+        assert_eq!(
+            get_till_root(Rc::clone(&child_instance), "a")
+                .unwrap()
+                .content
+                .to_string(),
+            "1"
+        );
+        assert_eq!(
+            get_till_root(Rc::clone(&child_instance), "x")
+                .unwrap()
+                .content
+                .to_string(),
+            "'Hello'"
+        );
 
         info!(">>> test_nesting() linking");
 
         Ok(())
     }
 }
-
-
-
-

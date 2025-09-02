@@ -1,26 +1,26 @@
+use crate::ast::annotations::{AnnotationEnum, EHitPolicy};
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::context::function_context::FunctionContext;
+use crate::ast::expression::StaticLink;
+use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::sequence::CollectionExpression;
+use crate::ast::token::EUnparsedToken::FunctionDefinitionLiteral;
+use crate::ast::token::ExpressionEnum;
+use crate::ast::token::ExpressionEnum::{Collection, Value, Variable};
+use crate::ast::utils::array_to_code_sep;
+use crate::ast::Link;
+use crate::runtime::execution_context::ExecutionContext;
+use crate::typesystem::errors::ParseErrorEnum::UnknownError;
+use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
+use crate::typesystem::types::string::StringEnum;
+use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::values::ValueEnum;
+use log::error;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use log::error;
-use crate::ast::annotations::{AnnotationEnum, EHitPolicy};
-use crate::ast::expression::StaticLink;
-use crate::ast::metaphors::metaphor::Metaphor;
-use crate::ast::token::{ExpressionEnum};
-use crate::ast::token::EUnparsedToken::FunctionDefinitionLiteral;
-use crate::ast::token::ExpressionEnum::{Collection, Value, Variable};
-use crate::ast::utils::array_to_code_sep;
-use crate::ast::context::context_object::ContextObject;
-use crate::ast::context::context_object_type::FormalParameter;
-use crate::ast::context::function_context::{FunctionContext};
-use crate::ast::Link;
-use crate::ast::sequence::CollectionExpression;
-use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
-use crate::typesystem::errors::ParseErrorEnum::UnknownError;
-use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::types::{TypedValue, ValueType};
-use crate::typesystem::values::ValueEnum;
 
 #[derive(Debug, PartialEq)]
 pub struct TableRow {
@@ -29,7 +29,11 @@ pub struct TableRow {
 }
 
 impl TableRow {
-    pub fn build(condition_cells: Vec<ExpressionEnum>, condition_headers: &Vec<ExpressionEnum>, action_cells: Vec<ExpressionEnum>) -> Result<Self, ParseErrorEnum> {
+    pub fn build(
+        condition_cells: Vec<ExpressionEnum>,
+        condition_headers: &Vec<ExpressionEnum>,
+        action_cells: Vec<ExpressionEnum>,
+    ) -> Result<Self, ParseErrorEnum> {
         let re_map = |(_expression, _header): (ExpressionEnum, &ExpressionEnum)| -> Result<ExpressionEnum, ParseErrorEnum>{
             todo!("Implement other comparators than Equals")
 
@@ -48,14 +52,19 @@ impl TableRow {
         //     //.collect::<Vec<Result<ExpressionEnum,ParseErrorEnum>>>();
 
         let mut cells = Vec::new();
-        for result in condition_cells.into_iter()
+        for result in condition_cells
+            .into_iter()
             .zip(condition_headers)
             .map(re_map)
-            .collect::<Vec<Result<ExpressionEnum, ParseErrorEnum>>>() {
+            .collect::<Vec<Result<ExpressionEnum, ParseErrorEnum>>>()
+        {
             cells.push(result?);
         }
 
-        Ok(TableRow { condition_cells: cells, action_cells: Vec::from(action_cells) })
+        Ok(TableRow {
+            condition_cells: cells,
+            action_cells,
+        })
     }
 
     #[allow(dead_code)]
@@ -69,7 +78,11 @@ impl TableRow {
                     break;
                 }
             } else {
-                return RuntimeError::eval_error(format!("Condition must return boolean value, got {}", result)).into();
+                return RuntimeError::eval_error(format!(
+                    "Condition must return boolean value, got {}",
+                    result
+                ))
+                .into();
             }
         }
 
@@ -79,7 +92,10 @@ impl TableRow {
 
 impl Display for TableRow {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let row = self.condition_cells.iter().chain(self.action_cells.iter())
+        let row = self
+            .condition_cells
+            .iter()
+            .chain(self.action_cells.iter())
             .map(|s| format!("{}", s))
             .collect::<Vec<String>>()
             .join(", ");
@@ -99,14 +115,21 @@ pub struct DecisionTable {
 }
 
 impl DecisionTable {
-    pub fn build(annotations: Vec<AnnotationEnum>, table_name: String, arguments: Vec<FormalParameter>, rows: CollectionExpression) -> Result<Self, ParseErrorEnum> {
+    pub fn build(
+        annotations: Vec<AnnotationEnum>,
+        table_name: String,
+        arguments: Vec<FormalParameter>,
+        rows: CollectionExpression,
+    ) -> Result<Self, ParseErrorEnum> {
         let inputs: Vec<ExpressionEnum> = Vec::new();
         let mut output = Vec::new();
         let mut table_rows = Vec::new();
         let mut hit_policy = EHitPolicy::FirstHit;
         let mut length = 0;
         for annotation in annotations {
-            if let AnnotationEnum::DecisionTableAnnotation(policy) = annotation { hit_policy = policy }
+            if let AnnotationEnum::DecisionTableAnnotation(policy) = annotation {
+                hit_policy = policy
+            }
         }
 
         let mut get_headers = true;
@@ -120,41 +143,59 @@ impl DecisionTable {
                         length = columns.elements.len();
 
                         if arguments.len() > columns.elements.len() {
-                            return Err(UnknownError(format!("There are more arguments ({}) than columns ({})", arguments.len(), columns.elements.len())));
+                            return Err(UnknownError(format!(
+                                "There are more arguments ({}) than columns ({})",
+                                arguments.len(),
+                                columns.elements.len()
+                            )));
                         }
 
                         if arguments.len() == columns.elements.len() {
-                            return Err(UnknownError(format!("No action columns exists for {} columns length table", arguments.len())));
+                            return Err(UnknownError(format!(
+                                "No action columns exists for {} columns length table",
+                                arguments.len()
+                            )));
                         }
 
-                        let (_condition_cells, action_cells) = columns.elements.split_at(arguments.len());
+                        let (_condition_cells, action_cells) =
+                            columns.elements.split_at(arguments.len());
 
                         //inputs = condition_cells.to_vec();
 
                         for expression in action_cells {
                             match expression {
-                                Value(ValueEnum::StringValue(StringEnum::String(header_name))) => output.push(header_name.clone()),
+                                Value(ValueEnum::StringValue(StringEnum::String(header_name))) => {
+                                    output.push(header_name.clone())
+                                }
                                 Variable(variable) => output.push(variable.get_name()),
-                                _ => return Err(UnknownError("Invalid header name, only string values are supported".to_string()))
+                                _ => {
+                                    return Err(UnknownError(
+                                        "Invalid header name, only string values are supported"
+                                            .to_string(),
+                                    ))
+                                }
                             }
                         }
                     } else {
                         if columns.elements.len() != length {
-                            return Err(UnknownError(format!("Row length {} does not match header length {}", columns.elements.len(), length)));
+                            return Err(UnknownError(format!(
+                                "Row length {} does not match header length {}",
+                                columns.elements.len(),
+                                length
+                            )));
                         }
 
                         let action_cells = columns.elements.split_off(inputs.len());
 
-                        let table_row = TableRow::build(
-                            columns.elements,
-                            &inputs,
-                            action_cells)?;
+                        let table_row = TableRow::build(columns.elements, &inputs, action_cells)?;
 
                         table_rows.push(table_row);
                     }
                 }
                 _ => {
-                    return Err(UnknownError("Invalid row format, only collections are supported".to_string()));
+                    return Err(UnknownError(
+                        "Invalid row format, only collections are supported".to_string(),
+                    ));
                 }
             }
         }
@@ -171,10 +212,8 @@ impl DecisionTable {
 
     #[allow(dead_code)]
     fn evaluate(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<bool, RuntimeError> {
-
         // for each table rows
         for row in &self.rows {
-
             // evaluate row and see if it matches
             let all_conditions_met = row.evaluate(Rc::clone(&context))?;
 
@@ -201,13 +240,21 @@ impl DecisionTable {
 impl Display for DecisionTable {
     fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
         let annotation = AnnotationEnum::DecisionTableAnnotation(self.hit_policy.clone());
-        let function = FunctionDefinitionLiteral(vec![annotation], self.table_name.clone(), self.arguments.clone());
+        let function = FunctionDefinitionLiteral(
+            vec![annotation],
+            self.table_name.clone(),
+            self.arguments.clone(),
+        );
 
-        let headers = self.inputs.iter()
+        let headers = self
+            .inputs
+            .iter()
             .map(|header| format!("{}", header))
             .chain(self.output.iter().map(|header| header.to_string()));
 
-        let rows = self.rows.iter()
+        let rows = self
+            .rows
+            .iter()
             .map(|row| format!("{}", row))
             .collect::<Vec<String>>()
             .join(",\n");
@@ -226,7 +273,7 @@ impl StaticLink for DecisionTable {
     fn link(&mut self, _ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         error!("Not implemented yet");
 
-        return Ok(ValueType::BooleanType);
+        Ok(ValueType::BooleanType)
     }
 }
 
@@ -241,7 +288,9 @@ impl Metaphor for DecisionTable {
         self.table_name.clone()
     }
 
-    fn get_parameters(&self) -> &Vec<FormalParameter> { &self.arguments }
+    fn get_parameters(&self) -> &Vec<FormalParameter> {
+        &self.arguments
+    }
 
     fn create_context(&self, _arguments: Vec<FormalParameter>) -> Link<FunctionContext> {
         todo!()
@@ -263,19 +312,16 @@ impl Metaphor for DecisionTable {
     // }
 }
 
-
 //--------------------------------------------------------------------------------------------------
 
 #[cfg(test)]
 mod test {
     use log::info;
-    
-    
+
     use crate::ast::context::context_object_type::FormalParameter;
-    
+
+    use crate::ast::token::ExpressionEnum;
     use crate::utils::test::*;
-    use crate::ast::token::{ExpressionEnum};
-    
 
     #[allow(dead_code)]
     type E = ExpressionEnum;

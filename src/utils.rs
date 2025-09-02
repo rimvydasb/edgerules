@@ -1,10 +1,14 @@
-use std::collections::vec_deque::VecDeque;
-use std::fmt::{Display};
-use std::ops::{Add};
 use crate::ast::context::function_context::RETURN_EXPRESSION;
+use std::collections::vec_deque::VecDeque;
+use std::fmt::Display;
+use std::ops::Add;
 
 pub fn to_path(deque: VecDeque<&str>) -> String {
-    deque.into_iter().map(|s| String::from(s)).collect::<Vec<String>>().join(".")
+    deque
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<String>>()
+        .join(".")
 }
 
 pub fn to_vec<T>(deque: &mut VecDeque<T>) -> Vec<T> {
@@ -17,11 +21,16 @@ pub fn to_vec<T>(deque: &mut VecDeque<T>) -> Vec<T> {
 }
 
 pub fn to_display<T: Display>(vec: &[T], sep: &str) -> String {
-    vec.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join(sep)
+    vec.iter()
+        .map(|s| format!("{}", s))
+        .collect::<Vec<String>>()
+        .join(sep)
 }
 
 pub fn to_string<T: Display>(deque: &mut VecDeque<T>) -> String {
-    deque.iter_mut().fold(String::new(), |acc, item| acc.add(item.to_string().as_str()))
+    deque.iter_mut().fold(String::new(), |acc, item| {
+        acc.add(item.to_string().as_str())
+    })
 }
 
 pub fn bracket_unwrap(input: String) -> String {
@@ -55,7 +64,12 @@ pub fn capitalize(s: String) -> String {
 }
 
 static TABS: [&str; 6] = [
-    "", "   ", "      ", "         ", "            ", "               ",
+    "",
+    "   ",
+    "      ",
+    "         ",
+    "            ",
+    "               ",
 ];
 
 pub struct Lines {
@@ -113,24 +127,28 @@ impl Lines {
     }
 
     pub fn tab(&mut self) -> &mut Self {
-        self.ident = self.ident + 1;
+        self.ident += 1;
         self
     }
 
     pub fn back(&mut self) -> &mut Self {
-        self.ident = self.ident - 1;
+        self.ident -= 1;
         self
     }
+}
 
-    pub fn to_string(&self) -> String {
-        let mut text = String::new();
+impl Default for Lines {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
+impl std::fmt::Display for Lines {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for line in &self.lines {
-            text.push_str(line.as_str());
-            text.push_str("\n");
+            writeln!(f, "{}", line)?;
         }
-
-        text
+        Ok(())
     }
 }
 
@@ -147,33 +165,37 @@ impl Line {
     }
 }
 
+impl Default for Line {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 #[allow(non_snake_case)]
 pub mod test {
-    use std::fs;
-    use std::io::Write;
-    use log::{info};
-    use crate::ast::utils::*;
-    use std::sync::Once;
     use crate::ast::token::ExpressionEnum;
+    use crate::ast::utils::*;
     use crate::tokenizer::parser::tokenize;
     use crate::typesystem::errors::RuntimeError;
     use crate::typesystem::values::ValueEnum;
     use crate::utils::to_display;
+    use log::info;
     use regex::Regex;
-    
+    use std::fs;
+    use std::io::Write;
+    use std::sync::Once;
+
     use std::fmt::Display;
     use std::mem::discriminant;
-    
-    use log::error;
+
     use crate::ast::expression::StaticLink;
-    
+    use log::error;
+
     use crate::runtime::edge_rules::{EdgeRules, EdgeRulesRuntime, ParseErrors};
     use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
-    
+
     use crate::typesystem::types::number::NumberEnum;
-    
-    
 
     static INIT: Once = Once::new();
 
@@ -185,7 +207,7 @@ pub mod test {
         "".to_string()
     }
 
-    pub fn init_test(name : &str) {
+    pub fn init_test(name: &str) {
         init_logger();
         info!(">>> starting test {}", name);
     }
@@ -193,9 +215,8 @@ pub mod test {
     pub fn init_logger() {
         INIT.call_once(|| {
             env_logger::builder()
-                .format(|buf, record| {
-                    writeln!(buf, "{}: {}", record.level(), record.args())
-                }).init()
+                .format(|buf, record| writeln!(buf, "{}: {}", record.level(), record.args()))
+                .init()
         })
     }
 
@@ -208,7 +229,8 @@ pub mod test {
         let re = Regex::new(r"```edgerules\n([\s\S]*?)\n```")?;
 
         // Extract the code fragments and collect them into a Vec<String>
-        let fragments: Vec<String> = re.captures_iter(&content)
+        let fragments: Vec<String> = re
+            .captures_iter(&content)
             .map(|caps| caps[1].to_string())
             .collect();
 
@@ -220,7 +242,12 @@ pub mod test {
         let resultLine = array_to_code_sep(result.iter(), ", ");
 
         if result.len() > 1 {
-            panic!("Expected only one token, but got {}.\n text:\n {:?}\n tokens:\n {:?}", result.len(), resultLine, result);
+            panic!(
+                "Expected only one token, but got {}.\n text:\n {:?}\n tokens:\n {:?}",
+                result.len(),
+                resultLine,
+                result
+            );
         }
 
         info!("{:?}", resultLine);
@@ -231,8 +258,16 @@ pub mod test {
         test_code(code).expect_runtime_error(target, expected);
     }
 
-    pub fn is_lines_evaluating_to(code: Vec<&str>, variable: &mut ExpressionEnum, expected: ValueEnum) {
-        is_evaluating_to(format!("{{{}}}", to_display(&code, "\n")).as_str(), variable, expected);
+    pub fn is_lines_evaluating_to(
+        code: Vec<&str>,
+        variable: &mut ExpressionEnum,
+        expected: ValueEnum,
+    ) {
+        is_evaluating_to(
+            format!("{{{}}}", to_display(&code, "\n")).as_str(),
+            variable,
+            expected,
+        );
     }
 
     pub fn is_this_one_evaluating_to(code: &str, expected: ValueEnum) {
@@ -267,34 +302,26 @@ pub mod test {
             let mut service = EdgeRules::new();
 
             match service.load_source(code) {
-                Ok(_model) => {
-                    match service.to_runtime() {
-                        Ok(runtime) => {
-                            TestServiceBuilder {
-                                original_code: code.to_string(),
-                                runtime: Some(runtime),
-                                parse_errors: None,
-                                linking_errors: None,
-                            }
-                        }
-                        Err(linking_errors) => {
-                            TestServiceBuilder {
-                                original_code: code.to_string(),
-                                runtime: None,
-                                parse_errors: None,
-                                linking_errors: Some(linking_errors),
-                            }
-                        }
-                    }
-                }
-                Err(errors) => {
-                    TestServiceBuilder {
+                Ok(_model) => match service.to_runtime() {
+                    Ok(runtime) => TestServiceBuilder {
+                        original_code: code.to_string(),
+                        runtime: Some(runtime),
+                        parse_errors: None,
+                        linking_errors: None,
+                    },
+                    Err(linking_errors) => TestServiceBuilder {
                         original_code: code.to_string(),
                         runtime: None,
-                        parse_errors: Some(errors),
-                        linking_errors: None,
-                    }
-                }
+                        parse_errors: None,
+                        linking_errors: Some(linking_errors),
+                    },
+                },
+                Err(errors) => TestServiceBuilder {
+                    original_code: code.to_string(),
+                    runtime: None,
+                    parse_errors: Some(errors),
+                    linking_errors: None,
+                },
             }
         }
 
@@ -303,7 +330,10 @@ pub mod test {
 
             match &self.runtime {
                 None => {
-                    panic!("Expected runtime, but got nothing: `{}`", self.original_code);
+                    panic!(
+                        "Expected runtime, but got nothing: `{}`",
+                        self.original_code
+                    );
                 }
                 Some(runtime) => {
                     assert_eq!(runtime.static_tree.borrow().to_type_string(), expected_type);
@@ -314,7 +344,10 @@ pub mod test {
         }
 
         pub fn expect_num(&self, variable: &str, expected: NumberEnum) {
-            self.expect(&mut ExpressionEnum::variable(variable), ValueEnum::NumberValue(expected))
+            self.expect(
+                &mut ExpressionEnum::variable(variable),
+                ValueEnum::NumberValue(expected),
+            )
         }
 
         pub fn expect_parse_error(&self, expected: ParseErrorEnum) -> &Self {
@@ -324,19 +357,31 @@ pub mod test {
                         return self;
                     }
                 }
-                panic!("Expected parse error `{}`, but got: `{:?}`", expected, errors);
+                panic!(
+                    "Expected parse error `{}`, but got: `{:?}`",
+                    expected, errors
+                );
             } else {
-                panic!("Expected parse error, but got no errors: `{}`", self.original_code);
+                panic!(
+                    "Expected parse error, but got no errors: `{}`",
+                    self.original_code
+                );
             }
         }
 
         pub fn expect_no_errors(&self) -> &Self {
             if let Some(errors) = &self.parse_errors {
-                panic!("Expected no errors, but got parse errors : `{}`\nFailed to parse:\n{}", errors, self.original_code);
+                panic!(
+                    "Expected no errors, but got parse errors : `{}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
             }
 
             if let Some(errors) = &self.linking_errors {
-                panic!("Expected no errors, but got linking errors : `{}`\nFailed to parse:\n{}", errors, self.original_code);
+                panic!(
+                    "Expected no errors, but got linking errors : `{}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
             }
 
             self
@@ -344,34 +389,56 @@ pub mod test {
 
         pub fn expect_link_error(&self, expected: LinkingErrorEnum) -> &Self {
             if let Some(errors) = &self.parse_errors {
-                panic!("Expected linking error, but got parse errors : `{:?}`\nFailed to parse:\n{}", errors, self.original_code);
+                panic!(
+                    "Expected linking error, but got parse errors : `{:?}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
             }
 
             if let Some(errors) = &self.linking_errors {
                 assert_eq!(expected, errors.error, "Testing:\n{}", self.original_code);
             } else {
-                panic!("Expected linking error, but got no errors: `{}`", self.original_code);
+                panic!(
+                    "Expected linking error, but got no errors: `{}`",
+                    self.original_code
+                );
             }
 
             self
         }
 
-        pub fn expect_runtime_error(&self, _expr: &mut ExpressionEnum, _expected: RuntimeError) -> &Self {
+        pub fn expect_runtime_error(
+            &self,
+            _expr: &mut ExpressionEnum,
+            _expected: RuntimeError,
+        ) -> &Self {
             if let Some(errors) = &self.parse_errors {
-                panic!("Expected runtime error, but got parse errors : `{:?}`\nFailed to parse:\n{}", errors, self.original_code);
+                panic!(
+                    "Expected runtime error, but got parse errors : `{:?}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
             }
 
             if let Some(errors) = &self.linking_errors {
-                panic!("Expected runtime error, but got linking errors : `{:?}`\nFailed to parse:\n{}", errors, self.original_code);
+                panic!(
+                    "Expected runtime error, but got linking errors : `{:?}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
             }
 
             if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
-                panic!("Expected runtime error, but got linking errors : `{:?}`\nFailed to parse:\n{}", error, _expr);
+                panic!(
+                    "Expected runtime error, but got linking errors : `{:?}`\nFailed to parse:\n{}",
+                    error, _expr
+                );
             }
 
             match _expr.eval(self.runtime.as_ref().unwrap().context.clone()) {
                 Ok(value) => {
-                    panic!("Expected runtime error, but got value : `{:?}`\nEvaluation is fine:\n{}", value, _expr);
+                    panic!(
+                        "Expected runtime error, but got value : `{:?}`\nEvaluation is fine:\n{}",
+                        value, _expr
+                    );
                 }
                 Err(error) => {
                     assert_eq!(error, _expected, "Testing:\n{}", self.original_code);
@@ -385,12 +452,20 @@ pub mod test {
             self.expect_no_errors();
 
             if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
-                panic!("Expected value, but got linking errors : `{:?}`\nFailed to parse:\n{}", error, _expr);
+                panic!(
+                    "Expected value, but got linking errors : `{:?}`\nFailed to parse:\n{}",
+                    error, _expr
+                );
             }
 
             match _expr.eval(self.runtime.as_ref().unwrap().context.clone()) {
                 Ok(value) => {
-                    assert_eq!(value, _expected, "Context:\n{}", self.runtime.as_ref().unwrap().context.borrow());
+                    assert_eq!(
+                        value,
+                        _expected,
+                        "Context:\n{}",
+                        self.runtime.as_ref().unwrap().context.borrow()
+                    );
                 }
                 Err(error) => {
                     error!("{}", error);
@@ -404,7 +479,10 @@ pub mod test {
 
             match &self.runtime {
                 None => {
-                    panic!("Expected code, but got no runtime: `{}`", self.original_code);
+                    panic!(
+                        "Expected code, but got no runtime: `{}`",
+                        self.original_code
+                    );
                 }
                 Some(runtime) => {
                     assert_eq!(expected, runtime.context.borrow().to_code());
@@ -418,10 +496,18 @@ pub mod test {
 
             match &self.runtime {
                 None => {
-                    panic!("Expected code, but got no runtime: `{}`", self.original_code);
+                    panic!(
+                        "Expected code, but got no runtime: `{}`",
+                        self.original_code
+                    );
                 }
                 Some(runtime) => {
-                    assert!(runtime.context.borrow().to_code().contains(expected), "Expected code to contain `{}` but got:\n{}", expected, runtime.context.borrow().to_code());
+                    assert!(
+                        runtime.context.borrow().to_code().contains(expected),
+                        "Expected code to contain `{}` but got:\n{}",
+                        expected,
+                        runtime.context.borrow().to_code()
+                    );
                 }
             }
             self

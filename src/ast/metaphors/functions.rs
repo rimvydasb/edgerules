@@ -1,16 +1,16 @@
 use std::cell::RefCell;
 
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
 use crate::ast::annotations::AnnotationEnum;
-use crate::ast::metaphors::metaphor::Metaphor;
-use crate::ast::utils::array_to_code_sep;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
-use crate::ast::context::function_context::{FunctionContext};
+use crate::ast::context::function_context::FunctionContext;
+use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::utils::array_to_code_sep;
 use crate::ast::Link;
 use crate::link::linker;
 use crate::tokenizer::C_ASSIGN;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
 
 use crate::typesystem::types::{TypedValue, ValueType};
 
@@ -22,39 +22,48 @@ pub struct FunctionDefinition {
     pub arguments: Vec<FormalParameter>,
     /// Function body later is used as a context object for execution context so it is Rc.
     /// RefCell is added only for linking purposes. Better to remove later.
-    pub body: Rc<RefCell<ContextObject>>
+    pub body: Rc<RefCell<ContextObject>>,
 }
 
 impl FunctionDefinition {
-    pub fn build(annotations: Vec<AnnotationEnum>, name: String, arguments: Vec<FormalParameter>, body: Rc<RefCell<ContextObject>>) -> Self {
+    pub fn build(
+        annotations: Vec<AnnotationEnum>,
+        name: String,
+        arguments: Vec<FormalParameter>,
+        body: Rc<RefCell<ContextObject>>,
+    ) -> Self {
         FunctionDefinition {
             annotations,
             name,
             arguments,
-            body
+            body,
         }
     }
 }
 
-impl Into<Rc<RefCell<dyn Metaphor + 'static>>> for FunctionDefinition {
-    fn into(self) -> Rc<RefCell<dyn Metaphor + 'static>> {
-        Rc::new(RefCell::new(self))
+impl From<FunctionDefinition> for Rc<RefCell<dyn Metaphor + 'static>> {
+    fn from(val: FunctionDefinition) -> Self {
+        Rc::new(RefCell::new(val))
     }
 }
 
-impl Into<Box<dyn Metaphor + 'static>> for FunctionDefinition {
-    fn into(self) -> Box<dyn Metaphor + 'static> {
-        Box::new(self)
+impl From<FunctionDefinition> for Box<dyn Metaphor + 'static> {
+    fn from(val: FunctionDefinition) -> Self {
+        Box::new(val)
     }
 }
 
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}({}) {} {}",
-               array_to_code_sep(self.annotations.iter(), "\n"),
-               self.name,
-               array_to_code_sep(self.arguments.iter(), ", "),
-               C_ASSIGN, self.body.borrow())
+        write!(
+            f,
+            "{}{}({}) {} {}",
+            array_to_code_sep(self.annotations.iter(), "\n"),
+            self.name,
+            array_to_code_sep(self.arguments.iter(), ", "),
+            C_ASSIGN,
+            self.body.borrow()
+        )
     }
 }
 
@@ -69,10 +78,11 @@ impl Metaphor for FunctionDefinition {
         self.name.clone()
     }
 
-    fn get_parameters(&self) -> &Vec<FormalParameter> { &self.arguments }
+    fn get_parameters(&self) -> &Vec<FormalParameter> {
+        &self.arguments
+    }
 
     fn create_context(&self, parameters: Vec<FormalParameter>) -> Link<FunctionContext> {
-
         parameters.iter().for_each(|arg| {
             self.body.borrow_mut().parameters.push(arg.clone());
         });

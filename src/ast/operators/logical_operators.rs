@@ -1,20 +1,20 @@
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::operators::logical_operators::LogicalOperatorEnum::*;
+use crate::ast::operators::math_operators::{Operator, OperatorData};
+use crate::ast::token::{EPriorities, ExpressionEnum};
+use crate::ast::Link;
+use crate::runtime::execution_context::ExecutionContext;
+use crate::typesystem::errors::ParseErrorEnum::UnexpectedLiteral;
+use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
+use crate::typesystem::types::ValueType::BooleanType;
+use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::values::ValueEnum;
+use crate::typesystem::values::ValueEnum::BooleanValue;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::operators::math_operators::{Operator, OperatorData};
-use crate::ast::token::{ExpressionEnum, EPriorities};
-use crate::ast::operators::logical_operators::LogicalOperatorEnum::*;
-use crate::ast::context::context_object::ContextObject;
-use crate::ast::Link;
-use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
-use crate::typesystem::errors::ParseErrorEnum::{UnexpectedLiteral};
-use crate::typesystem::types::{TypedValue, ValueType};
-use crate::typesystem::types::ValueType::BooleanType;
-use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::BooleanValue;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogicalOperatorEnum {
@@ -30,7 +30,7 @@ impl LogicalOperatorEnum {
             Not => "not",
             And => "and",
             Or => "or",
-            Xor => "xor"
+            Xor => "xor",
         }
     }
 }
@@ -44,7 +44,10 @@ impl TryFrom<&str> for LogicalOperatorEnum {
             "and" => Ok(And),
             "or" => Ok(Or),
             "xor" => Ok(Xor),
-            _ => Err(UnexpectedLiteral(value.to_string(), Some("not, and, or, xor".to_string())))
+            _ => Err(UnexpectedLiteral(
+                value.to_string(),
+                Some("not, and, or, xor".to_string()),
+            )),
         }
     }
 }
@@ -79,7 +82,11 @@ impl StaticLink for LogicalOperator {
 }
 
 impl LogicalOperator {
-    pub fn build(operator: LogicalOperatorEnum, left: ExpressionEnum, right: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
+    pub fn build(
+        operator: LogicalOperatorEnum,
+        left: ExpressionEnum,
+        right: ExpressionEnum,
+    ) -> Result<Self, ParseErrorEnum> {
         let function = match operator {
             And => |left: &bool, right: &bool| *left && *right,
             Or => |left: &bool, right: &bool| *left || *right,
@@ -88,7 +95,11 @@ impl LogicalOperator {
         };
 
         Ok(LogicalOperator {
-            data: OperatorData { operator, left, right },
+            data: OperatorData {
+                operator,
+                left,
+                right,
+            },
             function,
         })
     }
@@ -100,8 +111,14 @@ impl EvaluatableExpression for LogicalOperator {
         let right_token = &self.data.right.eval(context)?;
 
         match (left_token, right_token) {
-            (BooleanValue(_left), BooleanValue(_right)) => Ok(BooleanValue((self.function)(_left, _right))),
-            _ => RuntimeError::eval_error(format!("Operator '{}' is not implemented for '{} {} {}'", self.data.operator, left_token, self.data.operator, right_token)).into(),
+            (BooleanValue(_left), BooleanValue(_right)) => {
+                Ok(BooleanValue((self.function)(_left, _right)))
+            }
+            _ => RuntimeError::eval_error(format!(
+                "Operator '{}' is not implemented for '{} {} {}'",
+                self.data.operator, left_token, self.data.operator, right_token
+            ))
+            .into(),
         }
     }
 }

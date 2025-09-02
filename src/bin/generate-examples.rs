@@ -24,9 +24,9 @@ fn main() -> std::io::Result<()> {
     // Helper to flush a completed code block to output, possibly replacing
     // placeholder blocks with evaluated output.
     let flush_block = |out: &mut fs::File,
-                           code_lang_is_edgerules: bool,
-                           block_lines: &mut Vec<String>,
-                           pending_eval_output: &mut Option<String>|
+                       code_lang_is_edgerules: bool,
+                       block_lines: &mut Vec<String>,
+                       pending_eval_output: &mut Option<String>|
      -> std::io::Result<()> {
         if code_lang_is_edgerules {
             // Determine if this is an output placeholder block (first non-empty trimmed line is `// output`).

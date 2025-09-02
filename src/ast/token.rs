@@ -1,33 +1,33 @@
-use std::cell::{RefCell};
-use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
-use crate::ast::annotations::{AnnotationEnum};
+use crate::ast::annotations::AnnotationEnum;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::operators::comparators::ComparatorEnum;
-use crate::ast::token::EToken::*;
+use crate::ast::operators::logical_operators::LogicalOperatorEnum;
 use crate::ast::operators::math_operators::{MathOperatorEnum, Operator};
 use crate::ast::selections::{ExpressionFilter, FieldSelection};
-use crate::ast::utils::{array_to_code_sep};
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::Link;
-use crate::ast::metaphors::metaphor::Metaphor;
-use crate::ast::operators::logical_operators::LogicalOperatorEnum;
 use crate::ast::sequence::CollectionExpression;
 use crate::ast::token::DefinitionEnum::MetaphorDefinition;
-use crate::ast::token::ExpressionEnum::*;
+use crate::ast::token::EToken::*;
 use crate::ast::token::EUnparsedToken::*;
+use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::ValueEnum::*;
+use crate::ast::utils::array_to_code_sep;
 use crate::ast::variable::VariableLink;
+use crate::ast::Link;
 use crate::tokenizer::C_ASSIGN;
+use crate::typesystem::errors::ParseErrorEnum::UnexpectedToken;
 use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
-use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken};
-use crate::typesystem::types::{Float, Integer, TypedValue, ValueType};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::ValueType::{ObjectType, RangeType};
+use crate::typesystem::types::{Float, Integer, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use std::cell::RefCell;
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
 
 //--------------------------------------------------------------------------------------------------
 
@@ -87,7 +87,9 @@ pub enum EUnparsedToken {
     ComparatorToken(ComparatorEnum),
 }
 
-pub fn into_valid(values: Vec<Result<ValueEnum, RuntimeError>>) -> Result<Vec<ValueEnum>, RuntimeError> {
+pub fn into_valid(
+    values: Vec<Result<ValueEnum, RuntimeError>>,
+) -> Result<Vec<ValueEnum>, RuntimeError> {
     let mut clean = Vec::new();
 
     for value in values {
@@ -103,7 +105,7 @@ impl TryInto<ExpressionEnum> for EToken {
     fn try_into(self) -> Result<ExpressionEnum, Self::Error> {
         match self {
             Expression(expression) => Ok(expression),
-            _ => Err(UnexpectedToken(Box::new(self), None))
+            _ => Err(UnexpectedToken(Box::new(self), None)),
         }
     }
 }
@@ -124,7 +126,7 @@ impl PartialEq for EToken {
             (Unparsed(a), Unparsed(b)) => a == b,
             (Expression(a), Expression(b)) => a == b,
             (Definition(_), Definition(_)) => false,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -135,7 +137,7 @@ impl EToken {
             Unparsed(Literal(text)) => Ok(text),
             Expression(Value(StringValue(StringEnum::String(value)))) => Ok(value),
             ParseError(error) => Err(error),
-            _ => Err(UnexpectedToken(Box::new(self), None))
+            _ => Err(UnexpectedToken(Box::new(self), None)),
         }
     }
 }
@@ -146,7 +148,6 @@ pub enum DefinitionEnum {
     // TypeDefinition(Vec<(String, ValueType)>),
     //
     // TypeField(String, ValueType),
-
     /// Metaphor definition is shared between expressions when linked, this is why it is Rc
     MetaphorDefinition(Box<dyn Metaphor>),
 }
@@ -208,11 +209,9 @@ impl StaticLink for ExpressionEnum {
             Operator(operator) => operator.link(ctx),
             Filter(filter) => filter.link(ctx),
             Selection(selection) => selection.link(ctx),
-            Collection(collection) => {
-                match collection.link(ctx) {
-                    Ok(list_item_type) => Ok(ValueType::ListType(Box::new(list_item_type))),
-                    err => err,
-                }
+            Collection(collection) => match collection.link(ctx) {
+                Ok(list_item_type) => Ok(ValueType::ListType(Box::new(list_item_type))),
+                err => err,
             },
             ObjectField(_name, field) => field.link(ctx),
             Value(value) => Ok(value.get_type()),
@@ -235,16 +234,20 @@ impl StaticLink for ExpressionEnum {
         if let Err(error) = linking_result {
             let field_name = trace_context.borrow().node.node_type.to_string();
             let error_type = error.get_error_type().clone();
-            return error.with_context(|| format!("Error in `{}.{}`: {}", field_name, trace_string, error_type)).into();
+            return error
+                .with_context(|| {
+                    format!("Error in `{}.{}`: {}", field_name, trace_string, error_type)
+                })
+                .into();
         }
 
         linking_result
     }
 }
 
-impl Into<Rc<RefCell<ExpressionEnum>>> for ExpressionEnum {
-    fn into(self) -> Rc<RefCell<ExpressionEnum>> {
-        Rc::new(RefCell::new(self))
+impl From<ExpressionEnum> for Rc<RefCell<ExpressionEnum>> {
+    fn from(val: ExpressionEnum) -> Self {
+        Rc::new(RefCell::new(val))
     }
 }
 
@@ -318,10 +321,13 @@ impl Display for EUnparsedToken {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             FunctionDefinitionLiteral(annotations, text, args) => {
-                write!(f, "{}{}({})",
-                       array_to_code_sep(annotations.iter(), "\n"),
-                       text,
-                       array_to_code_sep(args.iter(), ", "))
+                write!(
+                    f,
+                    "{}{}({})",
+                    array_to_code_sep(annotations.iter(), "\n"),
+                    text,
+                    array_to_code_sep(args.iter(), ", ")
+                )
             }
             Literal(value) => write!(f, "{}", value),
             Annotation(definition) => write!(f, "{}", definition),
@@ -354,7 +360,13 @@ impl Display for ExpressionEnum {
             FunctionCall(function) => Display::fmt(function, f),
             Selection(selection) => Display::fmt(selection, f),
             ObjectField(field_name, right_side) => {
-                write!(f, "{} {} {}", field_name, C_ASSIGN, trim(format!("{}", right_side).as_str(), '(', ')'))
+                write!(
+                    f,
+                    "{} {} {}",
+                    field_name,
+                    C_ASSIGN,
+                    trim(format!("{}", right_side).as_str(), '(', ')')
+                )
             }
             Collection(values) => Display::fmt(values, f),
             Value(value) => Display::fmt(value, f),
@@ -376,5 +388,3 @@ impl Display for EToken {
         }
     }
 }
-
-

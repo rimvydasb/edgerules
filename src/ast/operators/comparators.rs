@@ -1,21 +1,21 @@
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::operators::comparators::ComparatorEnum::*;
+use crate::ast::operators::math_operators::{Operator, OperatorData};
+use crate::ast::token::ExpressionEnum;
+use crate::ast::Link;
+use crate::runtime::execution_context::ExecutionContext;
+use crate::tokenizer::utils::CharStream;
+use crate::typesystem::errors::ParseErrorEnum::UnknownParseError;
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::values::ValueEnum;
+use crate::typesystem::values::ValueEnum::{BooleanValue, NumberValue, StringValue};
+use log::trace;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use log::trace;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::operators::math_operators::{Operator, OperatorData};
-use crate::ast::token::{ExpressionEnum};
-use crate::ast::operators::comparators::ComparatorEnum::*;
-use crate::ast::context::context_object::ContextObject;
-use crate::ast::Link;
-use crate::runtime::execution_context::ExecutionContext;
-use crate::tokenizer::utils::CharStream;
-use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
-use crate::typesystem::errors::ParseErrorEnum::UnknownParseError;
-use crate::typesystem::types::{TypedValue, ValueType};
-use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{BooleanValue, NumberValue, StringValue};
 
 //----------------------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ impl TryFrom<&str> for ComparatorEnum {
             ">" => Ok(Greater),
             "<=" => Ok(LessEquals),
             ">=" => Ok(GreaterEquals),
-            _ => Err(UnknownParseError(format!("Unknown comparator: {}", value)))
+            _ => Err(UnknownParseError(format!("Unknown comparator: {}", value))),
         }
     }
 }
@@ -74,7 +74,7 @@ impl ComparatorEnum {
             ('=', _) => Some(Equals),
             ('<', _) => Some(Less),
             ('>', _) => Some(Greater),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -94,12 +94,12 @@ impl TypedValue for ComparatorOperator {
 
 impl StaticLink for ComparatorOperator {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
-
         trace!("Linking comparator operator: {:?}", self.data.left);
 
-        LinkingError::expect_same_types("Comparator",
-                                        self.data.left.link(Rc::clone(&ctx))?,
-                                        self.data.right.link(ctx)?,
+        LinkingError::expect_same_types(
+            "Comparator",
+            self.data.left.link(Rc::clone(&ctx))?,
+            self.data.right.link(ctx)?,
         )?;
 
         Ok(ValueType::BooleanType)
@@ -109,19 +109,27 @@ impl StaticLink for ComparatorOperator {
 impl Operator for ComparatorOperator {}
 
 impl ComparatorOperator {
-    pub fn build(operator: ComparatorEnum, left: ExpressionEnum, right: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
+    pub fn build(
+        operator: ComparatorEnum,
+        left: ExpressionEnum,
+        right: ExpressionEnum,
+    ) -> Result<Self, ParseErrorEnum> {
         let comparator = ComparatorOperator {
             data: OperatorData {
                 operator,
                 left,
                 right,
-            }
+            },
         };
 
         Ok(comparator)
     }
 
-    fn eval_operator(&self, left: &ValueEnum, right: &ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    fn eval_operator(
+        &self,
+        left: &ValueEnum,
+        right: &ValueEnum,
+    ) -> Result<ValueEnum, RuntimeError> {
         match (left, &self.data.operator, right) {
             (NumberValue(left), Equals, NumberValue(right)) => Ok(BooleanValue(left == right)),
             (BooleanValue(left), Equals, BooleanValue(right)) => Ok(BooleanValue(left == right)),
@@ -132,11 +140,17 @@ impl ComparatorOperator {
             (StringValue(left), NotEquals, StringValue(right)) => Ok(BooleanValue(left != right)),
 
             (NumberValue(left), LessEquals, NumberValue(right)) => Ok(BooleanValue(left <= right)),
-            (NumberValue(left), GreaterEquals, NumberValue(right)) => Ok(BooleanValue(left >= right)),
+            (NumberValue(left), GreaterEquals, NumberValue(right)) => {
+                Ok(BooleanValue(left >= right))
+            }
             (NumberValue(left), Less, NumberValue(right)) => Ok(BooleanValue(left < right)),
             (NumberValue(left), Greater, NumberValue(right)) => Ok(BooleanValue(left > right)),
 
-            (left, comparator, right) => RuntimeError::eval_error(format!("Not implemented {} {} {}", left, comparator, right)).into(),
+            (left, comparator, right) => RuntimeError::eval_error(format!(
+                "Not implemented {} {} {}",
+                left, comparator, right
+            ))
+            .into(),
         }
     }
 }

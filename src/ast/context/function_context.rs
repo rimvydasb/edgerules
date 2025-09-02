@@ -1,18 +1,20 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use log::trace;
-use std::fmt::{Debug, Display, Formatter};
-use std::fmt;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
+use crate::ast::context::context_object_type::EObjectContent::{
+    ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
+};
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
-use crate::ast::context::context_object_type::EObjectContent::{ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef};
 use crate::ast::token::ExpressionEnum;
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use log::trace;
+use std::cell::RefCell;
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
 
 /// Function context can be created as an internally scoped: that means no upper context browse is possible.
 #[derive(Debug, Clone)]
@@ -36,10 +38,8 @@ impl<B: PartialEq + Debug> PartialEq for AbstractFunctionContext<B> {
 
 impl ContentHolder<ContextObject> for FunctionContext {
     fn get(&self, name: &str) -> Result<EObjectContent<ContextObject>, LinkingError> {
-        let finding = self.parameters.iter().find(|field| field.name == name);
-
-        if finding.is_some() {
-            return Ok(Definition(finding.unwrap().value_type.clone()));
+        if let Some(finding) = self.parameters.iter().find(|field| field.name == name) {
+            return Ok(Definition(finding.value_type.clone()));
         }
 
         match self.body.borrow().get(name)? {
@@ -85,11 +85,15 @@ impl FunctionContext {
         Self {
             body,
             parameters,
-            node: NodeData::new(NodeDataEnum::Isolated())
+            node: NodeData::new(NodeDataEnum::Isolated()),
         }
     }
 
-    pub fn create_inline_for(expression: ExpressionEnum, parameters: Vec<FormalParameter>, parent: Rc<RefCell<ContextObject>>) -> Self {
+    pub fn create_inline_for(
+        expression: ExpressionEnum,
+        parameters: Vec<FormalParameter>,
+        parent: Rc<RefCell<ContextObject>>,
+    ) -> Self {
         let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&parent));
 
         builder
@@ -99,17 +103,26 @@ impl FunctionContext {
         Self {
             body: builder.build(),
             parameters,
-            node: NodeData::new(NodeDataEnum::Isolated())
+            node: NodeData::new(NodeDataEnum::Isolated()),
         }
     }
 
-    pub fn create_eval_context(&self, input: Vec<Result<ValueEnum, RuntimeError>>) -> Result<Rc<RefCell<ExecutionContext>>, RuntimeError> {
+    pub fn create_eval_context(
+        &self,
+        input: Vec<Result<ValueEnum, RuntimeError>>,
+    ) -> Result<Rc<RefCell<ExecutionContext>>, RuntimeError> {
         let ctx = ExecutionContext::create_isolated_context(Rc::clone(&self.body));
 
-        input.into_iter()
+        input
+            .into_iter()
             .zip(self.parameters.iter())
             .for_each(|(value, arg)| {
-                trace!("function {}(...) {} = {:?}",ctx.borrow().node().node_type, arg.name,&value);
+                trace!(
+                    "function {}(...) {} = {:?}",
+                    ctx.borrow().node().node_type,
+                    arg.name,
+                    &value
+                );
                 ctx.borrow().stack_insert(arg.name.clone(), value);
             });
 

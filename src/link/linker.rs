@@ -1,23 +1,23 @@
+use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
+use crate::ast::context::context_object_type::EObjectContent;
+use crate::ast::context::context_object_type::EObjectContent::*;
+use crate::ast::expression::StaticLink;
+use crate::ast::Link;
+use crate::link::node_data::{ContentHolder, Node, NodeData};
+use crate::runtime::execution_context::ExecutionContext;
+use crate::typesystem::errors::LinkingErrorEnum::*;
+use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::types::ValueType::ObjectType;
+use crate::typesystem::values::ValueEnum;
+use log::{error, trace};
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
 use std::fmt::Display;
 use std::rc::Rc;
-use log::{error, trace};
-use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
-use crate::ast::expression::StaticLink;
-use crate::ast::context::context_object_type::{EObjectContent};
-use crate::ast::context::context_object_type::EObjectContent::*;
-use crate::ast::Link;
-use crate::link::node_data::{ContentHolder, Node, NodeData};
-use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
-use crate::typesystem::errors::LinkingErrorEnum::*;
-use crate::typesystem::types::ValueType::ObjectType;
-use crate::typesystem::values::ValueEnum;
 
-/// ---
-/// **Linker**
-/// - is responsible for linking all the expressions in the AST.
+// ---
+// **Linker**
+// - is responsible for linking all the expressions in the AST.
 
 // @Todo: is it possible or necessary to prevent re-execution of the same code?
 pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
@@ -31,7 +31,10 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
             EObjectContent::ExpressionRef(expression) => {
                 context.borrow().node().lock_field(&name)?;
                 {
-                    let linked_type = expression.borrow_mut().expression.link(Rc::clone(&context))?;
+                    let linked_type = expression
+                        .borrow_mut()
+                        .expression
+                        .link(Rc::clone(&context))?;
                     trace!("expression: {:?} -> {}", expression, linked_type);
                     expression.borrow_mut().field_type = Ok(linked_type);
                 }
@@ -57,16 +60,27 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
     Ok(())
 }
 
-pub fn find_implementation(context: Rc<RefCell<ContextObject>>, function_name: String) -> Link<Rc<RefCell<MethodEntry>>> {
+pub fn find_implementation(
+    context: Rc<RefCell<ContextObject>>,
+    function_name: String,
+) -> Link<Rc<RefCell<MethodEntry>>> {
     let mut ctx: Rc<RefCell<ContextObject>> = context;
 
     loop {
-        trace!("find_implementation: searching {} in {} ",function_name,ctx.borrow().node().node_type);
+        trace!(
+            "find_implementation: searching {} in {} ",
+            function_name,
+            ctx.borrow().node().node_type
+        );
 
         let implementation = (*ctx).borrow().get_function(function_name.as_str());
 
         if let Some(definition) = implementation {
-            trace!("find_implementation: found {} in {} ",function_name,ctx.borrow().node().node_type);
+            trace!(
+                "find_implementation: found {} in {} ",
+                function_name,
+                ctx.borrow().node().node_type
+            );
             return Ok(Rc::clone(&definition));
         } else {
             let maybe_parent = (*ctx).borrow().node().node_type.get_parent();
@@ -74,31 +88,40 @@ pub fn find_implementation(context: Rc<RefCell<ContextObject>>, function_name: S
             if let Some(parent_to_check) = maybe_parent {
                 ctx = parent_to_check;
             } else {
-                error!("find_implementation: Cannot find {} in {} ",function_name,ctx.borrow().node().node_type);
-                return LinkingError::new(FunctionNotFound(format!("{}(...)", function_name))).into();
+                error!(
+                    "find_implementation: Cannot find {} in {} ",
+                    function_name,
+                    ctx.borrow().node().node_type
+                );
+                return LinkingError::new(FunctionNotFound(format!("{}(...)", function_name)))
+                    .into();
             }
         }
-    };
+    }
 }
 
-pub fn get_till_root<T: Node<T>>(ctx: Rc<RefCell<T>>, name: &str) -> Result<BrowseResultFound<'_, T>, LinkingError> {
+pub fn get_till_root<T: Node<T>>(
+    ctx: Rc<RefCell<T>>,
+    name: &str,
+) -> Result<BrowseResultFound<'_, T>, LinkingError> {
     ctx.borrow().node().lock_field(name)?;
     let result;
     match ctx.borrow().get(name) {
         Ok(finding) => {
             result = Ok(BrowseResultFound::new(Rc::clone(&ctx), name, finding));
         }
-        Err(LinkingError { error: FieldNotFound(obj_name, field), .. }) => {
-            match ctx.borrow().node().node_type.get_parent() {
-                None => {
-                    error!("get_till_root: Cannot find {} in {} and object upgrade is not possible for `{:?}`", field, obj_name, ctx.borrow().node().node_type);
-                    result = Err(LinkingError::new(FieldNotFound(obj_name, field)));
-                }
-                Some(parent) => {
-                    result = get_till_root(parent, name);
-                }
+        Err(LinkingError {
+            error: FieldNotFound(obj_name, field),
+            ..
+        }) => match ctx.borrow().node().node_type.get_parent() {
+            None => {
+                error!("get_till_root: Cannot find {} in {} and object upgrade is not possible for `{:?}`", field, obj_name, ctx.borrow().node().node_type);
+                result = Err(LinkingError::new(FieldNotFound(obj_name, field)));
             }
-        }
+            Some(parent) => {
+                result = get_till_root(parent, name);
+            }
+        },
         Err(error) => {
             result = Err(error);
         }
@@ -115,7 +138,11 @@ pub struct BrowseResultFound<'a, T: Node<T>> {
 }
 
 impl<T: Node<T>> BrowseResultFound<'_, T> {
-    pub fn new(context: Rc<RefCell<T>>, field_name: &str, content: EObjectContent<T>) -> BrowseResultFound<'_, T> {
+    pub fn new(
+        context: Rc<RefCell<T>>,
+        field_name: &str,
+        content: EObjectContent<T>,
+    ) -> BrowseResultFound<'_, T> {
         BrowseResultFound {
             context,
             field_name,
@@ -130,31 +157,40 @@ impl BrowseResultFound<'_, ExecutionContext> {
     /// - content_name is the name that was used to acquire this content
     pub fn eval(&self) -> Result<ValueEnum, RuntimeError> {
         match &self.content {
-            ConstantValue(value) => {
-                Ok(value.clone())
-            },
+            ConstantValue(value) => Ok(value.clone()),
             ExpressionRef(value) => {
                 // since linking did it's work, no need to lock again
                 let result = value.borrow_mut().expression.eval(Rc::clone(&self.context));
                 // no need to check if in stack, if it was already acquired as expression, it is not in stack
-                self.context.borrow().stack_insert(self.field_name.to_string(), result.clone());
-                return result;
+                self.context
+                    .borrow()
+                    .stack_insert(self.field_name.to_string(), result.clone());
+                result
             }
             MetaphorRef(_value) => {
                 todo!("MetaphorRef")
             }
             ObjectRef(value) => {
-                NodeData::attach_child(&value, &self.context);
+                NodeData::attach_child(value, &self.context);
                 Ok(ValueEnum::Reference(Rc::clone(value)))
             }
-            Definition(definition) => Err(RuntimeError::eval_error(format!("Cannot evaluate definition: {}", definition))),
+            Definition(definition) => Err(RuntimeError::eval_error(format!(
+                "Cannot evaluate definition: {}",
+                definition
+            ))),
         }
     }
 }
 
 impl<T: Node<T>> Display for BrowseResultFound<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{} = {}", self.context.borrow().node().node_type, self.field_name, self.content)
+        write!(
+            f,
+            "{}.{} = {}",
+            self.context.borrow().node().node_type,
+            self.field_name,
+            self.content
+        )
     }
 }
 
@@ -169,20 +205,34 @@ pub enum BrowseResult<'a, T: Node<T>> {
 }
 
 impl<'a, T: Node<T>> BrowseResult<'a, T> {
-    pub fn found(context: Rc<RefCell<T>>, field_name: &'a str, content: EObjectContent<T>) -> BrowseResult<'a, T> {
+    pub fn found(
+        context: Rc<RefCell<T>>,
+        field_name: &'a str,
+        content: EObjectContent<T>,
+    ) -> BrowseResult<'a, T> {
         BrowseResult::Found(BrowseResultFound::new(context, field_name, content))
     }
 
-    pub fn on_incomplete<FE, FC>(self, mut on_expression: FE, mut on_object_type: FC) -> Result<BrowseResultFound<'a, T>, LinkingError>
-        where
-            FE: FnMut(Rc<RefCell<T>>, Rc<RefCell<ExpressionEntry>>, &VecDeque<&'a str>) -> Result<EObjectContent<T>, LinkingError>,
-            FC: FnMut(Rc<RefCell<T>>, Rc<RefCell<ContextObject>>, &VecDeque<&'a str>) -> Result<EObjectContent<T>, LinkingError>,
+    pub fn on_incomplete<FE, FC>(
+        self,
+        mut on_expression: FE,
+        mut on_object_type: FC,
+    ) -> Result<BrowseResultFound<'a, T>, LinkingError>
+    where
+        FE: FnMut(
+            Rc<RefCell<T>>,
+            Rc<RefCell<ExpressionEntry>>,
+            &VecDeque<&'a str>,
+        ) -> Result<EObjectContent<T>, LinkingError>,
+        FC: FnMut(
+            Rc<RefCell<T>>,
+            Rc<RefCell<ContextObject>>,
+            &VecDeque<&'a str>,
+        ) -> Result<EObjectContent<T>, LinkingError>,
     {
         trace!("on_incomplete: {:?}", self);
         match self {
-            BrowseResult::Found(result) => {
-                Ok(result)
-            }
+            BrowseResult::Found(result) => Ok(result),
             BrowseResult::OnExpression(ctx, content, path) => {
                 let path = VecDeque::from(path);
                 let result = on_expression(Rc::clone(&ctx), content, &path)?;
@@ -201,11 +251,17 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
     }
 }
 
-pub fn browse<T: Node<T>>(ctx: Rc<RefCell<T>>, path: Vec<&str>, find_root: bool) -> Result<BrowseResult<'_, T>, LinkingError> {
-
+pub fn browse<T: Node<T>>(
+    ctx: Rc<RefCell<T>>,
+    path: Vec<&str>,
+    find_root: bool,
+) -> Result<BrowseResult<'_, T>, LinkingError> {
     // Path is empty - this is abnormal and should never happen
     if path.is_empty() {
-        return Err(LinkingError::field_not_found(ctx.borrow().node().node_type.to_string().as_str(), ""));
+        return Err(LinkingError::field_not_found(
+            ctx.borrow().node().node_type.to_string().as_str(),
+            "",
+        ));
     }
 
     // Path is 1
@@ -215,7 +271,11 @@ pub fn browse<T: Node<T>>(ctx: Rc<RefCell<T>>, path: Vec<&str>, find_root: bool)
             let result = get_till_root(ctx, field_name)?;
             Ok(BrowseResult::Found(result))
         } else {
-            Ok(BrowseResult::found(Rc::clone(&ctx), field_name, ctx.borrow().get(field_name)?))
+            Ok(BrowseResult::found(
+                Rc::clone(&ctx),
+                field_name,
+                ctx.borrow().get(field_name)?,
+            ))
         };
     }
 
@@ -226,13 +286,19 @@ pub fn browse<T: Node<T>>(ctx: Rc<RefCell<T>>, path: Vec<&str>, find_root: bool)
         let root = get_till_root(ctx, browse.pop_front().unwrap())?;
         (Rc::clone(&root.context), root.content)
     } else {
-        (Rc::clone(&ctx), ctx.borrow().get(browse.pop_front().unwrap())?)
+        (
+            Rc::clone(&ctx),
+            ctx.borrow().get(browse.pop_front().unwrap())?,
+        )
     };
 
-    return continue_browse(browse, starting);
+    continue_browse(browse, starting)
 }
 
-fn continue_browse<T: Node<T>>(mut browse: VecDeque<&str>, mut starting: (Rc<RefCell<T>>, EObjectContent<T>)) -> Result<BrowseResult<'_, T>, LinkingError> {
+fn continue_browse<T: Node<T>>(
+    mut browse: VecDeque<&str>,
+    mut starting: (Rc<RefCell<T>>, EObjectContent<T>),
+) -> Result<BrowseResult<'_, T>, LinkingError> {
     trace!("continue_browse({:?}, {:?})", browse, starting);
     let mut current_search_end: Option<&str> = None;
 
@@ -240,9 +306,14 @@ fn continue_browse<T: Node<T>>(mut browse: VecDeque<&str>, mut starting: (Rc<Ref
     while let (ref context, ref item) = starting {
         if browse.is_empty() {
             return if let Some(current_search) = current_search_end {
-                Ok(BrowseResult::found(Rc::clone(context), current_search, item.clone()))
+                Ok(BrowseResult::found(
+                    Rc::clone(context),
+                    current_search,
+                    item.clone(),
+                ))
             } else {
-                LinkingError::other_error(format!("Stuck on {}", context.borrow().node().node_type)).into()
+                LinkingError::other_error(format!("Stuck on {}", context.borrow().node().node_type))
+                    .into()
             };
         }
 
@@ -250,16 +321,35 @@ fn continue_browse<T: Node<T>>(mut browse: VecDeque<&str>, mut starting: (Rc<Ref
 
         match item {
             EObjectContent::ConstantValue(value) => {
-                error!("Constant value '{:?}' does not have '{}' item", value, current_search);
-                return LinkingError::new(OtherLinkingError(format!("Value '{}' does not have '{}' item", value, current_search))).into();
+                error!(
+                    "Constant value '{:?}' does not have '{}' item",
+                    value, current_search
+                );
+                return LinkingError::new(OtherLinkingError(format!(
+                    "Value '{}' does not have '{}' item",
+                    value, current_search
+                )))
+                .into();
             }
             EObjectContent::ExpressionRef(expression) => {
                 browse.push_front(current_search);
-                return Ok(BrowseResult::OnExpression(Rc::clone(context), Rc::clone(expression), Vec::from(browse)));
+                return Ok(BrowseResult::OnExpression(
+                    Rc::clone(context),
+                    Rc::clone(expression),
+                    Vec::from(browse),
+                ));
             }
             EObjectContent::MetaphorRef(metaphor) => {
-                error!("Metaphor '{:?}' does not have '{}' item", metaphor, current_search);
-                return LinkingError::new(OtherLinkingError(format!("Cannot access '{}' from '{}' metaphor", current_search, metaphor.borrow().metaphor.get_name()))).into();
+                error!(
+                    "Metaphor '{:?}' does not have '{}' item",
+                    metaphor, current_search
+                );
+                return LinkingError::new(OtherLinkingError(format!(
+                    "Cannot access '{}' from '{}' metaphor",
+                    current_search,
+                    metaphor.borrow().metaphor.get_name()
+                )))
+                .into();
             }
             EObjectContent::ObjectRef(object) => {
                 NodeData::attach_child(context, object);
@@ -268,16 +358,31 @@ fn continue_browse<T: Node<T>>(mut browse: VecDeque<&str>, mut starting: (Rc<Ref
             }
             EObjectContent::Definition(ObjectType(object)) => {
                 browse.push_front(current_search);
-                return Ok(BrowseResult::OnObjectType(Rc::clone(context), Rc::clone(object), Vec::from(browse)));
+                return Ok(BrowseResult::OnObjectType(
+                    Rc::clone(context),
+                    Rc::clone(object),
+                    Vec::from(browse),
+                ));
             }
             EObjectContent::Definition(definition) => {
-                error!("Definition '{:?}' does not have '{}' item", definition, current_search);
-                return LinkingError::new(OtherLinkingError(format!("Cannot access '{}' from '{}' definition", current_search, definition))).into();
+                error!(
+                    "Definition '{:?}' does not have '{}' item",
+                    definition, current_search
+                );
+                return LinkingError::new(OtherLinkingError(format!(
+                    "Cannot access '{}' from '{}' definition",
+                    current_search, definition
+                )))
+                .into();
             }
         }
 
         current_search_end = Some(current_search);
     }
 
-    Ok(BrowseResult::found(starting.0, "this should not happen", starting.1))
+    Ok(BrowseResult::found(
+        starting.0,
+        "this should not happen",
+        starting.1,
+    ))
 }

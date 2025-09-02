@@ -1,14 +1,17 @@
-use crate::ast::Link;
 use crate::ast::token::into_valid;
+use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::number::NumberEnum::SV;
-use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::types::ValueType::{ListType, NumberType, RangeType};
+use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, NumberValue, RangeValue};
 
-pub fn eval_max_all(values: Vec<Result<ValueEnum, RuntimeError>>, list_type: ValueType) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_max_all(
+    values: Vec<Result<ValueEnum, RuntimeError>>,
+    list_type: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
     let mut maximum: Option<NumberEnum> = None;
 
     for value in values {
@@ -36,28 +39,30 @@ pub fn eval_max_all(values: Vec<Result<ValueEnum, RuntimeError>>, list_type: Val
 pub fn eval_max(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(_) => Ok(value),
-        Array(values, list_type) => {
-            eval_max_all(values, list_type)
-        }
-        RangeValue(range) => {
-            match range.max() {
-                None => RuntimeError::eval_error("Max is not implemented for this particular range".to_string()).into(),
-                Some(max) => Ok(NumberValue(NumberEnum::from(max))),
-            }
-        }
+        Array(values, list_type) => eval_max_all(values, list_type),
+        RangeValue(range) => match range.max() {
+            None => RuntimeError::eval_error(
+                "Max is not implemented for this particular range".to_string(),
+            )
+            .into(),
+            Some(max) => Ok(NumberValue(NumberEnum::from(max))),
+        },
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
 
-pub fn eval_sum_all(values: Vec<Result<ValueEnum, RuntimeError>>, list_type: ValueType) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_sum_all(
+    values: Vec<Result<ValueEnum, RuntimeError>>,
+    list_type: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
     if values.is_empty() {
         return Ok(ValueEnum::from(0));
     }
 
-    let mut acc: NumberEnum = match values.get(0).unwrap() {
+    let mut acc: NumberEnum = match values.first().unwrap() {
         Ok(NumberValue(NumberEnum::Real(_))) => NumberEnum::Real(0.0),
         Ok(NumberValue(NumberEnum::Int(_))) => NumberEnum::Int(0),
-        _ => return RuntimeError::type_not_supported(list_type).into()
+        _ => return RuntimeError::type_not_supported(list_type).into(),
     };
 
     for token in values {
@@ -74,12 +79,8 @@ pub fn eval_sum_all(values: Vec<Result<ValueEnum, RuntimeError>>, list_type: Val
 pub fn eval_sum(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(number) => Ok(NumberValue(number)),
-        Array(items, list_type) => {
-            eval_sum_all(items, list_type)
-        }
-        RangeValue(range) => {
-            Ok(ValueEnum::from(range.sum::<Integer>()))
-        }
+        Array(items, list_type) => eval_sum_all(items, list_type),
+        RangeValue(range) => Ok(ValueEnum::from(range.sum::<Integer>())),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
@@ -91,9 +92,7 @@ pub fn eval_count(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             let count = items.len();
             Ok(NumberValue(NumberEnum::Int(count as Integer)))
         }
-        RangeValue(range) => {
-            Ok(ValueEnum::from(range.count() as Integer))
-        }
+        RangeValue(range) => Ok(ValueEnum::from(range.count() as Integer)),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
@@ -108,7 +107,7 @@ pub fn eval_find(maybe_array: ValueEnum, search: ValueEnum) -> Result<ValueEnum,
             Some(index) => Ok(ValueEnum::from(index as Integer)),
 
             // todo: should determine the type
-            None => Ok(NumberValue(SV(SpecialValueEnum::Missing)))
+            None => Ok(NumberValue(SV(SpecialValueEnum::Missing))),
         }
     } else {
         RuntimeError::type_not_supported(maybe_array.get_type()).into()
@@ -129,7 +128,12 @@ pub fn number_range_or_number_list(value_type: ValueType) -> Link<()> {
     } {
         Ok(())
     } else {
-        LinkingError::types_not_compatible(None, value_type, Some(vec![NumberType, RangeType, ListType(Box::new(NumberType))])).into()
+        LinkingError::types_not_compatible(
+            None,
+            value_type,
+            Some(vec![NumberType, RangeType, ListType(Box::new(NumberType))]),
+        )
+        .into()
     }
 }
 

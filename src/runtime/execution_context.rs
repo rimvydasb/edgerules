@@ -1,18 +1,20 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::{Rc, Weak};
-use log::trace;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
-use crate::ast::context::context_object_type::EObjectContent::{ConstantValue, ExpressionRef, MetaphorRef};
+use crate::ast::context::context_object_type::EObjectContent::{
+    ConstantValue, ExpressionRef, MetaphorRef,
+};
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::Reference;
 use crate::utils::{Line, Lines};
+use log::trace;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::{Rc, Weak};
 
 /// ---
 /// @TODO: https://doc.rust-lang.org/book/ch15-04-rc.html
@@ -45,9 +47,9 @@ impl PartialEq for ExecutionContext {
     }
 }
 
-impl Into<Rc<RefCell<ExecutionContext>>> for ExecutionContext {
-    fn into(self) -> Rc<RefCell<ExecutionContext>> {
-        Rc::new(RefCell::new(self))
+impl From<ExecutionContext> for Rc<RefCell<ExecutionContext>> {
+    fn from(val: ExecutionContext) -> Self {
+        Rc::new(RefCell::new(val))
     }
 }
 
@@ -83,14 +85,21 @@ impl ContentHolder<ExecutionContext> for ExecutionContext {
 
         match self.object.borrow().get(name)? {
             EObjectContent::ObjectRef(object) => {
-                trace!("Creating new child execution context for get: {}", object.borrow().node().node_type);
+                trace!(
+                    "Creating new child execution context for get: {}",
+                    object.borrow().node().node_type
+                );
                 let new_child = self.create_orphan_context(name.to_string(), object);
                 Ok(EObjectContent::ObjectRef(new_child))
             }
             ConstantValue(value) => Ok(ConstantValue(value)),
             ExpressionRef(value) => Ok(ExpressionRef(value)),
             MetaphorRef(value) => Ok(MetaphorRef(value)),
-            EObjectContent::Definition(definition) => LinkingError::other_error(format!("Definition {} is not supported in execution context", definition)).into(),
+            EObjectContent::Definition(definition) => LinkingError::other_error(format!(
+                "Definition {} is not supported in execution context",
+                definition
+            ))
+            .into(),
         }
     }
 
@@ -106,8 +115,8 @@ impl TypedValue for ExecutionContext {
 }
 
 impl ExecutionContext {
-    /// Use cases:
-    /// 1. Creates an isolated execution for a function call
+    // Use cases:
+    // 1. Creates an isolated execution for a function call
     // pub fn create_for(static_context: Rc<RefCell<ContextObject>>, maybe_parent: Option<Rc<RefCell<ExecutionContext>>>) -> Rc<RefCell<ExecutionContext>> {
     //     let len = static_context.borrow().size();
     //     match maybe_parent {
@@ -138,33 +147,39 @@ impl ExecutionContext {
     //     }
     // }
 
-    pub fn create_isolated_context(static_context: Rc<RefCell<ContextObject>>) -> Rc<RefCell<ExecutionContext>> {
-        let new_child = Self {
+    pub fn create_isolated_context(
+        static_context: Rc<RefCell<ContextObject>>,
+    ) -> Rc<RefCell<ExecutionContext>> {
+        Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
             context_variable: None,
             node: NodeData::new(NodeDataEnum::Isolated()),
             promise_eval_all: false,
             self_ref: Weak::new(),
-        }.to_rc();
-
-        return new_child;
+        }
+        .into_rc()
     }
 
-    pub fn create_root_context(static_context: Rc<RefCell<ContextObject>>) -> Rc<RefCell<ExecutionContext>> {
-        let new_child = Self {
+    pub fn create_root_context(
+        static_context: Rc<RefCell<ContextObject>>,
+    ) -> Rc<RefCell<ExecutionContext>> {
+        Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
             context_variable: None,
             node: NodeData::new(NodeDataEnum::Root()),
             promise_eval_all: false,
             self_ref: Weak::new(),
-        }.to_rc();
-
-        return new_child;
+        }
+        .into_rc()
     }
 
-    pub fn create_orphan_context(&self, assigned_to_field: String, static_context: Rc<RefCell<ContextObject>>) -> Rc<RefCell<ExecutionContext>> {
+    pub fn create_orphan_context(
+        &self,
+        assigned_to_field: String,
+        static_context: Rc<RefCell<ContextObject>>,
+    ) -> Rc<RefCell<ExecutionContext>> {
         let new_child = Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
@@ -172,45 +187,50 @@ impl ExecutionContext {
             node: NodeData::new(NodeDataEnum::Child(assigned_to_field.clone(), Weak::new())),
             promise_eval_all: false,
             self_ref: Weak::new(),
-        }.to_rc();
+        }
+        .into_rc();
 
         // Attach to this parent so that parent links are set and browsing can walk up
         if let Some(parent_rc) = self.self_ref.upgrade() {
             NodeData::attach_child(&parent_rc, &new_child);
         } else {
             // Fallback: keep previous behavior
-            self.node().add_child(assigned_to_field, Rc::clone(&new_child));
+            self.node()
+                .add_child(assigned_to_field, Rc::clone(&new_child));
         }
-
-        return new_child;
+        new_child
     }
 
     /// - Child context can refer parent context and get all it's owned fields. However, parent cannot refer to the child, because path or position of the child is not clear.
     /// - Child is also not added to the parent stack.
-    pub fn create_temp_child_context(parent: Rc<RefCell<ExecutionContext>>, static_context: Rc<RefCell<ContextObject>>) -> Rc<RefCell<ExecutionContext>> {
-        let new_child = Self {
+    pub fn create_temp_child_context(
+        parent: Rc<RefCell<ExecutionContext>>,
+        static_context: Rc<RefCell<ContextObject>>,
+    ) -> Rc<RefCell<ExecutionContext>> {
+        Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
             context_variable: None,
             node: NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&parent))),
             promise_eval_all: false,
             self_ref: Weak::new(),
-        }.to_rc();
-
-        //parent.borrow().node().add_child(assigned_to_field, Rc::clone(&new_child));
-
-        return new_child;
+        }
+        .into_rc()
     }
 
     pub fn get_context_variable(&self) -> Result<ValueEnum, RuntimeError> {
         if let Some(value) = &self.context_variable {
             Ok(value.clone())
         } else {
-            RuntimeError::eval_error(format!("Context variable not set for {}", self.object.borrow().node.node_type)).into()
+            RuntimeError::eval_error(format!(
+                "Context variable not set for {}",
+                self.object.borrow().node.node_type
+            ))
+            .into()
         }
     }
 
-    pub fn to_rc(self) -> Rc<RefCell<ExecutionContext>> {
+    pub fn into_rc(self) -> Rc<RefCell<ExecutionContext>> {
         let rc = Rc::new(RefCell::new(self));
         let weak = Rc::downgrade(&rc);
         rc.borrow_mut().self_ref = weak;
@@ -240,7 +260,11 @@ impl ExecutionContext {
                 }
             }
 
-            trace!("to_code_accumulate: {}, stack: {}", self.node().node_type.to_string(), self.stack.borrow().len());
+            trace!(
+                "to_code_accumulate: {}, stack: {}",
+                self.node().node_type,
+                self.stack.borrow().len()
+            );
             lines.add(line);
         }
 
@@ -254,7 +278,10 @@ impl ExecutionContext {
                             lines.add_str(format!("{} : {}", field_name, value).as_str());
                         }
                         ExpressionRef(expression) => {
-                            lines.add_str(format!("{} : {}", field_name, expression.borrow().expression).as_str());
+                            lines.add_str(
+                                format!("{} : {}", field_name, expression.borrow().expression)
+                                    .as_str(),
+                            );
                         }
                         MetaphorRef(_) => {
                             // skip
@@ -285,17 +312,17 @@ impl ExecutionContext {
 
 #[cfg(test)]
 pub mod test {
-    use std::rc::Rc;
-    use log::info;
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::metaphors::functions::FunctionDefinition;
     use crate::ast::token::DefinitionEnum::MetaphorDefinition;
     use crate::ast::token::ExpressionEnum;
+    use log::info;
+    use std::rc::Rc;
 
     use crate::link::linker::link_parts;
     use crate::link::node_data::ContentHolder;
+    use crate::runtime::edge_rules::{expr, EvalError};
     use crate::runtime::execution_context::ExecutionContext;
-    use crate::runtime::edge_rules::{EvalError, expr};
     use crate::typesystem::types::TypedValue;
     use crate::typesystem::values::ValueEnum;
     use crate::utils::test::init_logger;
@@ -316,11 +343,15 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"));
             child.add_expression("y", expr("a + b")?);
-            child.add_definition(MetaphorDefinition(FunctionDefinition::build(
-                vec![],
-                "income".to_string(),
-                vec![],
-                ContextObjectBuilder::new().build()).into()));
+            child.add_definition(MetaphorDefinition(
+                FunctionDefinition::build(
+                    vec![],
+                    "income".to_string(),
+                    vec![],
+                    ContextObjectBuilder::new().build(),
+                )
+                .into(),
+            ));
             builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
         }
 
@@ -330,15 +361,26 @@ pub mod test {
 
         let ex = ExecutionContext::create_root_context(ctx);
 
-        ex.borrow().stack_insert("a".to_string(), Ok(ValueEnum::from(88.0)));
-        ex.borrow().stack_insert("b".to_string(), Ok(ValueEnum::from(99.0)));
+        ex.borrow()
+            .stack_insert("a".to_string(), Ok(ValueEnum::from(88.0)));
+        ex.borrow()
+            .stack_insert("b".to_string(), Ok(ValueEnum::from(99.0)));
 
         assert_eq!(ex.borrow().get("a")?.to_string(), "88");
         assert_eq!(ex.borrow().get("b")?.to_string(), "99");
         assert!(ex.borrow().get("x").is_err());
-        assert_eq!(ex.borrow().to_string(), "{a : 88; b : 99; c : {x : 'Hello'; y : a + b; income() : {}}}");
-        assert_eq!(ex.borrow().get_type().to_string(), "Type<a: number, b: number, c: Type<x: string, y: number>>");
-        assert_eq!(ex.borrow().get("c")?.to_string(), "{x : 'Hello'; y : a + b; income() : {}}");
+        assert_eq!(
+            ex.borrow().to_string(),
+            "{a : 88; b : 99; c : {x : 'Hello'; y : a + b; income() : {}}}"
+        );
+        assert_eq!(
+            ex.borrow().get_type().to_string(),
+            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+        );
+        assert_eq!(
+            ex.borrow().get("c")?.to_string(),
+            "{x : 'Hello'; y : a + b; income() : {}}"
+        );
 
         // @Todo: update tests
         // {

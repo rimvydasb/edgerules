@@ -1,23 +1,22 @@
-use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
-use std::rc::Rc;
-use log::trace;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
-use crate::tokenizer::parser::tokenize;
-use crate::runtime::execution_context::ExecutionContext;
 use crate::ast::expression::StaticLink;
-use crate::ast::token::{DefinitionEnum, EToken, ExpressionEnum};
 use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
+use crate::ast::token::{DefinitionEnum, EToken, ExpressionEnum};
 use crate::ast::utils::array_to_code_sep;
 use crate::link::linker;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
-use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
+use crate::runtime::execution_context::ExecutionContext;
+use crate::tokenizer::parser::tokenize;
 use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::values::ValueEnum;
-
+use log::trace;
+use std::cell::RefCell;
+use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 //--------------------------------------------------------------------------------------------------
 // Errors
@@ -44,12 +43,12 @@ pub enum ParsedItem {
 impl ParsedItem {
     pub fn into_error(self) -> EvalError {
         match self {
-            ParsedItem::Expression(expression) => {
-                EvalError::FailedParsing(ParseErrors::unexpected_token(Expression(expression), None))
-            }
-            ParsedItem::Definition(definition) => {
-                EvalError::FailedParsing(ParseErrors::unexpected_token(Definition(definition), None))
-            }
+            ParsedItem::Expression(expression) => EvalError::FailedParsing(
+                ParseErrors::unexpected_token(Expression(expression), None),
+            ),
+            ParsedItem::Definition(definition) => EvalError::FailedParsing(
+                ParseErrors::unexpected_token(Definition(definition), None),
+            ),
         }
     }
 }
@@ -144,7 +143,7 @@ impl EdgeRulesEngine {
                     failed_tokens.push(other);
                 }
             }
-        };
+        }
 
         if errors.is_empty() {
             for token in failed_tokens {
@@ -192,6 +191,12 @@ pub struct EdgeRules {
     pub ast_root: ContextObjectBuilder,
 }
 
+impl Default for EdgeRules {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EdgeRules {
     pub fn new() -> EdgeRules {
         EdgeRules {
@@ -205,7 +210,8 @@ impl EdgeRules {
         match parsed {
             // @Todo: object field must be normal expression wrapped in object
             ParsedItem::Expression(ObjectField(field, field_expression)) => {
-                self.ast_root.add_expression(field.as_str(), *field_expression);
+                self.ast_root
+                    .add_expression(field.as_str(), *field_expression);
             }
             ParsedItem::Expression(ExpressionEnum::StaticObject(context_object)) => {
                 self.ast_root.append(context_object);
@@ -214,7 +220,10 @@ impl EdgeRules {
                 self.ast_root.add_definition(definition);
             }
             ParsedItem::Expression(unexpected) => {
-                return Err(ParseErrors::unexpected_token(Expression(unexpected), Some("value assignment expression or object".to_string())));
+                return Err(ParseErrors::unexpected_token(
+                    Expression(unexpected),
+                    Some("value assignment expression or object".to_string()),
+                ));
             }
         }
 
@@ -248,13 +257,16 @@ impl EdgeRulesRuntime {
         }
     }
 
-    /// Evaluates a single field
-    /// @Todo: maybe forward to evaluate code if path?
+    // Evaluates a single field
+    // @Todo: maybe forward to evaluate code if path?
     // pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
     //     Finder::find_and_eval(Rc::clone(&self.context), name, Finder::EVAL_ON_FIND)
     // }
 
-    pub fn evaluate_expression(&self, expression: &ExpressionEnum) -> Result<ValueEnum, RuntimeError> {
+    pub fn evaluate_expression(
+        &self,
+        expression: &ExpressionEnum,
+    ) -> Result<ValueEnum, RuntimeError> {
         expression.eval(Rc::clone(&self.context))
     }
 
@@ -273,7 +285,11 @@ impl EdgeRulesRuntime {
 
         let field_names = ctx.borrow().object.borrow().get_field_names();
 
-        trace!("eval_all_context: {}(..) for {:?}", ctx.borrow().node().node_type,field_names);
+        trace!(
+            "eval_all_context: {}(..) for {:?}",
+            ctx.borrow().node().node_type,
+            field_names
+        );
 
         for name in field_names {
             let name_str = name.as_str();
@@ -319,7 +335,7 @@ pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
 #[cfg(test)]
 pub mod test {
     use crate::ast::token::{EToken, EUnparsedToken};
-    use crate::runtime::edge_rules::{EvalError, expr, EdgeRules};
+    use crate::runtime::edge_rules::{expr, EdgeRules, EvalError};
 
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
 
@@ -328,11 +344,9 @@ pub mod test {
     use crate::typesystem::values::ValueEnum;
     use crate::utils::test::{init_logger, test_code, test_code_lines};
 
-
     #[test]
     fn now() -> Result<(), EvalError> {
         init_logger();
-
 
         Ok(())
     }
@@ -356,7 +370,10 @@ pub mod test {
             }
         }
 
-        test_code("value").expect_parse_error(UnexpectedToken(Box::new(EToken::Unparsed(EUnparsedToken::Comma)), None));
+        test_code("value").expect_parse_error(UnexpectedToken(
+            Box::new(EToken::Unparsed(EUnparsedToken::Comma)),
+            None,
+        ));
         test_code("value: 2 + 2").expect_num("value", Int(4));
         test_code("value: 2 + ").expect_parse_error(UnknownError("any".to_string()));
         test_code("{ value: 2 + 2 }").expect_num("value", Int(4));
@@ -364,7 +381,6 @@ pub mod test {
 
         Ok(())
     }
-
 
     #[test]
     fn test_linking() -> Result<(), EvalError> {
@@ -401,15 +417,13 @@ pub mod test {
             .expect_type("Type<a: Type<x: Type<x: number, aa: number>>, b: number, c: number>")
             .expect_num("c", Int(1));
 
-        test_code("{ f(arg1) :  { a : arg1 } }")
-            .expect_type("Type<>");
+        test_code("{ f(arg1) :  { a : arg1 } }").expect_type("Type<>");
 
         test_code("{ f(arg1) :  { a : arg1 }; b : 1 }")
             .expect_type("Type<b: number>")
             .expect_num("b", Int(1));
 
-        test_code("{ f(arg1) :  { a : arg1 }; b : f(1) }")
-            .expect_type("Type<b: Type<a: number>>");
+        test_code("{ f(arg1) :  { a : arg1 }; b : f(1) }").expect_type("Type<b: Type<a: number>>");
 
         test_code("{ f(arg1) :  { a : arg1 }; b : f(1).a }")
             .expect_type("Type<b: number>")
@@ -422,7 +436,8 @@ pub mod test {
             "subResult : func1(35).result",
             "}",
             "value : subContext.subResult",
-        ]).expect_num("value", Int(35));
+        ])
+        .expect_num("value", Int(35));
 
         // argument as a parameter works well
         test_code_lines(&[
@@ -432,7 +447,8 @@ pub mod test {
             "subResult : func1(myInput).result",
             "}",
             "value : subContext.subResult",
-        ]).expect_num("value", Int(35));
+        ])
+        .expect_num("value", Int(35));
 
         Ok(())
     }
@@ -458,5 +474,3 @@ pub mod test {
         Ok(())
     }
 }
-
-
