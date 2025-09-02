@@ -1,15 +1,17 @@
-use core::fmt;
-use std::cell::RefCell;
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
-use crate::ast::context::context_object_type::EObjectContent::{ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef};
+use crate::ast::context::context_object_type::EObjectContent::{
+    ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
+};
 use crate::ast::expression::StaticLink;
 use crate::ast::Link;
 use crate::link::linker::link_parts;
 use crate::link::node_data::Node;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use core::fmt;
+use std::cell::RefCell;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FormalParameter {
@@ -57,7 +59,7 @@ impl StaticLink for EObjectContent<ContextObject> {
             }
             ObjectRef(value) => match link_parts(Rc::clone(value)) {
                 Ok(_) => Ok(ValueType::ObjectType(Rc::clone(value))),
-                Err(err) => Err(err)
+                Err(err) => Err(err),
             },
             Definition(definition) => Ok(definition.clone()),
         }
@@ -78,14 +80,14 @@ impl<T: Node<T>> Display for EObjectContent<T> {
 
 #[cfg(test)]
 pub mod test {
-    use std::rc::Rc;
-    use log::info;
     use crate::ast::context::context_object_builder::*;
     use crate::ast::metaphors::functions::FunctionDefinition;
-    use crate::ast::token::ExpressionEnum;
     use crate::ast::token::DefinitionEnum::MetaphorDefinition;
+    use crate::ast::token::ExpressionEnum;
     use crate::link::linker::link_parts;
-    use crate::runtime::edge_rules::{EvalError, expr};
+    use crate::runtime::edge_rules::{expr, EvalError};
+    use log::info;
+    use std::rc::Rc;
 
     use crate::utils::test::init_logger;
 
@@ -130,7 +132,10 @@ pub mod test {
 
         link_parts(Rc::clone(&obj3))?;
 
-        assert_eq!(obj3.borrow().to_type_string(), "Type<a: number, b: number, x: string, y: number>");
+        assert_eq!(
+            obj3.borrow().to_type_string(),
+            "Type<a: number, b: number, x: string, y: number>"
+        );
 
         Ok(())
     }
@@ -149,11 +154,15 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"));
             child.add_expression("y", expr("a + b")?);
-            child.add_definition(MetaphorDefinition(FunctionDefinition::build(
-                vec![],
-                "income".to_string(),
-                vec![],
-                ContextObjectBuilder::new().build()).into()));
+            child.add_definition(MetaphorDefinition(
+                FunctionDefinition::build(
+                    vec![],
+                    "income".to_string(),
+                    vec![],
+                    ContextObjectBuilder::new().build(),
+                )
+                .into(),
+            ));
             builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
         }
 
@@ -161,8 +170,14 @@ pub mod test {
 
         link_parts(Rc::clone(&obj))?;
 
-        assert_eq!(obj.borrow().to_string(), "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}");
-        assert_eq!(obj.borrow().to_type_string(), "Type<a: number, b: number, c: Type<x: string, y: number>>");
+        assert_eq!(
+            obj.borrow().to_string(),
+            "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}"
+        );
+        assert_eq!(
+            obj.borrow().to_type_string(),
+            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+        );
 
         Ok(())
     }

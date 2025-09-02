@@ -1,14 +1,9 @@
+use crate::ast::context::context_object::ContextObject;
+use crate::typesystem::errors::ParseErrorEnum;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use crate::ast::context::context_object::ContextObject;
-use crate::typesystem::errors::ParseErrorEnum;
-
-
-
-
-
 
 pub trait TypedValue {
     fn get_type(&self) -> ValueType;
@@ -25,6 +20,7 @@ pub trait TypedValue {
 /// FEEL related documentation:
 /// https://docs.camunda.io/docs/components/modeler/feel/language-guide/feel-data-types/
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum ValueType {
     NumberType,
     StringType,
@@ -51,7 +47,6 @@ pub enum ValueType {
     ObjectType(Rc<RefCell<ContextObject>>),
 
     UndefinedType,
-
     // Todo: remove it and update
     //AnyType,
 }
@@ -60,7 +55,7 @@ impl ValueType {
     pub fn get_list_type(&self) -> Option<ValueType> {
         match self {
             ValueType::ListType(list_type) => Some(*list_type.clone()),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -83,7 +78,7 @@ impl Display for ValueType {
 
             // Todo: remove it
             //ValueType::AnyType => f.write_str("any"),
-            ValueType::UndefinedType => f.write_str("undefined")
+            ValueType::UndefinedType => f.write_str("undefined"),
         }
     }
 }
@@ -95,7 +90,9 @@ impl TryFrom<&str> for ValueType {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value.starts_with("list of ") {
             let value = value.replace("list of ", "");
-            return Ok(ValueType::ListType(Box::new(ValueType::try_from(value.as_str())?)));
+            return Ok(ValueType::ListType(Box::new(ValueType::try_from(
+                value.as_str(),
+            )?)));
         }
 
         match value {
@@ -163,13 +160,13 @@ pub type Integer = i64;
 //--------------------------------------------------------------------------------------------------
 
 pub mod number {
+    use crate::typesystem::types::number::NumberEnum::{Fraction, Int, Real, SV};
+    use crate::typesystem::types::ValueType::NumberType;
+    use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
     use std::cmp::Ordering;
     use std::fmt;
     use std::fmt::{Debug, Display, Formatter};
     use std::ops::{Add, Div, Mul, Rem, Sub};
-    use crate::typesystem::types::{ValueType, Float, Integer, SpecialValueEnum, TypedValue};
-    use crate::typesystem::types::number::NumberEnum::{Fraction, Int, Real, SV};
-    use crate::typesystem::types::ValueType::NumberType;
 
     #[allow(non_snake_case)]
     #[derive(Debug, PartialEq, Clone)]
@@ -181,7 +178,6 @@ pub mod number {
     }
 
     impl NumberEnum {
-
         pub const ZERO: i64 = 0;
 
         pub fn negate(&self) -> NumberEnum {
@@ -203,7 +199,9 @@ pub mod number {
     }
 
     impl TypedValue for NumberEnum {
-        fn get_type(&self) -> ValueType { NumberType }
+        fn get_type(&self) -> ValueType {
+            NumberType
+        }
     }
 
     impl Display for NumberEnum {
@@ -343,10 +341,10 @@ pub mod number {
 //--------------------------------------------------------------------------------------------------
 
 pub mod string {
-    use std::cmp::Ordering;
-    use std::fmt::{Display};
-    use crate::typesystem::types::{SpecialValueEnum, TypedValue, ValueType};
     use crate::typesystem::types::ValueType::StringType;
+    use crate::typesystem::types::{SpecialValueEnum, TypedValue, ValueType};
+    use std::cmp::Ordering;
+    use std::fmt::Display;
 
     #[allow(non_snake_case)]
     #[derive(Debug, PartialEq, Clone)]
@@ -402,7 +400,6 @@ pub mod string {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use crate::typesystem::types::number::NumberEnum;
@@ -411,18 +408,41 @@ mod test {
 
     #[test]
     fn test_numbers() {
-
         // Add
-        assert_eq!(NumberEnum::from(10) + NumberEnum::SV(Missing), NumberEnum::from(10));
-        assert_eq!(NumberEnum::SV(Missing) + NumberEnum::from(10), NumberEnum::from(10));
-        assert_eq!(NumberEnum::from(10) + NumberEnum::from(10), NumberEnum::from(20));
-        assert_eq!(NumberEnum::SV(NotFound) + NumberEnum::from(10), NumberEnum::SV(NotFound));
+        assert_eq!(
+            NumberEnum::from(10) + NumberEnum::SV(Missing),
+            NumberEnum::from(10)
+        );
+        assert_eq!(
+            NumberEnum::SV(Missing) + NumberEnum::from(10),
+            NumberEnum::from(10)
+        );
+        assert_eq!(
+            NumberEnum::from(10) + NumberEnum::from(10),
+            NumberEnum::from(20)
+        );
+        assert_eq!(
+            NumberEnum::SV(NotFound) + NumberEnum::from(10),
+            NumberEnum::SV(NotFound)
+        );
 
         // Rem
-        assert_eq!(NumberEnum::from(10) % NumberEnum::SV(Missing), NumberEnum::from(10));
-        assert_eq!(NumberEnum::SV(Missing) % NumberEnum::from(10), NumberEnum::SV(Missing));
-        assert_eq!(NumberEnum::from(10) % NumberEnum::from(10), NumberEnum::from(0));
-        assert_eq!(NumberEnum::SV(NotFound) % NumberEnum::from(10), NumberEnum::SV(NotFound));
+        assert_eq!(
+            NumberEnum::from(10) % NumberEnum::SV(Missing),
+            NumberEnum::from(10)
+        );
+        assert_eq!(
+            NumberEnum::SV(Missing) % NumberEnum::from(10),
+            NumberEnum::SV(Missing)
+        );
+        assert_eq!(
+            NumberEnum::from(10) % NumberEnum::from(10),
+            NumberEnum::from(0)
+        );
+        assert_eq!(
+            NumberEnum::SV(NotFound) % NumberEnum::from(10),
+            NumberEnum::SV(NotFound)
+        );
 
         assert_eq!(NumberEnum::from(10) > NumberEnum::from(10), false);
 
@@ -443,11 +463,17 @@ mod test {
         assert_eq!(NumberEnum::SV(NotFound) == NumberEnum::from(10), false);
 
         assert_eq!(NumberEnum::SV(Missing) == NumberEnum::SV(NotFound), false);
-        assert_eq!(NumberEnum::SV(Missing) == NumberEnum::SV(NotApplicable), false);
+        assert_eq!(
+            NumberEnum::SV(Missing) == NumberEnum::SV(NotApplicable),
+            false
+        );
 
         assert_eq!(NumberEnum::SV(Missing) == NumberEnum::SV(Missing), true);
         assert_eq!(NumberEnum::SV(NotFound) == NumberEnum::SV(NotFound), true);
-        assert_eq!(NumberEnum::SV(NotApplicable) == NumberEnum::SV(NotApplicable), true);
+        assert_eq!(
+            NumberEnum::SV(NotApplicable) == NumberEnum::SV(NotApplicable),
+            true
+        );
     }
 
     #[test]

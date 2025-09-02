@@ -1,21 +1,21 @@
-pub mod execution_context;
 pub mod edge_rules;
+pub mod execution_context;
 
 /// Test Cases
 ///
 #[cfg(test)]
 mod test {
-    use log::{info};
-    use crate::utils::test::*;
-    use crate::ast::token::{ExpressionEnum};
-    use crate::runtime::edge_rules::{EvalError, expr};
+    use crate::ast::token::ExpressionEnum;
+    use crate::runtime::edge_rules::{expr, EvalError};
     use crate::typesystem::errors::LinkingErrorEnum::{CyclicReference, FieldNotFound};
     use crate::typesystem::types::number::NumberEnum;
     use crate::typesystem::types::number::NumberEnum::{Int, Real};
     use crate::typesystem::types::SpecialValueEnum::Missing;
     use crate::typesystem::types::ValueType::NumberType;
     use crate::typesystem::values::ValueEnum;
-    use crate::typesystem::values::ValueEnum::{BooleanValue};
+    use crate::typesystem::values::ValueEnum::BooleanValue;
+    use crate::utils::test::*;
+    use log::info;
 
     type V = ValueEnum;
     type E = ExpressionEnum;
@@ -41,13 +41,18 @@ mod test {
         test_code("value : 1 * 2 + 1").expect_num("value", Int(3));
 
         // New API
-        test_code("value : for x in [1,2,3] return x * 2").expect(&mut expr("value")?, V::from(vec![2, 4, 6]));
+        test_code("value : for x in [1,2,3] return x * 2")
+            .expect(&mut expr("value")?, V::from(vec![2, 4, 6]));
 
         // for each loop
-        test_code("value : for x in [1,2,3] return x * 2").expect(&mut expr("value")?, V::from(vec![2, 4, 6]));
-        test_code("value : for x in [1,2,3] return x * 2.0").expect(&mut expr("value")?, V::from(vec![2.0, 4.0, 6.0]));
-        test_code("value : for x in 1..3 return x * 2").expect(&mut expr("value")?, V::from(vec![2, 4, 6]));
-        test_code("value : for x in [{age:23},{age:34}] return x.age + 2").expect(&mut expr("value")?, V::from(vec![25, 36]));
+        test_code("value : for x in [1,2,3] return x * 2")
+            .expect(&mut expr("value")?, V::from(vec![2, 4, 6]));
+        test_code("value : for x in [1,2,3] return x * 2.0")
+            .expect(&mut expr("value")?, V::from(vec![2.0, 4.0, 6.0]));
+        test_code("value : for x in 1..3 return x * 2")
+            .expect(&mut expr("value")?, V::from(vec![2, 4, 6]));
+        test_code("value : for x in [{age:23},{age:34}] return x.age + 2")
+            .expect(&mut expr("value")?, V::from(vec![25, 36]));
 
         test_code("value : 2 / 3").expect_num("value", Real(0.6666666666666666));
         test_code("value : 1 * 2 / 3 + 1 - 2").expect_num("value", Real(-0.33333333333333337));
@@ -56,35 +61,63 @@ mod test {
         test_code("{ age : 18; value : 1 + 2 }").expect_num("value", Int(3));
 
         // Selection
-        is_variable_evaluating_to("{ record : [1,2,3]; record2 : record[1]}", "record2", V::from(2));
-        is_variable_evaluating_to("{ list : [1,2,3]; value : list[0] * list[1] + list[2]}", "value", V::from(5));
-        is_variable_evaluating_to("{ list : [1,2,3]; value : list[0] * (list[1] + list[2] * 3)}", "value", V::from(11));
+        is_variable_evaluating_to(
+            "{ record : [1,2,3]; record2 : record[1]}",
+            "record2",
+            V::from(2),
+        );
+        is_variable_evaluating_to(
+            "{ list : [1,2,3]; value : list[0] * list[1] + list[2]}",
+            "value",
+            V::from(5),
+        );
+        is_variable_evaluating_to(
+            "{ list : [1,2,3]; value : list[0] * (list[1] + list[2] * 3)}",
+            "value",
+            V::from(11),
+        );
 
-        is_evaluating_to("{ record : { age : 18; value : 1 + 2 }}",
-                         &mut ExpressionEnum::variable("record.value"), V::from(3));
+        is_evaluating_to(
+            "{ record : { age : 18; value : 1 + 2 }}",
+            &mut ExpressionEnum::variable("record.value"),
+            V::from(3),
+        );
 
         test_code("{ record : { age : somefield; value : 1 + 2 }}")
             .expect_link_error(FieldNotFound("Root".to_string(), "somefield".to_string()));
 
-        is_evaluating_to("{ record : { age : 18; value : age + 1 }}",
-                         &mut ExpressionEnum::variable("record.value"), V::from(19));
+        is_evaluating_to(
+            "{ record : { age : 18; value : age + 1 }}",
+            &mut ExpressionEnum::variable("record.value"),
+            V::from(19),
+        );
 
-        is_evaluating_to("{ record : { age : 18; value : age + 2 + addition; addition : age + 2 }}",
-                         &mut ExpressionEnum::variable("record.value"), V::from(40));
+        is_evaluating_to(
+            "{ record : { age : 18; value : age + 2 + addition; addition : age + 2 }}",
+            &mut ExpressionEnum::variable("record.value"),
+            V::from(40),
+        );
 
-        is_evaluating_to("{ record : { age : 18; value : record.age + 1 }}",
-                         &mut ExpressionEnum::variable("record.value"), V::from(19));
+        is_evaluating_to(
+            "{ record : { age : 18; value : record.age + 1 }}",
+            &mut ExpressionEnum::variable("record.value"),
+            V::from(19),
+        );
 
-        is_evaluating_to("{ record : { value : record2.age2 }; record2 : { age2 : 22 }}",
-                         &mut ExpressionEnum::variable("record.value"), V::from(22));
+        is_evaluating_to(
+            "{ record : { value : record2.age2 }; record2 : { age2 : 22 }}",
+            &mut ExpressionEnum::variable("record.value"),
+            V::from(22),
+        );
 
         is_evaluating_to("{ record : { age : 18; value : age + 2 + addition; addition : age + record2.age2 }; record2 : { age2 : 22 }}",
                          &mut ExpressionEnum::variable("record.value"), V::from(60));
 
-
-        is_evaluating_to("{ doublethis(input) : { out : input * input }; result : doublethis(2).out }",
-                         &mut ExpressionEnum::variable("result"), V::from(4));
-
+        is_evaluating_to(
+            "{ doublethis(input) : { out : input * input }; result : doublethis(2).out }",
+            &mut ExpressionEnum::variable("result"),
+            V::from(4),
+        );
 
         // @todo: this is not working yet
         //test_code("p : [{a:1},5]").expect_code("p: [{a : 1}, 5]");
@@ -98,7 +131,8 @@ mod test {
 
         test_code("value : 2 * 2").expect_num("value", Int(4));
         test_code("value : sum(1,2,3) + (2 * 2)").expect_num("value", Int(10));
-        test_code("value : sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)").expect_num("value", Int(14));
+        test_code("value : sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)")
+            .expect_num("value", Int(14));
         test_code("value : count([1,2,3]) + 1").expect_num("value", Int(4));
         test_code("value : max([1,2,3]) + 1").expect_num("value", Int(4));
         test_code("value : find([1,2,3],1)").expect_num("value", Int(0));
@@ -131,7 +165,8 @@ mod test {
             "month : 1",
             "sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
             "value : sales[month] + sales[month + 1] + sales[month + 2]",
-        ]).expect_num("value", Int(35));
+        ])
+        .expect_num("value", Int(35));
 
         test_code_lines(&[
             "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
@@ -139,7 +174,8 @@ mod test {
             "result : sales[month] + sales[month + 1] + sales[month + 2]",
             "}",
             "value : salesIn3Months(1,inputSales).result",
-        ]).expect_num("value", Int(35));
+        ])
+        .expect_num("value", Int(35));
 
         test_code_lines(&[
             "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
@@ -150,7 +186,8 @@ mod test {
             "subResult : salesIn3Months(1,inputSales).result",
             "}",
             "value : subContext.subResult",
-        ]).expect_num("value", Int(35));
+        ])
+        .expect_num("value", Int(35));
 
         test_code_lines(&[
             "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
@@ -169,16 +206,20 @@ mod test {
 
         info!(">>> tables_test()");
 
-        is_lines_evaluating_to(vec![
-            "@DecisionTable",
-            "simpleTable(age,score) : [",
-            "[age, score, eligibility],",
-            "[18, 300, 0],",
-            "[22, 100, 1],",
-            "[65, 200, 0]",
-            "]",
-            "value : simpleTable(22,100).eligibility",
-        ], &mut E::variable("value"), V::from(1));
+        is_lines_evaluating_to(
+            vec![
+                "@DecisionTable",
+                "simpleTable(age,score) : [",
+                "[age, score, eligibility],",
+                "[18, 300, 0],",
+                "[22, 100, 1],",
+                "[65, 200, 0]",
+                "]",
+                "value : simpleTable(22,100).eligibility",
+            ],
+            &mut E::variable("value"),
+            V::from(1),
+        );
     }
 
     #[test]
@@ -215,12 +256,30 @@ mod test {
         is_this_one_evaluating_to("value : if 1 < 2 then 3 else 4", V::from(3));
         is_this_one_evaluating_to("value : if 1 < 2 then 3 + 1 else 5", V::from(4));
         is_this_one_evaluating_to("value : if 1 > 2 then 3 + 1 else 5 * 10", V::from(50));
-        is_this_one_evaluating_to("value : if 1 > 2 then 3 + 1 else (if 1 < 2 then 5 * 10 else 0)", V::from(50));
-        is_this_one_evaluating_to("value : if 1 > 2 then 3 + 1 else (if 1 > 2 then 5 * 10 else 0)", V::from(0));
-        is_this_one_evaluating_to("value : if 1 < 2 then (if 5 > 2 then 5 * 10 else 0) else 1", V::from(50));
-        is_this_one_evaluating_to("value : (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1", V::from(51));
-        is_this_one_evaluating_to("value : 1 + (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1", V::from(52));
-        is_this_one_evaluating_to("value : 2 * (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1", V::from(101));
+        is_this_one_evaluating_to(
+            "value : if 1 > 2 then 3 + 1 else (if 1 < 2 then 5 * 10 else 0)",
+            V::from(50),
+        );
+        is_this_one_evaluating_to(
+            "value : if 1 > 2 then 3 + 1 else (if 1 > 2 then 5 * 10 else 0)",
+            V::from(0),
+        );
+        is_this_one_evaluating_to(
+            "value : if 1 < 2 then (if 5 > 2 then 5 * 10 else 0) else 1",
+            V::from(50),
+        );
+        is_this_one_evaluating_to(
+            "value : (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1",
+            V::from(51),
+        );
+        is_this_one_evaluating_to(
+            "value : 1 + (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1",
+            V::from(52),
+        );
+        is_this_one_evaluating_to(
+            "value : 2 * (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1",
+            V::from(101),
+        );
     }
 
     #[test]
@@ -230,48 +289,58 @@ mod test {
         is_this_one_evaluating_to("value : [1,2,3][...>1]", ValueEnum::from(vec![2, 3]));
         is_this_one_evaluating_to("value : [1,2,3][...>0]", ValueEnum::from(vec![1, 2, 3]));
         is_this_one_evaluating_to("value : [1,2,3][...>-5]", ValueEnum::from(vec![1, 2, 3]));
-        is_this_one_evaluating_to("value : [1,2,3][...<-5]", ValueEnum::Array(vec![], NumberType));
+        is_this_one_evaluating_to(
+            "value : [1,2,3][...<-5]",
+            ValueEnum::Array(vec![], NumberType),
+        );
     }
 
     #[test]
     fn variable_linkin_test() {
         init_test("variable_linkin_test()");
 
-        is_lines_evaluating_to(vec![
-            "input : {",
-            "   application: {",
-            "      status: 1",
-            "   }",
-            "}",
-            "model: {",
-            "   output: input.application.status",
-            "}",
-        ], &mut E::variable("model.output"), V::from(1));
+        is_lines_evaluating_to(
+            vec![
+                "input : {",
+                "   application: {",
+                "      status: 1",
+                "   }",
+                "}",
+                "model: {",
+                "   output: input.application.status",
+                "}",
+            ],
+            &mut E::variable("model.output"),
+            V::from(1),
+        );
 
-        is_lines_evaluating_to(vec![
-            "input : {",
-            "   application: {",
-            "      status: 1",
-            "   }",
-            "}",
-            "model: {",
-            "   applicationRecord(application): {",
-            "      statusFlag: if application.status = 1 then 'ok' else 'no'",
-            "   }",
-            "   output: applicationRecord(input.application).statusFlag",
-            "}",
-        ], &mut E::variable("model.output"), V::from("ok"));
+        is_lines_evaluating_to(
+            vec![
+                "input : {",
+                "   application: {",
+                "      status: 1",
+                "   }",
+                "}",
+                "model: {",
+                "   applicationRecord(application): {",
+                "      statusFlag: if application.status = 1 then 'ok' else 'no'",
+                "   }",
+                "   output: applicationRecord(input.application).statusFlag",
+                "}",
+            ],
+            &mut E::variable("model.output"),
+            V::from("ok"),
+        );
     }
 
     #[test]
     fn test_problems() {
         init_test("test_problems");
 
-        test_code("{ record : { age : 18; value : 1 + 2 }}")
-            .expect_num("record.value", Int(3));
+        test_code("{ record : { age : 18; value : 1 + 2 }}").expect_num("record.value", Int(3));
 
         test_code("value : value + 1")
-            .expect_link_error(CyclicReference("Root".to_string(),"value".to_string()));
+            .expect_link_error(CyclicReference("Root".to_string(), "value".to_string()));
 
         test_code("{ record1 : 15 + record2; record2 : 7 + record3; record3 : record1 * 10 }")
             .expect_link_error(CyclicReference("Root".to_string(), "record1".to_string()));

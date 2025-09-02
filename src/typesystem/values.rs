@@ -1,22 +1,23 @@
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_type::EObjectContent;
+use crate::typesystem::errors::RuntimeError;
+use crate::typesystem::types::number::NumberEnum;
+use crate::typesystem::types::string::StringEnum;
+use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use crate::typesystem::errors::RuntimeError;
-use crate::typesystem::types::number::NumberEnum;
 use std::ops::Range;
 use std::rc::Rc;
-use crate::typesystem::types::{Integer, ValueType, TypedValue, SpecialValueEnum, Float};
-use crate::typesystem::types::string::StringEnum;
 use time::{Date, PrimitiveDateTime, Time};
-use crate::ast::context::context_object::ContextObject;
-use crate::ast::context::context_object_type::EObjectContent;
 
 use crate::ast::utils::results_to_code;
 
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::types::string::StringEnum::String;
-use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, RangeValue, Reference, StringValue};
-
+use crate::typesystem::values::ValueEnum::{
+    Array, BooleanValue, NumberValue, RangeValue, Reference, StringValue,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueOrSv<OkValue, SpecialValue> {
@@ -46,17 +47,15 @@ pub enum ValueEnum {
 impl From<ValueEnum> for EObjectContent<ExecutionContext> {
     fn from(value: ValueEnum) -> Self {
         match value {
-            Reference(reference) => {
-                EObjectContent::ObjectRef(reference)
-            }
-            other => EObjectContent::ConstantValue(other)
+            Reference(reference) => EObjectContent::ObjectRef(reference),
+            other => EObjectContent::ConstantValue(other),
         }
     }
 }
 
 impl From<ValueType> for EObjectContent<ContextObject> {
     fn from(value: ValueType) -> Self {
-        return EObjectContent::Definition(value)
+        EObjectContent::Definition(value)
     }
 }
 
@@ -106,19 +105,25 @@ impl Display for ValueEnum {
             NumberValue(number) => write!(f, "{}", number),
             StringValue(str) => write!(f, "{}", str),
             Reference(reference) => write!(f, "{}", reference.borrow()),
-            BooleanValue(value) => if *value { f.write_str("true") } else { f.write_str("false") },
+            BooleanValue(value) => {
+                if *value {
+                    f.write_str("true")
+                } else {
+                    f.write_str("false")
+                }
+            }
             RangeValue(range) => write!(f, "{}..{}", range.start, range.end - 1),
             ValueEnum::DateValue(date) => match date {
-                ValueOrSv::Value(date) => write!(f, "{}", date.to_string()),
-                ValueOrSv::Sv(sv) => write!(f, "{}", sv)
+                ValueOrSv::Value(date) => write!(f, "{}", date),
+                ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::TimeValue(time) => match time {
-                ValueOrSv::Value(time) => write!(f, "{}", time.to_string()),
-                ValueOrSv::Sv(sv) => write!(f, "{}", sv)
+                ValueOrSv::Value(time) => write!(f, "{}", time),
+                ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::DateTimeValue(date_time) => match date_time {
-                ValueOrSv::Value(date_time) => write!(f, "{}", date_time.to_string()),
-                ValueOrSv::Sv(sv) => write!(f, "{}", sv)
+                ValueOrSv::Value(date_time) => write!(f, "{}", date_time),
+                ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::TypeValue(type_value) => {
                 write!(f, "{}", type_value)
@@ -158,12 +163,16 @@ impl From<&str> for ValueEnum {
     }
 }
 
-impl<T> From<Vec<T>> for ValueEnum where T: Into<ValueEnum> {
+impl<T> From<Vec<T>> for ValueEnum
+where
+    T: Into<ValueEnum>,
+{
     fn from(values: Vec<T>) -> Self {
         if values.is_empty() {
             Array(Vec::new(), ValueType::UndefinedType)
         } else {
-            let values_enum = values.into_iter()
+            let values_enum = values
+                .into_iter()
                 .map(|value| Ok(value.into()))
                 .collect::<Vec<Result<ValueEnum, RuntimeError>>>();
 
@@ -189,4 +198,3 @@ impl<T> From<Vec<T>> for ValueEnum where T: Into<ValueEnum> {
 //         }
 //     }
 // }
-

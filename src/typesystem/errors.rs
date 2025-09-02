@@ -1,13 +1,21 @@
+use crate::ast::functions::function_types::EFunctionType;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
-use crate::ast::functions::function_types::EFunctionType;
 
+use crate::ast::token::EToken;
 use crate::ast::Link;
-use crate::ast::token::{EToken};
-use crate::typesystem::errors::LinkingErrorEnum::{CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OtherLinkingError, TypesNotCompatible};
-use crate::typesystem::errors::ParseErrorEnum::{FunctionWrongNumberOfArguments, InvalidType, MissingLiteral, UnexpectedLiteral, UnexpectedToken, UnknownError, UnknownParseError, UnknownType};
-use crate::typesystem::errors::RuntimeErrorEnum::{RuntimeCyclicReference, EvalError, TypeNotSupported, RuntimeFieldNotFound};
-use crate::typesystem::types::{ValueType};
+use crate::typesystem::errors::LinkingErrorEnum::{
+    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OtherLinkingError,
+    TypesNotCompatible,
+};
+use crate::typesystem::errors::ParseErrorEnum::{
+    FunctionWrongNumberOfArguments, InvalidType, MissingLiteral, UnexpectedLiteral,
+    UnexpectedToken, UnknownError, UnknownParseError, UnknownType,
+};
+use crate::typesystem::errors::RuntimeErrorEnum::{
+    EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
+};
+use crate::typesystem::types::ValueType;
 
 /// Error Stacking
 /// Other libraries:
@@ -15,7 +23,6 @@ use crate::typesystem::types::{ValueType};
 /// - https://github.com/dtolnay/thiserror
 /// - https://crates.io/crates/handle-error
 /// - influence taken from: https://github.com/dtolnay/anyhow/blob/8b4fc43429fd9a034649e0f919c646ec6626c4c7/src/context.rs#L58
-
 pub trait ErrorStack<T: Display>: Sized {
     fn update_context(&mut self, content: String);
 
@@ -26,7 +33,9 @@ pub trait ErrorStack<T: Display>: Sized {
 
     #[allow(dead_code)]
     fn before_happened<O>(self, other: O) -> Self
-        where O: ErrorStack<T> {
+    where
+        O: ErrorStack<T>,
+    {
         let mut new = self;
         for context in other.get_context().iter() {
             new.update_context(context.clone());
@@ -38,9 +47,9 @@ pub trait ErrorStack<T: Display>: Sized {
     }
 
     fn with_context<C, F>(self, context: F) -> Self
-        where
-            C: Display + Send + Sync + 'static,
-            F: FnOnce() -> C,
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C,
     {
         let mut new = self;
         new.update_context(format!("{}", context()));
@@ -79,7 +88,7 @@ impl<T: Display> Display for GeneralStackedError<T> {
 
             for context in &self.context {
                 index += 1;
-                write!(f, "  {}. {}\n", index, context)?;
+                writeln!(f, "  {}. {}", index, context)?;
             }
         }
 
@@ -102,7 +111,10 @@ impl RuntimeError {
     }
 
     pub fn cyclic_reference(field: &str, object: &str) -> Self {
-        RuntimeError::new(RuntimeCyclicReference(field.to_string(), object.to_string()))
+        RuntimeError::new(RuntimeCyclicReference(
+            field.to_string(),
+            object.to_string(),
+        ))
     }
 
     pub fn field_not_found(field: &str, object: &str) -> Self {
@@ -167,16 +179,32 @@ impl Display for ParseErrorEnum {
                 }
                 match function_type {
                     EFunctionType::Custom(expected) => {
-                        write!(f, "Function '{}' expected {} arguments, but got {}", function_name, expected, existing)
+                        write!(
+                            f,
+                            "Function '{}' expected {} arguments, but got {}",
+                            function_name, expected, existing
+                        )
                     }
                     EFunctionType::Binary => {
-                        write!(f, "Binary function '{}' expected 2 arguments, but got {}", function_name, existing)
+                        write!(
+                            f,
+                            "Binary function '{}' expected 2 arguments, but got {}",
+                            function_name, existing
+                        )
                     }
                     EFunctionType::Multi => {
-                        write!(f, "Function '{}' expected 1 or more arguments, but got {}", function_name, existing)
+                        write!(
+                            f,
+                            "Function '{}' expected 1 or more arguments, but got {}",
+                            function_name, existing
+                        )
                     }
                     EFunctionType::Unary => {
-                        write!(f, "Function '{}' expected 1 argument, but got {}", function_name, existing)
+                        write!(
+                            f,
+                            "Function '{}' expected 1 argument, but got {}",
+                            function_name, existing
+                        )
                     }
                 }
             }
@@ -217,8 +245,14 @@ impl Display for RuntimeErrorEnum {
         match self {
             EvalError(message) => f.write_str(message),
             TypeNotSupported(value_type) => write!(f, "Type '{}' is not supported", value_type),
-            RuntimeCyclicReference(object, field) => write!(f, "Field {}.{} appears in a cyclic reference loop", object, field),
-            RuntimeFieldNotFound(object, field) => write!(f, "Field {} not found in {}", field, object),
+            RuntimeCyclicReference(object, field) => write!(
+                f,
+                "Field {}.{} appears in a cyclic reference loop",
+                object, field
+            ),
+            RuntimeFieldNotFound(object, field) => {
+                write!(f, "Field {} not found in {}", field, object)
+            }
             RuntimeErrorEnum::Unlinked => f.write_str("Unlinked"),
         }
     }
@@ -272,11 +306,19 @@ impl LinkingError {
         LinkingError::new(DifferentTypesDetected(subject, type1, type2))
     }
 
-    pub fn types_not_compatible(subject: Option<String>, unexpected: ValueType, expected: Option<Vec<ValueType>>) -> Self {
+    pub fn types_not_compatible(
+        subject: Option<String>,
+        unexpected: ValueType,
+        expected: Option<Vec<ValueType>>,
+    ) -> Self {
         LinkingError::new(TypesNotCompatible(subject, unexpected, expected))
     }
 
-    pub fn expect_type(subject: Option<String>, expression_type: ValueType, expected: &[ValueType]) -> Link<ValueType> {
+    pub fn expect_type(
+        subject: Option<String>,
+        expression_type: ValueType,
+        expected: &[ValueType],
+    ) -> Link<ValueType> {
         let actual = expression_type;
         if expected.contains(&actual) {
             return Ok(actual);
@@ -284,12 +326,20 @@ impl LinkingError {
         LinkingError::types_not_compatible(subject, actual, Some(expected.to_vec())).into()
     }
 
-    pub fn expect_array_type(subject: Option<String>, expression_type: ValueType) -> Link<ValueType> {
+    pub fn expect_array_type(
+        subject: Option<String>,
+        expression_type: ValueType,
+    ) -> Link<ValueType> {
         match expression_type {
-            ValueType::ListType(list_type) => {
-                Ok(*list_type)
-            }
-            other => LinkingError::types_not_compatible(subject, other, Some(vec![ValueType::ListType(Box::new(ValueType::UndefinedType))])).into()
+            ValueType::ListType(list_type) => Ok(*list_type),
+            other => LinkingError::types_not_compatible(
+                subject,
+                other,
+                Some(vec![ValueType::ListType(Box::new(
+                    ValueType::UndefinedType,
+                ))]),
+            )
+            .into(),
         }
     }
 
@@ -300,11 +350,20 @@ impl LinkingError {
     //     LinkingError::types_not_compatible(Some(subject.to_string()), expression_type, None).into()
     // }
 
-    pub fn expect_single_type(subject: &str, expression_type: ValueType, expected: &ValueType) -> Link<ValueType> {
+    pub fn expect_single_type(
+        subject: &str,
+        expression_type: ValueType,
+        expected: &ValueType,
+    ) -> Link<ValueType> {
         if &expression_type == expected {
             return Ok(expression_type);
         }
-        LinkingError::types_not_compatible(Some(subject.to_string()), expression_type, Some(vec![expected.clone()])).into()
+        LinkingError::types_not_compatible(
+            Some(subject.to_string()),
+            expression_type,
+            Some(vec![expected.clone()]),
+        )
+        .into()
     }
 
     pub fn expect_same_types(subject: &str, left: ValueType, right: ValueType) -> Link<ValueType> {
@@ -321,17 +380,25 @@ impl LinkingError {
         let first = items[0].clone();
         for item in items {
             if item != &first {
-                return LinkingError::different_types(Some(subject.to_string()), first, item.clone()).into();
+                return LinkingError::different_types(
+                    Some(subject.to_string()),
+                    first,
+                    item.clone(),
+                )
+                .into();
             }
         }
         Ok(first)
     }
 }
 
-impl<T, O> Into<Result<T, GeneralStackedError<O>>> for GeneralStackedError<O>
-    where T: Sized, O: Sized + Display {
-    fn into(self) -> Result<T, GeneralStackedError<O>> {
-        Err(self)
+impl<T, O> From<GeneralStackedError<O>> for Result<T, GeneralStackedError<O>>
+where
+    T: Sized,
+    O: Sized + Display,
+{
+    fn from(val: GeneralStackedError<O>) -> Self {
+        Err(val)
     }
 }
 
@@ -347,7 +414,7 @@ impl RuntimeError {
             FieldNotFound(object, field) => RuntimeError::field_not_found(object, field),
             CyclicReference(object, field) => RuntimeError::cyclic_reference(object, field),
             NotLinkedYet => RuntimeError::new(RuntimeErrorEnum::Unlinked),
-            _ => RuntimeError::eval_error(error.error.to_string())
+            _ => RuntimeError::eval_error(error.error.to_string()),
         };
 
         runtime_error.context = error.context.clone();
@@ -363,20 +430,30 @@ impl Display for LinkingErrorEnum {
                 let clean_subject = subject.clone().unwrap_or_else(|| "Unexpected".to_string());
                 if let Some(expected) = expected {
                     // joins expected types into a string separated by " or "
-                    let expected_str = expected.iter()
+                    let expected_str = expected
+                        .iter()
                         .map(|value_type| value_type.to_string())
-                        .collect::<Vec<String>>().join(" or ");
-                    write!(f, "{} type '{}', expected '{}'", clean_subject, unexpected, expected_str)
+                        .collect::<Vec<String>>()
+                        .join(" or ");
+                    write!(
+                        f,
+                        "{} type '{}', expected '{}'",
+                        clean_subject, unexpected, expected_str
+                    )
                 } else {
                     write!(f, "{} type '{}'", clean_subject, unexpected)
                 }
             }
-            DifferentTypesDetected(subject, left, right) => {
-                match subject {
-                    Some(subject) => write!(f, "{} types `{}` and `{}` must match", subject, left, right),
-                    None => write!(f, "Operation is not supported for different types: {} and {}", left, right)
+            DifferentTypesDetected(subject, left, right) => match subject {
+                Some(subject) => {
+                    write!(f, "{} types `{}` and `{}` must match", subject, left, right)
                 }
-            }
+                None => write!(
+                    f,
+                    "Operation is not supported for different types: {} and {}",
+                    left, right
+                ),
+            },
             LinkingErrorEnum::FunctionNotFound(name) => {
                 write!(f, "Function '{}' not found", name)
             }
@@ -384,7 +461,11 @@ impl Display for LinkingErrorEnum {
                 write!(f, "Field {} not found in {}", field, object)
             }
             CyclicReference(object, field) => {
-                write!(f, "Field {}.{} appears in a cyclic reference loop", object, field)
+                write!(
+                    f,
+                    "Field {}.{} appears in a cyclic reference loop",
+                    object, field
+                )
             }
             OtherLinkingError(error) => f.write_str(error),
             NotLinkedYet => f.write_str("Not linked yet"),

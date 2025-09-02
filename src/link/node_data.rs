@@ -1,15 +1,17 @@
-use std::fmt::{Debug, Display, Formatter};
+use crate::ast::context::context_object_type::EObjectContent;
+use crate::ast::context::context_object_type::EObjectContent::{
+    ConstantValue, ExpressionRef, MetaphorRef, ObjectRef,
+};
+use crate::link::node_data::NodeDataEnum::{Child, Internal, Isolated, Root};
+use crate::typesystem::errors::LinkingError;
+use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
+use crate::utils::bracket_unwrap;
+use log::trace;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::{Rc, Weak};
-use log::trace;
-use crate::ast::context::context_object_type::EObjectContent;
-use crate::ast::context::context_object_type::EObjectContent::{ConstantValue, ExpressionRef, MetaphorRef, ObjectRef};
-use crate::link::node_data::NodeDataEnum::{Child, Internal, Isolated, Root};
-use crate::typesystem::errors::{LinkingError};
-use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
-use crate::utils::bracket_unwrap;
 
 #[derive(Debug, Clone)]
 pub enum NodeDataEnum<T: Debug + Node<T>> {
@@ -30,9 +32,18 @@ pub enum NodeDataEnum<T: Debug + Node<T>> {
 impl<T: Debug + Node<T>> Display for NodeDataEnum<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Child(name, parent) => write!(f, "{}.{}", parent.upgrade().unwrap().borrow().node().node_type, name),
+            Child(name, parent) => write!(
+                f,
+                "{}.{}",
+                parent.upgrade().unwrap().borrow().node().node_type,
+                name
+            ),
             Isolated() => write!(f, "Isolated"),
-            Internal(parent) => write!(f, "{}#child", parent.upgrade().unwrap().borrow().node().node_type),
+            Internal(parent) => write!(
+                f,
+                "{}#child",
+                parent.upgrade().unwrap().borrow().node().node_type
+            ),
             Root() => write!(f, "Root"),
         }
     }
@@ -146,22 +157,28 @@ impl<T: Node<T>> NodeData<T> {
     pub fn get_assigned_to_field(&self) -> Option<String> {
         match self.node_type {
             Child(ref name, _) => Some(name.clone()),
-            _ => None
+            _ => None,
         }
     }
 
     pub fn lock_field(&self, field: &str) -> Result<(), LinkingError> {
-        trace!("lock_field: {}.{}",self.node_type, field);
+        trace!("lock_field: {}.{}", self.node_type, field);
         if self.is_field_locked(field) {
-            return LinkingError::new(CyclicReference(self.node_type.to_string(), field.to_string())).into();
+            return LinkingError::new(CyclicReference(
+                self.node_type.to_string(),
+                field.to_string(),
+            ))
+            .into();
         }
-        self.object_field_locks.borrow_mut().insert(field.to_string());
+        self.object_field_locks
+            .borrow_mut()
+            .insert(field.to_string());
 
         Ok(())
     }
 
     pub fn unlock_field(&self, field: &str) {
-        trace!("unlock_field: {}.{}",self.node_type, field);
+        trace!("unlock_field: {}.{}", self.node_type, field);
         self.object_field_locks.borrow_mut().remove(field);
     }
 
@@ -174,7 +191,7 @@ impl<T: Node<T>> NodeData<T> {
     }
 
     pub fn get_child(&self, name: &str) -> Option<Rc<RefCell<T>>> {
-        self.childs.borrow().get(name).map(|child| child.clone())
+        self.childs.borrow().get(name).cloned()
     }
 
     pub fn add_child(&self, name: String, child: Rc<RefCell<T>>) {
@@ -192,13 +209,16 @@ impl<T: Node<T>> NodeData<T> {
         let name = match &child.borrow().node().node_type {
             Child(name, parent) => match parent.upgrade() {
                 None => Some(name.clone()),
-                Some(_) => None
+                Some(_) => None,
             },
-            _ => None
+            _ => None,
         };
 
         if let Some(name) = name {
-            parent.borrow().node().add_child(name.clone(), Rc::clone(child));
+            parent
+                .borrow()
+                .node()
+                .add_child(name.clone(), Rc::clone(child));
             child.borrow_mut().mut_node().node_type = Child(name, Rc::downgrade(parent));
         };
     }

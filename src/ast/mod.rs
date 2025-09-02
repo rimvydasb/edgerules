@@ -1,19 +1,19 @@
 use crate::typesystem::errors::{ErrorStack, LinkingError, LinkingErrorEnum};
 
-pub mod token;
-pub mod selections;
-pub mod expression;
-pub mod utils;
-pub mod operators;
 pub mod annotations;
-pub mod metaphors;
-pub mod variable;
 pub mod context;
-pub mod sequence;
-pub mod ifthenelse;
+pub mod expression;
 pub mod foreach;
-pub mod user_function_call;
 pub mod functions;
+pub mod ifthenelse;
+pub mod metaphors;
+pub mod operators;
+pub mod selections;
+pub mod sequence;
+pub mod token;
+pub mod user_function_call;
+pub mod utils;
+pub mod variable;
 
 //----------------------------------------------------------------------------------------------
 

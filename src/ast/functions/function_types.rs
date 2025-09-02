@@ -1,18 +1,18 @@
+use crate::ast::context::context_object::ContextObject;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::functions::function_mix::*;
+use crate::ast::token::ExpressionEnum;
+use crate::ast::utils::array_to_code_sep;
+use crate::ast::{is_linked, Link};
+use crate::runtime::execution_context::*;
+use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::types::ValueType;
+use crate::typesystem::values::ValueEnum;
+use log::error;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::functions::function_mix::*;
-use crate::ast::token::{ExpressionEnum};
-use crate::runtime::execution_context::*;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
-use crate::typesystem::types::{ValueType};
-use crate::typesystem::values::ValueEnum;
-use log::error;
-use crate::ast::context::context_object::ContextObject;
-use crate::ast::{is_linked, Link};
-use crate::ast::utils::array_to_code_sep;
 
 use phf::phf_map;
 
@@ -82,7 +82,11 @@ pub struct BinaryFunction {
 }
 
 impl BinaryFunction {
-    pub fn build(definition: BinaryFunctionDefinition, left: ExpressionEnum, right: ExpressionEnum) -> Self {
+    pub fn build(
+        definition: BinaryFunctionDefinition,
+        left: ExpressionEnum,
+        right: ExpressionEnum,
+    ) -> Self {
         BinaryFunction {
             left,
             right,
@@ -190,7 +194,12 @@ impl MultiFunction {
 
 impl Display for MultiFunction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}({})", self.definition.name, array_to_code_sep(self.args.iter(), ", "))
+        write!(
+            f,
+            "{}({})",
+            self.definition.name,
+            array_to_code_sep(self.args.iter(), ", ")
+        )
     }
 }
 
@@ -221,5 +230,3 @@ impl EvaluatableExpression for MultiFunction {
         (self.definition.function)(values, self.return_type.clone()?)
     }
 }
-
-

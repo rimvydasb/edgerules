@@ -1,10 +1,10 @@
-use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
 use crate::ast::annotations::AnnotationEnum::{DecisionTableAnnotation, ServiceAnnotation};
-use crate::ast::token::{EToken, EUnparsedToken};
 use crate::ast::token::EToken::Unparsed;
+use crate::ast::token::{EToken, EUnparsedToken};
 use crate::error_token;
 use crate::tokenizer::utils::CharStream;
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EHitPolicy {
@@ -14,8 +14,7 @@ pub enum EHitPolicy {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EMethod {
-    GET
-    //POST,
+    Get, // POST,
 }
 
 impl Display for EHitPolicy {
@@ -45,36 +44,40 @@ impl AnnotationEnum {
 
         match annotation.as_str() {
             "DecisionTable" => {
-                let hit_policy =
-                    if let Some(args) = args {
-                        match args.get(0) {
-                            Some(hit_policy) => match hit_policy.as_str() {
-                                "first-hit" => EHitPolicy::FirstHit,
-                                "multi-hit" => EHitPolicy::MultiHit,
-                                _ => return error_token!("Invalid hit policy {} for {}", hit_policy,annotation)
-                            },
-                            None => EHitPolicy::FirstHit,
-                        }
-                    } else {
-                        EHitPolicy::FirstHit
-                    };
+                let hit_policy = if let Some(args) = args {
+                    match args.first() {
+                        Some(hit_policy) => match hit_policy.as_str() {
+                            "first-hit" => EHitPolicy::FirstHit,
+                            "multi-hit" => EHitPolicy::MultiHit,
+                            _ => {
+                                return error_token!(
+                                    "Invalid hit policy {} for {}",
+                                    hit_policy,
+                                    annotation
+                                )
+                            }
+                        },
+                        None => EHitPolicy::FirstHit,
+                    }
+                } else {
+                    EHitPolicy::FirstHit
+                };
 
-                Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(hit_policy)))
+                Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(
+                    hit_policy,
+                )))
             }
-            "Service" => {
-                Unparsed(EUnparsedToken::Annotation(ServiceAnnotation(EMethod::GET)))
-            }
+            "Service" => Unparsed(EUnparsedToken::Annotation(ServiceAnnotation(EMethod::Get))),
             _ => {
-                return error_token!("Unknown annotation: {}", annotation);
+                error_token!("Unknown annotation: {}", annotation)
             }
         }
     }
 
-    pub fn get_decision_table(annotations: &Vec<AnnotationEnum>) -> Option<&AnnotationEnum> {
-        annotations.iter().find(|&a| match a {
-            DecisionTableAnnotation(_) => true,
-            _ => false
-        })
+    pub fn get_decision_table(annotations: &[AnnotationEnum]) -> Option<&AnnotationEnum> {
+        annotations
+            .iter()
+            .find(|a| matches!(a, DecisionTableAnnotation(_)))
     }
 }
 
@@ -82,7 +85,7 @@ impl Display for AnnotationEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             DecisionTableAnnotation(hit_policy) => write!(f, "@DecisionTable(\"{}\")", hit_policy),
-            ServiceAnnotation(_method) => write!(f, "@Service")
+            ServiceAnnotation(_method) => write!(f, "@Service"),
         }
     }
 }
@@ -94,8 +97,8 @@ impl Display for AnnotationEnum {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::test::*;
     use crate::ast::annotations::EHitPolicy::{FirstHit, MultiHit};
+    use crate::utils::test::*;
 
     #[test]
     fn test_common() {
@@ -103,17 +106,23 @@ mod test {
 
         assert_eq!(
             AnnotationEnum::parse(&mut CharStream::new("DecisionTable(\"first-hit\")")),
-            Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(FirstHit)))
+            Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(
+                FirstHit
+            )))
         );
 
         assert_ne!(
             AnnotationEnum::parse(&mut CharStream::new("DecisionTable(\"first-hit\")")),
-            Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(MultiHit)))
+            Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(
+                MultiHit
+            )))
         );
 
         assert_eq!(
             AnnotationEnum::parse(&mut CharStream::new("DecisionTable(\"multi-hit\")")),
-            Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(MultiHit)))
+            Unparsed(EUnparsedToken::Annotation(DecisionTableAnnotation(
+                MultiHit
+            )))
         );
     }
 }

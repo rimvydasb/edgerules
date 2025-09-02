@@ -21,7 +21,9 @@ fn main() {
         }
     } else {
         let mut buf = String::new();
-        io::stdin().read_to_string(&mut buf).expect("Failed to read stdin");
+        io::stdin()
+            .read_to_string(&mut buf)
+            .expect("Failed to read stdin");
         buf
     };
 
@@ -47,4 +49,3 @@ fn eval_value(code: &str) -> Result<Option<String>, String> {
         Err(_) => Ok(None),
     }
 }
-
