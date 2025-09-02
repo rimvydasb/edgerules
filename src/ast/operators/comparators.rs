@@ -10,7 +10,8 @@ use crate::typesystem::errors::ParseErrorEnum::UnknownParseError;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{BooleanValue, NumberValue, StringValue};
+use crate::typesystem::values::ValueEnum::{BooleanValue, NumberValue, StringValue, DateValue, TimeValue, DateTimeValue};
+use crate::typesystem::values::ValueOrSv;
 use log::trace;
 use std::cell::RefCell;
 use std::fmt;
@@ -134,10 +135,16 @@ impl ComparatorOperator {
             (NumberValue(left), Equals, NumberValue(right)) => Ok(BooleanValue(left == right)),
             (BooleanValue(left), Equals, BooleanValue(right)) => Ok(BooleanValue(left == right)),
             (StringValue(left), Equals, StringValue(right)) => Ok(BooleanValue(left == right)),
+            (DateValue(ValueOrSv::Value(a)), Equals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a == b)),
+            (TimeValue(ValueOrSv::Value(a)), Equals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a == b)),
+            (DateTimeValue(ValueOrSv::Value(a)), Equals, DateTimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a == b)),
 
             (NumberValue(left), NotEquals, NumberValue(right)) => Ok(BooleanValue(left != right)),
             (BooleanValue(left), NotEquals, BooleanValue(right)) => Ok(BooleanValue(left != right)),
             (StringValue(left), NotEquals, StringValue(right)) => Ok(BooleanValue(left != right)),
+            (DateValue(ValueOrSv::Value(a)), NotEquals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a != b)),
+            (TimeValue(ValueOrSv::Value(a)), NotEquals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a != b)),
+            (DateTimeValue(ValueOrSv::Value(a)), NotEquals, DateTimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a != b)),
 
             (NumberValue(left), LessEquals, NumberValue(right)) => Ok(BooleanValue(left <= right)),
             (NumberValue(left), GreaterEquals, NumberValue(right)) => {
@@ -145,6 +152,21 @@ impl ComparatorOperator {
             }
             (NumberValue(left), Less, NumberValue(right)) => Ok(BooleanValue(left < right)),
             (NumberValue(left), Greater, NumberValue(right)) => Ok(BooleanValue(left > right)),
+
+            (DateValue(ValueOrSv::Value(a)), LessEquals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a <= b)),
+            (DateValue(ValueOrSv::Value(a)), GreaterEquals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a >= b)),
+            (DateValue(ValueOrSv::Value(a)), Less, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a < b)),
+            (DateValue(ValueOrSv::Value(a)), Greater, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a > b)),
+
+            (TimeValue(ValueOrSv::Value(a)), LessEquals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a <= b)),
+            (TimeValue(ValueOrSv::Value(a)), GreaterEquals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a >= b)),
+            (TimeValue(ValueOrSv::Value(a)), Less, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a < b)),
+            (TimeValue(ValueOrSv::Value(a)), Greater, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a > b)),
+
+            (DateTimeValue(ValueOrSv::Value(a)), LessEquals, DateTimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a <= b)),
+            (DateTimeValue(ValueOrSv::Value(a)), GreaterEquals, DateTimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a >= b)),
+            (DateTimeValue(ValueOrSv::Value(a)), Less, DateTimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a < b)),
+            (DateTimeValue(ValueOrSv::Value(a)), Greater, DateTimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a > b)),
 
             (left, comparator, right) => RuntimeError::eval_error(format!(
                 "Not implemented {} {} {}",

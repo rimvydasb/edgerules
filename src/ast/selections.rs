@@ -17,7 +17,9 @@ use std::rc::Rc;
 use crate::typesystem::types::number::NumberEnum::{Int, SV};
 use crate::typesystem::types::{SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, Reference};
+use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, Reference, DateValue, TimeValue, DateTimeValue};
+use crate::typesystem::values::ValueOrSv;
+use crate::typesystem::types::number::NumberEnum as Num;
 
 //--------------------------------------------------------------------------------------------------
 
@@ -172,6 +174,34 @@ impl StaticLink for FieldSelection {
                 Ok(ValueType::ObjectType(source_type)) => {
                     self.return_type = self.method.link(source_type);
                 }
+                Ok(ValueType::DateType) => {
+                    // Supported: year, month, day, weekday
+                    let name = self.method.get_name();
+                    let ret = match name.as_str() {
+                        "year" | "month" | "day" | "weekday" => ValueType::NumberType,
+                        _ => return LinkingError::other_error(format!("Field '{}' not found in date", name)).into(),
+                    };
+                    self.return_type = Ok(ret);
+                }
+                Ok(ValueType::TimeType) => {
+                    // Supported: hour, minute, second
+                    let name = self.method.get_name();
+                    let ret = match name.as_str() {
+                        "hour" | "minute" | "second" => ValueType::NumberType,
+                        _ => return LinkingError::other_error(format!("Field '{}' not found in time", name)).into(),
+                    };
+                    self.return_type = Ok(ret);
+                }
+                Ok(ValueType::DateTimeType) => {
+                    // Supported: year, month, day, hour, minute, second, time, weekday
+                    let name = self.method.get_name();
+                    let ret = match name.as_str() {
+                        "year" | "month" | "day" | "hour" | "minute" | "second" | "weekday" => ValueType::NumberType,
+                        "time" => ValueType::TimeType,
+                        _ => return LinkingError::other_error(format!("Field '{}' not found in date and time", name)).into(),
+                    };
+                    self.return_type = Ok(ret);
+                }
                 Err(error) => {
                     return error
                         .with_context(|| format!("While looking at source '{}'", self.source))
@@ -199,6 +229,39 @@ impl EvaluatableExpression for FieldSelection {
 
         match source_value {
             Reference(reference) => self.method.eval(reference),
+            DateValue(ValueOrSv::Value(d)) => {
+                let name = self.method.get_name();
+                match name.as_str() {
+                    "year" => Ok(NumberValue(Num::from(d.year() as i64))),
+                    "month" => Ok(NumberValue(Num::from(d.month() as i64))),
+                    "day" => Ok(NumberValue(Num::from(d.day() as i64))),
+                    "weekday" => Ok(NumberValue(Num::from(d.weekday().number_from_monday() as i64))),
+                    _ => RuntimeError::field_not_found(name.as_str(), "date").into(),
+                }
+            }
+            TimeValue(ValueOrSv::Value(t)) => {
+                let name = self.method.get_name();
+                match name.as_str() {
+                    "hour" => Ok(NumberValue(Num::from(t.hour() as i64))),
+                    "minute" => Ok(NumberValue(Num::from(t.minute() as i64))),
+                    "second" => Ok(NumberValue(Num::from(t.second() as i64))),
+                    _ => RuntimeError::field_not_found(name.as_str(), "time").into(),
+                }
+            }
+            DateTimeValue(ValueOrSv::Value(dt)) => {
+                let name = self.method.get_name();
+                match name.as_str() {
+                    "year" => Ok(NumberValue(Num::from(dt.year() as i64))),
+                    "month" => Ok(NumberValue(Num::from(dt.month() as i64))),
+                    "day" => Ok(NumberValue(Num::from(dt.day() as i64))),
+                    "hour" => Ok(NumberValue(Num::from(dt.hour() as i64))),
+                    "minute" => Ok(NumberValue(Num::from(dt.minute() as i64))),
+                    "second" => Ok(NumberValue(Num::from(dt.second() as i64))),
+                    "weekday" => Ok(NumberValue(Num::from(dt.weekday().number_from_monday() as i64))),
+                    "time" => Ok(TimeValue(ValueOrSv::Value(dt.time()))),
+                    _ => RuntimeError::field_not_found(name.as_str(), "date and time").into(),
+                }
+            }
             _ => RuntimeError::eval_error(format!(
                 "Cannot select '{}' because data type is {} and not an object",
                 self.source,

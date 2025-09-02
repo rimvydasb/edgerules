@@ -41,7 +41,63 @@ pub enum ValueEnum {
     DateValue(ValueOrSv<Date, SpecialValueEnum>),
     TimeValue(ValueOrSv<Time, SpecialValueEnum>),
     DateTimeValue(ValueOrSv<PrimitiveDateTime, SpecialValueEnum>),
+    DurationValue(ValueOrSv<DurationValue, SpecialValueEnum>),
     TypeValue(ValueType),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DurationKind {
+    YearsMonths,
+    DaysTime,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DurationValue {
+    pub negative: bool,
+    pub kind: DurationKind,
+    pub years: i32,
+    pub months: i32,
+    pub days: i64,
+    pub hours: i64,
+    pub minutes: i64,
+    pub seconds: i64,
+}
+
+impl DurationValue {
+    pub fn ym(years: i32, months: i32, negative: bool) -> Self {
+        DurationValue {
+            negative,
+            kind: DurationKind::YearsMonths,
+            years,
+            months,
+            days: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+        }
+    }
+
+    pub fn dt(days: i64, hours: i64, minutes: i64, seconds: i64, negative: bool) -> Self {
+        DurationValue {
+            negative,
+            kind: DurationKind::DaysTime,
+            years: 0,
+            months: 0,
+            days,
+            hours,
+            minutes,
+            seconds,
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        match self.kind {
+            DurationKind::YearsMonths => self.years == 0 && self.months == 0,
+            DurationKind::DaysTime => {
+                self.days == 0 && self.hours == 0 && self.minutes == 0 && self.seconds == 0
+            }
+        }
+    }
 }
 
 impl From<ValueEnum> for EObjectContent<ExecutionContext> {
@@ -88,6 +144,7 @@ impl TypedValue for ValueEnum {
             ValueEnum::DateValue(_) => ValueType::DateType,
             ValueEnum::TimeValue(_) => ValueType::TimeType,
             ValueEnum::DateTimeValue(_) => ValueType::DateTimeType,
+            ValueEnum::DurationValue(_) => ValueType::DurationType,
             ValueEnum::RangeValue(_) => ValueType::RangeType,
 
             // @Todo: that is incorrect, because held type is not a result of get_type. Must return specific TypeValue as a type
@@ -123,6 +180,46 @@ impl Display for ValueEnum {
             },
             ValueEnum::DateTimeValue(date_time) => match date_time {
                 ValueOrSv::Value(date_time) => write!(f, "{}", date_time),
+                ValueOrSv::Sv(sv) => write!(f, "{}", sv),
+            },
+            ValueEnum::DurationValue(duration) => match duration {
+                ValueOrSv::Value(dur) => {
+                    // Build minimal ISO-8601 style string
+                    let mut s = std::string::String::new();
+                    if dur.negative && !dur.is_zero() {
+                        s.push('-');
+                    }
+                    s.push('P');
+                    match dur.kind {
+                        DurationKind::YearsMonths => {
+                            if dur.years != 0 {
+                                s.push_str(&format!("{}Y", dur.years.abs()));
+                            }
+                            if dur.months != 0 {
+                                s.push_str(&format!("{}M", dur.months.abs()));
+                            }
+                        }
+                        DurationKind::DaysTime => {
+                            if dur.days != 0 {
+                                s.push_str(&format!("{}D", dur.days.abs()));
+                            }
+                            if dur.hours != 0 || dur.minutes != 0 || dur.seconds != 0 {
+                                s.push('T');
+                                if dur.hours != 0 {
+                                    s.push_str(&format!("{}H", dur.hours.abs()));
+                                }
+                                if dur.minutes != 0 {
+                                    s.push_str(&format!("{}M", dur.minutes.abs()));
+                                }
+                                if dur.seconds != 0 {
+                                    s.push_str(&format!("{}S", dur.seconds.abs()));
+                                }
+                            }
+                        }
+                    }
+                    if s == "P" { s.push('T'); s.push('0'); s.push('S'); }
+                    write!(f, "{}", s)
+                }
                 ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::TypeValue(type_value) => {

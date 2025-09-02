@@ -199,6 +199,97 @@ mod test {
         ]).expect_num("value", Int(38));
     }
 
+    #[test]
+    fn datetime_primitives_and_components() {
+        init_logger();
+
+        // Date components
+        test_code("value : date(\"2017-05-03\").year").expect_num("value", Int(2017));
+        test_code("value : date(\"2017-05-03\").month").expect_num("value", Int(5));
+        test_code("value : date(\"2017-05-03\").day").expect_num("value", Int(3));
+
+        // Time components
+        test_code("value : time(\"12:00:00\").second").expect_num("value", Int(0));
+        test_code("value : time(\"13:10:30\").minute").expect_num("value", Int(10));
+
+        // Datetime components and time extraction
+        test_code("value : datetime(\"2016-12-09T15:37:00\").month").expect_num("value", Int(12));
+        test_code("value : datetime(\"2016-12-09T15:37:00\").hour").expect_num("value", Int(15));
+        test_code("value : datetime(\"2016-12-09T15:37:00\").time").expect(
+            &mut expr("value").unwrap(),
+            ValueEnum::TimeValue(crate::typesystem::values::ValueOrSv::Value(
+                time::Time::from_hms(15, 37, 0).unwrap(),
+            )),
+        );
+
+        // Weekday (ISO Monday=1) for 2018-10-11 is Thursday=4
+        test_code("value : date(\"2018-10-11\").weekday").expect_num("value", Int(4));
+    }
+
+    #[test]
+    fn datetime_comparisons_and_arithmetic() {
+        init_logger();
+
+        // Comparisons
+        test_code("value : date(\"2017-05-03\") < date(\"2017-05-04\")")
+            .expect(&mut expr("value").unwrap(), BooleanValue(true));
+
+        // Subtraction to duration
+        // date - date => P1D
+        test_code("value : date(\"2017-05-04\") - date(\"2017-05-03\")").expect(
+            &mut expr("value").unwrap(),
+            ValueEnum::DurationValue(crate::typesystem::values::ValueOrSv::Value(
+                crate::typesystem::values::DurationValue::dt(1, 0, 0, 0, false),
+            )),
+        );
+
+        // Addition with duration days
+        test_code("value : date(\"2017-05-03\") + duration(\"P1D\")").expect(
+            &mut expr("value").unwrap(),
+            ValueEnum::DateValue(crate::typesystem::values::ValueOrSv::Value(
+                time::Date::from_calendar_date(2017, time::Month::May, 4).unwrap(),
+            )),
+        );
+
+        // Years-months duration addition clamping day-of-month
+        test_code("value : date(\"2018-01-31\") + duration(\"P1M\")").expect(
+            &mut expr("value").unwrap(),
+            ValueEnum::DateValue(crate::typesystem::values::ValueOrSv::Value(
+                time::Date::from_calendar_date(2018, time::Month::February, 28).unwrap(),
+            )),
+        );
+
+        // time - time => duration
+        test_code("value : time(\"13:10:30\") - time(\"12:00:00\")").expect(
+            &mut expr("value").unwrap(),
+            ValueEnum::DurationValue(crate::typesystem::values::ValueOrSv::Value(
+                crate::typesystem::values::DurationValue::dt(0, 1, 10, 30, false),
+            )),
+        );
+
+        // datetime +/- PT
+        test_code("value : datetime(\"2016-12-09T15:37:00\") + duration(\"PT23H\")").expect(
+            &mut expr("value").unwrap(),
+            ValueEnum::DateTimeValue(crate::typesystem::values::ValueOrSv::Value(
+                time::PrimitiveDateTime::new(
+                    time::Date::from_calendar_date(2016, time::Month::December, 10).unwrap(),
+                    time::Time::from_hms(14, 37, 0).unwrap(),
+                ),
+            )),
+        );
+    }
+
+    #[test]
+    fn datetime_additional_functions() {
+        init_logger();
+        test_code("value : dayOfWeek(date(\"2025-09-02\"))")
+            .expect(&mut expr("value").unwrap(), V::from("Tuesday"));
+        test_code("value : monthOfYear(date(\"2025-09-02\"))")
+            .expect(&mut expr("value").unwrap(), V::from("September"));
+        test_code("value : lastDayOfMonth(date(\"2025-02-10\"))")
+            .expect_num("value", Int(28));
+    }
+
     //#[test]
     #[allow(dead_code)]
     fn tables_test() {

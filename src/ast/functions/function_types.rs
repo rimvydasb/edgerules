@@ -47,6 +47,15 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "count" => UnaryFunctionDefinition { name : "count", function: eval_count, validation: number_range_or_number_list, return_type: return_uni_number },
     "max" => UnaryFunctionDefinition { name : "max", function: eval_max, validation: number_range_or_number_list, return_type: return_uni_number },
     "sum" => UnaryFunctionDefinition { name : "sum", function: eval_sum, validation: number_range_or_number_list, return_type: return_uni_number },
+    // Date/Time/Duration parsing
+    "date" => UnaryFunctionDefinition { name : "date", function: eval_date, validation: expect_string_arg, return_type: |_| ValueType::DateType },
+    "time" => UnaryFunctionDefinition { name : "time", function: eval_time, validation: expect_string_arg, return_type: |_| ValueType::TimeType },
+    "datetime" => UnaryFunctionDefinition { name : "datetime", function: eval_datetime, validation: expect_string_arg, return_type: |_| ValueType::DateTimeType },
+    "duration" => UnaryFunctionDefinition { name : "duration", function: eval_duration, validation: expect_string_arg, return_type: |_| ValueType::DurationType },
+    // Additional helpers
+    "dayOfWeek" => UnaryFunctionDefinition { name : "dayOfWeek", function: eval_day_of_week, validation: expect_date_arg, return_type: |_| ValueType::StringType },
+    "monthOfYear" => UnaryFunctionDefinition { name : "monthOfYear", function: eval_month_of_year, validation: expect_date_arg, return_type: |_| ValueType::StringType },
+    "lastDayOfMonth" => UnaryFunctionDefinition { name : "lastDayOfMonth", function: eval_last_day_of_month, validation: expect_date_arg, return_type: |_| ValueType::NumberType },
 };
 
 pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefinition> = phf_map! {
@@ -71,6 +80,14 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "sum" => EFunctionType::Multi,
     "count" => EFunctionType::Unary,
     "find" => EFunctionType::Binary,
+    // Date/Time/Duration parsing and helpers
+    "date" => EFunctionType::Unary,
+    "time" => EFunctionType::Unary,
+    "datetime" => EFunctionType::Unary,
+    "duration" => EFunctionType::Unary,
+    "dayOfWeek" => EFunctionType::Unary,
+    "monthOfYear" => EFunctionType::Unary,
+    "lastDayOfMonth" => EFunctionType::Unary,
 };
 
 #[derive(Debug)]
