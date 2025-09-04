@@ -5,9 +5,9 @@ use wasm_bindgen::prelude::*;
 use crate::code_to_trace;
 use crate::runtime::edge_rules::EdgeRules;
 
+#[cfg(feature = "console_error_panic_hook")]
 #[wasm_bindgen]
 pub fn init_panic_hook() {
-    #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }
 
