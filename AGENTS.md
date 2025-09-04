@@ -66,3 +66,13 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 
 - Validate untrusted model inputs; avoid panics in runtime paths.
 - For WASI/Node/Web, prefer explicit feature flags and minimal exports to keep binaries/WASM small.
+
+# Quality Assurance
+
+It is possible to generate solutions to the problematic problems captured in complex examples.
+Run the command below and investigate [EXAMPLES-output.md](tests/EXAMPLES-output.md)
+to see results.
+
+```bash
+cargo run --bin generate-examples
+```

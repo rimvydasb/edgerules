@@ -63,3 +63,15 @@ dayOfWeek(date("2025-09-02"))      // "Tuesday" (string)
 monthOfYear(date("2025-09-02"))    // "September" (string)
 lastDayOfMonth(date("2025-02-10")) // 28 (number)
 ```
+
+## (#NEW) Literal Duration Support
+
+You can also create durations using a literal syntax:
+
+```edgerules
+1 years 6 months    // 1 year 6 months (years–months)
+6 months            // 6 months (years–months)
+45 minutes          // 45 minutes (days–time)
+2 days 3 hours      // 2 days 3 hours (days–time)
+-1 years            // negative 1 year (allowed)
+```
