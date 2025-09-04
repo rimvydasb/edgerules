@@ -337,6 +337,7 @@ pub mod test {
     use crate::ast::token::{EToken, EUnparsedToken};
     use crate::runtime::edge_rules::{expr, EdgeRules, EvalError};
 
+    use crate::typesystem::errors::LinkingErrorEnum;
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
 
     use crate::typesystem::types::number::NumberEnum::Int;
@@ -470,6 +471,56 @@ pub mod test {
         ]);
         tb.expect_num("calendar.firstDay", Int(3));
         tb.expect_num("calendar.secondDay", Int(33));
+
+        Ok(())
+    }
+
+    #[test]
+    fn pass_self_context_to_function_should_fail() {
+        init_logger();
+
+        // Users cannot pass the context object itself into a function defined in that same context.
+        test_code_lines(&[
+            "calendar : {",
+            "    shift : 2",
+            "    start1(calendar) : { result : calendar.shift + 1 }",
+            "    firstDay : start1(calendar).result",
+            "}",
+        ])
+        .expect_link_error(LinkingErrorEnum::OtherLinkingError(
+            "Cannot pass context `calendar` as argument to function `start1` defined in the same context".to_string(),
+        ));
+    }
+
+    #[test]
+    fn pass_self_context_as_second_argument_should_fail() {
+        init_logger();
+
+        // The guard applies to any argument position, not just the first one.
+        test_code_lines(&[
+            "calendar : {",
+            "    shift : 2",
+            "    start2(x, cal) : { result : cal.shift + x }",
+            "    firstDay : start2(1, calendar).result",
+            "}",
+        ])
+        .expect_link_error(LinkingErrorEnum::OtherLinkingError(
+            "Cannot pass context `calendar` as argument to function `start2` defined in the same context".to_string(),
+        ));
+    }
+
+    #[test]
+    fn pass_sub_context_to_function() -> Result<(), EvalError> {
+        init_logger();
+
+        let tb = test_code_lines(&[
+            "calendar : {",
+            "    config : { shift : 2 }",
+            "    start1(calendar) : { result : calendar.shift + 1 }",
+            "    firstDay : start1(config).result",
+            "}",
+        ]);
+        tb.expect_num("calendar.firstDay", Int(3));
 
         Ok(())
     }

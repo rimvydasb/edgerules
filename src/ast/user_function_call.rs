@@ -82,17 +82,31 @@ impl StaticLink for UserFunctionCall {
 
             // 3. Creating a mid context where all parameter values are set
             let mut parameters_list = Vec::new();
+            let ctx_name = ctx.borrow().node.node_type.to_code();
+            let function_name = self.name.clone();
 
-            definition
+            for (parameter, input_argument) in definition
                 .borrow()
                 .metaphor
                 .get_parameters()
                 .iter()
                 .zip(self.args.iter_mut())
-                .for_each(|(parameter, input_argument)| {
-                    let arg_type = input_argument.link(Rc::clone(&ctx));
-                    parameters_list.push((parameter.name.clone(), arg_type));
-                });
+            {
+                let arg_type = if let ExpressionEnum::Variable(var) = input_argument {
+                    if var.path.len() == 1 && var.path[0] == ctx_name {
+                        LinkingError::other_error(format!(
+                            "Cannot pass context `{}` as argument to function `{}` defined in the same context",
+                            ctx_name, function_name
+                        ))
+                        .into()
+                    } else {
+                        input_argument.link(Rc::clone(&ctx))
+                    }
+                } else {
+                    input_argument.link(Rc::clone(&ctx))
+                };
+                parameters_list.push((parameter.name.clone(), arg_type));
+            }
 
             let mut parameters = Vec::new();
             for (name, linked_type) in parameters_list {
