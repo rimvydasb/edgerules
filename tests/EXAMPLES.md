@@ -41,7 +41,8 @@ output:
 // output
 ```
 
-*Another similar calculation:*
+Another similar calculation where reference to the root is allowed
+
 ```edgerules
 calendar: {
     shift: 2
@@ -59,7 +60,47 @@ output:
 // output
 ```
 
-> it is possible to get cyclic reference if refering another non-calculated line
+Another similar calculation, but now in an array object, tries referring to the root calendar field.
+It should not work because single objects in an array have their own context, and they can refer to a root object in addition.
+With this limitation, the ambiguity is removed.
+
+```edgerules
+calendar: {
+    shift: 2
+    days: [
+	    {start: shift + 1},
+	    {start: shift + 31}
+    ]
+    firstDay: days[0].start
+    secondDay: days[1].start
+}
+```
+
+output:
+```edgerules
+// output
+```
+
+As a potential work-around for previous problem, is a possibility to have _requirements_ expressed for an object.
+
+```edgerules
+calendar: {
+    shift: 2
+    days: [
+	    {start(config): config.shift + 1},
+	    {start(config): config.shift + 31}
+    ]
+    firstDay: days[0].start(calendar)
+    secondDay: days[1].start(calendar)
+}
+```
+
+output:
+```edgerules
+// output
+```
+
+> it is possible to get cyclic reference if referring another non-calculated line
 
 > would be good to allow collection references
 
@@ -107,6 +148,82 @@ model : {
     sales3(month, sales) : { result : sales[month] + sales[month + 1] + sales[month + 2] }
     acc : for m in 1..(salesCount - 2) return sales3(m, sales).result
     best : max(acc)
+}
+```
+
+output:
+```edgerules
+// output
+```
+
+## Creating multiple instances:
+
+```edgerules
+{
+    // input data
+    application: {
+        effectiveTimestamp: 20220512
+        applicants: [
+            {
+                birthday: 20050101
+            },
+            {
+                birthday: 20010101
+            }
+        ]
+    }
+
+    // instance definition
+    applicantRecord(inputData): {
+        age: inputData.application.effectiveTimestamp - inputData.birthday
+    }
+
+    // creating multiple instances
+    applicationRecord: {
+        inputData: application
+        applicantRecords: for record in application.applicants return applicantRecord(record)
+    }
+}
+```
+
+output:
+```edgerules
+// output
+```
+
+## Nesting Failures
+
+The following example should not work and inform user that 's' assignment side is not complete
+
+```edgerules
+{
+    input : {
+
+        today : 2021
+        birthday : 2022
+    },
+
+
+    record : {
+
+        age : input.birthday - input.today
+        salary : sum(1,2)
+            record : {
+
+				age : input.birthday - input.today
+				salary : sum(1,3)
+
+					record : {
+
+                    age : input.birthday - input.today
+                    salary : sum(1,4)
+                    another : {
+
+					    s :
+				}
+			}
+		}
+    }
 }
 ```
 

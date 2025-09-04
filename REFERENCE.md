@@ -102,11 +102,11 @@ From highest to lowest. Parentheses always take precedence to group explicitly.
 
 ## Special Values
 
-| Name                   | Description                         | Treatment              | Can be assigned by user |
-|------------------------|-------------------------------------|------------------------|-------------------------|
-| &#9744;`Missing`       | value is expected, but not found    | override by `Missing`  | Yes                     |
-| &#9744;`NotApplicable` | value is not expected and not found | treat as 0             | Yes                     |
-| &#9744;`NotFound`      | value entry is not found            | override by `NotFound` | No - system only        |
+| Name            | Description                         | Treatment              | Can be assigned by user |
+|-----------------|-------------------------------------|------------------------|-------------------------|
+| `Missing`       | value is expected, but not found    | override by `Missing`  | Yes                     |
+| `NotApplicable` | value is not expected and not found | treat as 0             | Yes                     |
+| `NotFound`      | value entry is not found            | override by `NotFound` | No - system only        |
 
 ```edgerules
 
