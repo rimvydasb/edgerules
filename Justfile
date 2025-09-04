@@ -15,6 +15,12 @@ wasm_bg_web_opt := out_web + "/edge_rules_bg.opt.wasm"
 wasm_bg_node := out_node + "/edge_rules_bg.wasm"
 wasm_bg_node_opt := out_node + "/edge_rules_bg.opt.wasm"
 
+# Shared wasm-opt flags to minimize output size. -Oz enables aggressive size optimizations, mutable globals unlock
+# further reductions across supported runtimes, and strip options remove debug metadata, DWARF sections, producers,
+# and function names. DCE drops unreachable code.
+WASM_OPT_FLAGS := "-Oz --enable-mutable-globals --strip-dwarf --strip-function-names " +
+                  "--strip-debug --strip-producers --dce"
+
 # --- prerequisites ---
 ensure:
     rustup target add wasm32-unknown-unknown
@@ -28,13 +34,15 @@ ensure:
 web: ensure
     rustup run stable wasm-pack build --release --target web --out-dir {{out_web}} --out-name edge_rules -- --features {{FEATURES}}
     test -f {{wasm_bg_web}} && ls -lh {{wasm_bg_web}} || true
-    wasm-opt -Oz --strip-debug --strip-producers --dce {{wasm_bg_web}} -o {{wasm_bg_web_opt}}
+    # Apply shared size-focused flags and remove unnecessary metadata.
+    wasm-opt {{WASM_OPT_FLAGS}} {{wasm_bg_web}} -o {{wasm_bg_web_opt}}
     test -f {{wasm_bg_web_opt}} && ls -lh {{wasm_bg_web_opt}} || true
 
 node: ensure
     rustup run stable wasm-pack build --release --target nodejs --out-dir {{out_node}} --out-name edge_rules -- --features {{FEATURES}}
     test -f {{wasm_bg_node}} && ls -lh {{wasm_bg_node}} || true
-    wasm-opt -Oz --strip-debug --strip-producers --dce {{wasm_bg_node}} -o {{wasm_bg_node_opt}}
+    # Apply shared size-focused flags and remove unnecessary metadata.
+    wasm-opt {{WASM_OPT_FLAGS}} {{wasm_bg_node}} -o {{wasm_bg_node_opt}}
     test -f {{wasm_bg_node_opt}} && ls -lh {{wasm_bg_node_opt}} || true
 
 wasi: ensure
@@ -48,7 +56,8 @@ core: ensure
     ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm || true
 
 core-opt: core
-    wasm-opt -Oz --strip-debug --strip-producers --dce \
+    # Apply shared size-focused flags and remove unnecessary metadata.
+    wasm-opt {{WASM_OPT_FLAGS}} \
       target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm \
       -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.min.wasm
     ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.min.wasm || true
