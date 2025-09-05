@@ -18,8 +18,7 @@ wasm_bg_node_opt := out_node + "/edge_rules_bg.opt.wasm"
 # Shared wasm-opt flags to minimize output size. -Oz enables aggressive size optimizations, mutable globals unlock
 # further reductions across supported runtimes, and strip options remove debug metadata, DWARF sections, producers,
 # and function names. DCE drops unreachable code.
-WASM_OPT_FLAGS := "-Oz --enable-mutable-globals --strip-dwarf --strip-function-names " +
-                  "--strip-debug --strip-producers --dce"
+WASM_OPT_FLAGS := "-Oz --enable-mutable-globals --strip-dwarf --strip-function-names --strip-debug --strip-producers --dce"
 
 # --- prerequisites ---
 ensure:
