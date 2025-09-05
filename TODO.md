@@ -132,7 +132,7 @@
 - [x] Function calls
 - [ ] Optional argument labels in call expressions (`object.function(input: customer)`)
 - [ ] Function overloading: `calfunction(a: number)` and `calfunction(a: string)` can be in the same scope
-
+- [ ] Modulo `%` exists internally but is not tokenized
 
 ### Rejected Features
 

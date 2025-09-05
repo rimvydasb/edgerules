@@ -14,17 +14,191 @@ This document describes the EdgeRules DSL as currently implemented in this repos
 
 ## Data Types
 
-- **number**: Integers and reals; arithmetic supports `+ - * / ^` and unary negation.
-- **string**: Single-quoted or double-quoted literal text.
-- **boolean**: Boolean literals `true` and `false` and results of comparisons/logical operators.
-- **list of T**: Homogeneous lists are intended; mixed types parse but type inference is basic.
-- **range**: Integer ranges `a..b` (inclusive), e.g., `1..5` yields 1,2,3,4,5. Useful with `for` and built-ins like
-  `sum`, `count`, `max`.
-- **object (context)**: Nested named fields forming a context object.
-- **special values**: Present in the runtime/value model: `Missing`, `NotApplicable`, `NotFound`. Users cannot assign
-  `NotFound`; out-of-bounds access and failed lookups typically yield a special numeric/string sentinel where
-  applicable.
-- **date**, **time**, **datetime**, **period** - date related values
+### Number
+
+Numbers include integers and reals. Supported operations: `+`, `-`, `*`, `/`, `^` (power), unary negation, and all
+comparators.
+
+#### Arithmetic
+
+```edgerules
+{
+    summing      : 4 + 1.2
+    subtracting  : 12 - 3
+    product      : 6 * 7
+    division     : 10 / 4
+    power        : 2 ^ 8
+    negate       : -(5 + 1)
+}
+```
+
+#### Comparisons
+
+```edgerules
+{
+    lt           : 1 < 2
+    le           : 2 <= 2
+    gt           : 3 > 1
+    ge           : 4 >= 4
+    eq           : 5 = 5
+    ne           : 6 <> 7
+}
+```
+
+### Boolean
+
+Booleans are `true` and `false`. Created directly or via comparisons. Logical operators: `not`, `and`, `or`, `xor`.
+
+```edgerules
+{
+    a            : true
+    b            : false
+    allTrue      : a and not b
+    anyTrue      : a or b
+    justOne      : a xor b
+    negateComp   : not (3 = 4)
+}
+```
+
+### String
+
+Strings use single or double quotes. Supported comparisons: `=` and `<>`.
+
+```edgerules
+{
+    a            : 'hello'
+    b            : "hello"
+    equal        : a = b              // true
+    notEqual     : 'A' <> 'B'         // true
+}
+```
+
+### List
+
+Homogeneous lists of values. Index with a number or filter with a boolean predicate. Built-ins `sum`, `max`, `count`
+work with number lists. `find(list, value)` returns the index or a special Missing.
+
+```edgerules
+{
+    nums         : [1, 5, 12, 7]
+    first        : nums[0]                  // 1
+    filtered     : nums[... > 6]            // [12, 7]
+    sumAll       : sum(nums)                // 25
+    maxAll       : max(nums)                // 12
+    countAll     : count(nums)              // 4
+    idxOf7       : find(nums, 7)            // 3
+}
+```
+
+### Range
+
+Inclusive integer ranges `a..b`. Useful with loops and numeric built-ins.
+
+```edgerules
+{
+    r            : 1..5                     // 1,2,3,4,5
+    doubled      : for n in 1..5 return n * 2   // [2,4,6,8,10]
+    sumR         : sum(1..5)                // 15
+    maxR         : max(1..5)                // 5
+    countR       : count(1..5)              // 5
+}
+```
+
+### Object (Context)
+
+Objects group named fields; fields can reference other fields and nested objects/arrays.
+
+```edgerules
+{
+    person : {
+        first : 'Ada'
+        born  : 1815
+    }
+
+    // field selection and reuse
+    ageNow      : 2025 - person.born
+}
+```
+
+### Date
+
+Create with `date("YYYY-MM-DD")`. Supports comparisons, arithmetic with durations, and field selection
+(`year`, `month`, `day`, `weekday`). Helpers: `dayOfWeek(date)`, `monthOfYear(date)`, `lastDayOfMonth(date)`.
+
+```edgerules
+{
+    d1           : date("2017-05-03")
+    d2           : date("2017-05-04")
+    compare      : d1 < d2                    // true
+
+    // date +/- duration
+    plusDays     : d1 + duration("P1D")       // 2017-05-04
+    minusMonths  : date("2017-03-31") - duration("P1M")
+
+    // fields and helpers
+    y            : d1.year                    // 2017
+    mName        : monthOfYear(d1)            // "May"
+    wName        : dayOfWeek(d1)              // "Wednesday"
+    lastDom      : lastDayOfMonth(date("2025-02-10")) // 28
+}
+```
+
+### Time
+
+Create with `time("hh:mm:ss")`. Supports comparisons, arithmetic with durations, and field selection
+(`hour`, `minute`, `second`).
+
+```edgerules
+{
+    t1           : time("13:10:30")
+    t2           : time("10:00:00")
+    diff         : t1 - t2                    // duration("PT3H10M30S")
+    plusMin      : t2 + duration("PT45M")     // 10:45:00
+    hour         : t1.hour                    // 13
+}
+```
+
+### Date and Time (DateTime)
+
+Create with `datetime("YYYY-MM-DDThh:mm:ss")`. Supports comparisons, arithmetic with durations, and field selection
+(`year`, `month`, `day`, `hour`, `minute`, `second`, `weekday`, `time`).
+
+```edgerules
+{
+    dt1          : datetime("2017-05-03T13:10:30")
+    dt2          : datetime("2017-05-01T10:00:00")
+    diff         : dt1 - dt2                  // duration("P2DT3H10M30S")
+    plus         : dt1 + duration("P2DT3H")   // 2017-05-05T16:10:30
+    timePart     : dt1.time                   // time("13:10:30")
+    weekday      : dt1.weekday                // 3 (Wednesday)
+}
+```
+
+### Duration
+
+Create with `duration("ISO-8601")`. Two kinds are supported: years–months (e.g., `P1Y6M`) and days–time (e.g.,
+`P2DT3H`). Use with dates/times via `+`/`-`.
+
+```edgerules
+{
+    ym           : duration("P1Y6M")          // 1 year 6 months
+    dt           : duration("P2DT3H")         // 2 days 3 hours
+    addToDate    : date("2017-05-03") + ym    // 2018-11-03
+    subFromTime  : time("12:00:00") - duration("PT30M") // 11:30:00
+}
+```
+
+### Special Values
+
+Certain operations yield special sentinel values internally: `Missing`, `NotApplicable`, `NotFound`. For example,
+indexing out of bounds or `find` when not found. These are not user literals, but you may observe them in results.
+
+```edgerules
+{
+    idx          : find([1,2], 3)    // number.Missing
+    oob          : [10][5]           // number.Missing
+}
+```
 
 ## Literals & Identifiers
 
