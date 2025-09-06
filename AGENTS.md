@@ -35,6 +35,8 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - `just ensure`: Ensures targets and tools exist (wasm-pack, wasm-opt, wasmtime).
 - `just web`: Build WASM for web into `target/pkg-web/` and optimize (prints sizes).
 - `just node`: Build WASM for Node into `target/pkg-node/` and optimize (prints sizes).
+- `just web-debug`: Build WASM for web with panic hook enabled into `target/pkg-web-debug/` and optimize.
+- `just node-debug`: Build WASM for Node with panic hook enabled into `target/pkg-node-debug/` and optimize.
 - `just wasi`: Build the WASI binary `edgerules-wasi.wasm` and run demo (prints size).
 - `just core`: Build core library for wasm32-unknown-unknown.
 - `just core-opt`: Minify core output to .min.wasm.
@@ -51,7 +53,7 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - Use `?` for error propagation; avoid `unwrap()`/`expect()` in runtime paths except test code.
 - Naming: modules/files `snake_case`; types/enums `CamelCase`; functions/fields `snake_case`.
 - Formatting: run `cargo fmt` before commits; keep `clippy` clean.
-- WASM: default features include `wasm-bindgen` and `console_error_panic_hook`.
+- WASM features: `wasm` is the lean baseline; `wasm_debug` enables `console_error_panic_hook` for better panic traces in dev. Use `web-debug`/`node-debug` to build debug artifacts in separate folders to avoid shipping debug hooks.
 
 ## Testing Guidelines
 

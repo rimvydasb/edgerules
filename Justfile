@@ -6,14 +6,15 @@ FEATURES := "wasm"
 CRATE := "edge-rules"
 BIN_WASI := "edgerules-wasi"
 PROFILE := "release"
+PKG_NAME := "edge_rules"
 
 # Output dirs for separate web/node packages under target/
 out_web := "target/pkg-web"
 out_node := "target/pkg-node"
-wasm_bg_web := out_web + "/edge_rules_bg.wasm"
-wasm_bg_web_opt := out_web + "/edge_rules_bg.opt.wasm"
-wasm_bg_node := out_node + "/edge_rules_bg.wasm"
-wasm_bg_node_opt := out_node + "/edge_rules_bg.opt.wasm"
+
+# Debug package output dirs (keep separate to avoid shipping with debug hook)
+out_web_debug := "target/pkg-web-debug"
+out_node_debug := "target/pkg-node-debug"
 
 # Shared wasm-opt flags to minimize output size. -Oz enables aggressive size optimizations, mutable globals unlock
 # further reductions across supported runtimes, and strip options remove debug metadata, DWARF sections, producers,
@@ -27,22 +28,29 @@ ensure:
     command -v wasm-pack >/dev/null
     command -v wasm-opt >/dev/null || echo "TIP: brew install binaryen"
     command -v wasmtime >/dev/null || echo "TIP: brew install wasmtime"
-    mkdir -p {{out_web}} {{out_node}}
+    mkdir -p {{out_web}} {{out_node}} {{out_web_debug}} {{out_node_debug}}
+
+# --- shared builder for web/node ---
+build-pkg platform out_dir features:
+    rustup run stable wasm-pack build --release --target {{platform}} --out-dir {{out_dir}} --out-name {{PKG_NAME}} -- --features {{features}}
+    test -f {{out_dir}}/{{PKG_NAME}}_bg.wasm && ls -lh {{out_dir}}/{{PKG_NAME}}_bg.wasm || true
+    # Apply shared size-focused flags and remove unnecessary metadata.
+    wasm-opt {{WASM_OPT_FLAGS}} {{out_dir}}/{{PKG_NAME}}_bg.wasm -o {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm
+    test -f {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm && ls -lh {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm || true
 
 # --- primary builds (separate outputs under target/) ---
 web: ensure
-    rustup run stable wasm-pack build --release --target web --out-dir {{out_web}} --out-name edge_rules -- --features {{FEATURES}}
-    test -f {{wasm_bg_web}} && ls -lh {{wasm_bg_web}} || true
-    # Apply shared size-focused flags and remove unnecessary metadata.
-    wasm-opt {{WASM_OPT_FLAGS}} {{wasm_bg_web}} -o {{wasm_bg_web_opt}}
-    test -f {{wasm_bg_web_opt}} && ls -lh {{wasm_bg_web_opt}} || true
+    just build-pkg web {{out_web}} {{FEATURES}}
 
 node: ensure
-    rustup run stable wasm-pack build --release --target nodejs --out-dir {{out_node}} --out-name edge_rules -- --features {{FEATURES}}
-    test -f {{wasm_bg_node}} && ls -lh {{wasm_bg_node}} || true
-    # Apply shared size-focused flags and remove unnecessary metadata.
-    wasm-opt {{WASM_OPT_FLAGS}} {{wasm_bg_node}} -o {{wasm_bg_node_opt}}
-    test -f {{wasm_bg_node_opt}} && ls -lh {{wasm_bg_node_opt}} || true
+    just build-pkg nodejs {{out_node}} {{FEATURES}}
+
+# Debug builds with console_error_panic_hook enabled
+web-debug: ensure
+    just build-pkg web {{out_web_debug}} wasm_debug
+
+node-debug: ensure
+    just build-pkg nodejs {{out_node_debug}} wasm_debug
 
 wasi: ensure
     cargo build --release --target wasm32-wasip1 -p {{CRATE}} --bin {{BIN_WASI}}

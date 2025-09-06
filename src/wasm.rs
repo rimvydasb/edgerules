@@ -11,6 +11,14 @@ pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
+// Provide a stable no-op export when the panic hook feature is disabled,
+// so JS/TS that calls `init_panic_hook()` does not break in release builds.
+#[cfg(all(not(feature = "console_error_panic_hook")))]
+#[wasm_bindgen]
+pub fn init_panic_hook() {
+    // no-op
+}
+
 #[wasm_bindgen]
 pub fn to_trace(code: &str) -> String {
     code_to_trace(code)
