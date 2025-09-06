@@ -99,7 +99,7 @@ output:
 Field shift not found in Root
 Context:
   1. Error in `Root.Variable(VariableLink { path: ["shift"], variable_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) })`: Field shift not found in Root
-  2. Error in `Root.Operator(MathOperator { data: OperatorData { operator: Addition, left: Variable(VariableLink { path: ["shift"], variable_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) }), right: Value(NumberValue(Int(31))) }, function: 0x100462518 })`: Field shift not found in Root
+  2. Error in `Root.Operator(MathOperator { data: OperatorData { operator: Addition, left: Variable(VariableLink { path: ["shift"], variable_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) }), right: Value(NumberValue(Int(31))) }, function: 0x100ea63f4 })`: Field shift not found in Root
   3. Error in `Root.calendar.Selection(FieldSelection { source: Filter(ExpressionFilter { source: Variable(VariableLink { path: ["days"], variable_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) }), method: Value(NumberValue(Int(0))), method_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }), return_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) }), method: VariableLink { path: ["start"], variable_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) }, return_type: Err(GeneralStackedError { error: NotLinkedYet, context: [] }) })`: Field shift not found in Root
 ```
 
@@ -276,6 +276,19 @@ output:
 's' assignment side is not complete → 'another' assignment side is not complete → 'record' assignment side is not complete → 'record' assignment side is not complete → 'record' assignment side is not complete
 ```
 
-
 ## Complex Filtering
 
+```edgerules
+{
+    nums         : [1, 5, 12, 7]
+    filtered     : nums[...>6]
+}
+```
+
+output:
+```edgerules
+{
+   filtered : [12, 7]
+   nums : [1, 5, 12, 7]
+}
+```

@@ -64,14 +64,23 @@ impl ExpressionFilter {
             let mut filtered_values = Vec::new();
 
             for value in values {
-                // @Todo: interesting thing is that no sub-context is created, but existing is reused. What if multiple filters are applied?
-                context.borrow_mut().context_variable = Some(value?.clone());
-                if self.method.eval(Rc::clone(&context))? == BooleanValue(true) {
-                    filtered_values.push(Ok(context.borrow_mut().context_variable.take().unwrap()));
+                // Evaluate the predicate in a temporary child context to avoid
+                // borrowing the same ExecutionContext while evaluating the filter condition.
+                // This child can still access the parent for variables, while holding
+                // its own context variable for `...` / `it`.
+                let candidate = value?;
+                let tmp_ctx = ExecutionContext::create_temp_child_context(
+                    Rc::clone(&context),
+                    ContextObjectBuilder::new().build(),
+                );
+                {
+                    // Limit the mutable borrow strictly to this scope.
+                    tmp_ctx.borrow_mut().context_variable = Some(candidate.clone());
+                }
+                if self.method.eval(Rc::clone(&tmp_ctx))? == BooleanValue(true) {
+                    filtered_values.push(Ok(candidate));
                 }
             }
-
-            context.borrow_mut().context_variable = None;
 
             Ok(Array(filtered_values, list_type))
         } else {
