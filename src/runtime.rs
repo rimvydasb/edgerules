@@ -200,6 +200,21 @@ mod test {
     }
 
     #[test]
+    fn datetime_primitives_and_components_browsing() {
+        init_logger();
+
+        // Also verify that a bound variable date exposes components
+        is_lines_evaluating_to(
+            vec![
+                "d1 : date(\"2017-05-03\")",
+                "y : d1.year",
+            ],
+            &mut E::variable("y"),
+            V::from(2017),
+        );
+    }
+
+    #[test]
     fn datetime_primitives_and_components() {
         init_logger();
 
@@ -224,6 +239,35 @@ mod test {
 
         // Weekday (ISO Monday=1) for 2018-10-11 is Thursday=4
         test_code("value : date(\"2018-10-11\").weekday").expect_num("value", Int(4));
+
+        // Also verify that a bound variable date exposes components
+        is_lines_evaluating_to(
+            vec![
+                "d1 : date(\"2017-05-03\")",
+                "y : d1.year",
+            ],
+            &mut E::variable("y"),
+            V::from(2017),
+        );
+
+        // is_lines_evaluating_to(
+        //     vec![
+        //         "d1 : date(\"2017-05-03\")",
+        //         "m : d1.month",
+        //     ],
+        //     &mut E::variable("m"),
+        //     V::from(5),
+        // );
+        //
+        // is_lines_evaluating_to(
+        //     vec![
+        //         "d1 : date(\"2017-05-03\")",
+        //         "d : d1.day",
+        //     ],
+        //     &mut E::variable("d"),
+        //     V::from(3),
+        // );
+
     }
 
     #[test]

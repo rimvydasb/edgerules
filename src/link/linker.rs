@@ -295,6 +295,17 @@ pub fn browse<T: Node<T>>(
     continue_browse(browse, starting)
 }
 
+/**
+ * Continue browsing through the object structure
+ *
+ * - `browse` is a queue of remaining path elements to browse
+ * - `starting` is the current context and the current item to browse into
+ *
+ * Returns:
+ * - `BrowseResult::Found` if the entire path was successfully browsed
+ * - `BrowseResult::OnExpression` if an expression was encountered before the end of the path
+ * - `BrowseResult::OnObjectType` if an object type was encountered before the end of the path
+ */
 fn continue_browse<T: Node<T>>(
     mut browse: VecDeque<&str>,
     mut starting: (Rc<RefCell<T>>, EObjectContent<T>),
@@ -320,18 +331,54 @@ fn continue_browse<T: Node<T>>(
         let current_search = browse.pop_front().unwrap();
 
         match item {
-            EObjectContent::ConstantValue(value) => {
-                error!(
-                    "Constant value '{:?}' does not have '{}' item",
-                    value, current_search
-                );
-                return LinkingError::new(OtherLinkingError(format!(
-                    "Value '{}' does not have '{}' item",
-                    value, current_search
-                )))
-                .into();
+            ConstantValue(value) => {
+                // Allow field-like access on runtime constant Date/Time/DateTime values
+                use crate::typesystem::values::ValueEnum as VE;
+                use crate::typesystem::values::ValueOrSv;
+                let maybe_next: Option<VE> = match value {
+                    VE::DateValue(ValueOrSv::Value(d)) => match current_search {
+                        "year" => Some(VE::from(d.year())),
+                        "month" => Some(VE::from(d.month())),
+                        "day" => Some(VE::from(d.day())),
+                        "weekday" => Some(VE::from(d.weekday().number_from_monday())),
+                        _ => None,
+                    },
+                    VE::TimeValue(ValueOrSv::Value(t)) => match current_search {
+                        "hour" => Some(VE::from(t.hour())),
+                        "minute" => Some(VE::from(t.minute())),
+                        "second" => Some(VE::from(t.second())),
+                        _ => None,
+                    },
+                    VE::DateTimeValue(ValueOrSv::Value(dt)) => match current_search {
+                        "year" => Some(VE::from(dt.year())),
+                        "month" => Some(VE::from(dt.month())),
+                        "day" => Some(VE::from(dt.day())),
+                        "hour" => Some(VE::from(dt.hour())),
+                        "minute" => Some(VE::from(dt.minute())),
+                        "second" => Some(VE::from(dt.second())),
+                        "weekday" => Some(VE::from(dt.weekday().number_from_monday())),
+                        "time" => Some(VE::TimeValue(ValueOrSv::Value(dt.time()))),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+
+                if let Some(next_value) = maybe_next {
+                    // Step into the computed property value and continue browsing
+                    starting = (Rc::clone(context), ConstantValue(next_value));
+                } else {
+                    error!(
+                        "Constant value '{:?}' does not have '{}' item",
+                        value, current_search
+                    );
+                    return LinkingError::new(OtherLinkingError(format!(
+                        "Value '{}' does not have '{}' item",
+                        value, current_search
+                    )))
+                    .into();
+                }
             }
-            EObjectContent::ExpressionRef(expression) => {
+            ExpressionRef(expression) => {
                 browse.push_front(current_search);
                 return Ok(BrowseResult::OnExpression(
                     Rc::clone(context),
@@ -339,7 +386,7 @@ fn continue_browse<T: Node<T>>(
                     Vec::from(browse),
                 ));
             }
-            EObjectContent::MetaphorRef(metaphor) => {
+            MetaphorRef(metaphor) => {
                 error!(
                     "Metaphor '{:?}' does not have '{}' item",
                     metaphor, current_search
@@ -351,12 +398,12 @@ fn continue_browse<T: Node<T>>(
                 )))
                 .into();
             }
-            EObjectContent::ObjectRef(object) => {
+            ObjectRef(object) => {
                 NodeData::attach_child(context, object);
                 let result = object.borrow().get(current_search)?;
                 starting = (Rc::clone(object), result)
             }
-            EObjectContent::Definition(ObjectType(object)) => {
+            Definition(ObjectType(object)) => {
                 browse.push_front(current_search);
                 return Ok(BrowseResult::OnObjectType(
                     Rc::clone(context),
@@ -364,7 +411,7 @@ fn continue_browse<T: Node<T>>(
                     Vec::from(browse),
                 ));
             }
-            EObjectContent::Definition(definition) => {
+            Definition(definition) => {
                 error!(
                     "Definition '{:?}' does not have '{}' item",
                     definition, current_search

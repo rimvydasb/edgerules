@@ -8,7 +8,7 @@ use crate::typesystem::types::ValueType::{ListType, NumberType, RangeType};
 use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, DateTimeValue, DateValue, DurationValue, NumberValue, RangeValue, StringValue, TimeValue};
-use crate::typesystem::values::{DurationKind, DurationValue as ErDurationValue, ValueOrSv};
+use crate::typesystem::values::{DurationValue as ErDurationValue, ValueOrSv};
 
 pub fn eval_max_all(
     values: Vec<Result<ValueEnum, RuntimeError>>,
@@ -385,6 +385,7 @@ pub fn eval_last_day_of_month(value: ValueEnum) -> Result<ValueEnum, RuntimeErro
 
 #[cfg(test)]
 mod tests {
+    use crate::typesystem::values::DurationKind;
     use super::*;
 
     #[test]

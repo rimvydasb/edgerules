@@ -45,6 +45,10 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 ## Coding Style & Naming Conventions
 
 - Rust 2021 edition; 4 spaces; keep modules small and cohesive.
+- Avoid single letter ot two letter variable names.
+- Avoid unclear abbreviations, instead use: `cfg` → `config`, `ctx` → `context`.
+- Avoid casting with "as", instead use ::from - if "from" does not exist, implement it.
+- Use `?` for error propagation; avoid `unwrap()`/`expect()` in runtime paths except test code.
 - Naming: modules/files `snake_case`; types/enums `CamelCase`; functions/fields `snake_case`.
 - Formatting: run `cargo fmt` before commits; keep `clippy` clean.
 - WASM: default features include `wasm-bindgen` and `console_error_panic_hook`.

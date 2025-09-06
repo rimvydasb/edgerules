@@ -9,7 +9,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use std::rc::Rc;
-use time::{Date, PrimitiveDateTime, Time};
+use time::{Date, Month, PrimitiveDateTime, Time};
 
 use crate::ast::utils::results_to_code;
 
@@ -251,6 +251,24 @@ impl From<Rc<RefCell<ExecutionContext>>> for ValueEnum {
 impl From<Integer> for ValueEnum {
     fn from(value: Integer) -> Self {
         NumberValue(NumberEnum::from(value))
+    }
+}
+
+impl From<u8> for ValueEnum {
+    fn from(value: u8) -> Self {
+        NumberValue(NumberEnum::from(value as i64))
+    }
+}
+
+impl From<i32> for ValueEnum {
+    fn from(value: i32) -> Self {
+        NumberValue(NumberEnum::from(value as i64))
+    }
+}
+
+impl From<Month> for ValueEnum {
+    fn from(value: Month) -> Self {
+        NumberValue(NumberEnum::from(value as i64))
     }
 }
 
