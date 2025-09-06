@@ -412,15 +412,46 @@ fn continue_browse<T: Node<T>>(
                 ));
             }
             Definition(definition) => {
-                error!(
-                    "Definition '{:?}' does not have '{}' item",
-                    definition, current_search
-                );
-                return LinkingError::new(OtherLinkingError(format!(
-                    "Cannot access '{}' from '{}' definition",
-                    current_search, definition
-                )))
-                .into();
+                use crate::typesystem::types::ValueType;
+                // Provide synthetic member types for primitive definitions (static typing)
+                let next_def = match (&definition, current_search) {
+                    // Date -> numeric components
+                    (ValueType::DateType, "year")
+                    | (ValueType::DateType, "month")
+                    | (ValueType::DateType, "day")
+                    | (ValueType::DateType, "weekday") => Some(ValueType::NumberType),
+
+                    // Time -> numeric components
+                    (ValueType::TimeType, "hour")
+                    | (ValueType::TimeType, "minute")
+                    | (ValueType::TimeType, "second") => Some(ValueType::NumberType),
+
+                    // DateTime -> numeric components and time
+                    (ValueType::DateTimeType, "year")
+                    | (ValueType::DateTimeType, "month")
+                    | (ValueType::DateTimeType, "day")
+                    | (ValueType::DateTimeType, "hour")
+                    | (ValueType::DateTimeType, "minute")
+                    | (ValueType::DateTimeType, "second")
+                    | (ValueType::DateTimeType, "weekday") => Some(ValueType::NumberType),
+                    (ValueType::DateTimeType, "time") => Some(ValueType::TimeType),
+
+                    _ => None,
+                };
+
+                if let Some(def) = next_def {
+                    starting = (Rc::clone(context), Definition(def));
+                } else {
+                    error!(
+                        "Definition '{:?}' does not have '{}' item",
+                        definition, current_search
+                    );
+                    return LinkingError::new(OtherLinkingError(format!(
+                        "Cannot access '{}' from '{}' definition",
+                        current_search, definition
+                    )))
+                    .into();
+                }
             }
         }
 

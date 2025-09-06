@@ -200,21 +200,6 @@ mod test {
     }
 
     #[test]
-    fn datetime_primitives_and_components_browsing() {
-        init_logger();
-
-        // Also verify that a bound variable date exposes components
-        is_lines_evaluating_to(
-            vec![
-                "d1 : date(\"2017-05-03\")",
-                "y : d1.year",
-            ],
-            &mut E::variable("y"),
-            V::from(2017),
-        );
-    }
-
-    #[test]
     fn datetime_primitives_and_components() {
         init_logger();
 
@@ -240,34 +225,30 @@ mod test {
         // Weekday (ISO Monday=1) for 2018-10-11 is Thursday=4
         test_code("value : date(\"2018-10-11\").weekday").expect_num("value", Int(4));
 
-        // Also verify that a bound variable date exposes components
+        // all date component elements
         is_lines_evaluating_to(
             vec![
                 "d1 : date(\"2017-05-03\")",
                 "y : d1.year",
+                "m : d1.month",
+                "d : d1.day",
+                "result : [y,m,d]",
             ],
-            &mut E::variable("y"),
-            V::from(2017),
+            &mut E::variable("result"),
+            V::from(vec![2017, 5, 3]),
         );
 
-        // is_lines_evaluating_to(
-        //     vec![
-        //         "d1 : date(\"2017-05-03\")",
-        //         "m : d1.month",
-        //     ],
-        //     &mut E::variable("m"),
-        //     V::from(5),
-        // );
-        //
-        // is_lines_evaluating_to(
-        //     vec![
-        //         "d1 : date(\"2017-05-03\")",
-        //         "d : d1.day",
-        //     ],
-        //     &mut E::variable("d"),
-        //     V::from(3),
-        // );
-
+        // complex browsing and type inference
+        is_lines_evaluating_to(
+            vec![
+                "d1 : date(\"2017-05-03\")",
+                "d2 : date(\"2018-12-31\")",
+                "y : d1.year",
+                "plusOneYear : y + 1 - d2.year",
+            ],
+            &mut E::variable("plusOneYear"),
+            V::from(0),
+        );
     }
 
     #[test]
@@ -330,8 +311,7 @@ mod test {
             .expect(&mut expr("value").unwrap(), V::from("Tuesday"));
         test_code("value : monthOfYear(date(\"2025-09-02\"))")
             .expect(&mut expr("value").unwrap(), V::from("September"));
-        test_code("value : lastDayOfMonth(date(\"2025-02-10\"))")
-            .expect_num("value", Int(28));
+        test_code("value : lastDayOfMonth(date(\"2025-02-10\"))").expect_num("value", Int(28));
     }
 
     //#[test]
@@ -454,18 +434,9 @@ mod test {
         is_this_one_evaluating_to("value : (1 < 2) and not (2 < 1)", B(true));
 
         // More complex cases simulating rulesets
-        is_this_one_evaluating_to(
-            "value : (true and (1 < 2)) or (false and (3 = 4))",
-            B(true),
-        );
-        is_this_one_evaluating_to(
-            "value : (true xor (1 = 1 and false)) or (2 < 1)",
-            B(true),
-        );
-        is_this_one_evaluating_to(
-            "value : (true and true) xor (false or (1 < 1))",
-            B(true),
-        );
+        is_this_one_evaluating_to("value : (true and (1 < 2)) or (false and (3 = 4))", B(true));
+        is_this_one_evaluating_to("value : (true xor (1 = 1 and false)) or (2 < 1)", B(true));
+        is_this_one_evaluating_to("value : (true and true) xor (false or (1 < 1))", B(true));
         is_this_one_evaluating_to(
             "value : (true and (2 > 1 and (3 > 2))) and (false or (5 = 5))",
             B(true),
@@ -474,20 +445,14 @@ mod test {
 
     #[test]
     fn test_filter_not_alias() {
-        use ValueEnum::NumberValue as N;
         use crate::typesystem::types::number::NumberEnum::Int;
+        use ValueEnum::NumberValue as N;
 
         // not with implicit context variable alias 'it'
-        is_this_one_evaluating_to(
-            "value : count([1, 5, 12, 7][not it > 10])",
-            N(Int(3)),
-        );
+        is_this_one_evaluating_to("value : count([1, 5, 12, 7][not it > 10])", N(Int(3)));
 
         // not with explicit context variable '...'
-        is_this_one_evaluating_to(
-            "value : count([1, 5, 12, 7][not ... > 10])",
-            N(Int(3)),
-        );
+        is_this_one_evaluating_to("value : count([1, 5, 12, 7][not ... > 10])", N(Int(3)));
 
         // combine inside filter
         is_this_one_evaluating_to(
@@ -508,10 +473,7 @@ mod test {
             ValueEnum::Array(vec![], NumberType),
         );
         is_lines_evaluating_to(
-            vec![
-                "nums : [1, 5, 12, 7]",
-                "filtered: nums[...>6]",
-            ],
+            vec!["nums : [1, 5, 12, 7]", "filtered: nums[...>6]"],
             &mut E::variable("filtered"),
             V::from(vec![12, 7]),
         );
