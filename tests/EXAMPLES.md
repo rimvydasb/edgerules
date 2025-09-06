@@ -231,3 +231,17 @@ output:
 ```edgerules
 // output
 ```
+
+## Complex Filtering
+
+```edgerules
+{
+    nums         : [1, 5, 12, 7]
+    filtered     : nums[...>6]
+}
+```
+
+output:
+```edgerules
+// output
+```

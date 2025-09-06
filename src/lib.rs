@@ -47,20 +47,7 @@ mod test {
     #[test]
     fn to_code_test() -> std::io::Result<()> {
         init_test("to code");
-
-        //process_file("tests/valid/commented.txt")?;
-        let path = Path::new("tests/valid/appointment.txt");
-        if path.exists() {
-            process_file("tests/valid/appointment.txt")?;
-        } else {
-            // Skip gracefully if the optional example file is absent
-            trace!("Skipping missing test input: {:?}", path);
-        }
-        // process_file("tests/invalid/dupl.txt")?;
-        // process_file("tests/invalid/empty.txt")?;
-        // process_file("tests/invalid/flat.txt")?;
-        // process_file("tests/invalid/error.txt")?;
-
+        process_file("tests/valid/filters.txt")?;
         Ok(())
     }
 

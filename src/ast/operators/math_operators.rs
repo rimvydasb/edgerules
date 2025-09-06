@@ -271,7 +271,7 @@ impl EvaluatableExpression for MathOperator {
                 match self.data.operator {
                     Addition => match dur.kind {
                         DurationKind::YearsMonths => {
-                            let mut year = d.year();
+                            let year = d.year();
                             let mut month = d.month() as i32; // 1..12
                             let mut add_months = dur.years * 12 + dur.months;
                             if dur.negative { add_months = -add_months; }
@@ -335,7 +335,7 @@ impl EvaluatableExpression for MathOperator {
                             let d = dt.date();
                             let t = dt.time();
                             let new_date = {
-                                let mut year = d.year();
+                                let year = d.year();
                                 let mut month = d.month() as i32; // 1..12
                                 let mut add_months = dur.years * 12 + dur.months;
                                 if dur.negative { add_months = -add_months; }
@@ -365,7 +365,7 @@ impl EvaluatableExpression for MathOperator {
                             let d = dt.date();
                             let t = dt.time();
                             let new_date = {
-                                let mut year = d.year();
+                                let year = d.year();
                                 let mut month = d.month() as i32;
                                 let mut sub_months = dur.years * 12 + dur.months;
                                 if !dur.negative { sub_months = sub_months; } else { sub_months = -sub_months; }

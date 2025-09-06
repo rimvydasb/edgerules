@@ -456,12 +456,30 @@ mod test {
     fn test_constraints() {
         info!(">>> test_constraints()");
         init_logger();
-        is_this_one_evaluating_to("value : [1,2,3][...>1]", ValueEnum::from(vec![2, 3]));
-        is_this_one_evaluating_to("value : [1,2,3][...>0]", ValueEnum::from(vec![1, 2, 3]));
-        is_this_one_evaluating_to("value : [1,2,3][...>-5]", ValueEnum::from(vec![1, 2, 3]));
+        is_this_one_evaluating_to("value : [1,2,3][...>1]", V::from(vec![2, 3]));
+        is_this_one_evaluating_to("value : [1,2,3][...>0]", V::from(vec![1, 2, 3]));
+        is_this_one_evaluating_to("value : [1,2,3][...>-5]", V::from(vec![1, 2, 3]));
         is_this_one_evaluating_to(
             "value : [1,2,3][...<-5]",
             ValueEnum::Array(vec![], NumberType),
+        );
+        is_lines_evaluating_to(
+            vec![
+                "nums : [1, 5, 12, 7]",
+                "filtered: nums[...>6]",
+            ],
+            &mut E::variable("filtered"),
+            V::from(vec![12, 7]),
+        );
+        is_lines_evaluating_to(
+            vec![
+                "input : {",
+                "   nums : [1, 5, 12, 7]",
+                "   filtered: nums[...>6]",
+                "}",
+            ],
+            &mut E::variable("input.filtered"),
+            V::from(vec![12, 7]),
         );
     }
 
