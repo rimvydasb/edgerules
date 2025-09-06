@@ -9,6 +9,7 @@ use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType}
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, DateTimeValue, DateValue, DurationValue, NumberValue, RangeValue, StringValue, TimeValue};
 use crate::typesystem::values::{DurationValue as ErDurationValue, ValueOrSv};
+use time::macros::format_description;
 
 pub fn eval_max_all(
     values: Vec<Result<ValueEnum, RuntimeError>>,
@@ -173,37 +174,22 @@ pub fn expect_date_arg(arg: ValueType) -> Link<()> {
     LinkingError::expect_type(None, arg, &[ValueType::DateType]).map(|_| ())
 }
 
-fn parse_two_digits(s: &str) -> Option<u8> {
-    s.parse::<u8>().ok()
-}
-
 fn parse_date_iso(s: &str) -> Option<time::Date> {
-    // YYYY-MM-DD
-    let parts: Vec<&str> = s.split('-').collect();
-    if parts.len() != 3 { return None; }
-    let y = parts[0].parse::<i32>().ok()?;
-    let m = parts[1].parse::<u8>().ok()?;
-    let d = parts[2].parse::<u8>().ok()?;
-    let month = time::Month::try_from(m).ok()?;
-    time::Date::from_calendar_date(y, month, d).ok()
+    // Strict ISO 8601 date: YYYY-MM-DD
+    let fmt = format_description!("[year]-[month]-[day]");
+    time::Date::parse(s, &fmt).ok()
 }
 
 fn parse_time_local(s: &str) -> Option<time::Time> {
-    // hh:mm:ss
-    let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 3 { return None; }
-    let h = parse_two_digits(parts[0])?;
-    let m = parse_two_digits(parts[1])?;
-    let sec = parse_two_digits(parts[2])?;
-    time::Time::from_hms(h, m, sec).ok()
+    // Local time: HH:MM:SS (24-hour)
+    let fmt = format_description!("[hour]:[minute]:[second]");
+    time::Time::parse(s, &fmt).ok()
 }
 
 fn parse_datetime_local(s: &str) -> Option<time::PrimitiveDateTime> {
-    let parts: Vec<&str> = s.split('T').collect();
-    if parts.len() != 2 { return None; }
-    let date = parse_date_iso(parts[0])?;
-    let time = parse_time_local(parts[1])?;
-    Some(time::PrimitiveDateTime::new(date, time))
+    // Local datetime: YYYY-MM-DDTHH:MM:SS
+    let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+    time::PrimitiveDateTime::parse(s, &fmt).ok()
 }
 
 fn parse_duration_iso8601(s: &str) -> Option<ErDurationValue> {
@@ -394,6 +380,37 @@ mod tests {
         assert!(parse_time_local("13:10:30").is_some());
         assert!(parse_datetime_local("2017-05-03T13:10:30").is_some());
         assert!(parse_datetime_local("2017-05-03").is_none());
+    }
+
+    #[test]
+    fn test_time_crate_parsing_values_and_invalids() {
+        // Date exact value
+        let d = parse_date_iso("2017-05-03").unwrap();
+        assert_eq!(d, time::Date::from_calendar_date(2017, time::Month::May, 3).unwrap());
+        // Invalid month/day
+        assert!(parse_date_iso("2017-13-01").is_none());
+        assert!(parse_date_iso("2017-02-30").is_none());
+
+        // Time exact value
+        let t = parse_time_local("00:10:59").unwrap();
+        assert_eq!(t, time::Time::from_hms(0, 10, 59).unwrap());
+        // Invalid time
+        assert!(parse_time_local("24:00:00").is_none());
+        assert!(parse_time_local("12:60:00").is_none());
+        assert!(parse_time_local("12:00:60").is_none());
+
+        // Datetime roundtrip
+        let dt = parse_datetime_local("2016-12-09T15:37:00").unwrap();
+        assert_eq!(
+            dt,
+            time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2016, time::Month::December, 9).unwrap(),
+                time::Time::from_hms(15, 37, 0).unwrap(),
+            )
+        );
+        // Invalid datetime
+        assert!(parse_datetime_local("2016-12-09 15:37:00").is_none());
+        assert!(parse_datetime_local("2016-12-32T00:00:00").is_none());
     }
 
     #[test]

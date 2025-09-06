@@ -20,10 +20,9 @@ wasm_debug = ["wasm", "console_error_panic_hook"]
 
 [dependencies]
 #speculoos = "0.8.0"
-log = { version = "0.4.20" }
+log = { version = "0.4.28" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
-time = { version = "0.3.41", features = ["macros", "formatting", "parsing"] }
-once_cell = "1.18.0"
+time = { version = "0.3.43", features = ["macros", "formatting", "parsing"] }
 phf = { version = "0.13.1", features = ["macros"] }
 wasm-bindgen = { version = "0.2.100", optional = true }
 
