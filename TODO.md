@@ -13,8 +13,6 @@
 
 - [ ] Gate all log::{trace,debug} behind cfg(feature = "native") or
   cfg(debug_assertions) to avoid string formatting in release/wasm.
-- [ ] In WASM release builds, disable console_error_panic_hook (keep only for
-  debug); use panic = "abort".
 
 ### Linking & Evaluation Hot Paths
 
