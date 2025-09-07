@@ -16,10 +16,13 @@ out_node := "target/pkg-node"
 out_web_debug := "target/pkg-web-debug"
 out_node_debug := "target/pkg-node-debug"
 
+# External examples/public destination for showcasing web builds (sibling repo)
+examples_public := "../edgerules-page/public"
+
 # Shared wasm-opt flags to minimize output size. -Oz enables aggressive size optimizations, mutable globals unlock
 # further reductions across supported runtimes, and strip options remove debug metadata, DWARF sections, producers,
 # and function names. DCE drops unreachable code.
-WASM_OPT_FLAGS := "-Oz --enable-mutable-globals --strip-dwarf --strip-function-names --strip-debug --strip-producers --dce"
+WASM_OPT_FLAGS := "-Oz --enable-mutable-globals --strip-dwarf --strip-debug --strip-producers --dce"
 
 # --- prerequisites ---
 ensure:
@@ -87,3 +90,24 @@ clippy:
 
 test:
     cargo test --all
+
+# --- release helpers ---
+# Copies web builds into the external examples page project under public/.
+# Excludes files not needed for serving (.gitignore, README.md).
+release-to-examples: web web-debug
+    echo "Releasing to: {{examples_public}}"
+    echo "Source (web): {{out_web}}" && ls -la "{{out_web}}" || true
+    echo "Source (web-debug): {{out_web_debug}}" && ls -la "{{out_web_debug}}" || true
+    mkdir -p "{{examples_public}}/pkg-web" "{{examples_public}}/pkg-web-debug"
+    rsync -a --delete "{{out_web}}/" "{{examples_public}}/pkg-web/"
+    rsync -a --delete "{{out_web_debug}}/" "{{examples_public}}/pkg-web-debug/"
+    # Remove files not needed in examples
+    rm -f "{{examples_public}}/pkg-web/.gitignore" \
+          "{{examples_public}}/pkg-web/README.md" \
+          "{{examples_public}}/pkg-web/package.json" || true
+    rm -f "{{examples_public}}/pkg-web-debug/.gitignore" \
+          "{{examples_public}}/pkg-web-debug/README.md" \
+          "{{examples_public}}/pkg-web-debug/package.json" || true
+    echo "Contents (web):" && ls -la "{{examples_public}}/pkg-web" || true
+    echo "Contents (web-debug):" && ls -la "{{examples_public}}/pkg-web-debug" || true
+    echo "Released web assets to: {{examples_public}}"
