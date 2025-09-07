@@ -248,6 +248,9 @@ pub struct EdgeRulesRuntime {
     pub static_tree: Rc<RefCell<ContextObject>>,
 }
 
+/**
+ * Runtime is stateful, it holds the execution context
+ */
 impl EdgeRulesRuntime {
     pub fn new(static_tree: Rc<RefCell<ContextObject>>) -> EdgeRulesRuntime {
         let context = ExecutionContext::create_root_context(static_tree.clone());
@@ -257,23 +260,20 @@ impl EdgeRulesRuntime {
         }
     }
 
-    // Evaluates a single field
-    // @Todo: maybe forward to evaluate code if path?
-    // pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
-    //     Finder::find_and_eval(Rc::clone(&self.context), name, Finder::EVAL_ON_FIND)
-    // }
-
-    pub fn evaluate_expression(
-        &self,
-        expression: &ExpressionEnum,
-    ) -> Result<ValueEnum, RuntimeError> {
-        expression.eval(Rc::clone(&self.context))
-    }
-
+    /**
+     * Evaluates a single field in the root context
+     */
     pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
         let mut variable = ExpressionEnum::variable(name);
         variable.link(Rc::clone(&self.static_tree))?;
         variable.eval(Rc::clone(&self.context))
+    }
+
+    /**
+     * Evaluates all expressions in the context tree, starting from the root context
+     */
+    pub fn eval_all(&self) -> Result<(), RuntimeError> {
+        Self::eval_all_context(Rc::clone(&self.context))
     }
 
     fn eval_all_context(ctx: Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
@@ -311,10 +311,6 @@ impl EdgeRulesRuntime {
 
         Ok(())
     }
-
-    pub fn eval_all(&self) -> Result<(), RuntimeError> {
-        Self::eval_all_context(Rc::clone(&self.context))
-    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -335,7 +331,7 @@ pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
 #[cfg(test)]
 pub mod test {
     use crate::ast::token::{EToken, EUnparsedToken};
-    use crate::runtime::edge_rules::{expr, EdgeRules, EvalError};
+    use crate::runtime::edge_rules::{EdgeRules, EvalError};
 
     use crate::typesystem::errors::LinkingErrorEnum;
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
@@ -362,7 +358,7 @@ pub mod test {
             service.load_source("value: 2 + 3")?;
             match service.to_runtime() {
                 Ok(runtime) => {
-                    let result = runtime.evaluate_expression(&expr("value")?)?;
+                    let result = runtime.evaluate_field("value")?;
                     assert_eq!(result, ValueEnum::NumberValue(Int(5)));
                 }
                 Err(error) => {
