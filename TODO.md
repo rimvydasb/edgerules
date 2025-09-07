@@ -1,25 +1,13 @@
 ## Todo / Optimization Checklist
 
-### Build & Profiles
-
-- [ ] Release profile: enable lto = "fat", codegen-units = 1, opt-level = "z" (or
-  "s" if speed wins), panic = "abort", and strip = "debuginfo".
-- [ ] wasm-pack: add wasm-opt -Oz step (either via wasm-pack -- flags or a post
-  step).
-- [ ] Targets: build with --no-default-features --features wasm for WASM to avoid
-  pulling native-only deps.
-
 ### Features & Dependencies
 
-- [ ] Default features: remove wasm-bindgen and console_error_panic_hook from
+- [x] Default features: remove wasm-bindgen and console_error_panic_hook from
   default; introduce feature sets:
     - [ ] native: logging, env_logger, dev ergonomics.
     - [ ] wasm: wasm-bindgen, console_error_panic_hook (release off by default),
       light allocator.
-- [ ] Dev-only deps: move regex and env_logger to [dev-dependencies] (they are
-  only used in tests/utilities).
-- [ ] Allocator: consider dlmalloc for WASM (smaller) and gate behind wasm
-  feature.
+- [x] Allocator: consider dlmalloc for WASM (smaller) and gate behind wasm feature.
 
 ### Logging & Panics
 

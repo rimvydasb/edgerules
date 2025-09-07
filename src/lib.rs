@@ -1,5 +1,9 @@
 extern crate core;
 extern crate log;
+// Use dlmalloc as the global allocator for ALL wasm32 builds by default.
+#[cfg(target_arch = "wasm32")]
+#[global_allocator]
+static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 mod ast;
 mod link;
 pub mod runtime;
@@ -19,7 +23,7 @@ mod test {
     use std::io::Write;
 
     fn process_file(input_file_name: &str) -> std::io::Result<()> {
-        let mut edgerules = EdgeRules::new();
+        let edgerules = EdgeRules::new();
         let output_file_name = format!("{}.out", input_file_name);
         let input = fs::read_to_string(input_file_name)?;
         let mut output_file = fs::File::create(output_file_name)?;

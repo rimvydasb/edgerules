@@ -11,20 +11,18 @@ name = "edge_rules"
 crate-type = ["rlib", "cdylib"]
 
 [features]
-# Keep default minimal for native builds; opt into WASM-specific features when needed
 default = ["native"]
 native = []
-# Small WASM by default; enable panic hook only in debug if desired
 wasm = ["wasm-bindgen", "log/max_level_off"]
 wasm_debug = ["wasm", "console_error_panic_hook"]
 
 [dependencies]
-#speculoos = "0.8.0"
 log = { version = "0.4.28" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 time = { version = "0.3.43", features = ["macros", "formatting", "parsing"] }
 phf = { version = "0.13.1", features = ["macros"] }
 wasm-bindgen = { version = "0.2.100", optional = true }
+dlmalloc = { version = "0.2", features = ["global"] }
 
 [dev-dependencies]
 env_logger = "0.11.8"
