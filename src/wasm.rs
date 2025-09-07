@@ -2,7 +2,6 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::code_to_trace;
 use crate::runtime::edge_rules::EdgeRules;
 
 #[cfg(feature = "console_error_panic_hook")]
@@ -20,13 +19,9 @@ pub fn init_panic_hook() {
 }
 
 #[wasm_bindgen]
-pub fn to_trace(code: &str) -> String {
-    code_to_trace(code)
-}
-
-#[wasm_bindgen]
-pub fn evaluate_value(code: &str) -> String {
-    evaluate_field(code, "value")
+pub fn evaluate_all(code: &str) -> String {
+    let service = EdgeRules::new();
+    service.evaluate_all(code)
 }
 
 #[wasm_bindgen]

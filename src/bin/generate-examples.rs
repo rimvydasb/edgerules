@@ -2,7 +2,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
-use edge_rules::code_to_trace;
+use edge_rules::runtime::edge_rules::EdgeRules;
 
 // Generates tests/EXAMPLES-output.md by executing `edgerules` code blocks
 // in tests/EXAMPLES.md and writing results into the following placeholder
@@ -58,7 +58,8 @@ fn main() -> std::io::Result<()> {
 
             // Not a placeholder: this is an example input block. Evaluate and store for the next placeholder.
             let code = block_lines.join("\n");
-            let result = code_to_trace(&code);
+            let service = EdgeRules::new();
+            let result = service.evaluate_all(&code);
             *pending_eval_output = Some(result);
         }
 

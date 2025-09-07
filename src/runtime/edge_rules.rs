@@ -17,7 +17,7 @@ use log::trace;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-
+use crate::utils::to_display;
 //--------------------------------------------------------------------------------------------------
 // Errors
 //--------------------------------------------------------------------------------------------------
@@ -236,6 +236,19 @@ impl EdgeRules {
         linker::link_parts(Rc::clone(&static_context))?;
 
         Ok(EdgeRulesRuntime::new(static_context))
+    }
+
+    pub fn evaluate_all(mut self, code: &str) -> String {
+        match self.load_source(code) {
+            Ok(_service) => match self.to_runtime() {
+                Ok(runtime) => match runtime.eval_all() {
+                    Ok(()) => runtime.context.borrow().to_code(),
+                    Err(error) => error.to_string(),
+                },
+                Err(error) => error.to_string(),
+            },
+            Err(error) => to_display(error.errors(), "\n"),
+        }
     }
 }
 

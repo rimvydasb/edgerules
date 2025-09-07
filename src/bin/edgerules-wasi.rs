@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::io::{self, Read};
 
-use edge_rules::code_to_trace;
 use edge_rules::runtime::edge_rules::EdgeRules;
 
 fn main() {
@@ -34,7 +33,8 @@ fn main() {
             println!("{}", output);
         }
         _ => {
-            println!("{}", code_to_trace(&code));
+            let service = EdgeRules::new();
+            println!("{}", service.evaluate_all(&code));
         }
     }
 }
