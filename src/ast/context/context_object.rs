@@ -1,5 +1,5 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
-use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
@@ -34,12 +34,12 @@ impl From<ExpressionEntry> for Rc<RefCell<ExpressionEntry>> {
 
 #[derive(Debug)]
 pub struct MethodEntry {
-    pub metaphor: Box<dyn Metaphor>,
+    pub metaphor: BuiltinMetaphor,
     pub field_type: Link<ValueType>,
 }
 
-impl From<Box<dyn Metaphor>> for MethodEntry {
-    fn from(value: Box<dyn Metaphor>) -> Self {
+impl From<BuiltinMetaphor> for MethodEntry {
+    fn from(value: BuiltinMetaphor) -> Self {
         MethodEntry {
             metaphor: value,
             field_type: LinkingError::not_linked().into(),
@@ -169,7 +169,7 @@ pub mod test {
 
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::metaphors::functions::FunctionDefinition;
-    use crate::ast::token::DefinitionEnum::MetaphorDefinition;
+    use crate::ast::token::DefinitionEnum;
     use crate::ast::token::ExpressionEnum;
     use crate::link::linker::{get_till_root, link_parts};
     use crate::link::node_data::ContentHolder;
@@ -195,14 +195,13 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"));
             child.add_expression("y", expr("a + b")?);
-            child.add_definition(MetaphorDefinition(
+            child.add_definition(DefinitionEnum::Metaphor(
                 FunctionDefinition::build(
                     vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                )
-                .into(),
+                ).into(),
             ));
             let instance = child.build();
             child_instance = Rc::clone(&instance);

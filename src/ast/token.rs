@@ -2,13 +2,13 @@ use crate::ast::annotations::AnnotationEnum;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::operators::comparators::ComparatorEnum;
 use crate::ast::operators::logical_operators::LogicalOperatorEnum;
 use crate::ast::operators::math_operators::{MathOperatorEnum, Operator};
 use crate::ast::selections::{ExpressionFilter, FieldSelection};
 use crate::ast::sequence::CollectionExpression;
-use crate::ast::token::DefinitionEnum::MetaphorDefinition;
+use crate::ast::token::DefinitionEnum::Metaphor;
 use crate::ast::token::EToken::*;
 use crate::ast::token::EUnparsedToken::*;
 use crate::ast::token::ExpressionEnum::*;
@@ -150,14 +150,14 @@ pub enum DefinitionEnum {
     // TypeDefinition(Vec<(String, ValueType)>),
     //
     // TypeField(String, ValueType),
-    /// Metaphor definition is shared between expressions when linked, this is why it is Rc
-    MetaphorDefinition(Box<dyn Metaphor>),
+    /// Built-in metaphors (functions, decision tables, etc.)
+    Metaphor(BuiltinMetaphor),
 }
 
 impl Display for DefinitionEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            MetaphorDefinition(metaphor) => write!(f, "{}", metaphor),
+            Metaphor(m) => write!(f, "{}", m),
         }
     }
 }

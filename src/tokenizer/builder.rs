@@ -211,7 +211,7 @@ pub mod factory {
     use crate::ast::operators::math_operators::{MathOperator, MathOperatorEnum, NegationOperator};
     use crate::ast::selections::{ExpressionFilter, FieldSelection};
     use crate::ast::sequence::CollectionExpression;
-    use crate::ast::token::DefinitionEnum::MetaphorDefinition;
+    // use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
     use crate::ast::token::EToken;
     use crate::ast::token::EToken::*;
     use crate::ast::token::EUnparsedToken::*;
@@ -261,7 +261,7 @@ pub mod factory {
                 // let plain = SimpleObject::try_unwrap(object)
                 //     .map_err(|_err| UnknownError(format!("'{}' failed to construct", function_name)))?;
 
-                Ok(Definition(MetaphorDefinition(
+                Ok(Definition(DefinitionEnum::Metaphor(
                     FunctionDefinition::build(annotations, function_name, arguments, object).into(),
                 )))
             }
@@ -270,9 +270,13 @@ pub mod factory {
                 Expression(Collection(_rows)),
             ) => {
                 if AnnotationEnum::get_decision_table(&annotations).is_some() {
-                    let decision_table =
-                        DecisionTable::build(annotations, function_name, _arguments, _rows)?;
-                    Ok(Definition(MetaphorDefinition(Box::new(decision_table))))
+                    let decision_table = DecisionTable::build(
+                        annotations,
+                        function_name,
+                        _arguments,
+                        _rows,
+                    )?;
+                    Ok(Definition(DefinitionEnum::Metaphor(decision_table.into())))
                 } else {
                     Err(UnknownError(format!(
                         "function '{}' body is a collection. Must be a structure",

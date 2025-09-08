@@ -314,7 +314,7 @@ impl ExecutionContext {
 pub mod test {
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::metaphors::functions::FunctionDefinition;
-    use crate::ast::token::DefinitionEnum::MetaphorDefinition;
+    use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
     use crate::ast::token::ExpressionEnum;
     use log::info;
     use std::rc::Rc;
@@ -343,14 +343,13 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"));
             child.add_expression("y", expr("a + b")?);
-            child.add_definition(MetaphorDefinition(
+            child.add_definition(MetaphorDef(
                 FunctionDefinition::build(
                     vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                )
-                .into(),
+                ).into(),
             ));
             builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
         }

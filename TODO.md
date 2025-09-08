@@ -35,17 +35,12 @@
 
 ### Data Structures & Algorithms
 
-- [ ] Hash maps:
-    - [ ] Consider hashbrown (or ahash for speed) for HashMap/HashSet. For size,
-      hashbrown is typically neutral/slightly smaller than std; ahash can add a bit
-      of size.
-- [ ] VecDeque churn:
-    - [ ] browse converts back and forth to VecDeque frequently. Accept a slice
-      &[u32] (interned path) and index into it, eliminating conversions.
-- [ ] Trait objects:
-    - [ ] Box<dyn Metaphor> increases binary size. If the set is small/known,
-      consider an enum for built-ins or per-metaphor feature flags; keep dyn behind
-      features where needed.
+- [ ] Use std::collections::HashMap with FxHash. It’s fast on WASM, tiny, and avoids the heavier SipHash and aHash
+  paths.
+- [x] Browse converts back and forth to VecDeque frequently. Accept a slice &[u32] (interned path) and index into it,
+  eliminating conversions.
+- [x] Trait objects: Box<dyn Metaphor> increases binary size. If the set is known,
+  consider an enum for built-ins
 
 ### Maintainability
 
@@ -62,7 +57,7 @@
     - [ ] Clarify node kinds with an enum (no stringing node type names on hot
       path).
 
-###  Cargo.toml suggestions (illustrative)
+### Cargo.toml suggestions (illustrative)
 
 - [ ] Profiles:
     - [ ] [profile.release] lto = "fat", codegen-units = 1, opt-level = "z", panic
@@ -82,14 +77,14 @@
   error propagation
 - [ ] Use OnceCell and Cell instead of Rc and RefCell in Context
 
-###  Next steps:
+### Next steps:
 
 - [ ] Add release profile tweaks and a wasm feature that disables logging/panics
   for size.
 - [ ] Introduce a simple field-name interner and refactor VariableLink to store
   interned ids (incrementally: start with storing interned u32 paths while
   keeping compatibility).
-- [ ] Micro-opt browse to take slices and avoid VecDeque conversions.
+- [x] Micro-opt browse to take slices and avoid VecDeque conversions.
 
 ### Technical Backlog
 

@@ -1,6 +1,7 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::FormalParameter;
-use crate::ast::token::DefinitionEnum::MetaphorDefinition;
+use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
 use crate::typesystem::types::ValueType;
@@ -79,11 +80,11 @@ impl ContextObjectBuilder {
 
     pub fn add_definition(&mut self, field: DefinitionEnum) {
         match field {
-            MetaphorDefinition(metaphor) => {
-                trace!(">>> inserting function {:?}", metaphor.get_name());
-                self.field_names.push(metaphor.get_name());
+            MetaphorDef(m) => {
+                trace!(">>> inserting function {:?}", m.get_name());
+                self.field_names.push(m.get_name());
                 self.metaphors
-                    .insert(metaphor.get_name(), MethodEntry::from(metaphor).into());
+                    .insert(m.get_name(), MethodEntry::from(m).into());
             }
         }
     }

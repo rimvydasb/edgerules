@@ -3,6 +3,7 @@ use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
 use crate::ast::expression::StaticLink;
 use crate::ast::Link;
+use crate::ast::metaphors::metaphor::Metaphor;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::LinkingErrorEnum::*;
@@ -293,24 +294,7 @@ pub fn browse<'a, T: Node<T>>(
     continue_browse(path, index, starting)
 }
 
-/// Convenience wrapper to browse by interned identifier ids.
-/// Resolves `&[u32]` into a temporary vector of `&str` using the provided resolver
-/// and delegates to slice-based browsing to avoid VecDeque churn.
-pub fn browse_ids<'a, T: Node<T>, F>(
-    ctx: Rc<RefCell<T>>,
-    path_ids: &'a [u32],
-    find_root: bool,
-    mut resolve: F,
-) -> Result<BrowseResult<'a, T>, LinkingError>
-where
-    F: FnMut(u32) -> &'a str,
-{
-    let mut buf: Vec<&'a str> = Vec::with_capacity(path_ids.len());
-    for &id in path_ids {
-        buf.push(resolve(id));
-    }
-    browse(ctx, buf.as_slice(), find_root)
-}
+// (Intentionally no browse_ids helper to avoid dead code until an interner lands.)
 
 /**
  * Continue browsing through the object structure

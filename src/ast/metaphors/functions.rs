@@ -41,17 +41,7 @@ impl FunctionDefinition {
     }
 }
 
-impl From<FunctionDefinition> for Rc<RefCell<dyn Metaphor + 'static>> {
-    fn from(val: FunctionDefinition) -> Self {
-        Rc::new(RefCell::new(val))
-    }
-}
-
-impl From<FunctionDefinition> for Box<dyn Metaphor + 'static> {
-    fn from(val: FunctionDefinition) -> Self {
-        Box::new(val)
-    }
-}
+// Conversions for BuiltinMetaphor are defined in builtin.rs
 
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
