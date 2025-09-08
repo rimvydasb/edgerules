@@ -77,7 +77,7 @@ impl EvaluatableExpression for VariableLink {
         // Support self-qualified references like `calendar.shift` inside the
         // `calendar: { ... }` context by stripping the leading self name and
         // browsing from the current context rather than root.
-        let (start_ctx, path, find_root) = {
+        let (start_ctx, path_vec, find_root) = {
             if let Some(first) = self.path.first() {
                 // climb to nearest ancestor named `first`
                 let mut cursor = Some(Rc::clone(&context));
@@ -98,14 +98,16 @@ impl EvaluatableExpression for VariableLink {
                         self.path.iter().skip(1).map(|s| s.as_str()).collect();
                     (ctx, remaining, false)
                 } else {
-                    (Rc::clone(&context), self.path_as_str(), true)
+                    let full: Vec<&str> = self.path_as_str();
+                    (Rc::clone(&context), full, true)
                 }
             } else {
-                (Rc::clone(&context), self.path_as_str(), true)
+                let full: Vec<&str> = self.path_as_str();
+                (Rc::clone(&context), full, true)
             }
         };
 
-        let result = browse(start_ctx, path, find_root)?.on_incomplete(
+        let result = browse(start_ctx, &path_vec, find_root)?.on_incomplete(
             |ctx, result, _remaining| match result.borrow().expression.eval(Rc::clone(&ctx)) {
                 Ok(intermediate) => Ok(intermediate.into()),
                 Err(err) => Err(LinkingError::other_error(err.to_string())),
@@ -142,7 +144,7 @@ impl StaticLink for VariableLink {
             }
             // Same self-qualification handling as in eval: treat `contextName.*`
             // inside that context as local browse, not root lookup.
-            let (start_ctx, path, find_root) = {
+            let (start_ctx, path_vec, find_root) = {
                 if let Some(first) = self.path.first() {
                     let mut cursor = Some(Rc::clone(&context));
                     let mut found = None;
@@ -160,14 +162,16 @@ impl StaticLink for VariableLink {
                             self.path.iter().skip(1).map(|s| s.as_str()).collect();
                         (ctx, remaining, false)
                     } else {
-                        (Rc::clone(&context), self.path_as_str(), true)
+                        let full: Vec<&str> = self.path_as_str();
+                        (Rc::clone(&context), full, true)
                     }
                 } else {
-                    (Rc::clone(&context), self.path_as_str(), true)
+                    let full: Vec<&str> = self.path_as_str();
+                    (Rc::clone(&context), full, true)
                 }
             };
 
-            let result = browse(start_ctx, path, find_root).and_then(|r| {
+            let result = browse(start_ctx, &path_vec, find_root).and_then(|r| {
                 r.on_incomplete(
                     |ctx, result, _remaining| {
                         let linked_type = result.borrow_mut().expression.link(Rc::clone(&ctx))?;

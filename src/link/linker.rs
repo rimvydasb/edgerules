@@ -11,7 +11,6 @@ use crate::typesystem::types::ValueType::ObjectType;
 use crate::typesystem::values::ValueEnum;
 use log::{error, trace};
 use std::cell::RefCell;
-use std::collections::vec_deque::VecDeque;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -222,28 +221,28 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
         FE: FnMut(
             Rc<RefCell<T>>,
             Rc<RefCell<ExpressionEntry>>,
-            &VecDeque<&'a str>,
+            &[&'a str],
         ) -> Result<EObjectContent<T>, LinkingError>,
         FC: FnMut(
             Rc<RefCell<T>>,
             Rc<RefCell<ContextObject>>,
-            &VecDeque<&'a str>,
+            &[&'a str],
         ) -> Result<EObjectContent<T>, LinkingError>,
     {
         trace!("on_incomplete: {:?}", self);
         match self {
             BrowseResult::Found(result) => Ok(result),
             BrowseResult::OnExpression(ctx, content, path) => {
-                let path = VecDeque::from(path);
-                let result = on_expression(Rc::clone(&ctx), content, &path)?;
-                let continue_result = continue_browse(path, (Rc::clone(&ctx), result))?;
+                let remaining = path.as_slice();
+                let result = on_expression(Rc::clone(&ctx), content, remaining)?;
+                let continue_result = continue_browse(remaining, 0, (Rc::clone(&ctx), result))?;
 
                 continue_result.on_incomplete(on_expression, on_object_type)
             }
             BrowseResult::OnObjectType(ctx, content, path) => {
-                let path = VecDeque::from(path);
-                let result = on_object_type(Rc::clone(&ctx), content, &path)?;
-                let continue_result = continue_browse(path, (Rc::clone(&ctx), result))?;
+                let remaining = path.as_slice();
+                let result = on_object_type(Rc::clone(&ctx), content, remaining)?;
+                let continue_result = continue_browse(remaining, 0, (Rc::clone(&ctx), result))?;
 
                 continue_result.on_incomplete(on_expression, on_object_type)
             }
@@ -251,11 +250,11 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
     }
 }
 
-pub fn browse<T: Node<T>>(
+pub fn browse<'a, T: Node<T>>(
     ctx: Rc<RefCell<T>>,
-    path: Vec<&str>,
+    path: &[&'a str],
     find_root: bool,
-) -> Result<BrowseResult<'_, T>, LinkingError> {
+) -> Result<BrowseResult<'a, T>, LinkingError> {
     // Path is empty - this is abnormal and should never happen
     if path.is_empty() {
         return Err(LinkingError::field_not_found(
@@ -280,19 +279,37 @@ pub fn browse<T: Node<T>>(
     }
 
     // Path > 1
-    let mut browse = VecDeque::from(path);
-
+    let mut index = 0usize;
     let starting = if find_root {
-        let root = get_till_root(ctx, browse.pop_front().unwrap())?;
+        let root = get_till_root(ctx, path[index])?;
+        index += 1;
         (Rc::clone(&root.context), root.content)
     } else {
-        (
-            Rc::clone(&ctx),
-            ctx.borrow().get(browse.pop_front().unwrap())?,
-        )
+        let first = path[index];
+        index += 1;
+        (Rc::clone(&ctx), ctx.borrow().get(first)?)
     };
 
-    continue_browse(browse, starting)
+    continue_browse(path, index, starting)
+}
+
+/// Convenience wrapper to browse by interned identifier ids.
+/// Resolves `&[u32]` into a temporary vector of `&str` using the provided resolver
+/// and delegates to slice-based browsing to avoid VecDeque churn.
+pub fn browse_ids<'a, T: Node<T>, F>(
+    ctx: Rc<RefCell<T>>,
+    path_ids: &'a [u32],
+    find_root: bool,
+    mut resolve: F,
+) -> Result<BrowseResult<'a, T>, LinkingError>
+where
+    F: FnMut(u32) -> &'a str,
+{
+    let mut buf: Vec<&'a str> = Vec::with_capacity(path_ids.len());
+    for &id in path_ids {
+        buf.push(resolve(id));
+    }
+    browse(ctx, buf.as_slice(), find_root)
 }
 
 /**
@@ -306,16 +323,17 @@ pub fn browse<T: Node<T>>(
  * - `BrowseResult::OnExpression` if an expression was encountered before the end of the path
  * - `BrowseResult::OnObjectType` if an object type was encountered before the end of the path
  */
-fn continue_browse<T: Node<T>>(
-    mut browse: VecDeque<&str>,
+fn continue_browse<'a, T: Node<T>>(
+    path: &[&'a str],
+    mut index: usize,
     mut starting: (Rc<RefCell<T>>, EObjectContent<T>),
-) -> Result<BrowseResult<'_, T>, LinkingError> {
-    trace!("continue_browse({:?}, {:?})", browse, starting);
+) -> Result<BrowseResult<'a, T>, LinkingError> {
+    trace!("continue_browse(path[{}..], {:?})", index, starting);
     let mut current_search_end: Option<&str> = None;
 
     #[allow(irrefutable_let_patterns)]
     while let (ref context, ref item) = starting {
-        if browse.is_empty() {
+        if index >= path.len() {
             return if let Some(current_search) = current_search_end {
                 Ok(BrowseResult::found(
                     Rc::clone(context),
@@ -328,7 +346,8 @@ fn continue_browse<T: Node<T>>(
             };
         }
 
-        let current_search = browse.pop_front().unwrap();
+        let current_search = path[index];
+        index += 1;
 
         match item {
             ConstantValue(value) => {
@@ -379,11 +398,10 @@ fn continue_browse<T: Node<T>>(
                 }
             }
             ExpressionRef(expression) => {
-                browse.push_front(current_search);
                 return Ok(BrowseResult::OnExpression(
                     Rc::clone(context),
                     Rc::clone(expression),
-                    Vec::from(browse),
+                    path[index - 1..].to_vec(),
                 ));
             }
             MetaphorRef(metaphor) => {
@@ -404,11 +422,10 @@ fn continue_browse<T: Node<T>>(
                 starting = (Rc::clone(object), result)
             }
             Definition(ObjectType(object)) => {
-                browse.push_front(current_search);
                 return Ok(BrowseResult::OnObjectType(
                     Rc::clone(context),
                     Rc::clone(object),
-                    Vec::from(browse),
+                    path[index - 1..].to_vec(),
                 ));
             }
             Definition(definition) => {

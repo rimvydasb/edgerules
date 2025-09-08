@@ -47,15 +47,6 @@
       consider an enum for built-ins or per-metaphor feature flags; keep dyn behind
       features where needed.
 
-### WASM Bindings & JS
-
-- [ ] wasm-bindgen:
-    - [ ] Keep bindings minimal and avoid exposing internal types; prefer opaque
-      handles or serialized results to reduce glue code.
-- [ ] Demos:
-    - [ ] Run web demo with --no-default-features --features wasm and wasm-opt -Oz
-      to baseline size. Consider precompressing in CI (gzip/brotli for delivery).
-
 ### Maintainability
 
 - [ ] Error types:
@@ -93,8 +84,6 @@
 
 ###  Next steps:
 
-- [ ] Move regex and env_logger to dev-dependencies and adjust features/defaults
-  to keep WASM minimal.
 - [ ] Add release profile tweaks and a wasm feature that disables logging/panics
   for size.
 - [ ] Introduce a simple field-name interner and refactor VariableLink to store
