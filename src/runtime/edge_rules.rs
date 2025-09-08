@@ -13,11 +13,11 @@ use crate::tokenizer::parser::tokenize;
 use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::values::ValueEnum;
+use crate::utils::to_display;
 use log::trace;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use crate::utils::to_display;
 //--------------------------------------------------------------------------------------------------
 // Errors
 //--------------------------------------------------------------------------------------------------
@@ -250,6 +250,66 @@ impl EdgeRules {
             Err(error) => to_display(error.errors(), "\n"),
         }
     }
+
+    /// Evaluates a field using the current loaded source, with optional extra code to load before evaluation.
+    /// If `code` is not empty, it is loaded into the existing model; then the runtime is created and `field` is evaluated.
+    pub fn evaluate_field(&mut self, field: &str) -> String {
+        // @Todo: it is unclear if it is needed
+        // Build a non-consuming runtime snapshot to preserve current builder state
+        let current_builder = std::mem::replace(&mut self.ast_root, ContextObjectBuilder::new());
+        let static_context = current_builder.build();
+
+        let result = match linker::link_parts(Rc::clone(&static_context)) {
+            Ok(()) => {
+                let runtime = EdgeRulesRuntime::new(Rc::clone(&static_context));
+                match runtime.evaluate_field(field) {
+                    Ok(v) => v.to_string(),
+                    Err(e) => e.to_string(),
+                }
+            }
+            Err(e) => e.to_string(),
+        };
+
+        // Restore the builder state
+        self.ast_root.append(static_context);
+
+        result
+    }
+
+    //
+    // Evaluates a single expression that can use the loaded code context.
+    // The loaded code is not modified, the expression is evaluated in a temporary context
+    // that contains the loaded code snapshot.
+    //
+    // This is useful for REPL or interactive evaluation of expressions that depend on the
+    // loaded code context.
+    //
+    // @Todo: optimize to avoid building and linking the static context on every call.
+    //
+    pub fn evaluate_expression(&mut self, code: &str) -> Result<ValueEnum, EvalError> {
+        // 1) Detach current builder and build a static snapshot of the loaded code
+        let current_builder = std::mem::replace(&mut self.ast_root, ContextObjectBuilder::new());
+        let static_context = current_builder.build();
+        linker::link_parts(Rc::clone(&static_context))?;
+
+        // 2) Create a temporary service, append current snapshot, then append dummy via load_source
+        let mut temp_service = EdgeRules {
+            ast_root: ContextObjectBuilder::new(),
+        };
+        temp_service.ast_root.append(Rc::clone(&static_context));
+        // Note: '_' is not a valid identifier in the current grammar, use a safe dummy name
+        let dummy_name = "tmp000001";
+        temp_service.load_source(format!("{} : {}", dummy_name, code).as_str())?;
+
+        // 3) Build runtime and evaluate the dummy variable
+        let runtime = temp_service.to_runtime()?;
+        let result = runtime.evaluate_field(dummy_name)?;
+
+        // 4) Restore original builder (without the dummy), destroying temp state
+        self.ast_root.append(static_context);
+
+        Ok(result)
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -388,6 +448,77 @@ pub mod test {
         test_code("value: 2 + ").expect_parse_error(UnknownError("any".to_string()));
         test_code("{ value: 2 + 2 }").expect_num("value", Int(4));
         test_code("{ v1 : 100; value: v1 + v1 }").expect_num("value", Int(200));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_service_evaluate_field_with_existing_state() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRules::new();
+        service.load_source("{ value: 3 }")?;
+        let result = service.evaluate_field("value");
+        assert_eq!(result, "3");
+
+        service.load_source("value: 2 + 2")?;
+        let out1 = service.evaluate_field("value");
+        assert_eq!(out1, "4");
+
+        service.load_source("value: 2 + 3")?;
+        let out2 = service.evaluate_field("value");
+        assert_eq!(out2, "5");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_evaluate_expression_with_loaded_context() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRules::new();
+        service.load_source("{ value: 3 }")?;
+
+        let result = service.evaluate_expression("2 + value")?;
+        assert_eq!(result, ValueEnum::NumberValue(Int(5)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_evaluate_pure_expression_without_context() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRules::new();
+        let result = service.evaluate_expression("2 + 3")?;
+        assert_eq!(result, ValueEnum::NumberValue(Int(5)));
+
+        let result = service.evaluate_expression("sum(1,2,3)")?;
+        assert_eq!(result, ValueEnum::NumberValue(Int(6)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_evaluate_expression_unknown_variable_fails() {
+        init_logger();
+
+        let mut service = EdgeRules::new();
+        let err = service.evaluate_expression("x + 1").unwrap_err();
+        match err {
+            EvalError::FailedExecution(_e) => {}
+            other => panic!("Expected runtime error, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_evaluate_expression_with_function_indirect() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRules::new();
+        service.load_source("{ f(a) : { result : a + 1 }; tmp : f(2).result }")?;
+        let result = service.evaluate_expression("tmp")?;
+        assert_eq!(result, ValueEnum::NumberValue(Int(3)));
 
         Ok(())
     }

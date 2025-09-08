@@ -25,16 +25,10 @@ pub fn evaluate_all(code: &str) -> String {
 }
 
 #[wasm_bindgen]
-pub fn evaluate_field(code: &str, field: &str) -> String {
+pub fn evaluate_expression(code: &str) -> String {
     let mut service = EdgeRules::new();
-    match service.load_source(code) {
-        Ok(()) => match service.to_runtime() {
-            Ok(runtime) => match runtime.evaluate_field(field) {
-                Ok(v) => v.to_string(),
-                Err(e) => e.to_string(),
-            },
-            Err(e) => e.to_string(),
-        },
+    match service.evaluate_expression(code) {
+        Ok(v) => v.to_string(),
         Err(e) => e.to_string(),
     }
 }
