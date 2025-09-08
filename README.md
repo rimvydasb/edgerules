@@ -56,11 +56,72 @@ project might be volatile.
 - [ ] Pattern matching using `match`
 - [ ] None coalescing for optionals (`foo ?? bar` yields `foo` if `foo` has a value, otherwise `bar`)
 
-## Examples / Basic syntax
+## Basic API Usage (Rust)
 
-```edgerules
-// TBC
+EdgeRules exposes a small, stateful API for loading source and evaluating expressions/fields. The typical flow is:
+
+- Create `EdgeRules`
+- Incrementally `load_source("...")` (can be called multiple times)
+- Evaluate using `evaluate_field("path")` or `evaluate_expression("expr")`
+
+All evaluations use the code loaded into the same `EdgeRules` instance.
+
+```rust
+use edge_rules::runtime::edge_rules::EdgeRules;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a service instance (stateful)
+    let mut service = EdgeRules::new();
+
+    // Load some code (can be called multiple times to extend/override)
+    service.load_source("{ value: 3 }")?;
+
+    // Evaluate a pure expression using the loaded context
+    // e.g., "2 + value" where value comes from the loaded source above
+    let val = service.evaluate_expression("2 + value")?;
+    assert_eq!(val.to_string(), "5");
+
+    // Load more source and reuse the same instance
+    service.load_source("{ calendar: { config: { start: 7 } } }")?;
+
+    // Evaluate a field/path from the loaded model
+    let start = service.evaluate_field("calendar.config.start");
+    assert_eq!(start, "7");
+
+    // You can evaluate multiple fields from the same loaded code
+    service.load_source("{ a: 2; b: a + 3 }")?;
+    assert_eq!(service.evaluate_field("a"), "2");
+    assert_eq!(service.evaluate_field("b"), "5");
+
+    Ok(())
+}
 ```
+
+Notes:
+
+- `evaluate_field` returns a `String` representation of the evaluated value (or an error as a string).
+- `evaluate_expression` returns a `Result<ValueEnum, EvalError>` for ergonomic programmatic handling.
+- The service is stateful; reusing the same `EdgeRules` instance lets you evaluate many things against the same model.
+
+### One-shot helpers
+
+If you prefer one-shot style for demos and quick checks:
+
+```rust
+use edge_rules::runtime::edge_rules::EdgeRules;
+
+let out = EdgeRules::new().evaluate_all("{ a: 2; b: a + 3 }");
+println!("{}", out); // prints the fully evaluated model as code
+```
+
+## WASM (optional)
+
+When built with the `wasm` feature, minimal helpers are exported via `wasm_bindgen`:
+
+- `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
+- `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
+
+These are intended for Node/Web demos and are kept tiny for edge delivery.
 
 ## Resources
 

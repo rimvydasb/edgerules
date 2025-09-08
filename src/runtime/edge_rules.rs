@@ -251,10 +251,9 @@ impl EdgeRules {
         }
     }
 
-    /// Evaluates a field using the current loaded source, with optional extra code to load before evaluation.
-    /// If `code` is not empty, it is loaded into the existing model; then the runtime is created and `field` is evaluated.
+    /// Evaluates a field/path using the currently loaded source.
+    /// Usage: create EdgeRules, load_source(...), then evaluate_field("a.b.c").
     pub fn evaluate_field(&mut self, field: &str) -> String {
-        // @Todo: it is unclear if it is needed
         // Build a non-consuming runtime snapshot to preserve current builder state
         let current_builder = std::mem::replace(&mut self.ast_root, ContextObjectBuilder::new());
         let static_context = current_builder.build();
@@ -468,6 +467,24 @@ pub mod test {
         service.load_source("value: 2 + 3")?;
         let out2 = service.evaluate_field("value");
         assert_eq!(out2, "5");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRules::new();
+        service.load_source(
+            "{ calendar : { config : { start : 7 }; sub : { inner : { value : 42 } } } }",
+        )?;
+
+        let out1 = service.evaluate_field("calendar.config.start");
+        assert_eq!(out1, "7");
+
+        let out2 = service.evaluate_field("calendar.sub.inner.value");
+        assert_eq!(out2, "42");
 
         Ok(())
     }

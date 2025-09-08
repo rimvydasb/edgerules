@@ -32,3 +32,12 @@ pub fn evaluate_expression(code: &str) -> String {
         Err(e) => e.to_string(),
     }
 }
+
+#[wasm_bindgen]
+pub fn evaluate_field(code: &str, field: &str) -> String {
+    let mut service = EdgeRules::new();
+    match service.load_source(code) {
+        Ok(()) => service.evaluate_field(field),
+        Err(e) => e.to_string(),
+    }
+}
