@@ -1,6 +1,8 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::functions::function_mix::*;
+use crate::ast::functions::function_date::*;
+use crate::ast::functions::function_numeric::*;
+use crate::ast::functions::function_string::*;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
@@ -56,15 +58,43 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "dayOfWeek" => UnaryFunctionDefinition { name : "dayOfWeek", function: eval_day_of_week, validation: expect_date_arg, return_type: |_| ValueType::StringType },
     "monthOfYear" => UnaryFunctionDefinition { name : "monthOfYear", function: eval_month_of_year, validation: expect_date_arg, return_type: |_| ValueType::StringType },
     "lastDayOfMonth" => UnaryFunctionDefinition { name : "lastDayOfMonth", function: eval_last_day_of_month, validation: expect_date_arg, return_type: |_| ValueType::NumberType },
+    // String unary
+    "length" => UnaryFunctionDefinition { name: "length", function: eval_length, validation: validate_unary_string, return_type: return_uni_number },
+    "toUpperCase" => UnaryFunctionDefinition { name: "toUpperCase", function: eval_to_upper, validation: validate_unary_string, return_type: return_string_type_unary },
+    "toLowerCase" => UnaryFunctionDefinition { name: "toLowerCase", function: eval_to_lower, validation: validate_unary_string, return_type: return_string_type_unary },
+    "trim" => UnaryFunctionDefinition { name: "trim", function: eval_trim, validation: validate_unary_string, return_type: return_string_type_unary },
+    "toBase64" => UnaryFunctionDefinition { name: "toBase64", function: eval_to_base64, validation: validate_unary_string, return_type: return_string_type_unary },
+    "fromBase64" => UnaryFunctionDefinition { name: "fromBase64", function: eval_from_base64, validation: validate_unary_string, return_type: return_string_type_unary },
+    "reverse" => UnaryFunctionDefinition { name: "reverse", function: eval_reverse, validation: validate_unary_string, return_type: return_string_type_unary },
+    "sanitizeFilename" => UnaryFunctionDefinition { name: "sanitizeFilename", function: eval_sanitize_filename, validation: validate_unary_string, return_type: return_string_type_unary },
 };
 
 pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefinition> = phf_map! {
     "find" => BinaryFunctionDefinition { name : "find", function: eval_find, validation: list_item_as_second_arg, return_type: return_binary_same_as_right_arg },
+    // String binary
+    "contains" => BinaryFunctionDefinition { name: "contains", function: eval_contains, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
+    "startsWith" => BinaryFunctionDefinition { name: "startsWith", function: eval_starts_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
+    "endsWith" => BinaryFunctionDefinition { name: "endsWith", function: eval_ends_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
+    "split" => BinaryFunctionDefinition { name: "split", function: eval_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
+    "substringBefore" => BinaryFunctionDefinition { name: "substringBefore", function: eval_substring_before, validation: validate_binary_string_string, return_type: return_string_type_binary },
+    "substringAfter" => BinaryFunctionDefinition { name: "substringAfter", function: eval_substring_after, validation: validate_binary_string_string, return_type: return_string_type_binary },
+    "charAt" => BinaryFunctionDefinition { name: "charAt", function: eval_char_at, validation: validate_binary_string_number, return_type: return_string_type_binary },
+    "charCodeAt" => BinaryFunctionDefinition { name: "charCodeAt", function: eval_char_code_at, validation: validate_binary_string_number, return_type: return_number_type_binary },
+    "indexOf" => BinaryFunctionDefinition { name: "indexOf", function: eval_index_of, validation: validate_binary_string_string, return_type: return_number_type_binary },
+    "lastIndexOf" => BinaryFunctionDefinition { name: "lastIndexOf", function: eval_last_index_of, validation: validate_binary_string_string, return_type: return_number_type_binary },
+    "repeat" => BinaryFunctionDefinition { name: "repeat", function: eval_repeat, validation: validate_binary_string_number, return_type: return_string_type_binary },
+    "interpolate" => BinaryFunctionDefinition { name: "interpolate", function: eval_interpolate, validation: validate_binary_string_any, return_type: return_string_type_binary },
 };
 
 pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinition> = phf_map! {
     "max" => MultiFunctionDefinition { name : "max", function: eval_max_all, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
     "sum" => MultiFunctionDefinition { name : "sum", function: eval_sum_all, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
+    // String multi-arity
+    "substring" => MultiFunctionDefinition { name: "substring", function: eval_substring, validation: validate_multi_substring, return_type: return_string_type_multi },
+    "replace" => MultiFunctionDefinition { name: "replace", function: eval_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
+    "fromCharCode" => MultiFunctionDefinition { name: "fromCharCode", function: eval_from_char_code, validation: validate_multi_from_char_code, return_type: return_string_type_multi },
+    "padStart" => MultiFunctionDefinition { name: "padStart", function: eval_pad_start, validation: validate_multi_pad, return_type: return_string_type_multi },
+    "padEnd" => MultiFunctionDefinition { name: "padEnd", function: eval_pad_end, validation: validate_multi_pad, return_type: return_string_type_multi },
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -88,6 +118,32 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "dayOfWeek" => EFunctionType::Unary,
     "monthOfYear" => EFunctionType::Unary,
     "lastDayOfMonth" => EFunctionType::Unary,
+    // String
+    "length" => EFunctionType::Unary,
+    "toUpperCase" => EFunctionType::Unary,
+    "toLowerCase" => EFunctionType::Unary,
+    "trim" => EFunctionType::Unary,
+    "toBase64" => EFunctionType::Unary,
+    "fromBase64" => EFunctionType::Unary,
+    "reverse" => EFunctionType::Unary,
+    "sanitizeFilename" => EFunctionType::Unary,
+    "contains" => EFunctionType::Binary,
+    "startsWith" => EFunctionType::Binary,
+    "endsWith" => EFunctionType::Binary,
+    "split" => EFunctionType::Binary,
+    "substringBefore" => EFunctionType::Binary,
+    "substringAfter" => EFunctionType::Binary,
+    "charAt" => EFunctionType::Binary,
+    "charCodeAt" => EFunctionType::Binary,
+    "indexOf" => EFunctionType::Binary,
+    "lastIndexOf" => EFunctionType::Binary,
+    "repeat" => EFunctionType::Binary,
+    "interpolate" => EFunctionType::Binary,
+    "substring" => EFunctionType::Multi,
+    "replace" => EFunctionType::Multi,
+    "fromCharCode" => EFunctionType::Multi,
+    "padStart" => EFunctionType::Multi,
+    "padEnd" => EFunctionType::Multi,
 };
 
 #[derive(Debug)]

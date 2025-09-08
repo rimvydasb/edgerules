@@ -284,7 +284,7 @@ impl EvaluatableExpression for MathOperator {
                             }
                             let new_month_u8 = new_month as u8;
                             let day = d.day();
-                            let last = super::super::functions::function_mix::last_day_of_month(new_year, new_month_u8);
+                            let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
                             let new_day = if day > last { last } else { day };
                             let date = time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap();
                             Ok(DateValue(ValueOrSv::Value(date)))
@@ -312,7 +312,7 @@ impl EvaluatableExpression for MathOperator {
                             }
                             let new_month_u8 = new_month as u8;
                             let day = d.day();
-                            let last = super::super::functions::function_mix::last_day_of_month(new_year, new_month_u8);
+                            let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
                             let new_day = if day > last { last } else { day };
                             let date = time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap();
                             Ok(DateValue(ValueOrSv::Value(date)))
@@ -345,7 +345,7 @@ impl EvaluatableExpression for MathOperator {
                                 if new_month <= 0 { new_year -= 1; new_month += 12; }
                                 let new_month_u8 = new_month as u8;
                                 let day = d.day();
-                                let last = super::super::functions::function_mix::last_day_of_month(new_year, new_month_u8);
+                                let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
                                 let new_day = if day > last { last } else { day };
                                 time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap()
                             };
@@ -375,7 +375,7 @@ impl EvaluatableExpression for MathOperator {
                                 if new_month <= 0 { new_year -= 1; new_month += 12; }
                                 let new_month_u8 = new_month as u8;
                                 let day = d.day();
-                                let last = super::super::functions::function_mix::last_day_of_month(new_year, new_month_u8);
+                                let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
                                 let new_day = if day > last { last } else { day };
                                 time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap()
                             };

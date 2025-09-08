@@ -444,6 +444,89 @@ mod test {
     }
 
     #[test]
+    fn test_string_functions() {
+        init_logger();
+
+        // substring
+        is_this_one_evaluating_to("value : substring(\"foobar\", 3)", V::from("obar"));
+        is_this_one_evaluating_to("value : substring(\"foobar\", -3, 2)", V::from("ba"));
+        is_this_one_evaluating_to("value : substring(\"abc\", 1, 2)", V::from("ab"));
+
+        // length
+        is_this_one_evaluating_to("value : length(\"foo\")", V::from(3));
+        is_this_one_evaluating_to("value : length(\"\")", V::from(0));
+
+        // case conversion
+        is_this_one_evaluating_to("value : toUpperCase(\"aBc4\")", V::from("ABC4"));
+        is_this_one_evaluating_to("value : toLowerCase(\"aBc4\")", V::from("abc4"));
+
+        // substringBefore/After
+        is_this_one_evaluating_to("value : substringBefore(\"foobar\", \"bar\")", V::from("foo"));
+        is_this_one_evaluating_to("value : substringAfter(\"foobar\", \"ob\")", V::from("ar"));
+
+        // contains / startsWith / endsWith
+        is_this_one_evaluating_to("value : contains(\"foobar\", \"of\")", BooleanValue(false));
+        is_this_one_evaluating_to("value : startsWith(\"foobar\", \"fo\")", BooleanValue(true));
+        is_this_one_evaluating_to("value : endsWith(\"foobar\", \"r\")", BooleanValue(true));
+
+        // split
+        use crate::typesystem::values::ValueEnum as VE;
+        use crate::typesystem::types::ValueType as VT;
+        let expected_split1 = VE::Array(
+            vec![Ok(V::from("John")), Ok(V::from("Doe"))],
+            VT::ListType(Box::new(VT::StringType)),
+        );
+        let expected_split2 = VE::Array(
+            vec![Ok(V::from("a")), Ok(V::from("b")), Ok(V::from("c"))],
+            VT::ListType(Box::new(VT::StringType)),
+        );
+        is_this_one_evaluating_to("value : split(\"John Doe\", \" \")", expected_split1);
+        is_this_one_evaluating_to("value : split(\"a-b-c\", \"-\")", expected_split2);
+
+        // trim
+        is_this_one_evaluating_to("value : trim(\"  hello  \")", V::from("hello"));
+
+        // base64
+        is_this_one_evaluating_to("value : toBase64(\"FEEL\")", V::from("RkVFTA=="));
+        is_this_one_evaluating_to("value : fromBase64(\"RkVFTA==\")", V::from("FEEL"));
+
+        // replace
+        is_this_one_evaluating_to("value : replace(\"abcd\", \"ab\", \"xx\")", V::from("xxcd"));
+        is_this_one_evaluating_to("value : replace(\"Abcd\", \"ab\", \"xx\", \"i\")", V::from("xxcd"));
+
+        // charAt / charCodeAt
+        is_this_one_evaluating_to("value : charAt(\"Abcd\", 2)", V::from("c"));
+        is_this_one_evaluating_to("value : charCodeAt(\"Abcd\", 2)", V::from(99));
+
+        // indexOf / lastIndexOf
+        is_this_one_evaluating_to("value : indexOf(\"Abcd\", \"b\")", V::from(1));
+        is_this_one_evaluating_to("value : lastIndexOf(\"Abcb\", \"b\")", V::from(3));
+
+        // fromCharCode
+        is_this_one_evaluating_to("value : fromCharCode(99, 100, 101)", V::from("cde"));
+
+        // padStart / padEnd
+        is_this_one_evaluating_to("value : padStart(\"7\", 3, \"0\")", V::from("007"));
+        is_this_one_evaluating_to("value : padEnd(\"7\", 3, \"0\")", V::from("700"));
+
+        // repeat / reverse
+        is_this_one_evaluating_to("value : repeat(\"ab\", 3)", V::from("ababab"));
+        is_this_one_evaluating_to("value : reverse(\"abc\")", V::from("cba"));
+
+        // sanitizeFilename
+        is_this_one_evaluating_to(
+            "value : sanitizeFilename(\"a/b\\\\c:d*e?fg<h>ij\")",
+            V::from("abcdefghij"),
+        );
+
+        // interpolate
+        is_this_one_evaluating_to(
+            "value : interpolate(\"Hi ${name}\", { name : \"Ana\" })",
+            V::from("Hi Ana"),
+        );
+    }
+
+    #[test]
     fn test_filter_not_alias() {
         use crate::typesystem::types::number::NumberEnum::Int;
         use ValueEnum::NumberValue as N;
