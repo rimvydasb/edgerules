@@ -486,6 +486,15 @@ pub mod test {
         let out2 = service.evaluate_field("calendar.sub.inner.value");
         assert_eq!(out2, "42");
 
+        service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
+
+        // Evaluate a field/path from the loaded model
+        let start = service.evaluate_field("calendar.config.start");
+        assert_eq!(start, "7");
+
+        let end = service.evaluate_field("calendar.config.end");
+        assert_eq!(end, "12");
+
         Ok(())
     }
 

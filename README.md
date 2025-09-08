@@ -82,36 +82,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(val.to_string(), "5");
 
     // Load more source and reuse the same instance
-    service.load_source("{ calendar: { config: { start: 7 } } }")?;
+    service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
 
     // Evaluate a field/path from the loaded model
     let start = service.evaluate_field("calendar.config.start");
     assert_eq!(start, "7");
 
-    // You can evaluate multiple fields from the same loaded code
-    service.load_source("{ a: 2; b: a + 3 }")?;
-    assert_eq!(service.evaluate_field("a"), "2");
-    assert_eq!(service.evaluate_field("b"), "5");
+    let end = service.evaluate_field("calendar.config.end");
+    assert_eq!(end, "12");
 
     Ok(())
 }
-```
-
-Notes:
-
-- `evaluate_field` returns a `String` representation of the evaluated value (or an error as a string).
-- `evaluate_expression` returns a `Result<ValueEnum, EvalError>` for ergonomic programmatic handling.
-- The service is stateful; reusing the same `EdgeRules` instance lets you evaluate many things against the same model.
-
-### One-shot helpers
-
-If you prefer one-shot style for demos and quick checks:
-
-```rust
-use edge_rules::runtime::edge_rules::EdgeRules;
-
-let out = EdgeRules::new().evaluate_all("{ a: 2; b: a + 3 }");
-println!("{}", out); // prints the fully evaluated model as code
 ```
 
 ## WASM (optional)
