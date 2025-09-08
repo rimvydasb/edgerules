@@ -95,14 +95,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## WASM (optional)
+## WASM
 
-When built with the `wasm` feature, minimal helpers are exported via `wasm_bindgen`:
+WASM exported methods via `wasm_bindgen`:
 
+- `evaluate_all(code: &str) -> String` – loads model code and returns the fully evaluated model as code.
 - `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
 - `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
-
-These are intended for Node/Web demos and are kept tiny for edge delivery.
 
 ## Resources
 
