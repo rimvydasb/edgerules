@@ -99,25 +99,25 @@ impl ExpressionEnum {
 }
 
 // @Todo: would be good to understand where it is actually used. Try removing it.
-impl PartialEq for ExpressionEnum {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (StaticObject(ref a), StaticObject(ref b)) => a == b,
-            (Value(ref a), Value(ref b)) => a == b,
-            (ObjectField(ref a, ref aa), ObjectField(ref b, ref bb)) => a == b && aa == bb,
-            (Variable(ref a), Variable(ref b)) => a == b,
-            // (&Array(ref a), &Array(ref b)) => {
-            //     if a.len() == b.len() {
-            //         a.iter().zip(b).filter(|&(a, b)| a == b).count() == b.len()
-            //     } else {
-            //         false
-            //     }
-            // }
-            (FunctionCall(ref _a), FunctionCall(ref _b)) => {
-                //@Todo: implement equals for function calls
-                false
-            }
-            _ => false,
-        }
-    }
-}
+// impl PartialEq for ExpressionEnum {
+//     fn eq(&self, other: &Self) -> bool {
+//         match (self, other) {
+//             (StaticObject(ref a), StaticObject(ref b)) => a == b,
+//             (Value(ref a), Value(ref b)) => a == b,
+//             (ObjectField(ref a, ref aa), ObjectField(ref b, ref bb)) => a == b && aa == bb,
+//             (Variable(ref a), Variable(ref b)) => a == b,
+//             // (&Array(ref a), &Array(ref b)) => {
+//             //     if a.len() == b.len() {
+//             //         a.iter().zip(b).filter(|&(a, b)| a == b).count() == b.len()
+//             //     } else {
+//             //         false
+//             //     }
+//             // }
+//             (FunctionCall(ref _a), FunctionCall(ref _b)) => {
+//                 //@Todo: implement equals for function calls
+//                 false
+//             }
+//             _ => false,
+//         }
+//     }
+// }

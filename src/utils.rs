@@ -3,23 +3,6 @@ use std::collections::vec_deque::VecDeque;
 use std::fmt::Display;
 use std::ops::Add;
 
-pub fn to_path(deque: VecDeque<&str>) -> String {
-    deque
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<String>>()
-        .join(".")
-}
-
-pub fn to_vec<T>(deque: &mut VecDeque<T>) -> Vec<T> {
-    let mut result: Vec<T> = Vec::new();
-    while let Some(token) = deque.pop_front() {
-        result.push(token);
-    }
-
-    result
-}
-
 pub fn to_display<T: Display>(vec: &[T], sep: &str) -> String {
     vec.iter()
         .map(|s| format!("{}", s))
@@ -254,34 +237,6 @@ pub mod test {
         assert_eq!(expected.replace(" ", ""), resultLine.replace(" ", ""));
     }
 
-    pub fn is_evaluating_to_error(code: &str, target: &mut ExpressionEnum, expected: RuntimeError) {
-        test_code(code).expect_runtime_error(target, expected);
-    }
-
-    pub fn is_lines_evaluating_to(
-        code: Vec<&str>,
-        variable: &mut ExpressionEnum,
-        expected: ValueEnum,
-    ) {
-        is_evaluating_to(
-            format!("{{{}}}", to_display(&code, "\n")).as_str(),
-            variable,
-            expected,
-        );
-    }
-
-    pub fn is_this_one_evaluating_to(code: &str, expected: ValueEnum) {
-        is_evaluating_to(code, &mut ExpressionEnum::variable("value"), expected);
-    }
-
-    pub fn is_variable_evaluating_to(code: &str, variable: &str, expected: ValueEnum) {
-        is_evaluating_to(code, &mut ExpressionEnum::variable(variable), expected);
-    }
-
-    pub fn is_evaluating_to(code: &str, target: &mut ExpressionEnum, expected: ValueEnum) {
-        test_code(code).expect(target, expected);
-    }
-
     pub fn test_code(code: &str) -> TestServiceBuilder {
         TestServiceBuilder::build(code)
     }
@@ -407,47 +362,6 @@ pub mod test {
             self
         }
 
-        pub fn expect_runtime_error(
-            &self,
-            _expr: &mut ExpressionEnum,
-            _expected: RuntimeError,
-        ) -> &Self {
-            if let Some(errors) = &self.parse_errors {
-                panic!(
-                    "Expected runtime error, but got parse errors : `{:?}`\nFailed to parse:\n{}",
-                    errors, self.original_code
-                );
-            }
-
-            if let Some(errors) = &self.linking_errors {
-                panic!(
-                    "Expected runtime error, but got linking errors : `{:?}`\nFailed to parse:\n{}",
-                    errors, self.original_code
-                );
-            }
-
-            if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
-                panic!(
-                    "Expected runtime error, but got linking errors : `{:?}`\nFailed to parse:\n{}",
-                    error, _expr
-                );
-            }
-
-            match _expr.eval(self.runtime.as_ref().unwrap().context.clone()) {
-                Ok(value) => {
-                    panic!(
-                        "Expected runtime error, but got value : `{:?}`\nEvaluation is fine:\n{}",
-                        value, _expr
-                    );
-                }
-                Err(error) => {
-                    assert_eq!(error, _expected, "Testing:\n{}", self.original_code);
-                }
-            }
-
-            return self;
-        }
-
         pub fn expect(&self, _expr: &mut ExpressionEnum, _expected: ValueEnum) {
             self.expect_no_errors();
 
@@ -472,45 +386,6 @@ pub mod test {
                     panic!("Failed to parse: `{:?}`", _expr);
                 }
             }
-        }
-
-        pub fn expect_code(&self, expected: &str) -> &Self {
-            self.expect_no_errors();
-
-            match &self.runtime {
-                None => {
-                    panic!(
-                        "Expected code, but got no runtime: `{}`",
-                        self.original_code
-                    );
-                }
-                Some(runtime) => {
-                    assert_eq!(expected, runtime.context.borrow().to_code());
-                }
-            }
-            self
-        }
-
-        pub fn expect_code_contains(&self, expected: &str) -> &Self {
-            self.expect_no_errors();
-
-            match &self.runtime {
-                None => {
-                    panic!(
-                        "Expected code, but got no runtime: `{}`",
-                        self.original_code
-                    );
-                }
-                Some(runtime) => {
-                    assert!(
-                        runtime.context.borrow().to_code().contains(expected),
-                        "Expected code to contain `{}` but got:\n{}",
-                        expected,
-                        runtime.context.borrow().to_code()
-                    );
-                }
-            }
-            self
         }
     }
 }
