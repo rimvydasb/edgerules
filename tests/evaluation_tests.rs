@@ -1,5 +1,3 @@
-// FIX:
-
 use edge_rules::runtime::edge_rules::EdgeRules;
 
 fn eval_all(code: &str) -> String {
@@ -363,7 +361,7 @@ mod test {
                 "value : datetime(\"2016-12-09T15:37:00\") + duration(\"PT23H\")",
                 "value"
             ),
-            "2016-12-10T14:37:00.0"
+            "2016-12-10 14:37:00.0"
         );
     }
 
