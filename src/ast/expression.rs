@@ -98,26 +98,27 @@ impl ExpressionEnum {
     }
 }
 
-// @Todo: would be good to understand where it is actually used. Try removing it.
-// impl PartialEq for ExpressionEnum {
-//     fn eq(&self, other: &Self) -> bool {
-//         match (self, other) {
-//             (StaticObject(ref a), StaticObject(ref b)) => a == b,
-//             (Value(ref a), Value(ref b)) => a == b,
-//             (ObjectField(ref a, ref aa), ObjectField(ref b, ref bb)) => a == b && aa == bb,
-//             (Variable(ref a), Variable(ref b)) => a == b,
-//             // (&Array(ref a), &Array(ref b)) => {
-//             //     if a.len() == b.len() {
-//             //         a.iter().zip(b).filter(|&(a, b)| a == b).count() == b.len()
-//             //     } else {
-//             //         false
-//             //     }
-//             // }
-//             (FunctionCall(ref _a), FunctionCall(ref _b)) => {
-//                 //@Todo: implement equals for function calls
-//                 false
-//             }
-//             _ => false,
-//         }
-//     }
-// }
+impl PartialEq for ExpressionEnum {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (StaticObject(a), StaticObject(b)) => a == b,
+            (Value(a), Value(b)) => a == b,
+            (Variable(a), Variable(b)) => a == b,
+            (ObjectField(name_a, expr_a), ObjectField(name_b, expr_b)) => {
+                name_a == name_b && expr_a == expr_b
+            }
+            (RangeExpression(l1, r1), RangeExpression(l2, r2)) => l1 == l2 && r1 == r2,
+            (ContextVariable, ContextVariable) => true,
+
+            // Variants below contain trait objects or structs without PartialEq.
+            // Provide a conservative fallback until/if richer semantics are needed.
+            (Operator(_), Operator(_)) => false,
+            (FunctionCall(_), FunctionCall(_)) => false,
+            (Filter(_), Filter(_)) => false,
+            (Selection(_), Selection(_)) => false,
+            (Collection(_), Collection(_)) => false,
+
+            _ => false,
+        }
+    }
+}

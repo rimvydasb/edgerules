@@ -160,7 +160,6 @@ pub mod test {
     use crate::ast::token::ExpressionEnum;
     use crate::ast::utils::*;
     use crate::tokenizer::parser::tokenize;
-    use crate::typesystem::errors::RuntimeError;
     use crate::typesystem::values::ValueEnum;
     use crate::utils::to_display;
     use log::info;

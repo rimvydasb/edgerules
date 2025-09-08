@@ -96,6 +96,15 @@ impl From<Rc<RefCell<LinkingError>>> for EvalError {
     }
 }
 
+impl Display for EvalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EvalError::FailedParsing(errors) => write!(f, "{}", errors),
+            EvalError::FailedExecution(err) => write!(f, "{}", err),
+        }
+    }
+}
+
 //--------------------------------------------------------------------------------------------------
 // Engine
 //--------------------------------------------------------------------------------------------------
