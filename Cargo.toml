@@ -10,6 +10,18 @@ description = "A library for defining and evaluating business rules."
 name = "edge_rules"
 crate-type = ["rlib", "cdylib"]
 
+[[bin]]
+name = "edgerules"
+path = "src/cli.rs"
+
+[[bin]]
+name = "er"
+path = "src/cli.rs"
+
+[[bin]]
+name = "edgerules-wasi"
+path = "src/cli.rs"
+
 [features]
 default = ["native"]
 native = []

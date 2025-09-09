@@ -5,6 +5,7 @@ export PATH := env_var("HOME") + "/.cargo/bin:" + env_var("PATH")
 FEATURES := "wasm"
 CRATE := "edge-rules"
 BIN_WASI := "edgerules-wasi"
+BIN_NATIVE := "edgerules"
 PROFILE := "release"
 PKG_NAME := "edge_rules"
 
@@ -37,7 +38,7 @@ ensure:
 build-pkg platform out_dir features:
     rustup run stable wasm-pack build --release --target {{platform}} --out-dir {{out_dir}} --out-name {{PKG_NAME}} -- --features {{features}}
     test -f {{out_dir}}/{{PKG_NAME}}_bg.wasm && ls -lh {{out_dir}}/{{PKG_NAME}}_bg.wasm || true
-    # Apply shared size-focused flags and remove unnecessary metadata.
+    # Apply shared  - command can be "-focused flags and remove unnecessary metadata.
     wasm-opt {{WASM_OPT_FLAGS}} {{out_dir}}/{{PKG_NAME}}_bg.wasm -o {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm
     test -f {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm && ls -lh {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm || true
 
@@ -90,6 +91,13 @@ clippy:
 
 test:
     cargo test --all
+
+# --- native CLI build & quick check ---
+cli:
+    cargo build --release -p {{CRATE}} --bin {{BIN_NATIVE}}
+    ls -lh target/{{PROFILE}}/{{BIN_NATIVE}} || true
+    echo "Running arithmetic sanity check:"
+    target/{{PROFILE}}/{{BIN_NATIVE}} "{ value : 2 + 3 }" || true
 
 # --- release helpers ---
 # Copies web builds into the external examples page project under public/.

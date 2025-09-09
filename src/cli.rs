@@ -4,12 +4,7 @@ use std::io::{self, Read};
 
 use edge_rules::runtime::edge_rules::EdgeRules;
 
-fn main() {
-    // Usage:
-    // 1) Pass code as a single argument: `edgerules-wasi "{ value : 1 + 2 }"`
-    // 2) Pass @file to read code from a file: `edgerules-wasi @path/to/file.txt`
-    // 3) No args: read entire stdin as code
-
+pub fn run() {
     let args: Vec<String> = env::args().skip(1).collect();
 
     let code = if let Some(first) = args.first() {
@@ -26,8 +21,6 @@ fn main() {
         buf
     };
 
-    // Try to evaluate `value` if present; otherwise print a full trace.
-    // Fall back to full trace if evaluation fails.
     match eval_value(&code) {
         Ok(Some(output)) => {
             println!("{}", output);
@@ -48,4 +41,8 @@ fn eval_value(code: &str) -> Result<Option<String>, String> {
         Ok(val) => Ok(Some(format!("{}", val))),
         Err(_) => Ok(None),
     }
+}
+
+fn main() {
+    run();
 }

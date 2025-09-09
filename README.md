@@ -103,6 +103,18 @@ WASM exported methods via `wasm_bindgen`:
 - `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
 - `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
 
+## CLI
+
+Build and try the native CLI:
+
+- `just cli` – builds `edgerules` natively, prints binary size, and runs a quick arithmetic check.
+
+Usage examples:
+
+- `edgerules "{ value : 1 + 2 }"` → prints `3`
+- `edgerules @path/to/file.txt` → loads code from file
+- `echo "{ value : 2 * 3 }" | edgerules` → reads from stdin
+
 ## Resources
 
 - For developer: https://rust-unofficial.github.io/patterns/idioms/index.html

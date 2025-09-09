@@ -38,6 +38,7 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - `just web-debug`: Build WASM for web with panic hook enabled into `target/pkg-web-debug/` and optimize.
 - `just node-debug`: Build WASM for Node with panic hook enabled into `target/pkg-node-debug/` and optimize.
 - `just wasi`: Build the WASI binary `edgerules-wasi.wasm` and run demo (prints size).
+- `just cli`: Build the native CLI `edgerules`, print its size, and run a quick arithmetic check.
 - `just core`: Build core library for wasm32-unknown-unknown.
 - `just core-opt`: Minify core output to .min.wasm.
 - `just demo-web`: Serve at http://localhost:8080 (expects `target/pkg-web/`).
