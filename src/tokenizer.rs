@@ -8,7 +8,27 @@ pub const C_ASSIGN: char = ':';
 ///
 #[cfg(test)]
 mod test {
+    use crate::ast::utils::array_to_code_sep;
+    use crate::tokenizer::parser::tokenize;
     use crate::utils::test::*;
+    use log::info;
+
+    fn is_equals(code: &str, expected: &str) {
+        let result = &tokenize(&code.to_string());
+        let result_line = array_to_code_sep(result.iter(), ", ");
+
+        if result.len() > 1 {
+            panic!(
+                "Expected only one token, but got {}.\n text:\n {:?}\n tokens:\n {:?}",
+                result.len(),
+                result_line,
+                result
+            );
+        }
+
+        info!("{:?}", result_line);
+        assert_eq!(expected.replace(" ", ""), result_line.replace(" ", ""));
+    }
 
     #[test]
     fn test_first() {

@@ -1,7 +1,8 @@
 use std::fs;
 use std::io::Write;
 use edge_rules::runtime::edge_rules::EdgeRules;
-use edge_rules::utils::test::init_test;
+mod test_utils;
+use test_utils::test::init_test;
 
 fn process_file(input_file_name: &str) -> std::io::Result<()> {
     let edgerules = EdgeRules::new();

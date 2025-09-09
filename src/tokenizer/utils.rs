@@ -331,6 +331,7 @@ impl<'a> CharStream<'a> {
 mod test {
     use super::*;
     use crate::tokenizer::utils::Either::{Left, Right};
+    use crate::utils::test::init_logger;
 
     #[test]
     fn test_common() {

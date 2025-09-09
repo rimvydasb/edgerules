@@ -162,9 +162,6 @@ pub mod test {
     use std::io::Write;
     use std::sync::Once;
 
-    use crate::runtime::edge_rules::{EdgeRules, EdgeRulesRuntime, ParseErrors};
-    use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
-
     static INIT: Once = Once::new();
 
     pub fn any_string() -> String {

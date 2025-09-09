@@ -264,7 +264,7 @@ impl EdgeRules {
     /// Usage: create EdgeRules, load_source(...), then evaluate_field("a.b.c").
     pub fn evaluate_field(&mut self, field: &str) -> String {
         // Build a non-consuming runtime snapshot to preserve current builder state
-        let current_builder = std::mem::replace(&mut self.ast_root, ContextObjectBuilder::new());
+        let current_builder = std::mem::take(&mut self.ast_root);
         let static_context = current_builder.build();
 
         let result = match linker::link_parts(Rc::clone(&static_context)) {
@@ -296,7 +296,7 @@ impl EdgeRules {
     //
     pub fn evaluate_expression(&mut self, code: &str) -> Result<ValueEnum, EvalError> {
         // 1) Detach current builder and build a static snapshot of the loaded code
-        let current_builder = std::mem::replace(&mut self.ast_root, ContextObjectBuilder::new());
+        let current_builder = std::mem::take(&mut self.ast_root);
         let static_context = current_builder.build();
         linker::link_parts(Rc::clone(&static_context))?;
 
@@ -411,16 +411,173 @@ pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
 
 #[cfg(test)]
 pub mod test {
-    use crate::ast::token::{EToken, EUnparsedToken};
-    use crate::runtime::edge_rules::{EdgeRules, EvalError};
+    use crate::ast::expression::StaticLink;
+    use crate::ast::token::{EToken, EUnparsedToken, ExpressionEnum};
+    use crate::runtime::edge_rules::{EdgeRules, EdgeRulesRuntime, EvalError, ParseErrors};
 
-    use crate::typesystem::errors::LinkingErrorEnum;
+    use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
 
-    use crate::typesystem::types::number::NumberEnum::Int;
+    use crate::typesystem::types::number::NumberEnum::{self, Int};
 
     use crate::typesystem::values::ValueEnum;
-    use crate::utils::test::{init_logger, test_code, test_code_lines};
+    use crate::utils::test::init_logger;
+    use crate::utils::to_display;
+    use log::error;
+    use std::fmt::Display;
+    use std::mem::discriminant;
+
+    pub fn test_code(code: &str) -> TestServiceBuilder {
+        TestServiceBuilder::build(code)
+    }
+
+    pub fn test_code_lines<T: Display>(code: &[T]) -> TestServiceBuilder {
+        TestServiceBuilder::build(format!("{{{}}}", to_display(code, "\n")).as_str())
+    }
+
+    pub struct TestServiceBuilder {
+        original_code: String,
+        runtime: Option<EdgeRulesRuntime>,
+        parse_errors: Option<ParseErrors>,
+        linking_errors: Option<LinkingError>,
+    }
+
+    impl TestServiceBuilder {
+        pub fn build(code: &str) -> Self {
+            let mut service = EdgeRules::new();
+
+            match service.load_source(code) {
+                Ok(_model) => match service.to_runtime() {
+                    Ok(runtime) => TestServiceBuilder {
+                        original_code: code.to_string(),
+                        runtime: Some(runtime),
+                        parse_errors: None,
+                        linking_errors: None,
+                    },
+                    Err(linking_errors) => TestServiceBuilder {
+                        original_code: code.to_string(),
+                        runtime: None,
+                        parse_errors: None,
+                        linking_errors: Some(linking_errors),
+                    },
+                },
+                Err(errors) => TestServiceBuilder {
+                    original_code: code.to_string(),
+                    runtime: None,
+                    parse_errors: Some(errors),
+                    linking_errors: None,
+                },
+            }
+        }
+
+        pub fn expect_type(&self, expected_type: &str) -> &Self {
+            self.expect_no_errors();
+
+            match &self.runtime {
+                None => {
+                    panic!(
+                        "Expected runtime, but got nothing: `{}`",
+                        self.original_code
+                    );
+                }
+                Some(runtime) => {
+                    assert_eq!(runtime.static_tree.borrow().to_type_string(), expected_type);
+                }
+            }
+
+            self
+        }
+
+        pub fn expect_num(&self, variable: &str, expected: NumberEnum) {
+            self.expect(
+                &mut ExpressionEnum::variable(variable),
+                ValueEnum::NumberValue(expected),
+            )
+        }
+
+        pub fn expect_parse_error(&self, expected: ParseErrorEnum) -> &Self {
+            if let Some(errors) = &self.parse_errors {
+                for error in errors.errors() {
+                    if discriminant(error) == discriminant(&expected) {
+                        return self;
+                    }
+                }
+                panic!(
+                    "Expected parse error `{}`, but got: `{:?}`",
+                    expected, errors
+                );
+            } else {
+                panic!(
+                    "Expected parse error, but got no errors: `{}`",
+                    self.original_code
+                );
+            }
+        }
+
+        pub fn expect_no_errors(&self) -> &Self {
+            if let Some(errors) = &self.parse_errors {
+                panic!(
+                    "Expected no errors, but got parse errors : `{}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
+            }
+
+            if let Some(errors) = &self.linking_errors {
+                panic!(
+                    "Expected no errors, but got linking errors : `{}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
+            }
+
+            self
+        }
+
+        pub fn expect_link_error(&self, expected: LinkingErrorEnum) -> &Self {
+            if let Some(errors) = &self.parse_errors {
+                panic!(
+                    "Expected linking error, but got parse errors : `{:?}`\nFailed to parse:\n{}",
+                    errors, self.original_code
+                );
+            }
+
+            if let Some(errors) = &self.linking_errors {
+                assert_eq!(expected, errors.error, "Testing:\n{}", self.original_code);
+            } else {
+                panic!(
+                    "Expected linking error, but got no errors: `{}`",
+                    self.original_code
+                );
+            }
+
+            self
+        }
+
+        pub fn expect(&self, _expr: &mut ExpressionEnum, _expected: ValueEnum) {
+            self.expect_no_errors();
+
+            if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
+                panic!(
+                    "Expected value, but got linking errors : `{:?}`\nFailed to parse:\n{}",
+                    error, _expr
+                );
+            }
+
+            match _expr.eval(self.runtime.as_ref().unwrap().context.clone()) {
+                Ok(value) => {
+                    assert_eq!(
+                        value,
+                        _expected,
+                        "Context:\n{}",
+                        self.runtime.as_ref().unwrap().context.borrow()
+                    );
+                }
+                Err(error) => {
+                    error!("{}", error);
+                    panic!("Failed to parse: `{:?}`", _expr);
+                }
+            }
+        }
+    }
 
     #[test]
     fn now() -> Result<(), EvalError> {

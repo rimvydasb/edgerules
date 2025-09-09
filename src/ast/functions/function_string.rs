@@ -25,7 +25,7 @@ fn as_string(v: &ValueEnum) -> Option<String> {
 
 fn as_int(v: &ValueEnum) -> Option<i64> {
     match v {
-        NumberValue(NumberEnum::Int(i)) => Some(*i as i64),
+        NumberValue(NumberEnum::Int(i)) => Some(*i),
         NumberValue(NumberEnum::Real(r)) => Some(*r as i64),
         NumberValue(NumberEnum::SV(_)) => Some(0),
         _ => None,
@@ -63,8 +63,8 @@ pub fn validate_multi_replace(args: Vec<ValueType>) -> Link<()> {
     if !(args.len() == 3 || args.len() == 4) {
         return LinkingError::other_error("replace expects 3 or 4 arguments".to_string()).into();
     }
-    for i in 0..3 {
-        LinkingError::expect_type(None, args[i].clone(), &[StringType])?;
+    for t in args.iter().take(3) {
+        LinkingError::expect_type(None, t.clone(), &[StringType])?;
     }
     if args.len() == 4 {
         LinkingError::expect_type(None, args[3].clone(), &[StringType])?;
@@ -196,7 +196,7 @@ pub fn eval_substring(
     let out: String = if j >= i {
         chars[i..j].iter().collect()
     } else {
-        chars[(j as usize)..(i as usize)].iter().collect()
+        chars[j..i].iter().collect()
     };
     Ok(StringValue(SString(out)))
 }
@@ -356,7 +356,7 @@ pub fn eval_pad_start(
     if target as usize > s.chars().count() {
         let pad_ch = pad.chars().next().unwrap_or(' ');
         let need = target as usize - s.chars().count();
-        let prefix: String = std::iter::repeat(pad_ch).take(need).collect();
+        let prefix: String = std::iter::repeat_n(pad_ch, need).collect();
         out = format!("{}{}", prefix, s);
     }
     Ok(StringValue(SString(out)))
@@ -375,7 +375,7 @@ pub fn eval_pad_end(
     if target as usize > s.chars().count() {
         let pad_ch = pad.chars().next().unwrap_or(' ');
         let need = target as usize - s.chars().count();
-        let suffix: String = std::iter::repeat(pad_ch).take(need).collect();
+        let suffix: String = std::iter::repeat_n(pad_ch, need).collect();
         out = format!("{}{}", s, suffix);
     }
     Ok(StringValue(SString(out)))

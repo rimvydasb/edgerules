@@ -165,7 +165,7 @@ impl StaticLink for MathOperator {
         match self.data.operator {
             Addition => {
                 // date + duration => date; datetime + duration => datetime; time + duration => time (optional)
-                return match (left_type.clone(), right_type) {
+                match (left_type.clone(), right_type) {
                     (DateType, DurationType) => Ok(DateType),
                     (DateTimeType, DurationType) => Ok(DateTimeType),
                     (TimeType, DurationType) => Ok(TimeType),
@@ -174,12 +174,12 @@ impl StaticLink for MathOperator {
                         left_type,
                         Some(vec![NumberType, DateType, DateTimeType, TimeType])
                     ).into(),
-                };
+                }
             }
             Subtraction => {
                 // date - date => duration; time - time => duration; datetime - datetime => duration
                 // date - duration => date; datetime - duration => datetime; time - duration => time
-                return match (left_type.clone(), right_type.clone()) {
+                match (left_type.clone(), right_type.clone()) {
                     (DateType, DateType) | (TimeType, TimeType) | (DateTimeType, DateTimeType) => Ok(DurationType),
                     (DateType, DurationType) => Ok(DateType),
                     (DateTimeType, DurationType) => Ok(DateTimeType),
@@ -189,7 +189,7 @@ impl StaticLink for MathOperator {
                         left_type,
                         Some(vec![NumberType, DateType, DateTimeType, TimeType])
                     ).into(),
-                };
+                }
             }
             Multiplication | Division | Power | Modulus => {
                 // Only numbers supported
@@ -302,7 +302,7 @@ impl EvaluatableExpression for MathOperator {
                             let year = d.year();
                             let mut month = d.month() as i32;
                             let mut sub_months = dur.years * 12 + dur.months;
-                            if !dur.negative { sub_months = sub_months; } else { sub_months = -sub_months; }
+                            if dur.negative { sub_months = -sub_months; }
                             month -= sub_months;
                             let mut new_year = year + (month - 1) / 12;
                             let mut new_month = (month - 1) % 12 + 1;
@@ -353,9 +353,9 @@ impl EvaluatableExpression for MathOperator {
                         }
                         DurationKind::DaysTime => {
                             let mut delta = TDuration::days(dur.days.abs());
-                            delta = delta + TDuration::hours(dur.hours.abs());
-                            delta = delta + TDuration::minutes(dur.minutes.abs());
-                            delta = delta + TDuration::seconds(dur.seconds.abs());
+                            delta += TDuration::hours(dur.hours.abs());
+                            delta += TDuration::minutes(dur.minutes.abs());
+                            delta += TDuration::seconds(dur.seconds.abs());
                             if dur.negative { delta = -delta; }
                             Ok(DateTimeValue(ValueOrSv::Value(*dt + delta)))
                         }
@@ -368,7 +368,7 @@ impl EvaluatableExpression for MathOperator {
                                 let year = d.year();
                                 let mut month = d.month() as i32;
                                 let mut sub_months = dur.years * 12 + dur.months;
-                                if !dur.negative { sub_months = sub_months; } else { sub_months = -sub_months; }
+                                if dur.negative { sub_months = -sub_months; }
                                 month -= sub_months;
                                 let mut new_year = year + (month - 1) / 12;
                                 let mut new_month = (month - 1) % 12 + 1;
@@ -383,10 +383,10 @@ impl EvaluatableExpression for MathOperator {
                         }
                         DurationKind::DaysTime => {
                             let mut delta = TDuration::days(dur.days.abs());
-                            delta = delta + TDuration::hours(dur.hours.abs());
-                            delta = delta + TDuration::minutes(dur.minutes.abs());
-                            delta = delta + TDuration::seconds(dur.seconds.abs());
-                            if !dur.negative { delta = delta; } else { delta = -delta; }
+                            delta += TDuration::hours(dur.hours.abs());
+                            delta += TDuration::minutes(dur.minutes.abs());
+                            delta += TDuration::seconds(dur.seconds.abs());
+                            if dur.negative { delta = -delta; }
                             Ok(DateTimeValue(ValueOrSv::Value(*dt - delta)))
                         }
                     },
@@ -405,7 +405,7 @@ impl EvaluatableExpression for MathOperator {
                         } else {
                             secs += delta;
                         }
-                        let secs_mod = ((secs % 86400) + 86400) % 86400;
+                        let secs_mod = secs.rem_euclid(86400);
                         let h = (secs_mod / 3600) as u8;
                         let m = ((secs_mod % 3600) / 60) as u8;
                         let s = (secs_mod % 60) as u8;
