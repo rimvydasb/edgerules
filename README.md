@@ -36,6 +36,18 @@ project might be volatile.
 | Objects, lists, types | Yes     | Yes                        | Yes                   |
 | TBC.                  |         |                            |                       |
 
+## Deployment Options
+
+EdgeRules is ready for four options based on your requirements:
+
+| Option            | Description | Size (approx) |
+|-------------------|-------------|---------------|
+| Native CLI        | `just cli`  | ~1.5MB        |
+| WASM for Web      | `just web`  | ~300KB        |
+| WASM for Node.js  | `just node` | ~300KB        |
+| WASM for Wasmtime | `just wasi` | ~300KB        |
+| Rust Crate        | TBA         |               |
+
 ## Features / Roadmap
 
 - [x] Referentially transparent (pure functions, no side effects)
