@@ -5,6 +5,18 @@ higher‑order functions (e.g., sort(list, mySortFunction), future map,
 filter, reduce), without caching returned results across invocations, while
 reusing the function definition itself for efficiency.
 
+## Example Use Case
+
+```edgerules
+{
+    list: [{n:"a",s:7},{n:"c",s:7},{n:"b",s:9}]
+    mySortFunction(x,y): {
+        result: x.s > y.s or (x.s = y.s and x.n < y.n)
+    }
+    sortedList: sort(list, mySortFunction)
+}
+```
+
 ## Core Concepts
 
 - Function Value: A new first‑class runtime value that references a user
