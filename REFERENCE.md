@@ -476,7 +476,7 @@ model : {
 
 ## List Functions
 
-| EdgeRule function                                     | Description                              | FEEL example                                               | JavaScript / Lodash equivalent                              |
+| EdgeRules function                                    | Description                              | FEEL example                                               | JavaScript / Lodash equivalent                              |
 |-------------------------------------------------------|------------------------------------------|------------------------------------------------------------|-------------------------------------------------------------|
 | `contains([1,2,3], 2)` → `true`                       | Checks if a list contains a value.       | `list contains(list, element)`                             | `list.includes(value)`                                      |
 | `count([1,2,3])` → `3`                                | Returns the number of elements.          | `count(list)`                                              | `list.length`                                               |
