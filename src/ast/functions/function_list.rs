@@ -1,15 +1,15 @@
 use crate::ast::functions::function_numeric::list_item_as_second_arg;
+use crate::link::node_data::ContentHolder;
 use crate::ast::functions::function_string as strf;
 use crate::ast::token::into_valid;
 use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
-use crate::typesystem::types::ValueType::{BooleanType, ListType, NumberType, StringType};
+use crate::typesystem::types::ValueType::{ListType, NumberType, StringType};
 use crate::typesystem::types::{Integer, ValueType, TypedValue};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::types::string::StringEnum::{String as SString, Char as SChar};
-use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
-use std::cell::RefCell;
+use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue, Reference};
 use std::cmp::Ordering;
 use std::rc::Rc;
 
@@ -63,24 +63,12 @@ pub fn return_flatten_type(arg: ValueType) -> ValueType {
     }
 }
 
-pub fn return_boolean_unary(_: ValueType) -> ValueType {
-    BooleanType
-}
-
 pub fn validate_binary_list_number(left: ValueType, right: ValueType) -> Link<()> {
     if let ListType(_) = left {
         LinkingError::expect_type(None, right, &[NumberType]).map(|_| ())
     } else {
         LinkingError::expect_array_type(None, left).map(|_| ())
     }
-}
-
-pub fn validate_binary_list_and_item(left: ValueType, right: ValueType) -> Link<()> {
-    list_item_as_second_arg(left, right)
-}
-
-pub fn return_list_number_type(_: ValueType, _: ValueType) -> ValueType {
-    ListType(Box::new(NumberType))
 }
 
 pub fn validate_binary_contains_mixed(left: ValueType, right: ValueType) -> Link<()> {
@@ -113,11 +101,7 @@ pub fn validate_unary_reverse_mixed(arg: ValueType) -> Link<()> {
     }
 }
 
-pub fn return_same_as_arg(_: ValueType) -> ValueType { StringType /* or list; caller overrides in link */ }
-
-pub fn return_boolean_binary(_: ValueType, _: ValueType) -> ValueType { BooleanType }
-
-pub fn return_same_as_left(left: ValueType, _: ValueType) -> ValueType { left }
+//
 
 // ---------------- Implementations ----------------
 
@@ -260,7 +244,7 @@ pub fn eval_sublist(args: Vec<Result<ValueEnum, RuntimeError>>, ret: ValueType) 
     let len_opt = if vals.len() == 3 { Some(as_int(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?) } else { None };
     let items = list.0;
     let n = items.len() as i64;
-    let mut i = (start - 1).max(0).min(n);
+    let i = (start - 1).max(0).min(n);
     let j = match len_opt { Some(l) => (i + l).min(n), None => n };
     let mut out: Vec<Result<ValueEnum, RuntimeError>> = Vec::new();
     let (ii, jj) = (i as usize, j as usize);
@@ -276,11 +260,8 @@ pub fn validate_multi_sublist(args: Vec<ValueType>) -> Link<()> {
     Ok(())
 }
 
-pub fn return_sublist_type() -> ValueType { // Fallback: caller plugs correct type for Binary case; Multi uses generic
-    ListType(Box::new(ValueType::UndefinedType))
-}
 
-pub fn eval_append(args: Vec<Result<ValueEnum, RuntimeError>>, ret: ValueType) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_append(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     if args.is_empty() { return RuntimeError::eval_error("append expects at least 1 argument".to_string()).into(); }
     let vals = into_valid(args)?;
     let (mut items, item_type) = match &vals[0] { Array(v, t) => (into_valid(v.clone())?, t.get_list_type().unwrap_or(ValueType::UndefinedType)), _ => return RuntimeError::type_not_supported(vals[0].get_type()).into() };
@@ -420,9 +401,36 @@ pub fn eval_flatten(values: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
-pub fn eval_sort(left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_sort(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     let (items, t) = match left { Array(v, t) => (into_valid(v)?, t), _ => return RuntimeError::type_not_supported(left.get_type()).into() };
     let mut arr = items;
+
+    // If right is a string: treat as field name for object sorting
+    if let StringValue(SString(field)) = right {
+        fn key_for(v: &ValueEnum, field: &str) -> ValueEnum {
+            match v {
+                Reference(ctx) => match ctx.borrow().get(field) {
+                    Ok(crate::ast::context::context_object_type::EObjectContent::ConstantValue(val)) => val.clone(),
+                    Ok(crate::ast::context::context_object_type::EObjectContent::ExpressionRef(expr)) => expr.borrow().expression.eval(Rc::clone(ctx)).unwrap_or_else(|_| v.clone()),
+                    Ok(crate::ast::context::context_object_type::EObjectContent::ObjectRef(obj)) => Reference(Rc::clone(&obj)),
+                    _ => v.clone(),
+                },
+                _ => v.clone(),
+            }
+        }
+        arr.sort_by(|a, b| {
+            let ka = key_for(a, &field);
+            let kb = key_for(b, &field);
+            match (&ka, &kb) {
+                (NumberValue(NumberEnum::Int(x)), NumberValue(NumberEnum::Int(y))) => x.cmp(y),
+                (NumberValue(NumberEnum::Real(x)), NumberValue(NumberEnum::Real(y))) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
+                (StringValue(sa), StringValue(sb)) => sa.to_string().cmp(&sb.to_string()),
+                _ => ka.to_string().cmp(&kb.to_string()),
+            }
+        });
+        return Ok(Array(arr.into_iter().map(Ok).collect(), t));
+    }
+
     // default: numbers ascending, strings lexicographic, else by Display
     arr.sort_by(|a, b| match (a, b) {
         (NumberValue(NumberEnum::Int(x)), NumberValue(NumberEnum::Int(y))) => x.cmp(y),
@@ -433,8 +441,14 @@ pub fn eval_sort(left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, Runtim
     Ok(Array(arr.into_iter().map(Ok).collect(), t))
 }
 
-pub fn validate_binary_sort(left: ValueType, _right: ValueType) -> Link<()> {
-    LinkingError::expect_array_type(None, left).map(|_| ())
+pub fn validate_binary_sort(left: ValueType, right: ValueType) -> Link<()> {
+    LinkingError::expect_array_type(None, left)?;
+    // accept any comparator placeholder for now; if string, treat as field name
+    if matches!(right, StringType) {
+        Ok(())
+    } else {
+        Ok(())
+    }
 }
 
 pub fn validate_binary_partition(left: ValueType, right: ValueType) -> Link<()> {

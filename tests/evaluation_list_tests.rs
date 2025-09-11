@@ -48,6 +48,10 @@ fn list_order_and_indexing() {
     // sort default ascending (second argument ignored for now)
     assert_eq!(crate::eval_value("value : sort([3,1,4,2], 0)"), "[1, 2, 3, 4]");
     assert_eq!(crate::eval_value("value : sort(['b','a','c'], 0)"), "['a', 'b', 'c']");
+
+    // sort objects by field
+    // Note: comparator function + field-based sort will be covered in a follow-up once
+    // inline comparator semantics land. Implementation supports field sort (right arg string).
 }
 
 #[test]
@@ -94,4 +98,23 @@ fn list_numeric_aggregates() {
     assert_eq!(crate::eval_value("value : median([1,2,3])"), "2");
     assert_eq!(crate::eval_value("value : stddev([2,4])"), "1");
     assert_eq!(crate::eval_value("value : mode([1,2,2,3])"), "[2]");
+}
+
+#[test]
+fn list_numeric_unhappy_paths() {
+    // Using strings where numbers are expected
+    link_error_contains("value : product(['a','b'])", &["unexpected", "number"]);
+    link_error_contains("value : mean(['1','2'])", &["unexpected", "number"]);
+    link_error_contains("value : median(['x'])", &["unexpected", "number"]);
+    link_error_contains("value : stddev(['x','y'])", &["unexpected", "number"]);
+
+    // Using dates where numbers are expected
+    link_error_contains(
+        "value : product([date(\"2017-05-03\")])",
+        &["unexpected", "number"],
+    );
+    link_error_contains(
+        "value : mean([date(\"2017-05-03\"), date(\"2017-05-04\")])",
+        &["unexpected", "number"],
+    );
 }
