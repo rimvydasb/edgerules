@@ -446,36 +446,45 @@ mod test {
             NumberEnum::SV(NotFound)
         );
 
-        assert_eq!(NumberEnum::from(10) > NumberEnum::from(10), false);
+        assert!(NumberEnum::from(10) <= NumberEnum::from(10));
 
         // Missing
 
-        assert_eq!(NumberEnum::from(10) > NumberEnum::SV(Missing), true);
-        assert_eq!(NumberEnum::SV(Missing) > NumberEnum::from(10), false);
-        assert_eq!(NumberEnum::SV(Missing) == NumberEnum::from(10), false);
+        assert!(NumberEnum::from(10) > NumberEnum::SV(Missing));
+        assert!(matches!(
+            NumberEnum::SV(Missing).partial_cmp(&NumberEnum::from(10)),
+            Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
+        ));
+        assert!(NumberEnum::SV(Missing) != NumberEnum::from(10));
 
         // NotApplicable
-        assert_eq!(NumberEnum::from(10) > NumberEnum::SV(NotApplicable), false);
-        assert_eq!(NumberEnum::SV(NotApplicable) > NumberEnum::from(10), false);
-        assert_eq!(NumberEnum::SV(NotApplicable) == NumberEnum::from(10), false);
+        assert!(matches!(
+            NumberEnum::from(10).partial_cmp(&NumberEnum::SV(NotApplicable)),
+            Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
+        ));
+        assert!(matches!(
+            NumberEnum::SV(NotApplicable).partial_cmp(&NumberEnum::from(10)),
+            Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
+        ));
+        assert!(NumberEnum::SV(NotApplicable) != NumberEnum::from(10));
 
         // NotApplicable
-        assert_eq!(NumberEnum::from(10) > NumberEnum::SV(NotFound), false);
-        assert_eq!(NumberEnum::SV(NotFound) > NumberEnum::from(10), false);
-        assert_eq!(NumberEnum::SV(NotFound) == NumberEnum::from(10), false);
+        assert!(matches!(
+            NumberEnum::from(10).partial_cmp(&NumberEnum::SV(NotFound)),
+            Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
+        ));
+        assert!(matches!(
+            NumberEnum::SV(NotFound).partial_cmp(&NumberEnum::from(10)),
+            Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
+        ));
+        assert!(NumberEnum::SV(NotFound) != NumberEnum::from(10));
 
-        assert_eq!(NumberEnum::SV(Missing) == NumberEnum::SV(NotFound), false);
-        assert_eq!(
-            NumberEnum::SV(Missing) == NumberEnum::SV(NotApplicable),
-            false
-        );
+        assert!(NumberEnum::SV(Missing) != NumberEnum::SV(NotFound));
+        assert!(NumberEnum::SV(Missing) != NumberEnum::SV(NotApplicable));
 
-        assert_eq!(NumberEnum::SV(Missing) == NumberEnum::SV(Missing), true);
-        assert_eq!(NumberEnum::SV(NotFound) == NumberEnum::SV(NotFound), true);
-        assert_eq!(
-            NumberEnum::SV(NotApplicable) == NumberEnum::SV(NotApplicable),
-            true
-        );
+        assert!(NumberEnum::SV(Missing) == NumberEnum::SV(Missing));
+        assert!(NumberEnum::SV(NotFound) == NumberEnum::SV(NotFound));
+        assert!(NumberEnum::SV(NotApplicable) == NumberEnum::SV(NotApplicable));
     }
 
     #[test]

@@ -1,8 +1,6 @@
 mod utilities;
 pub use utilities::*;
 
-use edge_rules::runtime::edge_rules::EdgeRules;
-
 // Dedicated coverage for user-defined functions (custom functions)
 
 #[test]

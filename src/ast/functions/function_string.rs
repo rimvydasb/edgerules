@@ -246,8 +246,8 @@ pub fn eval_replace(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.len() != 3 {
-        return RuntimeError::eval_error("replace expects 3 arguments".to_string()).into();
+    if !(vals.len() == 3 || vals.len() == 4) {
+        return RuntimeError::eval_error("replace expects 3 or 4 arguments".to_string()).into();
     }
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
@@ -256,6 +256,54 @@ pub fn eval_replace(
     let repl =
         as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
 
+    // Fast path: standard replace or empty pattern
+    if vals.len() == 3 || pattern.is_empty() {
+        return Ok(StringValue(SString(s.replace(&pattern, &repl))));
+    }
+
+    // Optional flags (currently supports: 'i' for case-insensitive)
+    let flags = as_string(&vals[3]).unwrap_or_default();
+    if flags.contains('i') {
+        // Prefer regex-based, escaping the literal pattern
+        #[cfg(feature = "regex_functions")]
+        {
+            let mut builder = RegexBuilder::new(&regex::escape(&pattern));
+            builder.case_insensitive(true);
+            let re = builder
+                .build()
+                .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
+            return Ok(StringValue(SString(
+                re.replace_all(&s, repl.as_str()).into_owned(),
+            )));
+        }
+
+        // Fallback (no-regex build): ASCII case-insensitive replace of all occurrences
+        #[cfg(not(feature = "regex_functions"))]
+        {
+            let s_lower = s.to_ascii_lowercase();
+            let pat_lower = pattern.to_ascii_lowercase();
+            if pat_lower.is_empty() {
+                return Ok(StringValue(SString(s.replace(&pattern, &repl))));
+            }
+            let mut out = String::with_capacity(s.len());
+            let mut i: usize = 0;
+            let pat_len = pattern.len();
+            while i <= s_lower.len() {
+                if let Some(pos) = s_lower[i..].find(&pat_lower) {
+                    let real = i + pos;
+                    out.push_str(&s[i..real]);
+                    out.push_str(&repl);
+                    i = real + pat_len;
+                } else {
+                    out.push_str(&s[i..]);
+                    break;
+                }
+            }
+            return Ok(StringValue(SString(out)));
+        }
+    }
+
+    // No flags handled -> default replace
     Ok(StringValue(SString(s.replace(&pattern, &repl))))
 }
 
