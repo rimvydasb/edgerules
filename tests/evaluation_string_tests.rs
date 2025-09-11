@@ -38,6 +38,11 @@ fn test_string_functions() {
         crate::eval_value("value : split(\"a-b-c\", \"-\")"),
         "['a', 'b', 'c']"
     );
+    // regexSplit (regex-based)
+    assert_eq!(
+        crate::eval_value("value : regexSplit('one   two\tthree', '\\s+')"),
+        "['one', 'two', 'three']"
+    );
 
     // trim
     assert_eq!(crate::eval_value("value : trim(\"  hello  \")"), "'hello'");
@@ -54,6 +59,25 @@ fn test_string_functions() {
     assert_eq!(
         crate::eval_value("value : replace(\"Abcd\", \"ab\", \"xx\", \"i\")"),
         "'xxcd'"
+    );
+    // regexReplace (regex-based)
+    assert_eq!(
+        crate::eval_value("value : regexReplace('Abcd', '[a-z]', 'x', 'i')"),
+        "'xxxx'"
+    );
+    assert_eq!(
+        crate::eval_value("value : regexReplace('2025-09-02', '\\d', '#')"),
+        "'####-##-##'"
+    );
+
+    // replaceFirst / replaceLast (simple, non-regex)
+    assert_eq!(
+        crate::eval_value("value : replaceFirst(\"foo bar foo\", \"foo\", \"baz\")"),
+        "'baz bar foo'"
+    );
+    assert_eq!(
+        crate::eval_value("value : replaceLast(\"foo bar foo\", \"foo\", \"baz\")"),
+        "'foo bar baz'"
     );
 
     // charAt / charCodeAt

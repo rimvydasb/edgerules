@@ -98,7 +98,7 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
     // split: regex when enabled, otherwise simple substring split
     "split" => BinaryFunctionDefinition { name: "split", function: eval_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
     #[cfg(feature = "regex_functions")]
-    "regex_split" => BinaryFunctionDefinition { name: "regex_split", function: eval_regex_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
+    "regexSplit" => BinaryFunctionDefinition { name: "regexSplit", function: eval_regex_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
     "substringBefore" => BinaryFunctionDefinition { name: "substringBefore", function: eval_substring_before, validation: validate_binary_string_string, return_type: return_string_type_binary },
     "substringAfter" => BinaryFunctionDefinition { name: "substringAfter", function: eval_substring_after, validation: validate_binary_string_string, return_type: return_string_type_binary },
     "charAt" => BinaryFunctionDefinition { name: "charAt", function: eval_char_at, validation: validate_binary_string_number, return_type: return_string_type_binary },
@@ -133,7 +133,7 @@ pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinit
     "substring" => MultiFunctionDefinition { name: "substring", function: eval_substring, validation: validate_multi_substring, return_type: return_string_type_multi },
     "replace" => MultiFunctionDefinition { name: "replace", function: eval_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
     #[cfg(feature = "regex_functions")]
-    "regex_replace" => MultiFunctionDefinition { name: "regex_replace", function: eval_regex_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
+    "regexReplace" => MultiFunctionDefinition { name: "regexReplace", function: eval_regex_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
     "replaceFirst" => MultiFunctionDefinition { name: "replaceFirst", function: eval_replace_first, validation: validate_multi_replace, return_type: return_string_type_multi },
     "replaceLast" => MultiFunctionDefinition { name: "replaceLast", function: eval_replace_last, validation: validate_multi_replace, return_type: return_string_type_multi },
     "fromCharCode" => MultiFunctionDefinition { name: "fromCharCode", function: eval_from_char_code, validation: validate_multi_from_char_code, return_type: return_string_type_multi },

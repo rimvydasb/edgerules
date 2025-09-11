@@ -534,3 +534,19 @@ model : {
 | `join(["a","b","c"], ", ", "[", "]")` → `"[a, b, c]"` | Joins with delimiter and wraps result.   | `string join(list, delimiter, prefix, suffix)` *(Camunda)* | `prefix + list.filter(s=>s!=null).join(delimiter) + suffix` |
 | `isEmpty([])` → `true`                                | True if list has no elements.            | `is empty(list)` *(Camunda)*                               | `list.length===0`                                           |
 | `partition([1,2,3,4,5], 2)` → `[[1,2],[3,4],[5]]`     | Splits list into sublists of given size. | `partition(list, size)` *(Camunda)*                        | `_.chunk(list, size)`                                       |
+
+### String Functions
+
+- `split(haystack, delimiter)`
+  - Simple substring split (no regex). Example: `split("a-b-c", "-")` → `['a','b','c']`.
+- `regexSplit(haystack, pattern)`
+  - Regex-based split (requires `regex_functions`). Example: `regexSplit("one   two\tthree", "\\s+")` → `['one','two','three']`.
+- `replace(haystack, pattern, replacement[, flags])`
+  - With `regex_functions`: `pattern` is a regex and optional `flags` supports `'i'` (case-insensitive). Without `regex_functions`, performs simple substring replace and ignores `flags`.
+  - Examples: `replace("abcd","ab","xx")` → `'xxcd'`; `replace("Abcd","ab","xx","i")` → `'xxcd'`.
+- `regexReplace(haystack, pattern, replacement[, flags])`
+  - Explicit regex replace (requires `regex_functions`). Example: `regexReplace("Abcd","[a-z]","x","i")` → `'xxxx'`.
+- `replaceFirst(haystack, pattern, replacement)`
+  - Non-regex; replaces only the first occurrence. Example: `replaceFirst("foo bar foo","foo","baz")` → `'baz bar foo'`.
+- `replaceLast(haystack, pattern, replacement)`
+  - Non-regex; replaces only the last occurrence. Example: `replaceLast("foo bar foo","foo","baz")` → `'foo bar baz'`.
