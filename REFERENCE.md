@@ -439,7 +439,7 @@ model : {
 
 ## String Functions
 
-| EdgeRule function                                           | What it does                                 | FEEL operation                                | JavaScript analog                    |  
+| EdgeRules function                                          | What it does                                 | FEEL operation                                | JavaScript analog                    |  
 |-------------------------------------------------------------|----------------------------------------------|-----------------------------------------------|--------------------------------------|
 | `substring("foobar", 3)` → `"obar"`                         | Substring starting at position               | `substring(string, start)`                    | `"foobar".substring(2)`              |  
 | `substring("foobar", -3, 2)` → `"ba"`                       | Substring with length                        | `substring(string, start, length)`            | `"foobar".substr(-3, 2)`             |  
@@ -473,3 +473,38 @@ model : {
 | `interpolate("Hi ${name}", {name:"Ana"})` → `"Hi Ana"`      | Template string interpolation.               | -                                             |                                      | 
 
 [ ] Regexp support
+
+## List Functions
+
+| EdgeRule function                                     | Description                              | FEEL example                                               | JavaScript / Lodash equivalent                              |
+|-------------------------------------------------------|------------------------------------------|------------------------------------------------------------|-------------------------------------------------------------|
+| `contains([1,2,3], 2)` → `true`                       | Checks if a list contains a value.       | `list contains(list, element)`                             | `list.includes(value)`                                      |
+| `count([1,2,3])` → `3`                                | Returns the number of elements.          | `count(list)`                                              | `list.length`                                               |
+| `min([1,2,3])` → `1`                                  | Finds the smallest number.               | `min(list)`                                                | `Math.min(...list)`                                         |
+| `max([1,2,3])` → `3`                                  | Finds the largest number.                | `max(list)`                                                | `Math.max(...list)`                                         |
+| `sum([1,2,3])` → `6`                                  | Adds up all numbers.                     | `sum(list)`                                                | `list.reduce((a,b)=>a+b,0)`                                 |
+| `product([2,3,4])` → `24`                             | Multiplies all numbers.                  | `product(list)`                                            | `list.reduce((a,b)=>a*b,1)`                                 |
+| `mean([1,2,3])` → `2`                                 | Calculates the average.                  | `mean(list)`                                               | `list.reduce((a,b)=>a+b,0)/list.length`                     |
+| `median([1,2,3])` → `2`                               | Returns the middle value.                | `median(list)`                                             | `_.median(list)`                                            |
+| `stddev([2,4])` → `1`                                 | Standard deviation of numbers.           | `stddev(list)`                                             | `_.std(list)`                                               |
+| `mode([1,2,2,3])` → `[2]`                             | Most frequent values (may be multiple).  | `mode(list)`                                               | `_.mode(list)`                                              |
+| `all([true,true,false])` → `false`                    | True if all values are true.             | `all(list)`                                                | `list.every(Boolean)`                                       |
+| `any([false,false,true])` → `true`                    | True if at least one value is true.      | `any(list)`                                                | `list.some(Boolean)`                                        |
+| `sublist([1,2,3], 2)` → `[2,3]`                       | Extracts sublist from index to end.      | `sublist(list, start position)`                            | `list.slice(start - 1)`                                     |
+| `sublist([1,2,3], 1, 2)` → `[1,2]`                    | Extracts sublist of given length.        | `sublist(list, start position, length)`                    | `list.slice(start - 1, start - 1 + length)`                 |
+| `append([1], 2, 3)` → `[1,2,3]`                       | Adds elements at the end.                | `append(list, items)`                                      | `list.concat(...items)`                                     |
+| `concatenate([1,2], [3])` → `[1,2,3]`                 | Joins lists together.                    | `concatenate(lists)`                                       | `[].concat(...lists)`                                       |
+| `insertBefore([1,3], 1, 2)` → `[2,1,3]`               | Inserts an item at a position.           | `insert before(list, position, newItem)`                   | N/A                                                         |
+| `remove([1,2,3], 2)` → `[1,3]`                        | Removes element at position.             | `remove(list, position)`                                   | `_.slice(0, position - 1).concat(_.slice(position))`        |
+| `reverse([1,2,3])` → `[3,2,1]`                        | Reverses list order.                     | `reverse(list)`                                            | `[...list].reverse()`                                       |
+| `indexOf([1,2,3,2], 2)` → `[2,4]`                     | Returns 1-based positions of matches.    | `index of(list, match)`                                    | `list.reduce((r,v,i)=>(v===value&&r.push(i+1),r),[])`       |
+| `union([1,2], [2,3])` → `[1,2,3]`                     | Combines lists without duplicates.       | `union(list)`                                              | `[...new Set([].concat(...lists))]`                         |
+| `distinctValues([1,2,3,2,1])` → `[1,2,3]`             | Removes duplicates.                      | `distinct values(list)`                                    | `[...new Set(list)]`                                        |
+| `duplicateValues([1,2,3,2,1])` → `[1,2]`              | Returns only the duplicates (unique).    | `duplicate values(list)` *(Camunda)*                       | N/A                                                         |
+| `flatten([[1,2], [[3]], 4])` → `[1,2,3,4]`            | Flattens nested lists.                   | `flatten(list)`                                            | `list.flat(Infinity)`                                       |
+| `sort([3,1,4,2], function(x,y) x<y)` → `[1,2,3,4]`    | Sorts list with comparator.              | `sort(list, precedes)`                                     | `[...list].sort((x,y)=>precedes(x,y)?-1:precedes(y,x)?1:0)` |
+| `join(["a", null, "c"])` → `"ac"`                     | Joins strings, ignores nulls.            | `string join(list)`                                        | `string join(["a",null,"c"], "")`                           |
+| `join(["a","b","c"], ", ")` → `"a, b, c"`             | Joins strings with delimiter.            | `string join(list, delimiter)`                             | `list.filter(s=>s!=null).join(delimiter)`                   |
+| `join(["a","b","c"], ", ", "[", "]")` → `"[a, b, c]"` | Joins with delimiter and wraps result.   | `string join(list, delimiter, prefix, suffix)` *(Camunda)* | `prefix + list.filter(s=>s!=null).join(delimiter) + suffix` |
+| `isEmpty([])` → `true`                                | True if list has no elements.            | `is empty(list)` *(Camunda)*                               | `list.length===0`                                           |
+| `partition([1,2,3,4,5], 2)` → `[[1,2],[3,4],[5]]`     | Splits list into sublists of given size. | `partition(list, size)` *(Camunda)*                        | `_.chunk(list, size)`                                       |
