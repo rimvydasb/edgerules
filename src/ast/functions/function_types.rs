@@ -97,7 +97,6 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
     "endsWith" => BinaryFunctionDefinition { name: "endsWith", function: eval_ends_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
     // split: regex when enabled, otherwise simple substring split
     "split" => BinaryFunctionDefinition { name: "split", function: eval_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
-    #[cfg(feature = "regex_functions")]
     "regexSplit" => BinaryFunctionDefinition { name: "regexSplit", function: eval_regex_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
     "substringBefore" => BinaryFunctionDefinition { name: "substringBefore", function: eval_substring_before, validation: validate_binary_string_string, return_type: return_string_type_binary },
     "substringAfter" => BinaryFunctionDefinition { name: "substringAfter", function: eval_substring_after, validation: validate_binary_string_string, return_type: return_string_type_binary },
@@ -132,7 +131,6 @@ pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinit
     "join" => MultiFunctionDefinition { name: "join", function: eval_join, validation: validate_multi_join, return_type: return_string_type_multi },
     "substring" => MultiFunctionDefinition { name: "substring", function: eval_substring, validation: validate_multi_substring, return_type: return_string_type_multi },
     "replace" => MultiFunctionDefinition { name: "replace", function: eval_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
-    #[cfg(feature = "regex_functions")]
     "regexReplace" => MultiFunctionDefinition { name: "regexReplace", function: eval_regex_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
     "replaceFirst" => MultiFunctionDefinition { name: "replaceFirst", function: eval_replace_first, validation: validate_multi_replace, return_type: return_string_type_multi },
     "replaceLast" => MultiFunctionDefinition { name: "replaceLast", function: eval_replace_last, validation: validate_multi_replace, return_type: return_string_type_multi },
@@ -200,7 +198,6 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "startsWith" => EFunctionType::Binary,
     "endsWith" => EFunctionType::Binary,
     "split" => EFunctionType::Binary,
-    #[cfg(feature = "regex_functions")]
     "regexSplit" => EFunctionType::Binary,
     "substringBefore" => EFunctionType::Binary,
     "substringAfter" => EFunctionType::Binary,
@@ -212,7 +209,6 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "interpolate" => EFunctionType::Binary,
     "substring" => EFunctionType::Multi,
     "replace" => EFunctionType::Multi,
-    #[cfg(feature = "regex_functions")]
     "regexReplace" => EFunctionType::Multi,
     // Basic variants always available
     "replaceFirst" => EFunctionType::Multi,

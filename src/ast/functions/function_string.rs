@@ -229,7 +229,7 @@ pub fn eval_substring_after(left: ValueEnum, right: ValueEnum) -> Result<ValueEn
 // Basic, non-regex split/replace operations
 // -----------------------------------------
 
-pub fn simple_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
         let parts: Vec<Result<ValueEnum, RuntimeError>> = h
             .split(&pat)
@@ -241,7 +241,7 @@ pub fn simple_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runt
     }
 }
 
-pub fn simple_replace(
+pub fn eval_replace(
     args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
@@ -319,31 +319,6 @@ pub fn eval_replace_last(
     }
 }
 
-// Shims to select implementation based on feature flags
-pub fn eval_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    #[cfg(feature = "regex_functions")]
-    {
-        return eval_regex_split(left, right);
-    }
-    #[cfg(not(feature = "regex_functions"))]
-    {
-        return simple_split(left, right);
-    }
-}
-
-pub fn eval_replace(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
-    #[cfg(feature = "regex_functions")]
-    {
-        return eval_regex_replace(args, ret);
-    }
-    #[cfg(not(feature = "regex_functions"))]
-    {
-        return simple_replace(args, ret);
-    }
-}
 #[cfg(feature = "regex_functions")]
 pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
@@ -361,9 +336,10 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
 }
 
 #[cfg(not(feature = "regex_functions"))]
-pub fn regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
 }
+
 #[cfg(feature = "base64_functions")]
 pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
@@ -425,12 +401,13 @@ pub fn eval_regex_replace(
 }
 
 #[cfg(not(feature = "regex_functions"))]
-pub fn regex_replace(
-    _args: Vec<Result<ValueEnum, RuntimeError>>,
+pub fn eval_regex_replace(
+    args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
 }
+
 pub fn eval_char_at(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(s), Some(i)) = (as_string(&left), as_int(&right)) {
         let mut iter = s.chars();
