@@ -36,7 +36,14 @@ ensure:
 
 # --- shared builder for web/node ---
 build-pkg platform out_dir features:
-    rustup run stable wasm-pack build --release --target {{platform}} --out-dir {{out_dir}} --out-name {{PKG_NAME}} -- --features {{features}}
+    # Toggle heavy features for WASM builds via env vars:
+    #   ENABLE_REGEX=1 to include regex-based functions (split, replace)
+    #   ENABLE_BASE64=1 to include base64 functions (toBase64, fromBase64)
+    feats="{{features}}"
+    if [ "${ENABLE_REGEX:-}" = "1" ]; then feats="$feats,regex_functions"; fi
+    if [ "${ENABLE_BASE64:-}" = "1" ]; then feats="$feats,base64_functions"; fi
+    echo "Using features: $feats"
+    rustup run stable wasm-pack build --release --target {{platform}} --out-dir {{out_dir}} --out-name {{PKG_NAME}} -- --no-default-features --features "$feats"
     test -f {{out_dir}}/{{PKG_NAME}}_bg.wasm && ls -lh {{out_dir}}/{{PKG_NAME}}_bg.wasm || true
     # Apply shared  - command can be "-focused flags and remove unnecessary metadata.
     wasm-opt {{WASM_OPT_FLAGS}} {{out_dir}}/{{PKG_NAME}}_bg.wasm -o {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm
@@ -63,7 +70,7 @@ wasi: ensure
     wasmtime target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm "{ value : 2 + 2 }" || true
 
 core: ensure
-    cargo build --release --target wasm32-unknown-unknown -p {{CRATE}}
+    cargo build --release --target wasm32-unknown-unknown -p {{CRATE}} --no-default-features --features wasm
     ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm || true
 
 core-opt: core

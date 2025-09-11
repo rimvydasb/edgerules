@@ -80,6 +80,18 @@ It is possible to generate solutions to the problematic problems captured in com
 Run the command below and investigate [EXAMPLES-output.md](tests/EXAMPLES-output.md)
 to see results.
 
+### Optional Function Groups for WASM
+
+Enable for Web/Node via Just tasks:
+
+- `ENABLE_REGEX=1 just web` to include regex functions.
+- `ENABLE_BASE64=1 just node` to include base64 functions.
+- Both: `ENABLE_REGEX=1 ENABLE_BASE64=1 just web`.
+
+Or with Cargo directly:
+
+- `cargo build --target wasm32-unknown-unknown --no-default-features --features "wasm,regex_functions,base64_functions"`
+
 ```bash
 cargo run --bin generate-examples
 ```

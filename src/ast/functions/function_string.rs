@@ -11,7 +11,9 @@ use crate::typesystem::types::ValueType::{
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
+#[cfg(feature = "base64_functions")]
 use base64::{engine::general_purpose, Engine as _};
+#[cfg(feature = "regex_functions")]
 use regex::RegexBuilder;
 use std::rc::Rc;
 
@@ -222,7 +224,128 @@ pub fn eval_substring_after(left: ValueEnum, right: ValueEnum) -> Result<ValueEn
         RuntimeError::type_not_supported(left.get_type()).into()
     }
 }
+
+// -----------------------------------------
+// Basic, non-regex split/replace operations
+// -----------------------------------------
+
+pub fn simple_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
+        let parts: Vec<Result<ValueEnum, RuntimeError>> = h
+            .split(&pat)
+            .map(|s| Ok(StringValue(SString(s.to_string()))))
+            .collect();
+        Ok(Array(parts, VTList(Box::new(StringType))))
+    } else {
+        RuntimeError::type_not_supported(left.get_type()).into()
+    }
+}
+
+pub fn simple_replace(
+    args: Vec<Result<ValueEnum, RuntimeError>>,
+    _ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let vals = into_valid(args)?;
+    if vals.len() != 3 {
+        return RuntimeError::eval_error("replace expects 3 arguments".to_string()).into();
+    }
+    let s =
+        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern =
+        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl =
+        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+
+    Ok(StringValue(SString(s.replace(&pattern, &repl))))
+}
+
+pub fn eval_replace_first(
+    args: Vec<Result<ValueEnum, RuntimeError>>,
+    _ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let vals = into_valid(args)?;
+    if vals.len() != 3 {
+        return RuntimeError::eval_error("replaceFirst expects 3 arguments".to_string()).into();
+    }
+    let s =
+        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern =
+        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl =
+        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+
+    if pattern.is_empty() {
+        return Ok(StringValue(SString(format!("{}{}", repl, s))));
+    }
+
+    if let Some(pos) = s.find(&pattern) {
+        let mut out = String::with_capacity(s.len() + repl.len());
+        out.push_str(&s[..pos]);
+        out.push_str(&repl);
+        out.push_str(&s[pos + pattern.len()..]);
+        Ok(StringValue(SString(out)))
+    } else {
+        Ok(StringValue(SString(s)))
+    }
+}
+
+pub fn eval_replace_last(
+    args: Vec<Result<ValueEnum, RuntimeError>>,
+    _ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let vals = into_valid(args)?;
+    if vals.len() != 3 {
+        return RuntimeError::eval_error("replaceLast expects 3 arguments".to_string()).into();
+    }
+    let s =
+        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern =
+        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl =
+        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+
+    if pattern.is_empty() {
+        return Ok(StringValue(SString(format!("{}{}", s, repl))));
+    }
+
+    if let Some(pos) = s.rfind(&pattern) {
+        let mut out = String::with_capacity(s.len() + repl.len());
+        out.push_str(&s[..pos]);
+        out.push_str(&repl);
+        out.push_str(&s[pos + pattern.len()..]);
+        Ok(StringValue(SString(out)))
+    } else {
+        Ok(StringValue(SString(s)))
+    }
+}
+
+// Shims to select implementation based on feature flags
 pub fn eval_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    #[cfg(feature = "regex_functions")]
+    {
+        return eval_regex_split(left, right);
+    }
+    #[cfg(not(feature = "regex_functions"))]
+    {
+        return simple_split(left, right);
+    }
+}
+
+pub fn eval_replace(
+    args: Vec<Result<ValueEnum, RuntimeError>>,
+    ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    #[cfg(feature = "regex_functions")]
+    {
+        return eval_regex_replace(args, ret);
+    }
+    #[cfg(not(feature = "regex_functions"))]
+    {
+        return simple_replace(args, ret);
+    }
+}
+#[cfg(feature = "regex_functions")]
+pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
         let re = RegexBuilder::new(&pat)
             .build()
@@ -236,6 +359,12 @@ pub fn eval_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtim
         RuntimeError::type_not_supported(left.get_type()).into()
     }
 }
+
+#[cfg(not(feature = "regex_functions"))]
+pub fn regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
+}
+#[cfg(feature = "base64_functions")]
 pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         Ok(StringValue(SString(general_purpose::STANDARD.encode(s))))
@@ -243,6 +372,11 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
+#[cfg(not(feature = "base64_functions"))]
+pub fn eval_to_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
+}
+#[cfg(feature = "base64_functions")]
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match general_purpose::STANDARD.decode(s) {
@@ -255,7 +389,12 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
-pub fn eval_replace(
+#[cfg(not(feature = "base64_functions"))]
+pub fn eval_from_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
+}
+#[cfg(feature = "regex_functions")]
+pub fn eval_regex_replace(
     args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
@@ -283,6 +422,14 @@ pub fn eval_replace(
     Ok(StringValue(SString(
         re.replace_all(&s, repl.as_str()).into_owned(),
     )))
+}
+
+#[cfg(not(feature = "regex_functions"))]
+pub fn regex_replace(
+    _args: Vec<Result<ValueEnum, RuntimeError>>,
+    _ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
 }
 pub fn eval_char_at(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(s), Some(i)) = (as_string(&left), as_int(&right)) {

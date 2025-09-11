@@ -74,7 +74,10 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "toUpperCase" => UnaryFunctionDefinition { name: "toUpperCase", function: eval_to_upper, validation: validate_unary_string, return_type: return_string_type_unary },
     "toLowerCase" => UnaryFunctionDefinition { name: "toLowerCase", function: eval_to_lower, validation: validate_unary_string, return_type: return_string_type_unary },
     "trim" => UnaryFunctionDefinition { name: "trim", function: eval_trim, validation: validate_unary_string, return_type: return_string_type_unary },
+    // base64 group (optional)
+    #[cfg(feature = "base64_functions")]
     "toBase64" => UnaryFunctionDefinition { name: "toBase64", function: eval_to_base64, validation: validate_unary_string, return_type: return_string_type_unary },
+    #[cfg(feature = "base64_functions")]
     "fromBase64" => UnaryFunctionDefinition { name: "fromBase64", function: eval_from_base64, validation: validate_unary_string, return_type: return_string_type_unary },
     // reverse for string or list
     "reverse" => UnaryFunctionDefinition { name: "reverse", function: eval_reverse_mixed, validation: validate_unary_reverse_mixed, return_type: return_same_list_type },
@@ -92,7 +95,10 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
     "contains" => BinaryFunctionDefinition { name: "contains", function: eval_contains_mixed, validation: validate_binary_contains_mixed, return_type: return_boolean_type_binary },
     "startsWith" => BinaryFunctionDefinition { name: "startsWith", function: eval_starts_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
     "endsWith" => BinaryFunctionDefinition { name: "endsWith", function: eval_ends_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
+    // split: regex when enabled, otherwise simple substring split
     "split" => BinaryFunctionDefinition { name: "split", function: eval_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
+    #[cfg(feature = "regex_functions")]
+    "regex_split" => BinaryFunctionDefinition { name: "regex_split", function: eval_regex_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
     "substringBefore" => BinaryFunctionDefinition { name: "substringBefore", function: eval_substring_before, validation: validate_binary_string_string, return_type: return_string_type_binary },
     "substringAfter" => BinaryFunctionDefinition { name: "substringAfter", function: eval_substring_after, validation: validate_binary_string_string, return_type: return_string_type_binary },
     "charAt" => BinaryFunctionDefinition { name: "charAt", function: eval_char_at, validation: validate_binary_string_number, return_type: return_string_type_binary },
@@ -126,6 +132,10 @@ pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinit
     "join" => MultiFunctionDefinition { name: "join", function: eval_join, validation: validate_multi_join, return_type: return_string_type_multi },
     "substring" => MultiFunctionDefinition { name: "substring", function: eval_substring, validation: validate_multi_substring, return_type: return_string_type_multi },
     "replace" => MultiFunctionDefinition { name: "replace", function: eval_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
+    #[cfg(feature = "regex_functions")]
+    "regex_replace" => MultiFunctionDefinition { name: "regex_replace", function: eval_regex_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
+    "replaceFirst" => MultiFunctionDefinition { name: "replaceFirst", function: eval_replace_first, validation: validate_multi_replace, return_type: return_string_type_multi },
+    "replaceLast" => MultiFunctionDefinition { name: "replaceLast", function: eval_replace_last, validation: validate_multi_replace, return_type: return_string_type_multi },
     "fromCharCode" => MultiFunctionDefinition { name: "fromCharCode", function: eval_from_char_code, validation: validate_multi_from_char_code, return_type: return_string_type_multi },
     "padStart" => MultiFunctionDefinition { name: "padStart", function: eval_pad_start, validation: validate_multi_pad, return_type: return_string_type_multi },
     "padEnd" => MultiFunctionDefinition { name: "padEnd", function: eval_pad_end, validation: validate_multi_pad, return_type: return_string_type_multi },
@@ -180,7 +190,9 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "toUpperCase" => EFunctionType::Unary,
     "toLowerCase" => EFunctionType::Unary,
     "trim" => EFunctionType::Unary,
+    #[cfg(feature = "base64_functions")]
     "toBase64" => EFunctionType::Unary,
+    #[cfg(feature = "base64_functions")]
     "fromBase64" => EFunctionType::Unary,
     // reverse accounted above
     "sanitizeFilename" => EFunctionType::Unary,
@@ -188,6 +200,8 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "startsWith" => EFunctionType::Binary,
     "endsWith" => EFunctionType::Binary,
     "split" => EFunctionType::Binary,
+    #[cfg(feature = "regex_functions")]
+    "regexSplit" => EFunctionType::Binary,
     "substringBefore" => EFunctionType::Binary,
     "substringAfter" => EFunctionType::Binary,
     "charAt" => EFunctionType::Binary,
@@ -198,6 +212,11 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "interpolate" => EFunctionType::Binary,
     "substring" => EFunctionType::Multi,
     "replace" => EFunctionType::Multi,
+    #[cfg(feature = "regex_functions")]
+    "regexReplace" => EFunctionType::Multi,
+    // Basic variants always available
+    "replaceFirst" => EFunctionType::Multi,
+    "replaceLast" => EFunctionType::Multi,
     "fromCharCode" => EFunctionType::Multi,
     "padStart" => EFunctionType::Multi,
     "padEnd" => EFunctionType::Multi,

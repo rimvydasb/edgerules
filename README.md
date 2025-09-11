@@ -115,6 +115,14 @@ WASM exported methods via `wasm_bindgen`:
 - `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
 - `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
 
+### Optional Function Groups for WASM
+
+To keep Web/Node WASM builds small, heavy functions are optional (can be enabled via features and just build commands).
+For CLI/WASI builds, all features are always enabled.
+
+- `regex_functions`: Enables regex-powered string ops used by the DSL `regex_split` and `regex_replace`.
+- `base64_functions`: Enables `toBase64` and `fromBase64`.
+
 ## CLI
 
 Build and try the native CLI:

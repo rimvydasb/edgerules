@@ -319,6 +319,32 @@ the list’s item type.
 - `@DecisionTable("first-hit"|"multi-hit")` allows defining decision tables using a function name and a rows collection.
   Parsing and pretty-printing exist; full linking/evaluation is not implemented.
 
+## Feature Flags (Optional Function Groups)
+
+To minimize Web/Node WASM size, some heavier function groups are behind optional Cargo features:
+
+- `regex_functions`: Enables regex-powered string functions available in the DSL as `split(haystack, pattern)` and
+  `replace(haystack, pattern, replacement[, flags])`.
+- `base64_functions`: Enables `toBase64(string)` and `fromBase64(string)`.
+
+Defaults by target:
+
+- CLI and WASI (wasmtime): Enabled by default via the `native` feature set.
+- Web/Node WASM: Disabled by default; builds use `--no-default-features --features wasm`.
+
+When disabled, these functions still parse but return a runtime error indicating the feature is disabled.
+
+Enabling for Web/Node builds:
+
+- With Just tasks, set env vars before `just web` / `just node`:
+    - `ENABLE_REGEX=1` to include `split` and `replace`.
+    - `ENABLE_BASE64=1` to include Base64 functions.
+
+  Example: `ENABLE_REGEX=1 ENABLE_BASE64=1 just web`
+
+- With Cargo directly:
+  `cargo build --target wasm32-unknown-unknown --no-default-features --features "wasm,regex_functions,base64_functions"`
+
 ## Expression Forms
 
 - **Assignment**: `name : expr`
@@ -455,7 +481,7 @@ model : {
 | `trim("  hello  ")` → `"hello"`                             | Trim whitespace.                             | `trim(string)` *(Camunda)*                    | `"  hello  ".trim()`                 |  
 | `uuid()` → `"7793aab1-..."`                                 | Generate UUID.                               | `uuid()` *(Camunda)*                          | `crypto.randomUUID()`                |  
 | `toBase64("FEEL")` → `"RkVFTA=="`                           | Encode to base64.                            | `to base64(value)` *(Camunda)*                | `btoa("FEEL")`                       |  
-| `replace("abcd","ab,"xx")`      → `"xxcd"`                  | Regex replace.                               | `replace(input, pattern, replacement)`        | `"abcd".replace(/ab/,"xx")`          |  
+| `replace("abcd","ab,"xx")` → `"xxcd"`                       | Regex replace.                               | `replace(input, pattern, replacement)`        | `"abcd".replace(/ab/,"xx")`          |  
 | `replace("Abcd","ab","xx","i")` → `"xxcd"`                  | Regex replace with flags.                    | `replace(input, pattern, replacement, flags)` | `"Abcd".replace(/ab/i,"xx")`         | 
 | `charAt("Abcd", 2)` → `"c"`                                 | Character at index.                          | -                                             | `"Abcd".charAt(2)`                   | 
 | `charCodeAt("Abcd", 2)` → `99`                              | Unicode of character at index.               | -                                             | `"Abcd".charCodeAt(2)`               | 

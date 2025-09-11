@@ -24,9 +24,16 @@ path = "src/cli.rs"
 
 [features]
 default = ["native"]
-native = []
+# Native builds (CLI, tests) enable heavier optional functions
+native = ["regex_functions", "base64_functions"]
+
+# WASM builds keep heavy functions off by default
 wasm = ["wasm-bindgen", "log/max_level_off"]
 wasm_debug = ["wasm", "console_error_panic_hook"]
+
+# Optional function groups
+regex_functions = ["dep:regex"]
+base64_functions = ["dep:base64"]
 
 [dependencies]
 log = { version = "0.4.28" }
@@ -35,8 +42,8 @@ time = { version = "0.3.43", features = ["macros", "formatting", "parsing"] }
 phf = { version = "0.13.1", features = ["macros"] }
 wasm-bindgen = { version = "0.2.100", optional = true }
 dlmalloc = { version = "0.2", features = ["global"] }
-regex = "1.9.6"
-base64 = "0.22.1"
+regex = { version = "1.9.6", optional = true }
+base64 = { version = "0.22.1", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11.8"
