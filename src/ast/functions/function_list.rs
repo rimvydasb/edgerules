@@ -7,6 +7,7 @@ use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::ValueType::{BooleanType, ListType, NumberType, StringType};
 use crate::typesystem::types::{Integer, ValueType, TypedValue};
 use crate::typesystem::values::ValueEnum;
+use crate::typesystem::types::string::StringEnum::{String as SString, Char as SChar};
 use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -452,10 +453,20 @@ pub fn eval_join(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) ->
     let vals = into_valid(args)?;
     if vals.is_empty() { return RuntimeError::eval_error("join expects at least 1 argument".to_string()).into(); }
     let (items, _t) = match &vals[0] { Array(v, _t) => (into_valid(v.clone())?, _t.clone()), _ => return RuntimeError::type_not_supported(vals[0].get_type()).into() };
-    let delim = if vals.len() >= 2 { if let StringValue(s) = &vals[1] { s.to_string() } else { return RuntimeError::type_not_supported(vals[1].get_type()).into() } } else { String::new() };
-    let (prefix, suffix) = if vals.len() >= 4 { let p = if let StringValue(s) = &vals[2] { s.to_string() } else { return RuntimeError::type_not_supported(vals[2].get_type()).into() }; let s = if let StringValue(s) = &vals[3] { s.to_string() } else { return RuntimeError::type_not_supported(vals[3].get_type()).into() }; (p, s) } else { (String::new(), String::new()) };
+    let delim = if vals.len() >= 2 {
+        match &vals[1] { StringValue(SString(s)) => s.clone(), StringValue(SChar(c)) => c.to_string(), _ => return RuntimeError::type_not_supported(vals[1].get_type()).into() }
+    } else { String::new() };
+    let (prefix, suffix) = if vals.len() >= 4 {
+        let p = match &vals[2] { StringValue(SString(s)) => s.clone(), StringValue(SChar(c)) => c.to_string(), _ => return RuntimeError::type_not_supported(vals[2].get_type()).into() };
+        let s = match &vals[3] { StringValue(SString(s)) => s.clone(), StringValue(SChar(c)) => c.to_string(), _ => return RuntimeError::type_not_supported(vals[3].get_type()).into() };
+        (p, s)
+    } else { (String::new(), String::new()) };
     let mut parts: Vec<String> = Vec::new();
-    for v in items { if let StringValue(s) = v { let s = s.to_string(); parts.push(s); } }
+    for v in items {
+        if let StringValue(SString(s)) = v { parts.push(s); }
+        else if let StringValue(SChar(c)) = v { parts.push(c.to_string()); }
+        else { /* ignore non-strings (like nulls if added later) */ }
+    }
     let joined = format!("{}{}{}", prefix, parts.join(&delim), suffix);
     Ok(StringValue(joined.into()))
 }
