@@ -14,12 +14,14 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
+use crate::typesystem::types::number::NumberEnum as Num;
 use crate::typesystem::types::number::NumberEnum::{Int, SV};
 use crate::typesystem::types::{SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, Reference, DateValue, TimeValue, DateTimeValue};
+use crate::typesystem::values::ValueEnum::{
+    Array, BooleanValue, DateTimeValue, DateValue, NumberValue, Reference, TimeValue,
+};
 use crate::typesystem::values::ValueOrSv;
-use crate::typesystem::types::number::NumberEnum as Num;
 
 //--------------------------------------------------------------------------------------------------
 
@@ -188,7 +190,13 @@ impl StaticLink for FieldSelection {
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
                         "year" | "month" | "day" | "weekday" => ValueType::NumberType,
-                        _ => return LinkingError::other_error(format!("Field '{}' not found in date", name)).into(),
+                        _ => {
+                            return LinkingError::other_error(format!(
+                                "Field '{}' not found in date",
+                                name
+                            ))
+                            .into()
+                        }
                     };
                     self.return_type = Ok(ret);
                 }
@@ -197,7 +205,13 @@ impl StaticLink for FieldSelection {
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
                         "hour" | "minute" | "second" => ValueType::NumberType,
-                        _ => return LinkingError::other_error(format!("Field '{}' not found in time", name)).into(),
+                        _ => {
+                            return LinkingError::other_error(format!(
+                                "Field '{}' not found in time",
+                                name
+                            ))
+                            .into()
+                        }
                     };
                     self.return_type = Ok(ret);
                 }
@@ -205,9 +219,17 @@ impl StaticLink for FieldSelection {
                     // Supported: year, month, day, hour, minute, second, time, weekday
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
-                        "year" | "month" | "day" | "hour" | "minute" | "second" | "weekday" => ValueType::NumberType,
+                        "year" | "month" | "day" | "hour" | "minute" | "second" | "weekday" => {
+                            ValueType::NumberType
+                        }
                         "time" => ValueType::TimeType,
-                        _ => return LinkingError::other_error(format!("Field '{}' not found in date and time", name)).into(),
+                        _ => {
+                            return LinkingError::other_error(format!(
+                                "Field '{}' not found in date and time",
+                                name
+                            ))
+                            .into()
+                        }
                     };
                     self.return_type = Ok(ret);
                 }
@@ -244,7 +266,9 @@ impl EvaluatableExpression for FieldSelection {
                     "year" => Ok(NumberValue(Num::from(d.year() as i64))),
                     "month" => Ok(NumberValue(Num::from(d.month() as i64))),
                     "day" => Ok(NumberValue(Num::from(d.day() as i64))),
-                    "weekday" => Ok(NumberValue(Num::from(d.weekday().number_from_monday() as i64))),
+                    "weekday" => Ok(NumberValue(Num::from(
+                        d.weekday().number_from_monday() as i64
+                    ))),
                     _ => RuntimeError::field_not_found(name.as_str(), "date").into(),
                 }
             }
@@ -266,7 +290,9 @@ impl EvaluatableExpression for FieldSelection {
                     "hour" => Ok(NumberValue(Num::from(dt.hour() as i64))),
                     "minute" => Ok(NumberValue(Num::from(dt.minute() as i64))),
                     "second" => Ok(NumberValue(Num::from(dt.second() as i64))),
-                    "weekday" => Ok(NumberValue(Num::from(dt.weekday().number_from_monday() as i64))),
+                    "weekday" => Ok(NumberValue(Num::from(
+                        dt.weekday().number_from_monday() as i64
+                    ))),
                     "time" => Ok(TimeValue(ValueOrSv::Value(dt.time()))),
                     _ => RuntimeError::field_not_found(name.as_str(), "date and time").into(),
                 }

@@ -36,6 +36,5 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
 
 #[test]
 fn test_first() {
-    // old test only initialized logger; keep a no-op to preserve intent
-    assert!(true);
+    // no-op: ensures test harness initializes cleanly
 }

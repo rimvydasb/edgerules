@@ -2,8 +2,8 @@ use crate::ast::context::context_object::{ContextObject, ExpressionEntry, Method
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
 use crate::ast::expression::StaticLink;
-use crate::ast::Link;
 use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::LinkingErrorEnum::*;

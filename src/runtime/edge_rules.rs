@@ -415,8 +415,8 @@ pub mod test {
     use crate::ast::token::{EToken, EUnparsedToken, ExpressionEnum};
     use crate::runtime::edge_rules::{EdgeRules, EdgeRulesRuntime, EvalError, ParseErrors};
 
-    use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
+    use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
 
     use crate::typesystem::types::number::NumberEnum::{self, Int};
 

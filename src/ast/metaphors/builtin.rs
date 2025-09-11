@@ -1,4 +1,3 @@
-use std::fmt::{Debug, Display, Formatter};
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::FunctionContext;
 use crate::ast::metaphors::decision_tables::DecisionTable;
@@ -6,6 +5,7 @@ use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::Link;
 use crate::typesystem::types::{TypedValue, ValueType};
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug)]
 pub enum BuiltinMetaphor {

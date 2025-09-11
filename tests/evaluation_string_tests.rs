@@ -2,9 +2,18 @@
 fn test_string_functions() {
     assert_eq!(crate::eval_value("value : 'hello'"), "'hello'");
     // substring
-    assert_eq!(crate::eval_value("value : substring(\"foobar\", 3)"), "'obar'");
-    assert_eq!(crate::eval_value("value : substring(\"foobar\", -3, 2)"), "'ba'");
-    assert_eq!(crate::eval_value("value : substring(\"abc\", 1, 2)"), "'ab'");
+    assert_eq!(
+        crate::eval_value("value : substring(\"foobar\", 3)"),
+        "'obar'"
+    );
+    assert_eq!(
+        crate::eval_value("value : substring(\"foobar\", -3, 2)"),
+        "'ba'"
+    );
+    assert_eq!(
+        crate::eval_value("value : substring(\"abc\", 1, 2)"),
+        "'ab'"
+    );
 
     // length
     assert_eq!(crate::eval_value("value : length(\"foo\")"), "3");
@@ -25,9 +34,18 @@ fn test_string_functions() {
     );
 
     // contains / startsWith / endsWith
-    assert_eq!(crate::eval_value("value : contains(\"foobar\", \"of\")"), "false");
-    assert_eq!(crate::eval_value("value : startsWith(\"foobar\", \"fo\")"), "true");
-    assert_eq!(crate::eval_value("value : endsWith(\"foobar\", \"r\")"), "true");
+    assert_eq!(
+        crate::eval_value("value : contains(\"foobar\", \"of\")"),
+        "false"
+    );
+    assert_eq!(
+        crate::eval_value("value : startsWith(\"foobar\", \"fo\")"),
+        "true"
+    );
+    assert_eq!(
+        crate::eval_value("value : endsWith(\"foobar\", \"r\")"),
+        "true"
+    );
 
     // split
     assert_eq!(
@@ -48,8 +66,14 @@ fn test_string_functions() {
     assert_eq!(crate::eval_value("value : trim(\"  hello  \")"), "'hello'");
 
     // base64
-    assert_eq!(crate::eval_value("value : toBase64(\"FEEL\")"), "'RkVFTA=='");
-    assert_eq!(crate::eval_value("value : fromBase64(\"RkVFTA==\")"), "'FEEL'");
+    assert_eq!(
+        crate::eval_value("value : toBase64(\"FEEL\")"),
+        "'RkVFTA=='"
+    );
+    assert_eq!(
+        crate::eval_value("value : fromBase64(\"RkVFTA==\")"),
+        "'FEEL'"
+    );
 
     // replace
     assert_eq!(
@@ -86,14 +110,26 @@ fn test_string_functions() {
 
     // indexOf / lastIndexOf
     assert_eq!(crate::eval_value("value : indexOf(\"Abcd\", \"b\")"), "1");
-    assert_eq!(crate::eval_value("value : lastIndexOf(\"Abcb\", \"b\")"), "3");
+    assert_eq!(
+        crate::eval_value("value : lastIndexOf(\"Abcb\", \"b\")"),
+        "3"
+    );
 
     // fromCharCode
-    assert_eq!(crate::eval_value("value : fromCharCode(99, 100, 101)"), "'cde'");
+    assert_eq!(
+        crate::eval_value("value : fromCharCode(99, 100, 101)"),
+        "'cde'"
+    );
 
     // padStart / padEnd
-    assert_eq!(crate::eval_value("value : padStart(\"7\", 3, \"0\")"), "'007'");
-    assert_eq!(crate::eval_value("value : padEnd(\"7\", 3, \"0\")"), "'700'");
+    assert_eq!(
+        crate::eval_value("value : padStart(\"7\", 3, \"0\")"),
+        "'007'"
+    );
+    assert_eq!(
+        crate::eval_value("value : padEnd(\"7\", 3, \"0\")"),
+        "'700'"
+    );
 
     // repeat / reverse
     assert_eq!(crate::eval_value("value : repeat(\"ab\", 3)"), "'ababab'");

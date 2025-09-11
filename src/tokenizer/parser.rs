@@ -229,13 +229,11 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                             }
                             //result.push_back(Unparsed(ReturnLiteral)),
                             "true" => {
-                                ast_builder
-                                    .push_element(Expression(ExpressionEnum::from(true)))
+                                ast_builder.push_element(Expression(ExpressionEnum::from(true)))
                             }
 
                             "false" => {
-                                ast_builder
-                                    .push_element(Expression(ExpressionEnum::from(false)))
+                                ast_builder.push_element(Expression(ExpressionEnum::from(false)))
                             }
 
                             "not" => ast_builder.push_node(

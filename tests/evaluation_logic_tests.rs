@@ -20,14 +20,23 @@ fn test_conditionals() {
     assert_eq!(crate::eval_value("value : 1 = 2 xor 5 = 4 + 1"), "true");
     assert_eq!(crate::eval_value("value : 1 = 2 - 1 xor 5 = 5 + 1"), "true");
 
-    assert_eq!(crate::eval_value("value : 1 = 2 or 5 = 5 and 1 = 1"), "true");
-    assert_eq!(crate::eval_value("value : 1 = 2 or 5 = 5 and 1 = 1 + 1"), "false");
+    assert_eq!(
+        crate::eval_value("value : 1 = 2 or 5 = 5 and 1 = 1"),
+        "true"
+    );
+    assert_eq!(
+        crate::eval_value("value : 1 = 2 or 5 = 5 and 1 = 1 + 1"),
+        "false"
+    );
 
     // if-then-else nesting
     assert_eq!(crate::eval_value("value : if 1 > 2 then 3 else 4"), "4");
     assert_eq!(crate::eval_value("value : if 1 < 2 then 3 else 4"), "3");
     assert_eq!(crate::eval_value("value : if 1 < 2 then 3 + 1 else 5"), "4");
-    assert_eq!(crate::eval_value("value : if 1 > 2 then 3 + 1 else 5 * 10"), "50");
+    assert_eq!(
+        crate::eval_value("value : if 1 > 2 then 3 + 1 else 5 * 10"),
+        "50"
+    );
     assert_eq!(
         crate::eval_value("value : if 1 > 2 then 3 + 1 else (if 1 < 2 then 5 * 10 else 0)"),
         "50"

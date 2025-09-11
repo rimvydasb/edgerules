@@ -349,7 +349,8 @@ pub mod test {
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                ).into(),
+                )
+                .into(),
             ));
             builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
         }

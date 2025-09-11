@@ -217,7 +217,11 @@ impl Display for ValueEnum {
                             }
                         }
                     }
-                    if s == "P" { s.push('T'); s.push('0'); s.push('S'); }
+                    if s == "P" {
+                        s.push('T');
+                        s.push('0');
+                        s.push('S');
+                    }
                     write!(f, "{}", s)
                 }
                 ValueOrSv::Sv(sv) => write!(f, "{}", sv),

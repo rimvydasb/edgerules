@@ -1,8 +1,8 @@
 use crate::ast::context::context_object::ContextObject;
-use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::FunctionContext;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};

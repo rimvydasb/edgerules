@@ -9,16 +9,20 @@ use crate::runtime::execution_context::*;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::number::NumberEnum::{Int, Real};
-use crate::typesystem::types::ValueType::{NumberType, DateType, TimeType, DateTimeType, DurationType};
+use crate::typesystem::types::ValueType::{
+    DateTimeType, DateType, DurationType, NumberType, TimeType,
+};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{NumberValue, DateValue, TimeValue, DateTimeValue, DurationValue};
-use crate::typesystem::values::{DurationValue as ErDurationValue, DurationKind, ValueOrSv};
-use time::{Duration as TDuration};
+use crate::typesystem::values::ValueEnum::{
+    DateTimeValue, DateValue, DurationValue, NumberValue, TimeValue,
+};
+use crate::typesystem::values::{DurationKind, DurationValue as ErDurationValue, ValueOrSv};
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
+use time::Duration as TDuration;
 
 //----------------------------------------------------------------------------------------------
 // Operator
@@ -153,7 +157,9 @@ impl StaticLink for MathOperator {
         let right_type = self.data.right.link(ctx)?;
 
         // If either side is unresolved, defer with a sensible default (number)
-        if matches!(left_type, ValueType::UndefinedType) || matches!(right_type, ValueType::UndefinedType) {
+        if matches!(left_type, ValueType::UndefinedType)
+            || matches!(right_type, ValueType::UndefinedType)
+        {
             return Ok(NumberType);
         }
 
@@ -172,23 +178,27 @@ impl StaticLink for MathOperator {
                     _ => LinkingError::types_not_compatible(
                         Some("Operator '+'".to_string()),
                         left_type,
-                        Some(vec![NumberType, DateType, DateTimeType, TimeType])
-                    ).into(),
+                        Some(vec![NumberType, DateType, DateTimeType, TimeType]),
+                    )
+                    .into(),
                 }
             }
             Subtraction => {
                 // date - date => duration; time - time => duration; datetime - datetime => duration
                 // date - duration => date; datetime - duration => datetime; time - duration => time
                 match (left_type.clone(), right_type.clone()) {
-                    (DateType, DateType) | (TimeType, TimeType) | (DateTimeType, DateTimeType) => Ok(DurationType),
+                    (DateType, DateType) | (TimeType, TimeType) | (DateTimeType, DateTimeType) => {
+                        Ok(DurationType)
+                    }
                     (DateType, DurationType) => Ok(DateType),
                     (DateTimeType, DurationType) => Ok(DateTimeType),
                     (TimeType, DurationType) => Ok(TimeType),
                     _ => LinkingError::types_not_compatible(
                         Some("Operator '-'".to_string()),
                         left_type,
-                        Some(vec![NumberType, DateType, DateTimeType, TimeType])
-                    ).into(),
+                        Some(vec![NumberType, DateType, DateTimeType, TimeType]),
+                    )
+                    .into(),
                 }
             }
             Multiplication | Division | Power | Modulus => {
@@ -274,7 +284,9 @@ impl EvaluatableExpression for MathOperator {
                             let year = d.year();
                             let mut month = d.month() as i32; // 1..12
                             let mut add_months = dur.years * 12 + dur.months;
-                            if dur.negative { add_months = -add_months; }
+                            if dur.negative {
+                                add_months = -add_months;
+                            }
                             month += add_months;
                             let mut new_year = year + (month - 1) / 12;
                             let mut new_month = (month - 1) % 12 + 1;
@@ -284,14 +296,24 @@ impl EvaluatableExpression for MathOperator {
                             }
                             let new_month_u8 = new_month as u8;
                             let day = d.day();
-                            let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
+                            let last = super::super::functions::function_date::last_day_of_month(
+                                new_year,
+                                new_month_u8,
+                            );
                             let new_day = if day > last { last } else { day };
-                            let date = time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap();
+                            let date = time::Date::from_calendar_date(
+                                new_year,
+                                time::Month::try_from(new_month_u8).unwrap(),
+                                new_day,
+                            )
+                            .unwrap();
                             Ok(DateValue(ValueOrSv::Value(date)))
                         }
                         DurationKind::DaysTime => {
                             let mut total_days = dur.days;
-                            if dur.negative { total_days = -total_days; }
+                            if dur.negative {
+                                total_days = -total_days;
+                            }
                             let date = *d + TDuration::days(total_days);
                             Ok(DateValue(ValueOrSv::Value(date)))
                         }
@@ -302,7 +324,9 @@ impl EvaluatableExpression for MathOperator {
                             let year = d.year();
                             let mut month = d.month() as i32;
                             let mut sub_months = dur.years * 12 + dur.months;
-                            if dur.negative { sub_months = -sub_months; }
+                            if dur.negative {
+                                sub_months = -sub_months;
+                            }
                             month -= sub_months;
                             let mut new_year = year + (month - 1) / 12;
                             let mut new_month = (month - 1) % 12 + 1;
@@ -312,19 +336,32 @@ impl EvaluatableExpression for MathOperator {
                             }
                             let new_month_u8 = new_month as u8;
                             let day = d.day();
-                            let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
+                            let last = super::super::functions::function_date::last_day_of_month(
+                                new_year,
+                                new_month_u8,
+                            );
                             let new_day = if day > last { last } else { day };
-                            let date = time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap();
+                            let date = time::Date::from_calendar_date(
+                                new_year,
+                                time::Month::try_from(new_month_u8).unwrap(),
+                                new_day,
+                            )
+                            .unwrap();
                             Ok(DateValue(ValueOrSv::Value(date)))
                         }
                         DurationKind::DaysTime => {
                             let mut total_days = dur.days;
-                            if dur.negative { total_days = -total_days; }
+                            if dur.negative {
+                                total_days = -total_days;
+                            }
                             let date = *d - TDuration::days(total_days);
                             Ok(DateValue(ValueOrSv::Value(date)))
                         }
                     },
-                    _ => RuntimeError::eval_error("Unsupported operator for date and duration".to_string()).into(),
+                    _ => RuntimeError::eval_error(
+                        "Unsupported operator for date and duration".to_string(),
+                    )
+                    .into(),
                 }
             }
             // datetime +/- duration
@@ -338,25 +375,43 @@ impl EvaluatableExpression for MathOperator {
                                 let year = d.year();
                                 let mut month = d.month() as i32; // 1..12
                                 let mut add_months = dur.years * 12 + dur.months;
-                                if dur.negative { add_months = -add_months; }
+                                if dur.negative {
+                                    add_months = -add_months;
+                                }
                                 month += add_months;
                                 let mut new_year = year + (month - 1) / 12;
                                 let mut new_month = (month - 1) % 12 + 1;
-                                if new_month <= 0 { new_year -= 1; new_month += 12; }
+                                if new_month <= 0 {
+                                    new_year -= 1;
+                                    new_month += 12;
+                                }
                                 let new_month_u8 = new_month as u8;
                                 let day = d.day();
-                                let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
+                                let last =
+                                    super::super::functions::function_date::last_day_of_month(
+                                        new_year,
+                                        new_month_u8,
+                                    );
                                 let new_day = if day > last { last } else { day };
-                                time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap()
+                                time::Date::from_calendar_date(
+                                    new_year,
+                                    time::Month::try_from(new_month_u8).unwrap(),
+                                    new_day,
+                                )
+                                .unwrap()
                             };
-                            Ok(DateTimeValue(ValueOrSv::Value(time::PrimitiveDateTime::new(new_date, t))))
+                            Ok(DateTimeValue(ValueOrSv::Value(
+                                time::PrimitiveDateTime::new(new_date, t),
+                            )))
                         }
                         DurationKind::DaysTime => {
                             let mut delta = TDuration::days(dur.days.abs());
                             delta += TDuration::hours(dur.hours.abs());
                             delta += TDuration::minutes(dur.minutes.abs());
                             delta += TDuration::seconds(dur.seconds.abs());
-                            if dur.negative { delta = -delta; }
+                            if dur.negative {
+                                delta = -delta;
+                            }
                             Ok(DateTimeValue(ValueOrSv::Value(*dt + delta)))
                         }
                     },
@@ -368,37 +423,61 @@ impl EvaluatableExpression for MathOperator {
                                 let year = d.year();
                                 let mut month = d.month() as i32;
                                 let mut sub_months = dur.years * 12 + dur.months;
-                                if dur.negative { sub_months = -sub_months; }
+                                if dur.negative {
+                                    sub_months = -sub_months;
+                                }
                                 month -= sub_months;
                                 let mut new_year = year + (month - 1) / 12;
                                 let mut new_month = (month - 1) % 12 + 1;
-                                if new_month <= 0 { new_year -= 1; new_month += 12; }
+                                if new_month <= 0 {
+                                    new_year -= 1;
+                                    new_month += 12;
+                                }
                                 let new_month_u8 = new_month as u8;
                                 let day = d.day();
-                                let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
+                                let last =
+                                    super::super::functions::function_date::last_day_of_month(
+                                        new_year,
+                                        new_month_u8,
+                                    );
                                 let new_day = if day > last { last } else { day };
-                                time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day).unwrap()
+                                time::Date::from_calendar_date(
+                                    new_year,
+                                    time::Month::try_from(new_month_u8).unwrap(),
+                                    new_day,
+                                )
+                                .unwrap()
                             };
-                            Ok(DateTimeValue(ValueOrSv::Value(time::PrimitiveDateTime::new(new_date, t))))
+                            Ok(DateTimeValue(ValueOrSv::Value(
+                                time::PrimitiveDateTime::new(new_date, t),
+                            )))
                         }
                         DurationKind::DaysTime => {
                             let mut delta = TDuration::days(dur.days.abs());
                             delta += TDuration::hours(dur.hours.abs());
                             delta += TDuration::minutes(dur.minutes.abs());
                             delta += TDuration::seconds(dur.seconds.abs());
-                            if dur.negative { delta = -delta; }
+                            if dur.negative {
+                                delta = -delta;
+                            }
                             Ok(DateTimeValue(ValueOrSv::Value(*dt - delta)))
                         }
                     },
-                    _ => RuntimeError::eval_error("Unsupported operator for datetime and duration".to_string()).into(),
+                    _ => RuntimeError::eval_error(
+                        "Unsupported operator for datetime and duration".to_string(),
+                    )
+                    .into(),
                 }
             }
             // time +/- duration (days ignored, only H/M/S applied modulo 24h)
             (TimeValue(ValueOrSv::Value(t)), DurationValue(ValueOrSv::Value(dur))) => {
                 match self.data.operator {
                     Addition | Subtraction => {
-                        let mut secs: i64 = (t.hour() as i64) * 3600 + (t.minute() as i64) * 60 + (t.second() as i64);
-                        let delta: i64 = dur.hours.abs() * 3600 + dur.minutes.abs() * 60 + dur.seconds.abs();
+                        let mut secs: i64 = (t.hour() as i64) * 3600
+                            + (t.minute() as i64) * 60
+                            + (t.second() as i64);
+                        let delta: i64 =
+                            dur.hours.abs() * 3600 + dur.minutes.abs() * 60 + dur.seconds.abs();
                         if dur.negative ^ matches!(self.data.operator, Subtraction) {
                             // negative addition or positive subtraction => subtract
                             secs -= delta;
@@ -412,30 +491,47 @@ impl EvaluatableExpression for MathOperator {
                         let new_time = time::Time::from_hms(h, m, s).unwrap();
                         Ok(TimeValue(ValueOrSv::Value(new_time)))
                     }
-                    _ => RuntimeError::eval_error("Unsupported operator for time and duration".to_string()).into(),
+                    _ => RuntimeError::eval_error(
+                        "Unsupported operator for time and duration".to_string(),
+                    )
+                    .into(),
                 }
             }
             // date - date => duration
-            (DateValue(ValueOrSv::Value(a)), DateValue(ValueOrSv::Value(b))) if matches!(self.data.operator, Subtraction) => {
+            (DateValue(ValueOrSv::Value(a)), DateValue(ValueOrSv::Value(b)))
+                if matches!(self.data.operator, Subtraction) =>
+            {
                 let diff = (*a - *b).whole_days();
                 let neg = diff < 0;
                 let days = diff.abs();
-                Ok(DurationValue(ValueOrSv::Value(ErDurationValue::dt(days, 0, 0, 0, neg))))
+                Ok(DurationValue(ValueOrSv::Value(ErDurationValue::dt(
+                    days, 0, 0, 0, neg,
+                ))))
             }
             // time - time => duration (seconds)
-            (TimeValue(ValueOrSv::Value(a)), TimeValue(ValueOrSv::Value(b))) if matches!(self.data.operator, Subtraction) => {
-                let a_secs = (a.hour() as i64) * 3600 + (a.minute() as i64) * 60 + (a.second() as i64);
-                let b_secs = (b.hour() as i64) * 3600 + (b.minute() as i64) * 60 + (b.second() as i64);
+            (TimeValue(ValueOrSv::Value(a)), TimeValue(ValueOrSv::Value(b)))
+                if matches!(self.data.operator, Subtraction) =>
+            {
+                let a_secs =
+                    (a.hour() as i64) * 3600 + (a.minute() as i64) * 60 + (a.second() as i64);
+                let b_secs =
+                    (b.hour() as i64) * 3600 + (b.minute() as i64) * 60 + (b.second() as i64);
                 let mut diff = a_secs - b_secs;
                 let neg = diff < 0;
-                if neg { diff = -diff; }
+                if neg {
+                    diff = -diff;
+                }
                 let hours = diff / 3600;
                 let minutes = (diff % 3600) / 60;
                 let seconds = diff % 60;
-                Ok(DurationValue(ValueOrSv::Value(ErDurationValue::dt(0, hours, minutes, seconds, neg))))
+                Ok(DurationValue(ValueOrSv::Value(ErDurationValue::dt(
+                    0, hours, minutes, seconds, neg,
+                ))))
             }
             // datetime - datetime => duration (days/hours/minutes/seconds)
-            (DateTimeValue(ValueOrSv::Value(a)), DateTimeValue(ValueOrSv::Value(b))) if matches!(self.data.operator, Subtraction) => {
+            (DateTimeValue(ValueOrSv::Value(a)), DateTimeValue(ValueOrSv::Value(b)))
+                if matches!(self.data.operator, Subtraction) =>
+            {
                 let diff = *a - *b;
                 let neg = diff.is_negative();
                 let total_secs = diff.whole_seconds().abs();
@@ -445,7 +541,9 @@ impl EvaluatableExpression for MathOperator {
                 let rem2 = rem % 3600;
                 let minutes = rem2 / 60;
                 let seconds = rem2 % 60;
-                Ok(DurationValue(ValueOrSv::Value(ErDurationValue::dt(days, hours, minutes, seconds, neg))))
+                Ok(DurationValue(ValueOrSv::Value(ErDurationValue::dt(
+                    days, hours, minutes, seconds, neg,
+                ))))
             }
             _ => RuntimeError::eval_error(format!(
                 "Operator '{}' is not implemented for '{} {} {}'",

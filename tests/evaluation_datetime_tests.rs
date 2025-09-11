@@ -1,7 +1,10 @@
 #[test]
 fn datetime_primitives_and_components() {
     // Date components
-    assert_eq!(crate::eval_value("value : date(\"2017-05-03\").year"), "2017");
+    assert_eq!(
+        crate::eval_value("value : date(\"2017-05-03\").year"),
+        "2017"
+    );
     assert_eq!(crate::eval_value("value : date(\"2017-05-03\").month"), "5");
     assert_eq!(crate::eval_value("value : date(\"2017-05-03\").day"), "3");
 
@@ -25,7 +28,10 @@ fn datetime_primitives_and_components() {
     );
 
     // Weekday (ISO Monday=1) for 2018-10-11 is Thursday=4
-    assert_eq!(crate::eval_value("value : date(\"2018-10-11\").weekday"), "4");
+    assert_eq!(
+        crate::eval_value("value : date(\"2018-10-11\").weekday"),
+        "4"
+    );
 
     // all date component elements
     assert_eq!(

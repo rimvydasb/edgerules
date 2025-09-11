@@ -1,15 +1,15 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
 use crate::ast::functions::function_date::*;
+use crate::ast::functions::function_list::*;
 use crate::ast::functions::function_numeric::*;
 use crate::ast::functions::function_string::*;
-use crate::ast::functions::function_list::*;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
-use crate::typesystem::types::{ValueType, TypedValue};
+use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use log::error;
 use std::cell::RefCell;

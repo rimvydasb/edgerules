@@ -1,9 +1,7 @@
 use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::types::ValueType::{
-    DateType, StringType,
-};
+use crate::typesystem::types::ValueType::{DateType, StringType};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{

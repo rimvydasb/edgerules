@@ -270,12 +270,8 @@ pub mod factory {
                 Expression(Collection(_rows)),
             ) => {
                 if AnnotationEnum::get_decision_table(&annotations).is_some() {
-                    let decision_table = DecisionTable::build(
-                        annotations,
-                        function_name,
-                        _arguments,
-                        _rows,
-                    )?;
+                    let decision_table =
+                        DecisionTable::build(annotations, function_name, _arguments, _rows)?;
                     Ok(Definition(DefinitionEnum::Metaphor(decision_table.into())))
                 } else {
                     Err(UnknownError(format!(

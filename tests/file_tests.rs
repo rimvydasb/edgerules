@@ -1,6 +1,6 @@
+use edge_rules::runtime::edge_rules::EdgeRules;
 use std::fs;
 use std::io::Write;
-use edge_rules::runtime::edge_rules::EdgeRules;
 mod test_utils;
 use test_utils::test::init_test;
 

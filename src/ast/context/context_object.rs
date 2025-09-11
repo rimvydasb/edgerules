@@ -201,7 +201,8 @@ pub mod test {
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                ).into(),
+                )
+                .into(),
             ));
             let instance = child.build();
             child_instance = Rc::clone(&instance);
