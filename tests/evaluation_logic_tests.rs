@@ -1,0 +1,136 @@
+#[test]
+fn test_conditionals() {
+    // comparisons
+    assert_eq!(crate::eval_value("value : 1 = 2"), "false");
+    assert_eq!(crate::eval_value("value : 1 < 2"), "true");
+    assert_eq!(crate::eval_value("value : 1 <= 2"), "true");
+    assert_eq!(crate::eval_value("value : 2 > 1"), "true");
+    assert_eq!(crate::eval_value("value : 2 >= 1"), "true");
+    assert_eq!(crate::eval_value("value : 1 = 1"), "true");
+    assert_eq!(crate::eval_value("value : 1 = 1 + 1"), "false");
+
+    // boolean ops with numbers in conditionals
+    assert_eq!(crate::eval_value("value : 1 = 2 and 5 = 5"), "false");
+    assert_eq!(crate::eval_value("value : 1 + 1 = 2 and 5 = 5"), "true");
+
+    assert_eq!(crate::eval_value("value : 1 = 2 or 5 = 5"), "true");
+    assert_eq!(crate::eval_value("value : 1 = 2 or 5 = 5 + 1"), "false");
+
+    assert_eq!(crate::eval_value("value : 1 = 2 xor 5 = 5 + 1"), "false");
+    assert_eq!(crate::eval_value("value : 1 = 2 xor 5 = 4 + 1"), "true");
+    assert_eq!(crate::eval_value("value : 1 = 2 - 1 xor 5 = 5 + 1"), "true");
+
+    assert_eq!(crate::eval_value("value : 1 = 2 or 5 = 5 and 1 = 1"), "true");
+    assert_eq!(crate::eval_value("value : 1 = 2 or 5 = 5 and 1 = 1 + 1"), "false");
+
+    // if-then-else nesting
+    assert_eq!(crate::eval_value("value : if 1 > 2 then 3 else 4"), "4");
+    assert_eq!(crate::eval_value("value : if 1 < 2 then 3 else 4"), "3");
+    assert_eq!(crate::eval_value("value : if 1 < 2 then 3 + 1 else 5"), "4");
+    assert_eq!(crate::eval_value("value : if 1 > 2 then 3 + 1 else 5 * 10"), "50");
+    assert_eq!(
+        crate::eval_value("value : if 1 > 2 then 3 + 1 else (if 1 < 2 then 5 * 10 else 0)"),
+        "50"
+    );
+    assert_eq!(
+        crate::eval_value("value : if 1 > 2 then 3 + 1 else (if 1 > 2 then 5 * 10 else 0)"),
+        "0"
+    );
+    assert_eq!(
+        crate::eval_value("value : if 1 < 2 then (if 5 > 2 then 5 * 10 else 0) else 1"),
+        "50"
+    );
+    assert_eq!(
+        crate::eval_value("value : (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1"),
+        "51"
+    );
+    assert_eq!(
+        crate::eval_value("value : 1 + (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1"),
+        "52"
+    );
+    assert_eq!(
+        crate::eval_value("value : 2 * (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1"),
+        "101"
+    );
+}
+
+#[test]
+fn test_boolean_literals_and_logic() {
+    // OR
+    assert_eq!(crate::eval_value("value : true  or true"), "true");
+    assert_eq!(crate::eval_value("value : true  or false"), "true");
+    assert_eq!(crate::eval_value("value : false or true"), "true");
+    assert_eq!(crate::eval_value("value : false or false"), "false");
+
+    // AND
+    assert_eq!(crate::eval_value("value : true  and true"), "true");
+    assert_eq!(crate::eval_value("value : true  and false"), "false");
+    assert_eq!(crate::eval_value("value : false and true"), "false");
+    assert_eq!(crate::eval_value("value : false and false"), "false");
+
+    // XOR
+    assert_eq!(crate::eval_value("value : true  xor true"), "false");
+    assert_eq!(crate::eval_value("value : true  xor false"), "true");
+    assert_eq!(crate::eval_value("value : false xor true"), "true");
+    assert_eq!(crate::eval_value("value : false xor false"), "false");
+
+    // NOT
+    assert_eq!(crate::eval_value("value : not true"), "false");
+    assert_eq!(crate::eval_value("value : not false"), "true");
+    assert_eq!(crate::eval_value("value : not (1 = 1)"), "false");
+    assert_eq!(crate::eval_value("value : not (1 = 2)"), "true");
+
+    // Mixed
+    assert_eq!(crate::eval_value("value : true and (1 < 2)"), "true");
+    assert_eq!(crate::eval_value("value : (1 = 1) and false"), "false");
+    assert_eq!(crate::eval_value("value : (1 = 1) or false"), "true");
+    assert_eq!(crate::eval_value("value : true and not false"), "true");
+    assert_eq!(crate::eval_value("value : (1 < 2) and not (2 < 1)"), "true");
+
+    // More complex
+    assert_eq!(
+        crate::eval_value("value : (true and (1 < 2)) or (false and (3 = 4))"),
+        "true"
+    );
+    assert_eq!(
+        crate::eval_value("value : (true xor (1 = 1 and false)) or (2 < 1)"),
+        "true"
+    );
+    assert_eq!(
+        crate::eval_value("value : (true and true) xor (false or (1 < 1))"),
+        "true"
+    );
+    assert_eq!(
+        crate::eval_value("value : (true and (2 > 1 and (3 > 2))) and (false or (5 = 5))"),
+        "true"
+    );
+}
+
+#[test]
+fn test_constraints() {
+    assert_eq!(crate::eval_value("value : [1,2,3][...>1]"), "[2, 3]");
+    assert_eq!(crate::eval_value("value : [1,2,3][...>0]"), "[1, 2, 3]");
+    assert_eq!(crate::eval_value("value : [1,2,3][...>-5]"), "[1, 2, 3]");
+    assert_eq!(crate::eval_value("value : [1,2,3][...<-5]"), "[]");
+
+    assert_eq!(
+        crate::eval_lines_field(
+            &["nums : [1, 5, 12, 7]", "filtered: nums[...>6]"],
+            "filtered"
+        ),
+        "[12, 7]"
+    );
+
+    assert_eq!(
+        crate::eval_lines_field(
+            &[
+                "input : {",
+                "   nums : [1, 5, 12, 7]",
+                "   filtered: nums[...>6]",
+                "}",
+            ],
+            "input.filtered"
+        ),
+        "[12, 7]"
+    );
+}
