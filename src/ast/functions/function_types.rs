@@ -74,10 +74,8 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "toUpperCase" => UnaryFunctionDefinition { name: "toUpperCase", function: eval_to_upper, validation: validate_unary_string, return_type: return_string_type_unary },
     "toLowerCase" => UnaryFunctionDefinition { name: "toLowerCase", function: eval_to_lower, validation: validate_unary_string, return_type: return_string_type_unary },
     "trim" => UnaryFunctionDefinition { name: "trim", function: eval_trim, validation: validate_unary_string, return_type: return_string_type_unary },
-    // base64 group (optional)
-    #[cfg(feature = "base64_functions")]
+    // base64 group (available; implementation depends on features/target)
     "toBase64" => UnaryFunctionDefinition { name: "toBase64", function: eval_to_base64, validation: validate_unary_string, return_type: return_string_type_unary },
-    #[cfg(feature = "base64_functions")]
     "fromBase64" => UnaryFunctionDefinition { name: "fromBase64", function: eval_from_base64, validation: validate_unary_string, return_type: return_string_type_unary },
     // reverse for string or list
     "reverse" => UnaryFunctionDefinition { name: "reverse", function: eval_reverse_mixed, validation: validate_unary_reverse_mixed, return_type: return_same_list_type },
@@ -188,9 +186,7 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "toUpperCase" => EFunctionType::Unary,
     "toLowerCase" => EFunctionType::Unary,
     "trim" => EFunctionType::Unary,
-    #[cfg(feature = "base64_functions")]
     "toBase64" => EFunctionType::Unary,
-    #[cfg(feature = "base64_functions")]
     "fromBase64" => EFunctionType::Unary,
     // reverse accounted above
     "sanitizeFilename" => EFunctionType::Unary,

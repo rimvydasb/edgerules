@@ -396,7 +396,22 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
-#[cfg(not(feature = "base64_functions"))]
+// WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
+#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
+pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    if let Some(s) = as_string(&value) {
+        match crate::wasm::to_base64_js(&s) {
+            Ok(out) => Ok(StringValue(SString(out))),
+            Err(e) => RuntimeError::eval_error(e).into(),
+        }
+    } else {
+        RuntimeError::type_not_supported(value.get_type()).into()
+    }
+}
+#[cfg(all(
+    not(feature = "base64_functions"),
+    not(all(target_arch = "wasm32", feature = "wasm"))
+))]
 pub fn eval_to_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
 }
@@ -413,7 +428,22 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
-#[cfg(not(feature = "base64_functions"))]
+// WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
+#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
+pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    if let Some(s) = as_string(&value) {
+        match crate::wasm::from_base64_js(&s) {
+            Ok(out) => Ok(StringValue(SString(out))),
+            Err(e) => RuntimeError::eval_error(e).into(),
+        }
+    } else {
+        RuntimeError::type_not_supported(value.get_type()).into()
+    }
+}
+#[cfg(all(
+    not(feature = "base64_functions"),
+    not(all(target_arch = "wasm32", feature = "wasm"))
+))]
 pub fn eval_from_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
 }

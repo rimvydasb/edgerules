@@ -14,3 +14,15 @@ console.log('regexReplace:', result);
 if (result !== `'Hello X world X'`) {
   throw new Error('regexReplace failed: ' + result);
 }
+
+// Verify toBase64 / fromBase64 use host APIs (no Rust base64 in WASM)
+const b64 = wasm.evaluate_expression(`toBase64('FEEL')`);
+console.log('toBase64:', b64);
+if (b64 !== `'RkVFTA=='`) {
+  throw new Error('toBase64 failed: ' + b64);
+}
+const from = wasm.evaluate_expression(`fromBase64('RkVFTA==')`);
+console.log('fromBase64:', from);
+if (from !== `'FEEL'`) {
+  throw new Error('fromBase64 failed: ' + from);
+}
