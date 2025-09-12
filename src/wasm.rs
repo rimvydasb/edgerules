@@ -4,6 +4,39 @@ use wasm_bindgen::prelude::*;
 
 use crate::runtime::edge_rules::EdgeRules;
 
+// Inline JS glue to leverage host RegExp for regexReplace on Web/Node
+// without pulling in the Rust regex crate (keeps WASM small).
+#[wasm_bindgen(inline_js = r#"
+export function __er_regex_replace(s, pattern, flags, repl) {
+  try {
+    const re = new RegExp(pattern, flags || 'g');
+    return String(s).replace(re, repl);
+  } catch (e) {
+    return "__er_err__:" + String(e);
+  }
+}
+"#)]
+extern "C" {
+    fn __er_regex_replace(s: &str, pattern: &str, flags: &str, repl: &str) -> String;
+}
+
+// Internal helper used by string functions to call into JS RegExp replace.
+// Returns Err with a human-readable message if the pattern or flags are invalid.
+pub(crate) fn regex_replace_js(
+    s: &str,
+    pattern: &str,
+    flags: Option<&str>,
+    repl: &str,
+) -> Result<String, String> {
+    let f = flags.unwrap_or("g");
+    let out = __er_regex_replace(s, pattern, f, repl);
+    if let Some(msg) = out.strip_prefix("__er_err__:") {
+        Err(msg.to_string())
+    } else {
+        Ok(out)
+    }
+}
+
 #[cfg(feature = "console_error_panic_hook")]
 #[wasm_bindgen]
 pub fn init_panic_hook() {

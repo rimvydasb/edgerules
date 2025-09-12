@@ -448,9 +448,41 @@ pub fn eval_regex_replace(
     )))
 }
 
-#[cfg(not(feature = "regex_functions"))]
+// WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
+#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
 pub fn eval_regex_replace(
     args: Vec<Result<ValueEnum, RuntimeError>>,
+    _ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let vals = into_valid(args)?;
+    if !(vals.len() == 3 || vals.len() == 4) {
+        return RuntimeError::eval_error("replace expects 3 or 4 args".to_string()).into();
+    }
+    let s =
+        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern =
+        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl =
+        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let flags = if vals.len() == 4 {
+        as_string(&vals[3]).unwrap_or_default()
+    } else {
+        String::from("g")
+    };
+
+    match crate::wasm::regex_replace_js(&s, &pattern, Some(flags.as_str()), &repl) {
+        Ok(out) => Ok(StringValue(SString(out))),
+        Err(e) => RuntimeError::eval_error(e).into(),
+    }
+}
+
+// Fallback for non-WASM builds when regex feature is disabled
+#[cfg(all(
+    not(feature = "regex_functions"),
+    not(all(target_arch = "wasm32", feature = "wasm"))
+))]
+pub fn eval_regex_replace(
+    _args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
