@@ -465,40 +465,42 @@ model : {
 
 ## String Functions
 
-| EdgeRules function                                          | What it does                                 | FEEL operation                                | JavaScript analog                    |  
-|-------------------------------------------------------------|----------------------------------------------|-----------------------------------------------|--------------------------------------|
-| `substring("foobar", 3)` → `"obar"`                         | Substring starting at position               | `substring(string, start)`                    | `"foobar".substring(2)`              |  
-| `substring("foobar", -3, 2)` → `"ba"`                       | Substring with length                        | `substring(string, start, length)`            | `"foobar".substr(-3, 2)`             |  
-| `length("foo")` → `3`                                       | Number of characters.                        | `string length(string)`                       | `"foo".length`                       |  
-| `toUpperCase("aBc4")` → `"ABC4"`                            | To uppercase.                                | `upper case(string)`                          | `"aBc4".toUpperCase()`               |  
-| `toLowerCase("aBc4")` → `"abc4"`                            | To lowercase.                                | `lower case(string)`                          | `"aBc4".toLowerCase()`               |  
-| `substringBefore("foobar", "bar")` → `"foo"`                | String before match.                         | `substring before(string, match)`             | `"foobar".split("bar")[0]`           |  
-| `substringAfter("foobar", "ob")` → `"ar"`                   | String after match.                          | `substring after(string, match)`              | `"foobar".split("ob")[1]`            |  
-| `contains("foobar", "of")` → `false`                        | True if contains substring.                  | `contains(string, match)`                     | `"foobar".includes("of")`            |  
-| `startsWith("foobar", "fo")` → `true`                       | Checks prefix.                               | `starts with(string, match)`                  | `"foobar".startsWith("fo")`          |  
-| `endsWith("foobar", "r")` → `true`                          | Checks suffix.                               | `ends with(string, match)`                    | `"foobar".endsWith("r")`             |  
-| `split("John Doe", " ")` → `["John","Doe"]`                 | Splits string by regex.                      | `split(string, delimiter)`                    | `"John Doe".split(/\s/)`             |  
-| `trim("  hello  ")` → `"hello"`                             | Trim whitespace.                             | `trim(string)` *(Camunda)*                    | `"  hello  ".trim()`                 |  
-| `uuid()` → `"7793aab1-..."`                                 | Generate UUID.                               | `uuid()` *(Camunda)*                          | `crypto.randomUUID()`                |  
-| `toBase64("FEEL")` → `"RkVFTA=="`                           | Encode to base64.                            | `to base64(value)` *(Camunda)*                | `btoa("FEEL")`                       |  
-| `replace("abcd","ab,"xx")` → `"xxcd"`                       | Regex replace.                               | `replace(input, pattern, replacement)`        | `"abcd".replace(/ab/,"xx")`          |  
-| `replace("Abcd","ab","xx","i")` → `"xxcd"`                  | Regex replace with flags.                    | `replace(input, pattern, replacement, flags)` | `"Abcd".replace(/ab/i,"xx")`         | 
-| `charAt("Abcd", 2)` → `"c"`                                 | Character at index.                          | -                                             | `"Abcd".charAt(2)`                   | 
-| `charCodeAt("Abcd", 2)` → `99`                              | Unicode of character at index.               | -                                             | `"Abcd".charCodeAt(2)`               | 
-| `indexOf("Abcd", "b")` → `1`                                | Index of substring, or -1 if not found.      | -                                             | `"Abcd".indexOf("b")`                | 
-| `lastIndexOf("Abcb", "b")` → `3`                            | Last index of substring, or -1 if not found. | -                                             | `"Abcb".lastIndexOf("b")`            | 
-| `fromBase64("RkVFTA==")` → `"FEEL"`                         | Decode from base64.                          | -                                             | `atob("RkVFTA==")`                   | 
-| `fromCharCode(99, 100, 101)` → `"cde"`                      | Create string from Unicode values.           | -                                             | `String.fromCharCode(99,100,101)`    | 
-| `padStart("7", 3, "0")` → `"007"`                           | Pad string on left to length with char.      | -                                             | `"7".padStart(3,"0")`                | 
-| `padEnd("7", 3, "0")` → `"700"`                             | Pad string on right to length with char.     | -                                             | `"7".padEnd(3,"0")`                  | 
-| `repeat("ab", 3)` → `"ababab"`                              | Repeat string N times.                       | -                                             | `"ab".repeat(3)`                     | 
-| `reverse("abc")` → `"cba"`                                  | Reverse string.                              | -                                             | `"abc".split("").reverse().join("")` | 
-| `toUpperCase("aBc4")` → `"ABC4"`                            | To uppercase.                                | -                                             | `"aBc4".toUpperCase()`               | 
-| `toLowerCase("aBc4")` → `"abc4"`                            | To lowercase.                                | -                                             | `"aBc4".toLowerCase()`               | 
-| `sanitizeFilename("a/b\\c:d*e?f\"g<h>ij")` → `"abcdefghij"` | Remove characters not allowed in filenames.  | -                                             |                                      | 
-| `interpolate("Hi ${name}", {name:"Ana"})` → `"Hi Ana"`      | Template string interpolation.               | -                                             |                                      | 
-
-[ ] Regexp support
+| EdgeRules function                                          | What it does                                 | FEEL operation                         | JavaScript analog                           |  
+|-------------------------------------------------------------|----------------------------------------------|----------------------------------------|---------------------------------------------|
+| `substring("foobar", 3)` → `"obar"`                         | Substring starting at position               | `substring(string, start)`             | `"foobar".substring(2)`                     |  
+| `substring("foobar", -3, 2)` → `"ba"`                       | Substring with length                        | `substring(string, start, length)`     | `"foobar".substr(-3, 2)`                    |  
+| `length("foo")` → `3`                                       | Number of characters.                        | `string length(string)`                | `"foo".length`                              |  
+| `toUpperCase("aBc4")` → `"ABC4"`                            | To uppercase.                                | `upper case(string)`                   | `"aBc4".toUpperCase()`                      |  
+| `toLowerCase("aBc4")` → `"abc4"`                            | To lowercase.                                | `lower case(string)`                   | `"aBc4".toLowerCase()`                      |  
+| `substringBefore("foobar", "bar")` → `"foo"`                | String before match.                         | `substring before(string, match)`      | `"foobar".split("bar")[0]`                  |  
+| `substringAfter("foobar", "ob")` → `"ar"`                   | String after match.                          | `substring after(string, match)`       | `"foobar".split("ob")[1]`                   |  
+| `contains("foobar", "of")` → `false`                        | True if contains substring.                  | `contains(string, match)`              | `"foobar".includes("of")`                   |  
+| `startsWith("foobar", "fo")` → `true`                       | Checks prefix.                               | `starts with(string, match)`           | `"foobar".startsWith("fo")`                 |  
+| `endsWith("foobar", "r")` → `true`                          | Checks suffix.                               | `ends with(string, match)`             | `"foobar".endsWith("r")`                    |  
+| `regexSplit("a   b\c", "\\s+")` → `['a','b','c']`           | Splits string by regex.                      | `split(string, delimiter)`             | `"John Doe".split(/\s/)`                    |  
+| `split("a-b-c", "-")` → `['a','b','c']`                     | Simple substring split.                      | `split(string, delimiter)`             | `"a-b-c".split("-")`                        |
+| `trim("  hello  ")` → `"hello"`                             | Trim whitespace.                             | `trim(string)` *(Camunda)*             | `"  hello  ".trim()`                        |  
+| `uuid()` → `"7793aab1-..."`                                 | Generate UUID.                               | `uuid()` *(Camunda)*                   | `crypto.randomUUID()`                       |  
+| `toBase64("FEEL")` → `"RkVFTA=="`                           | Encode to base64.                            | `to base64(value)` *(Camunda)*         | `btoa("FEEL")`                              |  
+| `regexReplace("abcd","ab,"xx")` → `"xxcd"`                  | Regex replace.                               | `replace(input, pattern, replacement)` | `"abcd".replace(/ab/,"xx")`                 |  
+| `regexReplace("Abcd","ab","xx","i")` → `"xxcd"`             | Regex replace with flags.                    | `replace(input, pattern, replacement)` | `"Abcd".replace(/ab/i,"xx")`                | 
+| `replace("Abcd","ab","xx","i")` → `'xxcd'`                  | Simple substring replace, case-insensitive.  | `replace(input, pattern, replacement)` | `"Abcd".toLowerCase().replace("ab","xx")`   |
+| `replaceFirst("foo bar foo","foo","baz")` → `'baz bar foo'` | Replace first occurrence.                    | -                                      | `"foo bar foo".replace("foo","baz")`        |
+| `replaceLast("foo bar foo","foo","baz")` → `'foo bar baz'`  | Replace last occurrence.                     | -                                      | `s => s.split("foo").reverse().join("baz")` |
+| `charAt("Abcd", 2)` → `"c"`                                 | Character at index.                          | -                                      | `"Abcd".charAt(2)`                          | 
+| `charCodeAt("Abcd", 2)` → `99`                              | Unicode of character at index.               | -                                      | `"Abcd".charCodeAt(2)`                      | 
+| `indexOf("Abcd", "b")` → `1`                                | Index of substring, or -1 if not found.      | -                                      | `"Abcd".indexOf("b")`                       | 
+| `lastIndexOf("Abcb", "b")` → `3`                            | Last index of substring, or -1 if not found. | -                                      | `"Abcb".lastIndexOf("b")`                   | 
+| `fromBase64("RkVFTA==")` → `"FEEL"`                         | Decode from base64.                          | -                                      | `atob("RkVFTA==")`                          | 
+| `fromCharCode(99, 100, 101)` → `"cde"`                      | Create string from Unicode values.           | -                                      | `String.fromCharCode(99,100,101)`           | 
+| `padStart("7", 3, "0")` → `"007"`                           | Pad string on left to length with char.      | -                                      | `"7".padStart(3,"0")`                       | 
+| `padEnd("7", 3, "0")` → `"700"`                             | Pad string on right to length with char.     | -                                      | `"7".padEnd(3,"0")`                         | 
+| `repeat("ab", 3)` → `"ababab"`                              | Repeat string N times.                       | -                                      | `"ab".repeat(3)`                            | 
+| `reverse("abc")` → `"cba"`                                  | Reverse string.                              | -                                      | `"abc".split("").reverse().join("")`        | 
+| `toUpperCase("aBc4")` → `"ABC4"`                            | To uppercase.                                | -                                      | `"aBc4".toUpperCase()`                      | 
+| `toLowerCase("aBc4")` → `"abc4"`                            | To lowercase.                                | -                                      | `"aBc4".toLowerCase()`                      | 
+| `sanitizeFilename("a/b\\c:d*e?f\"g<h>ij")` → `"abcdefghij"` | Remove characters not allowed in filenames.  | -                                      |                                             | 
+| `interpolate("Hi ${name}", {name:"Ana"})` → `"Hi Ana"`      | Template string interpolation.               | -                                      |                                             | 
 
 ## List Functions
 
@@ -534,19 +536,3 @@ model : {
 | `join(["a","b","c"], ", ", "[", "]")` → `"[a, b, c]"` | Joins with delimiter and wraps result.   | `string join(list, delimiter, prefix, suffix)` *(Camunda)* | `prefix + list.filter(s=>s!=null).join(delimiter) + suffix` |
 | `isEmpty([])` → `true`                                | True if list has no elements.            | `is empty(list)` *(Camunda)*                               | `list.length===0`                                           |
 | `partition([1,2,3,4,5], 2)` → `[[1,2],[3,4],[5]]`     | Splits list into sublists of given size. | `partition(list, size)` *(Camunda)*                        | `_.chunk(list, size)`                                       |
-
-### String Functions
-
-- `split(haystack, delimiter)`
-  - Simple substring split (no regex). Example: `split("a-b-c", "-")` → `['a','b','c']`.
-- `regexSplit(haystack, pattern)`
-  - Regex-based split (requires `regex_functions`). Example: `regexSplit("one   two\tthree", "\\s+")` → `['one','two','three']`.
-- `replace(haystack, pattern, replacement[, flags])`
-  - With `regex_functions`: `pattern` is a regex and optional `flags` supports `'i'` (case-insensitive). Without `regex_functions`, performs simple substring replace and ignores `flags`.
-  - Examples: `replace("abcd","ab","xx")` → `'xxcd'`; `replace("Abcd","ab","xx","i")` → `'xxcd'`.
-- `regexReplace(haystack, pattern, replacement[, flags])`
-  - Explicit regex replace (requires `regex_functions`). Example: `regexReplace("Abcd","[a-z]","x","i")` → `'xxxx'`.
-- `replaceFirst(haystack, pattern, replacement)`
-  - Non-regex; replaces only the first occurrence. Example: `replaceFirst("foo bar foo","foo","baz")` → `'baz bar foo'`.
-- `replaceLast(haystack, pattern, replacement)`
-  - Non-regex; replaces only the last occurrence. Example: `replaceLast("foo bar foo","foo","baz")` → `'foo bar baz'`.
