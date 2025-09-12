@@ -42,10 +42,10 @@ EdgeRules is ready for four options based on your requirements:
 
 | Option            | Description | Size (approx) |
 |-------------------|-------------|---------------|
-| Native CLI        | `just cli`  | ~1.5MB        |
-| WASM for Web      | `just web`  | ~300KB        |
-| WASM for Node.js  | `just node` | ~300KB        |
-| WASM for Wasmtime | `just wasi` | ~300KB        |
+| Native CLI        | `just cli`  | ~1.8MB        |
+| WASM for Web      | `just web`  | ~400KB        |
+| WASM for Node.js  | `just node` | ~400KB        |
+| WASM for Wasmtime | `just wasi` | ~1.5MB        |
 | Rust Crate        | TBA         |               |
 
 ## Features / Roadmap
@@ -117,11 +117,14 @@ WASM exported methods via `wasm_bindgen`:
 
 ### Optional Function Groups for WASM
 
-To keep Web/Node WASM builds small, heavy functions are optional (can be enabled via features and just build commands).
-For CLI/WASI builds, all features are always enabled.
+To keep Web/Node WASM builds small, WASM uses Node.js and web native base64 and regexp functionality.
+However, if needed, regexp and base64 can be embedded into WASM via features.
+For CLI/WASI builds, all features are always enabled and base64 with regexp libraries are linked in (that increases the
+package size)
 
-- `regex_functions`: Enables regex-powered string ops used by the DSL `regexSplit` and `regexReplace`.
-- `base64_functions`: Enables `toBase64` and `fromBase64`.
+- `regex_functions`: Enables built-in regex-powered string ops used by the DSL `regexSplit` and `regexReplace`, and
+  disables native regex functions on Node/Web.
+- `base64_functions`: Enables built-in `toBase64` and `fromBase64`, disables native base64 functions on Node/Web.
 
 ## CLI
 

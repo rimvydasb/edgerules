@@ -84,8 +84,8 @@ to see results.
 
 Enable for Web/Node via Just tasks:
 
-- `ENABLE_REGEX=1 just web` to include regex functions.
-- `ENABLE_BASE64=1 just node` to include base64 functions.
+- `ENABLE_REGEX=1 just web` to link regex functions and bake into package.
+- `ENABLE_BASE64=1 just node` to link base64 functions and bake into package.
 - Both: `ENABLE_REGEX=1 ENABLE_BASE64=1 just web`.
 
 Or with Cargo directly:
