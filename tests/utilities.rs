@@ -1,5 +1,12 @@
 use edge_rules::runtime::edge_rules::EdgeRules;
 
+#[macro_export]
+macro_rules! assert_value {
+    ($expr:expr, $expected:expr) => {
+        assert_eq!(crate::eval_value(concat!("value : ", $expr)), $expected);
+    };
+}
+
 pub fn eval_all(code: &str) -> String {
     let service = EdgeRules::new();
     service.evaluate_all(code)
