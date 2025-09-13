@@ -108,6 +108,14 @@ pub fn return_number_type_binary(_: ValueType, _: ValueType) -> ValueType {
 }
 
 // Implementations
+/// Converts any value to string. For strings/chars returns raw content (no quotes).
+pub fn eval_to_string(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        StringValue(SString(s)) => Ok(StringValue(SString(s))),
+        StringValue(SChar(c)) => Ok(StringValue(SString(c.to_string()))),
+        other => Ok(StringValue(SString(other.to_string()))),
+    }
+}
 pub fn eval_length(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         Ok(NumberValue(NumberEnum::from(s.chars().count() as i64)))

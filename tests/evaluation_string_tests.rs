@@ -147,5 +147,29 @@ fn test_string_functions() {
         "'Hi Ana'"
     );
 }
+
+#[test]
+fn test_string_concatenation_with_plus() {
+    // simple string + string
+    assert_eq!(crate::eval_value("value : \"a\" + \"b\""), "'ab'");
+
+    // chained with toString on the rightmost
+    assert_eq!(
+        crate::eval_value("value : \"a\" + \"b\" + toString(1)"),
+        "'ab1'"
+    );
+
+    // toString on the left
+    assert_eq!(crate::eval_value("value : toString(1) + \"a\""), "'1a'");
+}
+
+#[test]
+fn test_concat_left_side_must_be_string_error() {
+    // a: 1, result: a + "z" must not work; ensure error mentions left side and string
+    crate::link_error_contains(
+        "{ a: 1; result: a + \"z\" }",
+        &["left side", "string", "+"],
+    );
+}
 mod utilities;
 pub use utilities::*;

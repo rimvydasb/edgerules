@@ -47,6 +47,8 @@ pub type MultiFunctionDefinition = FunctionHolder<
 >;
 
 pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinition> = phf_map! {
+    // Generic stringification
+    "toString" => UnaryFunctionDefinition { name : "toString", function: eval_to_string, validation: |_| Ok(()), return_type: |_| ValueType::StringType },
     "count" => UnaryFunctionDefinition { name : "count", function: eval_count, validation: number_range_or_number_list, return_type: return_uni_number },
     "max" => UnaryFunctionDefinition { name : "max", function: eval_max, validation: number_range_or_number_list, return_type: return_uni_number },
     "sum" => UnaryFunctionDefinition { name : "sum", function: eval_sum, validation: number_range_or_number_list, return_type: return_uni_number },
@@ -146,6 +148,7 @@ pub enum EFunctionType {
 }
 
 pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_map! {
+    "toString" => EFunctionType::Unary,
     "max" => EFunctionType::Multi,
     "sum" => EFunctionType::Multi,
     "min" => EFunctionType::Multi,

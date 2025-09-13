@@ -9,14 +9,14 @@ use crate::runtime::execution_context::*;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::number::NumberEnum::{Int, Real};
+use crate::typesystem::types::string::StringEnum as TStringEnum;
+use crate::typesystem::types::ValueType::StringType;
 use crate::typesystem::types::ValueType::{
     DateTimeType, DateType, DurationType, NumberType, TimeType,
 };
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{
-    DateTimeValue, DateValue, DurationValue, NumberValue, TimeValue,
-};
+use crate::typesystem::values::ValueEnum::{DateTimeValue, DateValue, DurationValue, NumberValue, StringValue, TimeValue};
 use crate::typesystem::values::{DurationKind, DurationValue as ErDurationValue, ValueOrSv};
 use std::cell::RefCell;
 use std::fmt;
@@ -170,11 +170,24 @@ impl StaticLink for MathOperator {
 
         match self.data.operator {
             Addition => {
-                // date + duration => date; datetime + duration => datetime; time + duration => time (optional)
-                match (left_type.clone(), right_type) {
+                // First handle string combinations explicitly for readability
+                match (left_type.clone(), right_type.clone()) {
+                    (StringType, StringType) => Ok(StringType),
+                    (lt, StringType) => LinkingError::expect_single_type(
+                        "Left side of operator '+'",
+                        lt,
+                        &StringType,
+                    ),
+                    (StringType, rt) => LinkingError::expect_single_type(
+                        "Right side of operator '+'",
+                        rt,
+                        &StringType,
+                    ),
+                    // date + duration => date; datetime + duration => datetime; time + duration => time
                     (DateType, DurationType) => Ok(DateType),
                     (DateTimeType, DurationType) => Ok(DateTimeType),
                     (TimeType, DurationType) => Ok(TimeType),
+                    // Fallback: not a supported '+' combo
                     _ => LinkingError::types_not_compatible(
                         Some("Operator '+'".to_string()),
                         left_type,
@@ -275,6 +288,23 @@ impl EvaluatableExpression for MathOperator {
         match (left_token, right_token) {
             (NumberValue(_left), NumberValue(_right)) => {
                 Ok(NumberValue((self.function)(_left.clone(), _right.clone())?))
+            }
+            // string + string -> concatenate raw contents (no quotes added)
+            (StringValue(ls), StringValue(rs))
+                if matches!(self.data.operator, Addition) =>
+            {
+                let mut out = String::new();
+                match ls {
+                    TStringEnum::String(s) => out.push_str(s),
+                    TStringEnum::Char(c) => out.push(*c),
+                    TStringEnum::SV(_) => {}
+                }
+                match rs {
+                    TStringEnum::String(s) => out.push_str(s),
+                    TStringEnum::Char(c) => out.push(*c),
+                    TStringEnum::SV(_) => {}
+                }
+                Ok(ValueEnum::StringValue(TStringEnum::String(out)))
             }
             // date +/- duration
             (DateValue(ValueOrSv::Value(d)), DurationValue(ValueOrSv::Value(dur))) => {
