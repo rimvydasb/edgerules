@@ -17,6 +17,7 @@ and I barely implemented one-third of my ideas... Due to the shift in my focus, 
 In late 2025, I moved the project to GitHub and kept it for my experimentation and research. For this reason, the
 project might be volatile.
 
+- Interactive playground / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
 - [Language Reference](REFERENCE.md)
 - For Stories and Epics check: [doc](doc)
 - [General ToDo](TODO.md)
