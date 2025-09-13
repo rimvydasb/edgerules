@@ -391,7 +391,30 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
     }
 }
 
-#[cfg(not(feature = "regex_functions"))]
+// WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
+#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
+pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
+        match crate::wasm::regex_split_js(&h, &pat, Some("g")) {
+            Ok(vec) => {
+                let parts: Vec<Result<ValueEnum, RuntimeError>> = vec
+                    .into_iter()
+                    .map(|s| Ok(StringValue(SString(s))))
+                    .collect();
+                Ok(Array(parts, VTList(Box::new(StringType))))
+            }
+            Err(e) => RuntimeError::eval_error(e).into(),
+        }
+    } else {
+        RuntimeError::type_not_supported(left.get_type()).into()
+    }
+}
+
+// Fallback for non-WASM builds when regex feature is disabled
+#[cfg(all(
+    not(feature = "regex_functions"),
+    not(all(target_arch = "wasm32", feature = "wasm"))
+))]
 pub fn eval_regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
 }

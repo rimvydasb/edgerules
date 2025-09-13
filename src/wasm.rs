@@ -4,13 +4,24 @@ use wasm_bindgen::prelude::*;
 
 use crate::runtime::edge_rules::EdgeRules;
 
-// Inline JS glue to leverage host RegExp for regexReplace on Web/Node
+// Inline JS glue to leverage host RegExp for regexReplace/regexSplit on Web/Node
 // without pulling in the Rust regex crate (keeps WASM small).
 #[wasm_bindgen(inline_js = r#"
 export function __er_regex_replace(s, pattern, flags, repl) {
   try {
     const re = new RegExp(pattern, flags || 'g');
     return String(s).replace(re, repl);
+  } catch (e) {
+    return "__er_err__:" + String(e);
+  }
+}
+
+export function __er_regex_split(s, pattern, flags) {
+  try {
+    const re = new RegExp(pattern, flags || 'g');
+    const SEP = "\u001F"; // Unit Separator as rarely-used delimiter
+    const parts = String(s).split(re).map(p => p.split(SEP).join(SEP + SEP));
+    return parts.join(SEP);
   } catch (e) {
     return "__er_err__:" + String(e);
   }
@@ -42,6 +53,7 @@ export function __er_from_base64(s) {
 "#)]
 extern "C" {
     fn __er_regex_replace(s: &str, pattern: &str, flags: &str, repl: &str) -> String;
+    fn __er_regex_split(s: &str, pattern: &str, flags: &str) -> String;
     fn __er_to_base64(s: &str) -> String;
     fn __er_from_base64(s: &str) -> String;
 }
@@ -60,6 +72,40 @@ pub(crate) fn regex_replace_js(
         Err(msg.to_string())
     } else {
         Ok(out)
+    }
+}
+
+// Calls into JS RegExp split; returns vector of parts.
+pub(crate) fn regex_split_js(s: &str, pattern: &str, flags: Option<&str>) -> Result<Vec<String>, String> {
+    let f = flags.unwrap_or("g");
+    let out = __er_regex_split(s, pattern, f);
+    if let Some(msg) = out.strip_prefix("__er_err__:") {
+        Err(msg.to_string())
+    } else {
+        // Split on the Unit Separator and collapse escaped separators
+        let sep = '\u{001F}';
+        let mut parts: Vec<String> = Vec::new();
+        let mut current = String::new();
+        let mut chars = out.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == sep {
+                if let Some(next) = chars.peek() {
+                    if *next == sep {
+                        // Escaped separator -> emit one and consume the duplicate
+                        current.push(sep);
+                        chars.next();
+                        continue;
+                    }
+                }
+                // Segment boundary
+                parts.push(current);
+                current = String::new();
+            } else {
+                current.push(c);
+            }
+        }
+        parts.push(current);
+        Ok(parts)
     }
 }
 

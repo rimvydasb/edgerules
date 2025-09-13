@@ -12,6 +12,12 @@ if (result !== `'Hello X world X'`) {
   throw new Error('regexReplace failed: ' + result);
 }
 
+const split = wasm.evaluate_expression(`regexSplit('one   two\tthree', '\\s+')`);
+console.log('regexSplit:', split);
+if (split !== `['one', 'two', 'three']`) {
+  throw new Error('regexSplit failed: ' + split);
+}
+
 const b64 = wasm.evaluate_expression(`toBase64('FEEL')`);
 console.log('toBase64:', b64);
 if (b64 !== `'RkVFTA=='`) {
