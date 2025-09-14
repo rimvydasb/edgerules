@@ -70,7 +70,7 @@ impl Display for ValueType {
             ValueType::BooleanType => f.write_str("boolean"),
             ValueType::DateType => f.write_str("date"),
             ValueType::TimeType => f.write_str("time"),
-            ValueType::DateTimeType => f.write_str("date and time"),
+            ValueType::DateTimeType => f.write_str("datetime"),
             ValueType::ListType(value) => write!(f, "list of {}", value),
             ValueType::DurationType => f.write_str("duration"),
             ValueType::ObjectType(value) => write!(f, "{}", value.borrow().to_type_string()),
@@ -103,7 +103,7 @@ impl TryFrom<&str> for ValueType {
             "boolean" => Ok(ValueType::BooleanType),
             "date" => Ok(ValueType::DateType),
             "time" => Ok(ValueType::TimeType),
-            "date and time" => Ok(ValueType::DateTimeType),
+            "datetime" => Ok(ValueType::DateTimeType),
             "duration" => Ok(ValueType::DurationType),
             _ => Err(ParseErrorEnum::UnknownType(value.to_string())),
         }
