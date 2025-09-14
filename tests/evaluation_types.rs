@@ -11,6 +11,21 @@ fn assert_type_string(lines: &[&str], expected: &str) {
     assert_eq!(ty, expected);
 }
 
+fn assert_type_fields_unordered(lines: &[&str], expected_fields: &[&str]) {
+    let code = format!("{{\n{}\n}}", lines.join("\n"));
+    let mut service = EdgeRules::new();
+    let _ = service.load_source(&code);
+    let runtime = service.to_runtime().expect("link");
+    let ty = runtime.static_tree.borrow().to_type_string();
+    assert!(ty.starts_with("Type<") && ty.ends_with('>'));
+    let inner = &ty[5..ty.len() - 1];
+    let mut actual: Vec<&str> = if inner.is_empty() { vec![] } else { inner.split(", ").collect() };
+    let mut expected: Vec<&str> = expected_fields.to_vec();
+    actual.sort();
+    expected.sort();
+    assert_eq!(actual, expected, "got type `{}`", ty);
+}
+
 #[test]
 fn to_string_for_various_values_and_lists() {
     // numbers, booleans, strings
@@ -81,5 +96,40 @@ fn type_string_deeper_nesting() {
             "d : { inner : { z : time('08:15:00') } }"
         ],
         "Type<a: time, b: date, c: datetime, d: Type<inner: Type<z: time>>>",
+    );
+}
+
+#[test]
+fn type_string_lists() {
+    // list of numbers, list of strings, nested list of numbers
+    assert_type_fields_unordered(
+        &[
+            "nums : [1,2,3]",
+            "strs : ['a','b']",
+            "nested : [[1,2], [3]]",
+        ],
+        &[
+            "nums: list of number",
+            "strs: list of string",
+            "nested: list of list of number",
+        ],
+    );
+}
+
+#[test]
+fn type_string_ranges() {
+    // numeric range
+    assert_type_string(&["r : 1..5"], "Type<r: range>");
+}
+
+#[test]
+fn type_string_lists_and_ranges_combined() {
+    assert_type_string(
+        &[
+            "a : [1,2,3]",
+            "b : 10..20",
+            "c : [[10,20],[30]]",
+        ],
+        "Type<a: list of number, b: range, c: list of list of number>",
     );
 }
