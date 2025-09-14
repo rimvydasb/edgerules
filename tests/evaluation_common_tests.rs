@@ -1,38 +1,23 @@
 #[test]
 fn test_common() {
     // Math
-    assert_eq!(eval_value("value : 1 + 2"), "3");
-    assert_eq!(eval_value("value : 1.1 + 2"), "3.1");
-    assert_eq!(eval_value("value : 1.1 + 2.1"), "3.2");
-    assert_eq!(eval_value("value : 1.0 + 2"), "3");
-    assert_eq!(eval_value("value : -1 + 2"), "1");
-    assert_eq!(eval_value("value : -2 + 1"), "-1");
-    assert_eq!(eval_value("value : 1 * 2 + 1"), "3");
+    assert_value!("1 + 2", "3");
+    assert_value!("1.1 + 2", "3.1");
+    assert_value!("1.1 + 2.1", "3.2");
+    assert_value!("1.0 + 2", "3");
+    assert_value!("-1 + 2", "1");
+    assert_value!("-2 + 1", "-1");
+    assert_value!("1 * 2 + 1", "3");
 
     // for/return
-    assert_eq!(
-        eval_value("value : for x in [1,2,3] return x * 2"),
-        "[2, 4, 6]"
-    );
-    assert_eq!(
-        eval_value("value : for x in [1,2,3] return x * 2.0"),
-        "[2, 4, 6]"
-    );
-    assert_eq!(
-        eval_value("value : for x in 1..3 return x * 2"),
-        "[2, 4, 6]"
-    );
+    assert_value!("for x in [1,2,3] return x * 2", "[2, 4, 6]");
+    assert_value!("for x in [1,2,3] return x * 2.0", "[2, 4, 6]");
+    assert_value!("for x in 1..3 return x * 2", "[2, 4, 6]");
 
-    assert_eq!(
-        eval_value("value : for x in [{age:23},{age:34}] return x.age + 2"),
-        "[25, 36]"
-    );
+    assert_value!("for x in [{age:23},{age:34}] return x.age + 2", "[25, 36]");
 
-    assert_eq!(eval_value("value : 2 / 3"), "0.6666666666666666");
-    assert_eq!(
-        eval_value("value : 1 * 2 / 3 + 1 - 2"),
-        "-0.33333333333333337"
-    );
+    assert_value!("2 / 3", "0.6666666666666666");
+    assert_value!("1 * 2 / 3 + 1 - 2", "-0.33333333333333337");
     assert_eq!(1.0 * 2.0 / 3.0 + 1.0 - 2.0, -0.3333333333333335);
 
     assert_eq!(eval_value("{ age : 18; value : 1 + 2 }"), "3");
@@ -110,8 +95,8 @@ fn test_common() {
 
 #[test]
 fn test_functions() {
-    assert_eq!(eval_value("value : 2 * 2"), "4");
-    assert_eq!(eval_value("value : sum(1,2,3) + (2 * 2)"), "10");
+    assert_value!("2 * 2", "4");
+    assert_value!("sum(1,2,3) + (2 * 2)", "10");
     assert_eq!(
         eval_field(
             "value : sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)",
@@ -119,11 +104,11 @@ fn test_functions() {
         ),
         "14"
     );
-    assert_eq!(eval_value("value : count([1,2,3]) + 1"), "4");
-    assert_eq!(eval_value("value : max([1,2,3]) + 1"), "4");
-    assert_eq!(eval_value("value : find([1,2,3],1)"), "0");
-    assert_eq!(eval_value("value : find([1,2,888],888)"), "2");
-    assert_eq!(eval_value("value : find([1,2,888],999)"), "number.Missing");
+    assert_value!("count([1,2,3]) + 1", "4");
+    assert_value!("max([1,2,3]) + 1", "4");
+    assert_value!("find([1,2,3],1)", "0");
+    assert_value!("find([1,2,888],888)", "2");
+    assert_value!("find([1,2,888],999)", "number.Missing");
 }
 
 #[test]
@@ -213,19 +198,13 @@ fn tables_test() {
 #[test]
 fn test_filter_not_alias() {
     // implicit 'it'
-    assert_eq!(eval_value("value : count([1, 5, 12, 7][not it > 10])"), "3");
+    assert_value!("count([1, 5, 12, 7][not it > 10])", "3");
 
     // explicit '...'
-    assert_eq!(
-        eval_value("value : count([1, 5, 12, 7][not ... > 10])"),
-        "3"
-    );
+    assert_value!("count([1, 5, 12, 7][not ... > 10])", "3");
 
     // combine inside filter
-    assert_eq!(
-        eval_value("value : count([1, 5, 12, 7, 15][(it > 3) and not (it > 10)])"),
-        "2"
-    );
+    assert_value!("count([1, 5, 12, 7, 15][(it > 3) and not (it > 10)])", "2");
 }
 
 #[test]
