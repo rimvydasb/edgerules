@@ -274,17 +274,60 @@ From highest to lowest. Parentheses always take precedence to group explicitly.
     - Iterates lists and ranges; returns a list of mapped results.
     - Example: `for n in 1..5 return n * 3` → `[3,6,9,12,15]`.
 
-## Special Values
+## Special Values (TBC)
 
-| Name            | Description                         | Treatment              | Can be assigned by user |
-|-----------------|-------------------------------------|------------------------|-------------------------|
-| `Missing`       | value is expected, but not found    | override by `Missing`  | Yes                     |
-| `NotApplicable` | value is not expected and not found | treat as 0             | Yes                     |
-| `NotFound`      | value entry is not found            | override by `NotFound` | No - system only        |
+| Name            | Description                         | Treatment              | Can be assigned by user? |
+|-----------------|-------------------------------------|------------------------|--------------------------|
+| `Missing`       | value is expected, but not found    | override by `Missing`  | Yes                      |
+| `NotApplicable` | value is not expected and not found | treat as 0, 1 or ""    | Yes                      |
+| `NotFound`      | value entry is not found            | override by `NotFound` | No - system only         |
+
+Special value methods: (TBC)
+
+- `isMissing(x)`, `isNotApplicable(x)`, `isNotFound(x)`.
+- `sv("missing")`, `sv("notapplicable")` to create user-assignable `Missing` and `NotApplicable`.
+- `toNumber(sv("missing"))` will be `Missing`; `toNumber(sv("notapplicable"))` will be `0`.
+- `toString(sv("missing"))` will be `"Missing"`; `toString(sv("notapplicable"))` will be `""`.
+
+### Missing (TBC)
+
+A special value indicating that a value was expected but not found. This value invalidates any expression it is part of
+and makes a result `Missing`. For example:
 
 ```edgerules
-
+{
+    x: sv("missing")    // x is defined as Missing value
+    y: x + 1            // y will become Missing because x is Missing
+    z: 100 * x          // z will become Missing because x is Missing
+    a: sum([1,x,3])     // a will become Missing because x is Missing
+}
 ```
+
+### NotApplicable (TBC)
+
+A special value indicating that a value was not expected and is therefore not found. This value do not invalidate any
+expression,
+but a special treatment is applied depending on where it is used. The applied treatment is tries to make no impact to
+the expression,
+for this reason NotApplicable must be carefully used:
+
+```edgerules
+{
+    x: sv("notapplicable") // x is defined as NotApplicable value
+    y: x + 1               // y will become 1 because x is treated as 0
+    z: 100 * x             // z will become 100 because x is treated as 1
+    a: sum([1,x,3])        // a will become 4 because x is ignored
+    text: "Value is " + x  // text will become "Value is " because x is treated as empty string
+}
+```
+
+Treatment table: (TBC)
+
+| Context               | Type   | Treatment               |
+|-----------------------|--------|-------------------------|
+| Arithmetic expression | Number | (TBC)                   |
+| String concatenation  | String | Treated as empty string |
+| List                  | List   | Ignored                 |
 
 ## Functions
 
