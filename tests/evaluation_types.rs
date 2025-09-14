@@ -133,3 +133,15 @@ fn type_string_lists_and_ranges_combined() {
         "Type<a: list of number, b: range, c: list of list of number>",
     );
 }
+
+#[test]
+fn type_objects_amd_functions() {
+    assert_type_string(
+        &[
+            "a : sum([1,2,3])",
+            "b : a",
+            "c : toString(a)",
+        ],
+        "Type<a: number, b: number, c: string>",
+    );
+}
