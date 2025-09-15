@@ -15,13 +15,13 @@ the following type definition will be printed:
 {a : 88; b : 99; c : {x : 'Hello'; y : a + b; userFunction() : {}}}
 ```
 
-The `get_type` method output:
+The `get_type` method output **structured** type definition:
 
 ```edgerules
-<a: number, b: number, c: <x: string, y: number>>
+{a: <number>; b: <number>; {c: <x: string, y: number>}}
 ```
 
-The `get_type` method will return the inline type, because no other types are defined. 
+The `get_type` method will return the structured type, because no other types are defined. 
 The method extracts already linked type definitions and prints them.
 
 Below is an example of a standard expression definition:
@@ -48,46 +48,50 @@ The goal of this story is to allow users to define a typed placeholder that imme
 }
 ```
 
-Also:
+## Evaluation Examples
+
+It is a completely valid when the user defines a mixture of placeholders and expressions:
 
 ```edgerules
-myModel: {
-    type vector: <x: string, y: number>
-    vectorStore: <id: number, name: string, c: vector[]>
-    identification: <number>
-    relationsList: <number[]>
-    standardObject: {x: "header"; y: 123}
+{
+    type vector: <x: string, y: number>                     // type alias and assigned definition
+    vectorStore: <id: number, name: string, c: vector[]>    // variable with complex type placeholder with vector type reference
+    identification: <number>                                // variable with simple type placeholder
+    relationsList: <number[]>                               // variable with simple type placeholder with array of numbers
+    standardObject: {x: "header"; y: 123}                   // variable that has standard expression assigned
+    vectorInstance: <vector> {x: 5; y: 15}                  // variable with type placeholder and expression assigned
 }
 ```
 
-evaluated model **without** the context as a stand-alone model:
+Previous model can be evaluated as a **stand-alone** model without any context:
 
 ```edgerules
-myModel: {
+{
     vectorStore: Missing
     identification: Missing
     relationsList: Missing
     standardObject: {x: "header"; y: 123}
+    vectorInstance: {x: 5; y: 15}
 }
 ```
 
-evaluated model **with** the context as a decision service:
+Evaluated model **with** the context example:
 
 ```edgerules
 // context: (this can also represent the request to the decision service)
 {
-    vectorStore: {x: 1, y: 2}
+    vectorStore: {c: {x: 1, y: 2}}
     relationsList: [1,2,3,4]
-    standardObject: {x: "header"; y: 123}
 }
 ```
 ```edgerules
 // evaluated model: (this can also represent the response from the decision service)
 myModel: {
-    vectorStore: {x: 1, y: 2}
+    vectorStore: {id: Missing, name: Missing, c: {x: 1, y: 2}}
     identification: Missing
     relationsList: [1,2,3,4]
     standardObject: {x: "header"; y: 123}
+    vectorInstance: {x: 5; y: 15}
 }
 ```
 
@@ -96,7 +100,8 @@ myModel: {
 - `type $TYPENAME` will define a type alias, for example `type vector: <x: string, y: number>` - vector will become an alias of x and y complex type.
 - `$VARNAME: <$TYPENAME>` will define a variable and will assign a type placeholder. If no real value will be 
 assigned from the context, then the variable will have `Missing` **special value** during the evaluation (see Special Values story)
-- Type can also be defined in JSON style structure as well as **inline**:
+- Defined types are scoped to the context where it is defined and inner scopes.
+- Type can also be defined in JSON style structure and will be called **structured** as well as **inline**:
 
 ```edgerules
 {
@@ -139,7 +144,7 @@ assigned from the context, then the variable will have `Missing` **special value
         termInMonths: 24
     }
 
-    loanOffer1: calculateLoanOffer(applicant1).result as LoanOffer
+    loanOffer1: <LoanOffer> calculateLoanOffer(applicant1).result
 }
 ```
 
@@ -147,6 +152,8 @@ assigned from the context, then the variable will have `Missing` **special value
 
 - Type alias name definition gate opens with `type` such that `type Customer`. Gate closes with `:`
 - Type definition gate opens with `<` and closes with `>`, e.g. `<name: string, age: number, income: number>`, `<string>`, etc.
+- When gate is opened, then everything inside is considered part of the type definition until the gate is closed.
+Inner gates will not be allowed.
 - After the type name alias definition (`type Customer:`), the type definition gate opens with `{` and closes with `}` to mimic JSON.
 For example: `type Customer: {name: <string>; age: <number>; income: <number>}` is a valid type definition as well as
 `type Customer: <name: string, age: number, income: number>` will construct exactly the same type.
@@ -154,4 +161,14 @@ For example: `type Customer: {name: <string>; age: <number>; income: <number>}` 
 ## Tasks
 
 - [ ] Allow parsing type definitions.
+- [ ] During the linking phase, the given structure will be linked based on the type if provided, for example:
+```edgerules
+{
+    type Record: <a: number, b: number>
+    myRecord: <Record> {a: 5; b: 10}            // will be linked as Record type
+    anotherRecord: <Record>                     // will be linked as Record type and during the execution Missing special value will be assigned
+    simpleNumber: <Record> {a: 5}               // will be linked as Record and during executuin value b will be Missing
+    invalidRecord: <Record> {a: 5; b: 'Hello'}  // will produce a type mismatch error during the linking phase
+}
+```
 - [ ] Allow proper type printing. Types will be printed in the same format as they are defined.
