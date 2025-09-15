@@ -122,7 +122,7 @@ assigned from the context, then the variable will have `Missing` **special value
     type LoanOffer: <amount: number, termInMonths: number, monthlyPayment: number>
 
     // Decision Service:
-    calculateLoanOffer(applicant: Applicant) -> LoanOffer: {
+    calculateLoanOffer(applicant: Applicant): {
         interestRate: if applicant.customer.income > 5000 then 0.05 else 0.1;
         monthlyPayment: (applicant.requestedAmount * (1 + interestRate)) / applicant.termInMonths;
         result: {
@@ -139,7 +139,7 @@ assigned from the context, then the variable will have `Missing` **special value
         termInMonths: 24
     }
 
-    loanOffer1: calculateLoanOffer(applicant1).result
+    loanOffer1: calculateLoanOffer(applicant1).result as LoanOffer
 }
 ```
 
