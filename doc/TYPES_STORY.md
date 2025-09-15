@@ -172,3 +172,4 @@ For example: `type Customer: {name: <string>; age: <number>; income: <number>}` 
 }
 ```
 - [ ] Allow proper type printing. Types will be printed in the same format as they are defined.
+- [ ] Add tests, TBC.
