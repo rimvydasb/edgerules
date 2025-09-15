@@ -18,7 +18,7 @@ the following type definition will be printed:
 The `get_type` method output **structured** type definition:
 
 ```edgerules
-{a: <number>; b: <number>; {c: <x: string, y: number>}}
+{a: <number>; b: <number>; {c: {x: <string>; y: <number>}}}
 ```
 
 The `get_type` method will return the structured type, because no other types are defined. 
@@ -39,14 +39,8 @@ The `myObject` (same as `myPrimitive`) gets an expression assigned that does the
 3. Evaluates the expression on the right side and creates an instance of the result
 4. Assigns the result to the variable `myObject`
 
-The goal of this story is to allow users to define a typed placeholder that immediately assigns a type to a given variable. Still, there will be no expression to be assigned. User will be able to define complex typed placeholders as well as simple:
-
-```edgerules
-{
-    myObject: <a: number, b: number, c: <x: string, y: number>[]>
-    myPrimitive: <number>
-}
-```
+The goal of this story is to allow users to define a typed placeholder that immediately assigns a type to a 
+given variable. User will be able to define complex typed placeholders as well as simple.
 
 ## Evaluation Examples
 
@@ -144,7 +138,7 @@ assigned from the context, then the variable will have `Missing` **special value
         termInMonths: 24
     }
 
-    loanOffer1: <LoanOffer> calculateLoanOffer(applicant1).result
+    loanOffer1: <LoanOffer> = calculateLoanOffer(applicant1).result
 }
 ```
 
@@ -165,10 +159,10 @@ For example: `type Customer: {name: <string>; age: <number>; income: <number>}` 
 ```edgerules
 {
     type Record: <a: number, b: number>
-    myRecord: <Record> {a: 5; b: 10}            // will be linked as Record type
-    anotherRecord: <Record>                     // will be linked as Record type and during the execution Missing special value will be assigned
-    simpleNumber: <Record> {a: 5}               // will be linked as Record and during executuin value b will be Missing
-    invalidRecord: <Record> {a: 5; b: 'Hello'}  // will produce a type mismatch error during the linking phase
+    myRecord: <Record> {a: 5; b: 10}                // will be linked as Record type
+    anotherRecord: <Record>                         // will be linked as Record type and during the execution Missing special value will be assigned
+    simpleNumber: <Record> = {a: 5}                 // will be linked as Record and during executuin value b will be Missing
+    invalidRecord: <Record> = {a: 5; b: 'Hello'}    // will produce a type mismatch error during the linking phase
 }
 ```
 - [ ] Allow proper type printing. Types will be printed in the same format as they are defined.
