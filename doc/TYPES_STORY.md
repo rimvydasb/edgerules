@@ -67,6 +67,7 @@ myModel: {
 evaluated model **with** the context:
 
 ```edgerules
+// context: (this can also represent the request to the decision service)
 {
     vectorStore: {x: 1, y: 2}
     relationsList: [1,2,3,4]
@@ -74,6 +75,7 @@ evaluated model **with** the context:
 }
 ```
 ```edgerules
+// evaluated model: (this can also represent the response from the decision service)
 myModel: {
     vectorStore: {x: 1, y: 2}
     identification: Missing
@@ -82,19 +84,24 @@ myModel: {
 }
 ```
 
-## Limited casting CN
+## Clarifications
 
-As previously shown, it is possible to "clarify" the type of variable by using `as <type>` operator.
-No real casting is actually happening: if user want's to cast number to string, they should use `toString(number)` function,
-because operator `as <type>` will give an exception - it only narrows the type of the variable.
-
-However, such as casting can be beneficial for special values usage and complex structures:
+- `type $TYPENAME` will define a pure type, but not variable, for example `type vector: <x: string, y: number>`.
+- `$VARNAME: <$TYPENAME>` will define a variable and will assign a type placeholder. If no real value will be 
+assigned from the context, then variable will have `Missing` special value during the evaluation (see Special Values story)
+- Type can also be defined in JSON style structure as well as inline:
 
 ```edgerules
 {
-    vector: <x: string, y: number>
-    incompleteVector: {x: "header"} as <vector>
-    yAxis: incompleteVector.y + 100 // will give a Missing special value
+    // Customer type:
+    type CustomerA: <name: string, age: number, income: number>
+    
+    // Sam as CustomerA, exact type:
+    type CustomerB: {
+        name: <string>;
+        age: <number>;
+        income: <number>;
+    }
 }
 ```
 
@@ -102,10 +109,12 @@ However, such as casting can be beneficial for special values usage and complex 
 
 ```edgerules
 {
-    Customer: <name: string, age: number, income: number>
-    Applicant: <customer: Customer, requestedAmount: number, termInMonths: number>
-    LoanOffer: <amount: number, termInMonths: number, monthlyPayment: number>
+    // Business Object Model for Decision Service:
+    type Customer: <name: string, age: number, income: number>
+    type Applicant: <customer: Customer, requestedAmount: number, termInMonths: number>
+    type LoanOffer: <amount: number, termInMonths: number, monthlyPayment: number>
 
+    // Decision Service:
     calculateLoanOffer(applicant: Applicant) -> LoanOffer: {
         interestRate: if applicant.customer.income > 5000 then 0.05 else 0.1;
         monthlyPayment: (applicant.requestedAmount * (1 + interestRate)) / applicant.termInMonths;
@@ -116,8 +125,9 @@ However, such as casting can be beneficial for special values usage and complex 
         }
     }
 
-    applicant1 -> ???? Applicant: {
-        customer: {name: "Alice"; age: 30; income: 6000} as <Customer>;
+    // Example execution:
+    applicant1: {
+        customer: {name: "Alice"; age: 30; income: 6000};
         requestedAmount: 20000;
         termInMonths: 24
     }
@@ -126,9 +136,17 @@ However, such as casting can be beneficial for special values usage and complex 
 }
 ```
 
+## Parsing
+
+- Type name definition gate opens with `type` such that `type Customer`. Gate closes with `:`
+- Type definition gate opens with `<` and closes with `>`, e.g. `<name: string, age: number, income: number>`, `<string>`, etc.
+- After type name definition such that `type Customer :`, type definition gate opens with `{` and closes with `}` to mimic JSON.
+For example: `type Customer: {name: <string>; age: <number>; income: <number>}` is a valid type definition as well as
+`type Customer: <name: string, age: number, income: number>` will construct exactly the same type.
+
 ## Tasks
 
-- [ ] Allow parsing type definitions. All definitions will start with `<` and end with `>`.
+- [ ] Allow parsing type definitions.
 - [ ] Allow proper type printing. Types will be printed in the same format as they are defined.
 
 
