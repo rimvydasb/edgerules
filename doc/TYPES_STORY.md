@@ -60,7 +60,7 @@ myModel: {
 }
 ```
 
-evaluated model **without** the context:
+evaluated model **without** the context as a stand-alone model:
 
 ```edgerules
 myModel: {
@@ -71,7 +71,7 @@ myModel: {
 }
 ```
 
-evaluated model **with** the context:
+evaluated model **with** the context as a decision service:
 
 ```edgerules
 // context: (this can also represent the request to the decision service)
@@ -93,17 +93,17 @@ myModel: {
 
 ## Clarifications
 
-- `type $TYPENAME` will define a pure type, but not variable, for example `type vector: <x: string, y: number>`.
+- `type $TYPENAME` will define a type alias, for example `type vector: <x: string, y: number>` - vector will become an alias of x and y complex type.
 - `$VARNAME: <$TYPENAME>` will define a variable and will assign a type placeholder. If no real value will be 
-assigned from the context, then variable will have `Missing` special value during the evaluation (see Special Values story)
-- Type can also be defined in JSON style structure as well as inline:
+assigned from the context, then the variable will have `Missing` **special value** during the evaluation (see Special Values story)
+- Type can also be defined in JSON style structure as well as **inline**:
 
 ```edgerules
 {
-    // Customer type:
+    // Customer **inline** type:
     type CustomerA: <name: string, age: number, income: number>
     
-    // Sam as CustomerA, exact type:
+    // The same as CustomerA, but defined in structured style:
     type CustomerB: {
         name: <string>;
         age: <number>;
@@ -145,9 +145,9 @@ assigned from the context, then variable will have `Missing` special value durin
 
 ## Parsing
 
-- Type name definition gate opens with `type` such that `type Customer`. Gate closes with `:`
+- Type alias name definition gate opens with `type` such that `type Customer`. Gate closes with `:`
 - Type definition gate opens with `<` and closes with `>`, e.g. `<name: string, age: number, income: number>`, `<string>`, etc.
-- After type name definition such that `type Customer :`, type definition gate opens with `{` and closes with `}` to mimic JSON.
+- After the type name alias definition (`type Customer:`), the type definition gate opens with `{` and closes with `}` to mimic JSON.
 For example: `type Customer: {name: <string>; age: <number>; income: <number>}` is a valid type definition as well as
 `type Customer: <name: string, age: number, income: number>` will construct exactly the same type.
 
@@ -155,6 +155,3 @@ For example: `type Customer: {name: <string>; age: <number>; income: <number>}` 
 
 - [ ] Allow parsing type definitions.
 - [ ] Allow proper type printing. Types will be printed in the same format as they are defined.
-
-
-https://chatgpt.com/c/68c6dc61-1544-8321-8c71-c16e6d137865
