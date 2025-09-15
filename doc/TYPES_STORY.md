@@ -1,22 +1,30 @@
 # Types as Placeholders
 
-EdgeRules does not have standard type definition as it is common in other software tools.
+EdgeRules does not have a standard type definition, as it is common in other software tools.
 EdgeRules use typed placeholders instead.
 
-Currently, EdgeRules supports a fixed set of core primitive types and can print structure types such that:
+## Terminology
+
+ - **stand-alone model** - evaluatable model that does not have any external context or requires any input
+ - **decision service** - a model that can be comprehensively evaluated only with an external context
+
+EdgeRules supports a fixed set of core primitive types and can print structure types. For example, for a given structure,
+the following type definition will be printed:
 
 ```edgerules
 {a : 88; b : 99; c : {x : 'Hello'; y : a + b; userFunction() : {}}}
 ```
 
-`get_type` method will return inline type, because no other types are defined. 
-The method extracts already linked type definitions and prints them in the following format:
+The `get_type` method output:
 
 ```edgerules
 <a: number, b: number, c: <x: string, y: number>>
 ```
 
-Below is the example of standard expression definition:
+The `get_type` method will return the inline type, because no other types are defined. 
+The method extracts already linked type definitions and prints them.
+
+Below is an example of a standard expression definition:
 
 ```edgerules
 {
@@ -25,14 +33,13 @@ Below is the example of standard expression definition:
 }
 ```
 
-The `myObject` (same as `myPrimitive`) gets expression assigned that does following things:
+The `myObject` (same as `myPrimitive`) gets an expression assigned that does the following things:
 1. Defines a variable with a given name `myObject` on the left side
-2. Links types if they're not linked
+2. Link types if they're not linked
 3. Evaluates the expression on the right side and creates an instance of the result
 4. Assigns the result to the variable `myObject`
 
-This story goal is to allow user to define a typed placeholder that immediately assigns a type to a give variable,
-but there will be no expression to be assigned. Use will be able to define complex typed placeholders as well as simple:
+The goal of this story is to allow users to define a typed placeholder that immediately assigns a type to a given variable. Still, there will be no expression to be assigned. User will be able to define complex typed placeholders as well as simple:
 
 ```edgerules
 {
@@ -41,7 +48,7 @@ but there will be no expression to be assigned. Use will be able to define compl
 }
 ```
 
-also:
+Also:
 
 ```edgerules
 myModel: {
