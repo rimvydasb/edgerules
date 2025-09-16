@@ -91,7 +91,30 @@ myModel: {
 
 ## Casting
 
+EdgeRules does not have primitive casting when you can "trick" compiler such as in Java or "fake-out" execution such as in TypeScript.
+EdgeRules casting works as following:
+1. Target type is identified
+2. Empty instance of target type is created
+3. Casted value is deeply copied to the target value with validation applied according to target type defintion
+4. For every non-copied value the default value is inserted based on target type defintion
+5. For every additional value, that does not have a field in target type definition, error is raised and execution is terminated
 
+In the fiture it will be possible to skip step #5, but this will be considered in specific execution mode
+
+```edgerules
+{
+    type Customer: {
+        name: <string, "UNKNOWN">;
+        age: <number, Missing, [..>0]>;
+        income: <number, 0>;
+    }
+    // this model example will take a primaryCustomer from the context whatever structure it will be and casts to Customer:
+    primaryCustomer: <Customer>     
+
+    // the following cast is happening during the execution:
+    customer: primaryCustomer as Customer
+}
+```
 
 ## Clarifications
 
@@ -142,7 +165,39 @@ assigned from the context, then the variable will have `Missing` **special value
         termInMonths: 24
     }
 
-    loanOffer1: <LoanOffer> = calculateLoanOffer(applicant1).result
+    loanOffer1: calculateLoanOffer(applicant1).result as LoanOffer
+}
+```
+
+## Default Values and Validation Support
+
+The default value can be assigned to the type definition gate. If not specified, then default valye will always be Missing.
+The full type definition format is the following:
+`<$TYPE_NAME, $DEFAULT_VALUE, $PREDICATE>`
+
+```edgerules
+{
+    type Customer: {
+        name: <string, "UNKNOWN">;
+        age: <number, Missing, [..>0]>;
+        income: <number, 0>;
+    }
+    input: {age: 39}
+    customer: input as Customer
+}
+```
+
+Evaluates to:
+
+
+```edgerules
+{
+    input: {}
+    customer: {
+        name: "UNKNOWN"
+        age: 39
+        income: 0
+    }
 }
 ```
 
@@ -163,10 +218,10 @@ For example: `type Customer: {name: <string>; age: <number>; income: <number>}` 
 ```edgerules
 {
     type Record: <a: number, b: number>
-    myRecord: <Record> {a: 5; b: 10}                // will be linked as Record type
-    anotherRecord: <Record>                         // will be linked as Record type and during the execution Missing special value will be assigned
-    simpleNumber: <Record> = {a: 5}                 // will be linked as Record and during executuin value b will be Missing
-    invalidRecord: <Record> = {a: 5; b: 'Hello'}    // will produce a type mismatch error during the linking phase
+    myRecord: {a: 5; b: 10} as Record             // will be linked as Record type
+    anotherRecord: <Record>                       // will be linked as Record type and during the execution Missing special value will be assigned
+    simpleNumber: {a: 5} as Record                // will be linked as Record and during executuin value b will be Missing
+    invalidRecord: {a: 5; b: 'Hello'} as Record   // will produce a type mismatch error during the linking phase
 }
 ```
 - [ ] Allow proper type printing. Types will be printed in the same format as they are defined.
