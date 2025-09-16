@@ -1,8 +1,7 @@
 Validate: https://www.bottlecaps.de/rr/ui
 
 ```ebnf
-Context
-  ::= "{" ( Statement )* ";"? "}"
+Context ::= "{" ( Statement )* ";"? "}"
 
 Statement ::= 
     // inline complex type without nesting
@@ -14,9 +13,7 @@ Statement ::=
     // simple expression or context
    |  Identifier ":" ( Expression | Context )
 
-PrimitiveType
-  ::= "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration"
-
+PrimitiveType ::= "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration"
 
 TypeAlias   ::= [A-Z][A-Za-z0-9_]*
 Identifier  ::= [A-Za-z_][A-Za-z0-9_]*
