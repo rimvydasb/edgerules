@@ -1,42 +1,23 @@
 Validate: https://www.bottlecaps.de/rr/ui
 
 ```ebnf
-Program
-  ::= "{" ( Stmt )* "}"
+Context
+  ::= "{" ( Statement )* ";"? "}"
 
-Stmt ::= 
-    // inline complex type with no nesting
-      "type" Identifier ":" "<{" Identifier ":" Type ( "," Identifier ":" Type )* "}>"
+Statement ::= 
+    // inline complex type without nesting
+      "type" TypeAlias ":" "<{" Identifier ":" (PrimitiveType | TypeAlias) ( "," Identifier ":" (PrimitiveType | TypeAlias) )* "}>"
       
-    // simple primitive
-   |  "type" Identifier ":" "<" Type ">"
+    // simple primitive  
+   |  "type" Identifier ":" "<" (PrimitiveType | TypeAlias) ">"
    
-    // simple expression
-   |  Identifier ":" Expr
+    // simple expression or context
+   |  Identifier ":" ( Expression | Context )
 
 PrimitiveType
-  ::= "string" | "number" | "boolean"
+  ::= "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration"
 
-Type
-  ::= PrimitiveType | Identifier
 
-Block
-  ::= "{" ( Identifier ":" Expr ( ";" Identifier ":" Expr )* ";"? )? "}"
-
-Expr
-  ::= "if" Expr "then" Expr "else" Expr
-   |  Postfix ( ( ">" | "<" | ">=" | "<=" | "==" | "!=" ) Postfix )*
-   |  Postfix ( ( "+" | "-" ) Postfix )*
-   |  Postfix
-
-Postfix
-  ::= Primary ( ( "." Identifier ) | "(" ( Expr ( "," Expr )* )? ")" )*
-
-Primary
-  ::= Number | String | "true" | "false" | Identifier | Block | "(" Expr ")"
-
-/* ===== Lexical ===== */
+TypeAlias   ::= [A-Z][A-Za-z0-9_]*
 Identifier  ::= [A-Za-z_][A-Za-z0-9_]*
-Number      ::= ( "0" | [1-9] [0-9]* ) ( "." [0-9]+ )?
-String      ::= '"' [^"]* '"' | "'" [^']* "'"
 ```
