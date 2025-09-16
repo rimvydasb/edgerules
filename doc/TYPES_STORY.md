@@ -1,7 +1,7 @@
 # Types as Placeholders
 
-EdgeRules does not have a standard type definition, as it is common in other software tools.
-EdgeRules use typed placeholders instead.
+EdgeRules has a standard type definition, as it is common in other software tools
+and **typed placeholders**.
 
 ## Terminology
 
@@ -15,14 +15,11 @@ the following type definition will be printed:
 {a : 88; b : 99; c : {x : 'Hello'; y : a + b; userFunction() : {}}}
 ```
 
-The `get_type` method output **structured** type definition:
+The `get_type` method outputs the following type definition:
 
 ```edgerules
 {a: <number>; b: <number>; {c: {x: <string>; y: <number>}}}
 ```
-
-The `get_type` method will return the structured type, because no other types are defined. 
-The method extracts already linked type definitions and prints them.
 
 Below is an example of a standard expression definition:
 
@@ -30,17 +27,18 @@ Below is an example of a standard expression definition:
 {
     myObject: {a: 88; b: 99; c: {x: 'Hello'; y: a + b; userFunction() : {}}}
     myPrimitive: 123
+    myVar: <number>
 }
 ```
 
-The `myObject` (same as `myPrimitive`) gets an expression assigned that does the following things:
-1. Defines a variable with a given name `myObject` on the left side
+EdgeRules parser does the following steps:
+1. Defines a variable with a given name `myObject` (same as `myPrimitive`) on the left side
 2. Link types if they're not linked
 3. Evaluates the expression on the right side and creates an instance of the result
 4. Assigns the result to the variable `myObject`
 
-The goal of this story is to allow users to define a typed placeholder that immediately assigns a type to a 
-given variable. User will be able to define complex typed placeholders as well as simple.
+**Typed placeholders** (`myVar: <number>`) immediately assigns a type to a given variable during linking.
+User will be able to define complex typed placeholders as well as simple.
 
 ## Evaluation Examples
 
@@ -48,12 +46,12 @@ It is a completely valid when the user defines a mixture of placeholders and exp
 
 ```edgerules
 {
-    type Vector: <x: string, y: number>                     // type alias and assigned definition
-    vectorStore: <id: number, name: string, c: Vector[]>    // variable with complex type placeholder with Vector type reference
-    identification: <number>                                // variable with simple type placeholder
-    relationsList: <number[]>                               // variable with simple type placeholder with array of numbers
-    standardObject: {x: "header"; y: 123}                   // variable that has standard expression assigned
-    vectorInstance -> Vector: {x: 5; y: 15} (@Todo)            // variable with type placeholder and expression assigned
+    type Vector: {x: <string>, y: <number>}                          // type alias and assigned definition
+    vectorStore: {id: <number>, name: "STORE", vectors: <Vector[]>}  // variable with type placeholder with Vector type reference
+    identification: <number>                                         // variable with simple type placeholder
+    relationsList: <number[]>                                        // variable with simple type placeholder with array of numbers
+    standardObject: {x: "header"; y: 123}                            // variable that has standard expression assigned
+    vectorInstance: toType(Vector, {x: 5})                           // variable with type placeholder and expression assigned
 }
 ```
 
@@ -61,11 +59,11 @@ Previous model can be evaluated as a **stand-alone** model without any context:
 
 ```edgerules
 {
-    vectorStore: Missing
+    vectorStore: {id: Missing, name: "STORE", vectors: Missing}
     identification: Missing
     relationsList: Missing
     standardObject: {x: "header"; y: 123}
-    vectorInstance: {x: 5; y: 15}
+    vectorInstance: {x: 5; y: Missing}
 }
 ```
 
@@ -74,32 +72,39 @@ Evaluated model **with** the context example:
 ```edgerules
 // context: (this can also represent the request to the decision service)
 {
-    vectorStore: {c: {x: 1, y: 2}}
+    vectorStore: {vectors: {x: 1, y: 2}}
     relationsList: [1,2,3,4]
 }
 ```
 ```edgerules
 // evaluated model: (this can also represent the response from the decision service)
 myModel: {
-    vectorStore: {id: Missing, name: Missing, c: {x: 1, y: 2}}
+    vectorStore: {id: Missing, name: "STORE", vectors: {x: 1, y: 2}}
     identification: Missing
     relationsList: [1,2,3,4]
     standardObject: {x: "header"; y: 123}
-    vectorInstance: {x: 5; y: 15}
+    vectorInstance: {x: 5; y: Missing}
 }
 ```
 
 ## Casting
 
 EdgeRules does not have primitive casting when you can "trick" compiler such as in Java or "fake-out" execution such as in TypeScript.
-EdgeRules casting works as following:
+EdgeRules casting works in the following ways:
+1. User applies a function `toType($TYPE, $VALUE)` that takes a type definition and a value to be casted
+2. Value is inserted from the context to the **typed placeholder** and during the execution is casted to the given type
+3. Function argument has explicit type definition, for example `func applyLogic(customer: Customer)`
+
+Casting always follows the same steps:
 1. Target type is identified
 2. Empty instance of target type is created
 3. Casted value is deeply copied to the target value with validation applied according to target type defintion
 4. For every non-copied value the default value is inserted based on target type defintion
 5. For every additional value, that does not have a field in target type definition, error is raised and execution is terminated
 
-In the fiture it will be possible to skip step #5, but this will be considered in specific execution mode
+> If type carries **expression**, then expression is not evaluated until it is called
+
+TBC:
 
 ```edgerules
 {

@@ -5,11 +5,12 @@ Context ::= "{" ( Statement ( ";" Statement )* )? "}"
 
 ComplexTypeDefinition ::= "{" ( Field ( ";" Field )* )? "}"
 
-Field ::= Identifier ":" ( "<" (PrimitiveType | TypeAlias) ">" | ComplexTypeDefinition )
+Field ::= Identifier ":" ( "<" (PrimitiveType | TypeAlias) ">" | ComplexTypeDefinition | Expression )
 
 Statement ::=
       "type" TypeAlias ":" ComplexTypeDefinition
     | "type" TypeAlias ":" "<" (PrimitiveType | TypeAlias) ">"
+    | "func" Identifier "(" ( Parameter ( "," Parameter )* )? ")" ":" ( Expression | Context )
     
     // typed variable placeholder 
     | Identifier ":" "<" (PrimitiveType | TypeAlias) ">"
@@ -21,4 +22,5 @@ PrimitiveType ::= "string" | "number" | "boolean" | "date" | "time" | "datetime"
 
 TypeAlias   ::= [A-Z][A-Za-z0-9_]*
 Identifier  ::= [A-Za-z_][A-Za-z0-9_]*
+Parameter   ::= Identifier ( ":" (PrimitiveType | TypeAlias) )?
 ```
