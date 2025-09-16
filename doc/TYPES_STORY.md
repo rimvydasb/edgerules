@@ -48,12 +48,12 @@ It is a completely valid when the user defines a mixture of placeholders and exp
 
 ```edgerules
 {
-    type vector: <x: string, y: number>                     // type alias and assigned definition
-    vectorStore: <id: number, name: string, c: vector[]>    // variable with complex type placeholder with vector type reference
+    type Vector: <x: string, y: number>                     // type alias and assigned definition
+    vectorStore: <id: number, name: string, c: Vector[]>    // variable with complex type placeholder with Vector type reference
     identification: <number>                                // variable with simple type placeholder
     relationsList: <number[]>                               // variable with simple type placeholder with array of numbers
     standardObject: {x: "header"; y: 123}                   // variable that has standard expression assigned
-    vectorInstance: <vector> {x: 5; y: 15}                  // variable with type placeholder and expression assigned
+    vectorInstance -> Vector: {x: 5; y: 15} (@Todo)            // variable with type placeholder and expression assigned
 }
 ```
 
@@ -89,9 +89,13 @@ myModel: {
 }
 ```
 
+## Casting
+
+
+
 ## Clarifications
 
-- `type $TYPENAME` will define a type alias, for example `type vector: <x: string, y: number>` - vector will become an alias of x and y complex type.
+- `type $TYPENAME` will define a type alias, for example `type Vector: <x: string, y: number>` - Vector will become an alias of x and y complex type.
 - `$VARNAME: <$TYPENAME>` will define a variable and will assign a type placeholder. If no real value will be 
 assigned from the context, then the variable will have `Missing` **special value** during the evaluation (see Special Values story)
 - Defined types are scoped to the context where it is defined and inner scopes.
