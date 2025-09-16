@@ -220,7 +220,7 @@ For example: `type Customer: {name: <string>; age: <number>; income: <number>}` 
     type Record: <a: number, b: number>
     myRecord: {a: 5; b: 10} as Record             // will be linked as Record type
     anotherRecord: <Record>                       // will be linked as Record type and during the execution Missing special value will be assigned
-    simpleNumber: {a: 5} as Record                // will be linked as Record and during executuin value b will be Missing
+    simpleNumber: {a: 5} as Record                // will be linked as Record and during executuion value b will be Missing
     invalidRecord: {a: 5; b: 'Hello'} as Record   // will produce a type mismatch error during the linking phase
 }
 ```
