@@ -5,10 +5,10 @@ Program
   ::= "{" ( Stmt )* "}"
 
 Stmt ::= 
-    // inline complex type
+    // inline complex type with no nesting
       "type" Identifier ":" "<{" Identifier ":" Type ( "," Identifier ":" Type )* "}>"
       
-    // simple primitive  
+    // simple primitive
    |  "type" Identifier ":" "<" Type ">"
    
     // simple expression
