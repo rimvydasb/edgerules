@@ -1,17 +1,21 @@
 Validate: https://www.bottlecaps.de/rr/ui
 
 ```ebnf
-Context ::= "{" ( Statement )* ";"? "}"
+Context ::= "{" ( Statement ( ";" Statement )* )? "}"
 
-Statement ::= 
-    // inline complex type without nesting
-      "type" TypeAlias ":" "<{" Identifier ":" (PrimitiveType | TypeAlias) ( "," Identifier ":" (PrimitiveType | TypeAlias) )* "}>"
-      
-    // simple primitive  
-   |  "type" Identifier ":" "<" (PrimitiveType | TypeAlias) ">"
-   
-    // simple expression or context
-   |  Identifier ":" ( Expression | Context )
+ComplexTypeDefinition ::= "{" ( Field ( ";" Field )* )? "}"
+
+Field ::= Identifier ":" ( "<" (PrimitiveType | TypeAlias) ">" | ComplexTypeDefinition )
+
+Statement ::=
+      "type" TypeAlias ":" ComplexTypeDefinition
+    | "type" TypeAlias ":" "<" (PrimitiveType | TypeAlias) ">"
+    
+    // typed variable placeholder 
+    | Identifier ":" "<" (PrimitiveType | TypeAlias) ">"
+    
+    // variable value assignment
+    | Identifier ":" ( Expression | Context )
 
 PrimitiveType ::= "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration"
 
