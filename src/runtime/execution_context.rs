@@ -308,6 +308,216 @@ impl ExecutionContext {
     pub fn stack_insert(&self, field_name: String, value: Result<ValueEnum, RuntimeError>) {
         self.stack.borrow_mut().insert(field_name, value);
     }
+
+    pub fn has_value(&self, field_name: &str) -> bool {
+        matches!(self.stack.borrow().get(field_name), Some(Ok(_)))
+    }
+
+    pub fn apply_values(
+        target: &Rc<RefCell<ExecutionContext>>,
+        source: &Rc<RefCell<ExecutionContext>>,
+    ) -> Result<(), RuntimeError> {
+        let field_names = source.borrow().get_field_names();
+
+        for field_name in field_names {
+            let value = Self::extract_value_for_overlay(source, field_name.as_str())?;
+            Self::apply_value_to_field(target, field_name.as_str(), value)?;
+        }
+
+        Ok(())
+    }
+
+    fn extract_value_for_overlay(
+        source: &Rc<RefCell<ExecutionContext>>,
+        field_name: &str,
+    ) -> Result<ValueEnum, RuntimeError> {
+        use crate::ast::context::context_object_type::EObjectContent::{
+            ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
+        };
+
+        let field = source
+            .borrow()
+            .get(field_name)
+            .map_err(RuntimeError::from)?;
+
+        match field {
+            ConstantValue(value) => Ok(value.clone()),
+            ObjectRef(reference) => Ok(ValueEnum::Reference(reference)),
+            ExpressionRef(expression) => {
+                let evaluation = expression.borrow().expression.eval(Rc::clone(source))?;
+                source
+                    .borrow()
+                    .stack_insert(field_name.to_string(), Ok(evaluation.clone()));
+                Ok(evaluation)
+            }
+            MetaphorRef(_) => RuntimeError::eval_error(format!(
+                "Cannot use metaphor '{}' as request value",
+                field_name
+            ))
+            .into(),
+            Definition(definition) => RuntimeError::eval_error(format!(
+                "Request field '{}' is a definition `{}`",
+                field_name, definition
+            ))
+            .into(),
+        }
+    }
+
+    fn apply_value_to_field(
+        target: &Rc<RefCell<ExecutionContext>>,
+        field_name: &str,
+        value: ValueEnum,
+    ) -> Result<(), RuntimeError> {
+        use crate::ast::context::context_object_type::EObjectContent::{
+            ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
+        };
+
+        let expected = {
+            let target_ref = target.borrow();
+            let result = target_ref.object.borrow().get(field_name);
+            result
+        };
+
+        match expected {
+            Ok(Definition(expected_type)) => {
+                Self::assign_to_definition(target, field_name, expected_type, value)
+            }
+            Ok(ObjectRef(_)) => Self::assign_to_object(target, field_name, value),
+            Ok(ExpressionRef(_)) => {
+                let target_ref = target.borrow();
+                target_ref.stack_insert(field_name.to_string(), Ok(value));
+                Ok(())
+            }
+            Ok(MetaphorRef(_)) => RuntimeError::eval_error(format!(
+                "Field '{}' is defined as metaphor and cannot be overridden",
+                field_name
+            ))
+            .into(),
+            Ok(ConstantValue(_)) => RuntimeError::eval_error(format!(
+                "Field '{}' is constant and cannot be overridden",
+                field_name
+            ))
+            .into(),
+            Err(err) => Err(RuntimeError::from(err)),
+        }
+    }
+
+    fn assign_to_definition(
+        target: &Rc<RefCell<ExecutionContext>>,
+        field_name: &str,
+        expected_type: ValueType,
+        value: ValueEnum,
+    ) -> Result<(), RuntimeError> {
+        match expected_type {
+            ValueType::ObjectType(expected_object) => match value {
+                ValueEnum::Reference(source_reference) => {
+                    let target_child = {
+                        let target_ref = target.borrow();
+                        target_ref.create_orphan_context(
+                            field_name.to_string(),
+                            Rc::clone(&expected_object),
+                        )
+                    };
+                    ExecutionContext::apply_values(&target_child, &source_reference)?;
+                    {
+                        let target_ref = target.borrow();
+                        target_ref.stack_insert(
+                            field_name.to_string(),
+                            Ok(ValueEnum::Reference(Rc::clone(&target_child))),
+                        );
+                    }
+                    Ok(())
+                }
+                other => {
+                    let actual_type = other.get_type();
+                    RuntimeError::eval_error(format!(
+                        "Field '{}' expects object value, got {}",
+                        field_name, actual_type
+                    ))
+                    .into()
+                }
+            },
+            ValueType::ListType(_) => {
+                if matches!(value, ValueEnum::Array(_, _)) {
+                    let target_ref = target.borrow();
+                    target_ref.stack_insert(field_name.to_string(), Ok(value));
+                    Ok(())
+                } else {
+                    let actual_type = value.get_type();
+                    RuntimeError::eval_error(format!(
+                        "Field '{}' expects list value, got {}",
+                        field_name, actual_type
+                    ))
+                    .into()
+                }
+            }
+            _ => {
+                Self::ensure_type(field_name, &expected_type, &value)?;
+                let target_ref = target.borrow();
+                target_ref.stack_insert(field_name.to_string(), Ok(value));
+                Ok(())
+            }
+        }
+    }
+
+    fn assign_to_object(
+        target: &Rc<RefCell<ExecutionContext>>,
+        field_name: &str,
+        value: ValueEnum,
+    ) -> Result<(), RuntimeError> {
+        match value {
+            ValueEnum::Reference(source_reference) => {
+                let target_child = {
+                    let target_ref = target.borrow();
+                    let result = target_ref.get(field_name);
+                    result
+                }
+                .map_err(RuntimeError::from)?;
+
+                if let crate::ast::context::context_object_type::EObjectContent::ObjectRef(
+                    target_reference,
+                ) = target_child
+                {
+                    ExecutionContext::apply_values(&target_reference, &source_reference)
+                } else {
+                    RuntimeError::eval_error(format!(
+                        "Field '{}' is not an object placeholder",
+                        field_name
+                    ))
+                    .into()
+                }
+            }
+            other => {
+                let actual_type = other.get_type();
+                RuntimeError::eval_error(format!(
+                    "Field '{}' expects object value, got {}",
+                    field_name, actual_type
+                ))
+                .into()
+            }
+        }
+    }
+
+    fn ensure_type(
+        field_name: &str,
+        expected: &ValueType,
+        value: &ValueEnum,
+    ) -> Result<(), RuntimeError> {
+        if matches!(expected, ValueType::UndefinedType) {
+            return Ok(());
+        }
+
+        let actual = value.get_type();
+        if actual == *expected {
+            return Ok(());
+        }
+
+        RuntimeError::eval_error(format!(
+            "Value for '{}' does not match expected type {} (got {})",
+            field_name, expected, actual
+        ))
+        .into()
+    }
 }
 
 #[cfg(test)]

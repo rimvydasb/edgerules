@@ -375,6 +375,13 @@ impl EdgeRulesRuntime {
         for name in field_names {
             let name_str = name.as_str();
 
+            if {
+                let context_ref = ctx.borrow();
+                context_ref.has_value(name_str)
+            } {
+                continue;
+            }
+
             match ctx.borrow().get(name_str)? {
                 EObjectContent::ExpressionRef(expression) => {
                     ctx.borrow().node().lock_field(name_str)?;
@@ -395,6 +402,52 @@ impl EdgeRulesRuntime {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Decision Service
+//--------------------------------------------------------------------------------------------------
+
+pub struct DecisionService {
+    service_name: String,
+    static_tree: Rc<RefCell<ContextObject>>,
+}
+
+impl DecisionService {
+    pub fn new(service_name: &str, model: &str) -> Result<DecisionService, EvalError> {
+        let mut engine = EdgeRules::new();
+        engine.load_source(model).map_err(EvalError::from)?;
+        let runtime = engine.to_runtime()?;
+
+        Ok(DecisionService {
+            service_name: service_name.to_string(),
+            static_tree: Rc::clone(&runtime.static_tree),
+        })
+    }
+
+    pub fn evaluate(&self, context: &str) -> Result<ValueEnum, EvalError> {
+        let request_context = Self::parse_request_context(context)?;
+        let runtime = EdgeRulesRuntime::new(Rc::clone(&self.static_tree));
+
+        ExecutionContext::apply_values(&runtime.context, &request_context)
+            .map_err(EvalError::from)?;
+        runtime.eval_all()?;
+
+        Ok(ValueEnum::Reference(Rc::clone(&runtime.context)))
+    }
+
+    fn parse_request_context(context: &str) -> Result<Rc<RefCell<ExecutionContext>>, EvalError> {
+        let mut engine = EdgeRules::new();
+        engine.load_source(context).map_err(EvalError::from)?;
+        let runtime = engine.to_runtime()?;
+        runtime.eval_all()?;
+
+        Ok(Rc::clone(&runtime.context))
+    }
+
+    pub fn service_name(&self) -> &str {
+        &self.service_name
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 // Utilities
 //--------------------------------------------------------------------------------------------------
 
@@ -411,9 +464,13 @@ pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
 
 #[cfg(test)]
 pub mod test {
+    use crate::ast::context::context_object_type::EObjectContent;
     use crate::ast::expression::StaticLink;
     use crate::ast::token::{EToken, EUnparsedToken, ExpressionEnum};
-    use crate::runtime::edge_rules::{EdgeRules, EdgeRulesRuntime, EvalError, ParseErrors};
+    use crate::link::node_data::ContentHolder;
+    use crate::runtime::edge_rules::{
+        DecisionService, EdgeRules, EdgeRulesRuntime, EvalError, ParseErrors,
+    };
 
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
     use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
@@ -855,5 +912,136 @@ pub mod test {
         tb.expect_num("calendar.firstDay", Int(3));
 
         Ok(())
+    }
+
+    #[test]
+    fn decision_service_evaluates_request() -> Result<(), EvalError> {
+        init_logger();
+
+        let model = "{\n    applicant: {\n        customer: {\n            age: 0;\n            income: 0;\n        };\n        requestedAmount: 0;\n    };\n    decision: applicant.customer.age + applicant.customer.income\n}";
+        let service = DecisionService::new("loan", model)?;
+
+        assert_eq!(service.service_name(), "loan");
+
+        let request = "{\n    applicant: {\n        customer: {\n            age: 30;\n            income: 5000;\n        };\n        requestedAmount: 20000;\n    }\n}";
+
+        let evaluation = service.evaluate(request)?;
+        let context = match evaluation {
+            ValueEnum::Reference(reference) => reference,
+            other => panic!("Expected reference, got {}", other),
+        };
+
+        let decision_value = {
+            let decision_field = context.borrow().get("decision").map_err(EvalError::from)?;
+            match decision_field {
+                EObjectContent::ConstantValue(value) => value,
+                unexpected => panic!("Expected computed value, got {}", unexpected),
+            }
+        };
+
+        assert_eq!(decision_value.to_string(), "5030");
+
+        match context.borrow().get("applicant").map_err(EvalError::from)? {
+            EObjectContent::ObjectRef(applicant) => {
+                let printed = applicant.borrow().to_string();
+                assert!(printed.contains("age : 30"));
+                assert!(printed.contains("income : 5000"));
+            }
+            unexpected => panic!("Expected applicant context, got {}", unexpected),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn decision_service_is_stateless() -> Result<(), EvalError> {
+        init_logger();
+
+        let model = "{\n    applicantAge: 0;\n    increment: 1;\n    adjustedAge: applicantAge + increment\n}";
+        let service = DecisionService::new("age", model)?;
+
+        let first = service.evaluate("{ applicantAge: 40 }")?;
+        let second = service.evaluate("{ applicantAge: 55 }")?;
+
+        let first_adjusted = extract_number_from_context(first, "adjustedAge")?;
+        let second_adjusted = extract_number_from_context(second, "adjustedAge")?;
+
+        assert_eq!(first_adjusted, "41");
+        assert_eq!(second_adjusted, "56");
+
+        Ok(())
+    }
+
+    #[test]
+    fn decision_service_reports_unknown_fields() -> Result<(), EvalError> {
+        init_logger();
+
+        let model = "{ known: 1 }";
+        let service = DecisionService::new("simple", model)?;
+
+        let err = service
+            .evaluate("{ unknown: 1 }")
+            .err()
+            .expect("expected error");
+
+        match err {
+            EvalError::FailedExecution(runtime_error) => {
+                let message = runtime_error.to_string();
+                assert!(message.contains("unknown"));
+            }
+            other => panic!("Unexpected error variant: {:?}", other),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn decision_service_overrides_expression_defaults() -> Result<(), EvalError> {
+        init_logger();
+
+        let model = "{\n    base: 100;\n    injected: 0;\n    result: base + injected\n}";
+        let service = DecisionService::new("defaults", model)?;
+
+        let evaluation = service.evaluate("{ injected: 25 }")?;
+        let context = match evaluation {
+            ValueEnum::Reference(reference) => reference,
+            other => panic!("Expected reference, got {}", other),
+        };
+
+        let injected_value = {
+            let field = context.borrow().get("injected").map_err(EvalError::from)?;
+            match field {
+                EObjectContent::ConstantValue(value) => value,
+                unexpected => panic!("Expected injected value, got {}", unexpected),
+            }
+        };
+
+        assert_eq!(injected_value.to_string(), "25");
+
+        let result_value = {
+            let field = context.borrow().get("result").map_err(EvalError::from)?;
+            match field {
+                EObjectContent::ConstantValue(value) => value,
+                unexpected => panic!("Expected result value, got {}", unexpected),
+            }
+        };
+
+        assert_eq!(result_value.to_string(), "125");
+
+        Ok(())
+    }
+
+    fn extract_number_from_context(value: ValueEnum, field: &str) -> Result<String, EvalError> {
+        let context = match value {
+            ValueEnum::Reference(reference) => reference,
+            other => panic!("Expected reference, got {}", other),
+        };
+
+        let field_value = context.borrow().get(field).map_err(EvalError::from)?;
+
+        match field_value {
+            EObjectContent::ConstantValue(value) => Ok(value.to_string()),
+            unexpected => panic!("Expected constant value, got {}", unexpected),
+        }
     }
 }

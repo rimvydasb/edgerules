@@ -2,7 +2,15 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::runtime::edge_rules::EdgeRules;
+use crate::runtime::edge_rules::{DecisionService, EdgeRules};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+thread_local! {
+    static DECISION_SERVICE_REGISTRY: RefCell<HashMap<String, Rc<DecisionService>>> =
+        RefCell::new(HashMap::new());
+}
 
 // Inline JS glue to leverage host RegExp for regexReplace/regexSplit on Web/Node
 // without pulling in the Rust regex crate (keeps WASM small).
@@ -76,7 +84,11 @@ pub(crate) fn regex_replace_js(
 }
 
 // Calls into JS RegExp split; returns vector of parts.
-pub(crate) fn regex_split_js(s: &str, pattern: &str, flags: Option<&str>) -> Result<Vec<String>, String> {
+pub(crate) fn regex_split_js(
+    s: &str,
+    pattern: &str,
+    flags: Option<&str>,
+) -> Result<Vec<String>, String> {
     let f = flags.unwrap_or("g");
     let out = __er_regex_split(s, pattern, f);
     if let Some(msg) = out.strip_prefix("__er_err__:") {
@@ -163,4 +175,33 @@ pub fn evaluate_field(code: &str, field: &str) -> String {
         Ok(()) => service.evaluate_field(field),
         Err(e) => e.to_string(),
     }
+}
+
+#[wasm_bindgen]
+pub fn create_decision_service(service_name: &str, model: &str) -> String {
+    match DecisionService::new(service_name, model) {
+        Ok(service) => {
+            let name = service_name.to_string();
+            let service_ref = Rc::new(service);
+            DECISION_SERVICE_REGISTRY.with(|registry| {
+                registry.borrow_mut().insert(name, Rc::clone(&service_ref));
+            });
+            "ok".to_string()
+        }
+        Err(err) => err.to_string(),
+    }
+}
+
+#[wasm_bindgen]
+pub fn evaluate_decision_service(service_name: &str, context: &str) -> String {
+    DECISION_SERVICE_REGISTRY.with(|registry| {
+        let maybe_service = registry.borrow().get(service_name).cloned();
+        match maybe_service {
+            Some(service) => match service.evaluate(context) {
+                Ok(value) => value.to_string(),
+                Err(err) => err.to_string(),
+            },
+            None => format!("Decision service '{}' not found", service_name),
+        }
+    })
 }
