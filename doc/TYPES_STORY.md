@@ -148,15 +148,20 @@ assigned from the context, then the variable will have `Missing` **special value
 ```edgerules
 {
     // Business Object Model for Decision Service:
-    type Customer: <name: string, age: number, income: number>
-    type Applicant: <customer: Customer, requestedAmount: number, termInMonths: number>
-    type LoanOffer: <amount: number, termInMonths: number, monthlyPayment: number>
+    type Customer: {name: <string>, birthdate: <date>, income: <number>}
+    type Applicant: {customer: <Customer>, requestedAmount: <number>, termInMonths: <number>}
+    type LoanOffer: {eligibile: <boolean>, amount: <number>, termInMonths: <number>, monthlyPayment: <number>}
+
+    // context data that must be passed to the decision service:
+    executionDatetime: <datetime>
 
     // Decision Service:
     calculateLoanOffer(applicant: Applicant): {
+        eligibile: if executionDatetime - applicant.customer.birthdate >= 18 then true else false;
         interestRate: if applicant.customer.income > 5000 then 0.05 else 0.1;
         monthlyPayment: (applicant.requestedAmount * (1 + interestRate)) / applicant.termInMonths;
         result: {
+            eligibile: eligibile;
             amount: applicant.requestedAmount;
             termInMonths: applicant.termInMonths;
             monthlyPayment: monthlyPayment
@@ -165,7 +170,7 @@ assigned from the context, then the variable will have `Missing` **special value
 
     // Example execution:
     applicant1: {
-        customer: {name: "Alice"; age: 30; income: 6000};
+        customer: {name: "Alice"; birthdate: date('2001-01-01'); income: 6000};
         requestedAmount: 20000;
         termInMonths: 24
     }
