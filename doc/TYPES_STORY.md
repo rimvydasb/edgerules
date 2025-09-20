@@ -85,12 +85,15 @@ Also, see `DefinitionEnum::Metaphor(BuiltinMetaphor)` - similar approach will be
 > Everything what is under `type...` statement it is just a type definition. Within a type definition it is
 > not possible to have any functions definitions or typed placeholders. Only the nested type definitions are allowed.
 
-## Typed Placeholders
+## Typed Placeholders (BLOCKED)
 
 `executionDatetime: <datetime>`
 represents a typed placeholder. In `ContextObject` it will be in `expressions` list as `ExpressionEnum::TypeDefinition`.
 `StaticLink` trait that could immediately return defined type, because it is known.
 `EvaluatableExpression` trait implemented eval will look for the value in the context and if not found will return `Missing` special value.
+
+> BLOCKED: There's no mechanics of how additional context will be provided and accessed during the evaluation.
+> As for now, eval function cannot be implemented. Always returns `Missing` special value if eval is called.
 
 ## Typed Arguments
 
