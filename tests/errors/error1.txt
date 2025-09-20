@@ -18,7 +18,7 @@
         }
 	}
 	model: {
-	  applicationRecord(application): {
+	  func applicationRecord(application): {
 	    statusFlag: if application.status = 1 then "ok" else "no"
 	  }
 

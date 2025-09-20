@@ -1,4 +1,6 @@
 use crate::ast::token::EToken;
+use crate::ast::token::EToken::Unparsed;
+use crate::ast::token::EUnparsedToken::Literal;
 use crate::ast::token::EToken::Expression;
 use crate::ast::token::ExpressionEnum::{Value, Variable};
 use crate::tokenizer::utils::TokenChain;
@@ -137,6 +139,19 @@ impl ASTBuilder {
 
     pub fn last_token(&mut self) -> Option<&EToken> {
         self.result.back()
+    }
+
+    /// If the last token is an unparsed literal equal to `expected`,
+    /// remove it and return true. Otherwise, return false and leave the chain intact.
+    pub fn pop_literal_if(&mut self, expected: &str) -> bool {
+        if let Some(Unparsed(Literal(maybe))) = self.result.back() {
+            if maybe == expected {
+                // Safe unwrap; just checked it's Some
+                let _ = self.result.pop_back();
+                return true;
+            }
+        }
+        false
     }
 
     pub fn push_node(&mut self, priority: u32, token: EToken, factory: FactoryFunction) {

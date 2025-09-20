@@ -1,7 +1,7 @@
 {
    sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
    salesCount : count(sales)
-   salesIn3Months(month, sales) : {
+   func salesIn3Months(month, sales) : {
        result : sales[month] + sales[month + 1] + sales[month + 2]
    }
    accSales : for m in 1..(salesCount - 2) return salesIn3Months(m,sales).result

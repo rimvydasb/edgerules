@@ -8,7 +8,7 @@ fn user_function_with_list_argument_and_return_list() {
     // Map over a list inside a user function and return a new list
     let out = eval_lines_field(
         &[
-            "doubleAll(xs) : {",
+            "func doubleAll(xs) : {",
             "  result : for x in xs return x * 2",
             "}",
             "value : doubleAll([1,2,3]).result",
@@ -23,7 +23,7 @@ fn user_function_with_list_stats_and_nested_access() {
     // Accept a list, compute stats in the function body, and read nested fields
     let out_sum = eval_lines_field(
         &[
-            "listStats(xs) : {",
+            "func listStats(xs) : {",
             "  total : sum(xs)",
             "  maxVal : max(xs)",
             "  first : xs[0]",
@@ -37,7 +37,7 @@ fn user_function_with_list_stats_and_nested_access() {
 
     let out_max = eval_lines_field(
         &[
-            "listStats(xs) : {",
+            "func listStats(xs) : {",
             "  total : sum(xs)",
             "  maxVal : max(xs)",
             "  first : xs[0]",
@@ -51,7 +51,7 @@ fn user_function_with_list_stats_and_nested_access() {
 
     let out_first = eval_lines_field(
         &[
-            "listStats(xs) : {",
+            "func listStats(xs) : {",
             "  total : sum(xs)",
             "  maxVal : max(xs)",
             "  first : xs[0]",
@@ -65,7 +65,7 @@ fn user_function_with_list_stats_and_nested_access() {
 
     let out_doubled = eval_lines_field(
         &[
-            "listStats(xs) : {",
+            "func listStats(xs) : {",
             "  total : sum(xs)",
             "  maxVal : max(xs)",
             "  first : xs[0]",
@@ -83,7 +83,7 @@ fn cannot_define_user_function_inside_list_literal() {
     // Defining a function inside a list should be a parse error.
     // Parse as a pure expression to ensure the function definition token appears inside the sequence.
     // Expect: "Function definition is not allowed in sequence"
-    let expr_str = "[ myFunc(a) : { out : a } ]";
+    let expr_str = "[ func myFunc(a) : { out : a } ]";
     match edge_rules::runtime::edge_rules::expr(expr_str) {
         Ok(_) => panic!("expected parse error, but expression parsed successfully"),
         Err(e) => {
@@ -104,7 +104,7 @@ fn cannot_pass_self_context_as_any_argument() {
         &[
             "calendar : {",
             "  shift : 2",
-            "  start1(calendar) : { result : calendar.shift + 1 }",
+            "  func start1(calendar) : { result : calendar.shift + 1 }",
             "  firstDay : start1(calendar).result",
             "}",
         ]
@@ -116,7 +116,7 @@ fn cannot_pass_self_context_as_any_argument() {
         &[
             "calendar : {",
             "  shift : 2",
-            "  start2(x, cal) : { result : cal.shift + x }",
+            "  func start2(x, cal) : { result : cal.shift + x }",
             "  firstDay : start2(1, calendar).result",
             "}",
         ]
@@ -132,15 +132,15 @@ fn can_pass_sub_context_with_other_functions_and_use_them() {
     let out = eval_lines_field(
         &[
             // Helper function in the root scope
-            "inc(a) : { r : a + 1 }",
+            "func inc(a) : { r : a + 1 }",
             // A function that takes a sub-context and a list and returns a mapped list (no nested calls inside)
-            "apply(list, cfg) : {",
+            "func apply(list, cfg) : {",
             "  mapped : [ list[0] + cfg.shift, list[1] + cfg.shift ]",
             "}",
             // Build a sub-context with data and an extra (unused here) function
             "helpers : {",
             "  shift : 2",
-            "  dec(a) : { r : a - 1 }",
+            "  func dec(a) : { r : a - 1 }",
             "}",
             // Use root-level function `inc` on the results of `apply(...)`
             "value : for n in apply([1,2], helpers).mapped return inc(n).r",
@@ -162,7 +162,7 @@ fn application_record_example_extended_with_lists() {
         "   }",
         "}",
         "model: {",
-        "   applicationRecord(application): {",
+        "   func applicationRecord(application): {",
         "      statusFlag: if application.status = 1 then 'ok' else 'no'",
         "      maxScore: max(application.scores)",
         "      doubled: for s in application.scores return s * 2",

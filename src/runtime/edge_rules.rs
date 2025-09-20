@@ -708,7 +708,7 @@ pub mod test {
         init_logger();
 
         let mut service = EdgeRules::new();
-        service.load_source("{ f(a) : { result : a + 1 }; tmp : f(2).result }")?;
+        service.load_source("{ func f(a) : { result : a + 1 }; tmp : f(2).result }")?;
         let result = service.evaluate_expression("tmp")?;
         assert_eq!(result, ValueEnum::NumberValue(Int(3)));
 
@@ -750,21 +750,21 @@ pub mod test {
             .expect_type("Type<a: Type<x: Type<x: number, aa: number>>, b: number, c: number>")
             .expect_num("c", Int(1));
 
-        test_code("{ f(arg1) :  { a : arg1 } }").expect_type("Type<>");
+        test_code("{ func f(arg1) :  { a : arg1 } }").expect_type("Type<>");
 
-        test_code("{ f(arg1) :  { a : arg1 }; b : 1 }")
+        test_code("{ func f(arg1) :  { a : arg1 }; b : 1 }")
             .expect_type("Type<b: number>")
             .expect_num("b", Int(1));
 
-        test_code("{ f(arg1) :  { a : arg1 }; b : f(1) }").expect_type("Type<b: Type<a: number>>");
+        test_code("{ func f(arg1) :  { a : arg1 }; b : f(1) }").expect_type("Type<b: Type<a: number>>");
 
-        test_code("{ f(arg1) :  { a : arg1 }; b : f(1).a }")
+        test_code("{ func f(arg1) :  { a : arg1 }; b : f(1).a }")
             .expect_type("Type<b: number>")
             .expect_num("b", Int(1));
 
         // possibility to call a function from a sub-context
         test_code_lines(&[
-            "func1(a) : { result : a }",
+            "func func1(a) : { result : a }",
             "subContext : {",
             "subResult : func1(35).result",
             "}",
@@ -775,7 +775,7 @@ pub mod test {
         // argument as a parameter works well
         test_code_lines(&[
             "myInput : 35",
-            "func1(a) : { result : a }",
+            "func func1(a) : { result : a }",
             "subContext : {",
             "subResult : func1(myInput).result",
             "}",
@@ -815,7 +815,7 @@ pub mod test {
         test_code_lines(&[
             "calendar : {",
             "    shift : 2",
-            "    start1(calendar) : { result : calendar.shift + 1 }",
+            "    func start1(calendar) : { result : calendar.shift + 1 }",
             "    firstDay : start1(calendar).result",
             "}",
         ])
@@ -832,7 +832,7 @@ pub mod test {
         test_code_lines(&[
             "calendar : {",
             "    shift : 2",
-            "    start2(x, cal) : { result : cal.shift + x }",
+            "    func start2(x, cal) : { result : cal.shift + x }",
             "    firstDay : start2(1, calendar).result",
             "}",
         ])
@@ -848,7 +848,7 @@ pub mod test {
         let tb = test_code_lines(&[
             "calendar : {",
             "    config : { shift : 2 }",
-            "    start1(calendar) : { result : calendar.shift + 1 }",
+            "    func start1(calendar) : { result : calendar.shift + 1 }",
             "    firstDay : start1(config).result",
             "}",
         ]);

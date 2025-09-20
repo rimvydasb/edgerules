@@ -87,8 +87,8 @@ As a potential work-around for previous problem, is a possibility to have _requi
 calendar: {
     shift: 2
     days: [
-	    {start(config): config.shift + 1},
-	    {start(config): config.shift + 31}
+	    {func start(config): config.shift + 1},
+	    {func start(config): config.shift + 31}
     ]
     firstDay: days[0].start(calendar)
     secondDay: days[1].start(calendar)
@@ -145,7 +145,7 @@ output:
 model : {
     sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
     salesCount : count(sales)
-    sales3(month, sales) : { result : sales[month] + sales[month + 1] + sales[month + 2] }
+    func sales3(month, sales) : { result : sales[month] + sales[month + 1] + sales[month + 2] }
     acc : for m in 1..(salesCount - 2) return sales3(m, sales).result
     best : max(acc)
 }
@@ -174,7 +174,7 @@ output:
     }
 
     // instance definition
-    applicantRecord(inputData): {
+    func applicantRecord(inputData): {
         age: inputData.application.effectiveTimestamp - inputData.birthday
     }
 

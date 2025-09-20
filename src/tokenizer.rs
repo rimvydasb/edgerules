@@ -63,11 +63,11 @@ mod test {
         );
         is_equals("value : [1,sum(9,8),3]", "value:[1,sum(9,8),3]");
         is_equals(
-            "record(input) : { age : input.age } ",
+            "func record(input) : { age : input.age } ",
             "record(input):{age:input.age}",
         );
         is_equals(
-            "{doublethis(input) : { out : input * input }; result : doublethis(2).out }",
+            "{func doublethis(input) : { out : input * input }; result : doublethis(2).out }",
             "{doublethis(input):{out:input*input};result:doublethis(2).out}",
         );
         is_equals(
@@ -79,7 +79,7 @@ mod test {
             "applicants:[{age:23},{age:34}]",
         );
         is_equals("p : [{a:1},5]", "p:[{a:1},5]");
-        is_equals("myFunc(x,y,z) : {a : 1}", "myFunc(x,y,z):{a:1}");
+        is_equals("func myFunc(x,y,z) : {a : 1}", "myFunc(x,y,z):{a:1}");
         is_equals(
             "result : sales[month] + sales[month + 1] + sales[month + 2]",
             "result:(sales[month]+sales[(month+1)])+sales[(month+2)]",
@@ -190,7 +190,7 @@ mod test {
 
         // Testing annotations:
         is_equals(
-            "@Service myFunc(x,y,z) : {a : 1}",
+            "@Service func myFunc(x,y,z) : {a : 1}",
             "@Service myFunc(x,y,z) : {a : 1}",
         );
         //is_equals("@DecisionTable myFunc(x,y) : [[x,y,z],[1,2,3]]", "@DecisionTable(\"\"first-hit\"\") myFunc(x:any,y:any) : [[x,y,z],[x=1,y=2,3]]");

@@ -142,16 +142,31 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
             '(' => {
                 source.next();
 
-                // prioritizing function merge
+                // prioritizing function/call merge
                 ast_builder.incl_level();
 
                 if let Some(function_name) = ast_builder.last_variable() {
                     if left_side {
-                        ast_builder.push_node(
-                            FunctionCallPriority as u32,
-                            Unparsed(Literal(function_name)),
-                            build_function_definition,
-                        );
+                        // Enforce new syntax: function definitions must be prefixed with 'func'
+                        // Peek previous token and ensure it's the literal 'func' (after any annotations)
+                        // We do this by scanning back through trailing annotations, then checking for 'func'.
+                        // If not found, treat as a function call (which will later cause an error if used on the left of ':').
+
+                        // Walk back temporarily to see past any annotations
+                        let has_func_prefix = ast_builder.pop_literal_if("func");
+
+                        if has_func_prefix {
+                            ast_builder.push_node(
+                                FunctionCallPriority as u32,
+                                Unparsed(Literal(function_name)),
+                                build_function_definition,
+                            );
+                        } else {
+                            // No backwards compatibility: definitions must start with 'func'
+                            ast_builder.push_element(error_token!(
+                                "Function definition must start with 'func'"
+                            ));
+                        }
                     } else {
                         ast_builder.push_node(
                             FunctionCallPriority as u32,
@@ -260,6 +275,9 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                                 build_logical_operator,
                             ),
 
+                            "func" => {
+                                ast_builder.push_element(Unparsed(Literal(literal)));
+                            }
                             _ => {
                                 ast_builder.push_element(VariableLink::new_unlinked(literal).into())
                             }

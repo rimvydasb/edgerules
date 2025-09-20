@@ -86,7 +86,7 @@ fn test_common() {
 
     assert_eq!(
         eval_field(
-            "{ doublethis(input) : { out : input * input }; result : doublethis(2).out }",
+            "{ func doublethis(input) : { out : input * input }; result : doublethis(2).out }",
             "result"
         ),
         "4"
@@ -131,7 +131,7 @@ fn client_functions_test() {
         eval_lines_field(
             &[
                 "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                "salesIn3Months(month,sales) : {",
+                "func salesIn3Months(month,sales) : {",
                 "result : sales[month] + sales[month + 1] + sales[month + 2]",
                 "}",
                 "value : salesIn3Months(1,inputSales).result",
@@ -146,7 +146,7 @@ fn client_functions_test() {
         eval_lines_field(
             &[
                 "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                "salesIn3Months(month,sales) : {",
+                "func salesIn3Months(month,sales) : {",
                 "result : sales[month] + sales[month + 1] + sales[month + 2]",
                 "}",
                 "subContext : {",
@@ -164,7 +164,7 @@ fn client_functions_test() {
             eval_lines_field(
                 &[
                     "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                    "salesIn3Months(month,sales) : {",
+                    "func salesIn3Months(month,sales) : {",
                     "result : sales[month] + sales[month + 1] + sales[month + 2]",
                     "}",
                     "bestMonths : for monthIter in 0..11 return salesIn3Months(monthIter,inputSales).result",
@@ -235,7 +235,7 @@ fn variable_linkin_test() {
                 "   }",
                 "}",
                 "model: {",
-                "   applicationRecord(application): {",
+                "   func applicationRecord(application): {",
                 "      statusFlag: if application.status = 1 then 'ok' else 'no'",
                 "   }",
                 "   output: applicationRecord(input.application).statusFlag",
