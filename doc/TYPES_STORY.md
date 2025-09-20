@@ -79,7 +79,8 @@ Parameter   ::= Identifier ( ":" (PrimitiveType | TypeAlias) ("[]")* )?
 `type Customer: {name: <string>, birthdate: <date>, income: <number>}` 
 represents a standard type definition. It defines a type alias `Customer` that can be used in the rest of the model.
 In `ContextObject` it will be in `defined_types` list (see how `metaphors` are implemented and stored).
-`TypeDefinition` will be implemented similarly to `FunctionDefinition`. The implementation plan to be defined.
+`TypeDefinition` will be implemented similarly to `FunctionDefinition`.
+Also, see `DefinitionEnum::Metaphor(BuiltinMetaphor)` - similar approach will be used for user-defined types.
 
 > Everything what is under `type...` statement it is just a type definition. Within a type definition it is
 > not possible to have any functions definitions or typed placeholders. Only the nested type definitions are allowed.
@@ -165,4 +166,9 @@ will be evaluated to
 
 ## Limitations
 
-- Function return type cannot be defined by the user right now. FUnction type definition will be added later in the grammar.
+- Function return type cannot be defined by the user right now. Function type definition will be added later in the grammar.
+- As of now, expressions are not allowed within type definitions. It might be added later if needed.
+
+## Clarifications
+
+- Function definitions will start with `func` keyword.
