@@ -108,6 +108,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Decision Service API (Rust)
+
+For request/response style workloads, use the stateless `DecisionService` wrapper. It links the model once and reuses
+the compiled static tree for every evaluation.
+
+```rust
+use edge_rules::runtime::edge_rules::DecisionService;
+
+fn main() -> Result<(), edge_rules::runtime::edge_rules::EvalError> {
+    let model = r#"{
+        applicant: {
+            customer: { age: 0; income: 0 }
+            requestedAmount: 0
+        }
+        decision: applicant.customer.age + applicant.customer.income
+    }"#;
+
+    let service = DecisionService::new("loan-offer", model)?;
+
+    let request = r#"{
+        applicant: {
+            customer: { age: 30; income: 5000 }
+            requestedAmount: 20000
+        }
+    }"#;
+
+    let response = service.evaluate(request)?;
+    println!("{}", response); // prints the fully evaluated context
+
+    Ok(())
+}
+```
+
 ## WASM
 
 WASM exported methods via `wasm_bindgen`:
@@ -115,6 +148,9 @@ WASM exported methods via `wasm_bindgen`:
 - `evaluate_all(code: &str) -> String` – loads model code and returns the fully evaluated model as code.
 - `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
 - `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
+- `create_decision_service(service_name: &str, model: &str) -> String` – links and caches a decision service by name.
+- `evaluate_decision_service(service_name: &str, context: &str) -> String` – evaluates a cached decision service with a
+  request payload.
 
 ### Optional Function Groups for WASM
 
