@@ -18,6 +18,7 @@ use crate::tokenizer::C_ASSIGN;
 use log::trace;
 
 use crate::typesystem::values::ValueEnum::NumberValue;
+use crate::typesystem::types::ValueType;
 
 /// @TODO brackets counting and error returning
 pub fn tokenize(input: &String) -> VecDeque<EToken> {
@@ -32,6 +33,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
     //let mut ctx_open: u32 = 0;
 
     let mut left_side = true;
+    let mut after_colon = false;
     //let length: usize = input.chars().count();
     //let mut position: usize = 0;
 
@@ -42,6 +44,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
             '0'..='9' => {
                 let number = source.get_number();
                 ast_builder.push_value(NumberValue(number));
+                after_colon = false;
 
                 if source.dot_was_skipped {
                     if let Some('.') = source.peek() {
@@ -78,6 +81,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                 source.next();
 
                 left_side = false;
+                after_colon = true;
 
                 ast_builder.push_node(
                     Assign as u32,
@@ -110,6 +114,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                 ast_builder.incl_level();
 
                 left_side = true;
+                after_colon = false;
 
                 ast_builder.push_node(
                     ContextPriority as u32,
@@ -144,6 +149,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
 
                 // prioritizing function/call merge
                 ast_builder.incl_level();
+                after_colon = false;
 
                 if let Some(function_name) = ast_builder.last_variable() {
                     if left_side {
@@ -278,19 +284,36 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                             "func" => {
                                 ast_builder.push_element(Unparsed(Literal(literal)));
                             }
+                            "type" => {
+                                ast_builder.push_element(Unparsed(Literal(literal)));
+                            }
+                            "as" => {
+                                // Insert cast operator and immediately parse trailing type
+                                ast_builder.push_node(
+                                    CastPriority as u32,
+                                    Unparsed(Literal(literal)),
+                                    build_cast,
+                                );
+                                let tref = parse_complex_type_no_angle(&mut source);
+                                ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                after_colon = false;
+                            }
                             _ => {
-                                ast_builder.push_element(VariableLink::new_unlinked(literal).into())
+                                ast_builder.push_element(VariableLink::new_unlinked(literal).into());
+                                after_colon = false;
                             }
                         }
                     }
                     Either::Right(expression) => {
                         ast_builder
                             .push_element(VariableLink::new_unlinked_path(expression).into());
+                        after_colon = false;
                     }
                 }
             }
             '.' => {
                 source.next();
+                after_colon = false;
 
                 // two dots detected
                 if let Some('.') = source.peek() {
@@ -352,6 +375,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                 source.next();
 
                 ast_builder.incl_level();
+                after_colon = false;
             }
             //----------------------------------------------------------------------------------
             ']' => {
@@ -362,10 +386,16 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                 ast_builder.merge();
 
                 ast_builder.dec_level();
+                after_colon = false;
             }
             '=' | '<' | '>' => {
                 // @Todo: simplify operator acquisition
-                if let Some(comparator) = ComparatorEnum::parse(&mut source) {
+                if *symbol == '<' && after_colon {
+                    source.next();
+                    let tref = parse_complex_type_in_angle(&mut source);
+                    ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
+                    after_colon = false;
+                } else if let Some(comparator) = ComparatorEnum::parse(&mut source) {
                     ast_builder.push_node(
                         ComparatorPriority as u32,
                         Unparsed(Literal(comparator.as_str().to_string())),
@@ -404,4 +434,76 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
     //if seqOpen > 0 { panic!("Sequence not closed"); }
 
     ast_builder.finalize().0
+}
+
+fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
+    let mut name = String::new();
+    while let Some(c) = source.peek().cloned() {
+        if c == '>' {
+            source.next();
+            break;
+        } else {
+            name.push(c);
+            source.next();
+        }
+    }
+    parse_complex_type_from_name(name.trim())
+}
+
+fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
+    source.skip_whitespace();
+    let ident = source.get_alphanumeric();
+    let mut tref = parse_complex_type_from_name(ident.trim());
+    loop {
+        source.skip_whitespace();
+        match source.peek().cloned() {
+            Some('[') => {
+                source.next();
+                if let Some(']') = source.peek().cloned() {
+                    source.next();
+                    tref = ComplexTypeRef::List(Box::new(tref));
+                    continue;
+                }
+            }
+            _ => {}
+        }
+        break;
+    }
+    tref
+}
+
+fn parse_complex_type_from_name(name: &str) -> ComplexTypeRef {
+    match name {
+        "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
+        "string" => ComplexTypeRef::Primitive(ValueType::StringType),
+        "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
+        "date" => ComplexTypeRef::Primitive(ValueType::DateType),
+        "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
+        "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
+        "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
+        other => {
+            // peel off [] suffixes first
+            let mut base = other.to_string();
+            let mut layers = 0usize;
+            while base.ends_with("[]") {
+                base.truncate(base.len() - 2);
+                layers += 1;
+            }
+            // decide primitive vs alias for base
+            let mut t = match base.as_str() {
+                "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
+                "string" => ComplexTypeRef::Primitive(ValueType::StringType),
+                "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
+                "date" => ComplexTypeRef::Primitive(ValueType::DateType),
+                "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
+                "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
+                "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
+                _ => ComplexTypeRef::Alias(base),
+            };
+            for _ in 0..layers {
+                t = ComplexTypeRef::List(Box::new(t));
+            }
+            t
+        }
+    }
 }

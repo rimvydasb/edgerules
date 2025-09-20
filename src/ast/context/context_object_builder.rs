@@ -2,7 +2,7 @@ use crate::ast::context::context_object::{ContextObject, ExpressionEntry, Method
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
-use crate::ast::token::{DefinitionEnum, ExpressionEnum};
+use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
 use crate::typesystem::types::ValueType;
 use log::trace;
@@ -21,6 +21,7 @@ pub struct ContextObjectBuilder {
     context_type: Option<ValueType>,
     parameters: Vec<FormalParameter>,
     node_type: NodeDataEnum<ContextObject>,
+    defined_types: HashMap<String, UserTypeBody>,
 }
 
 impl Default for ContextObjectBuilder {
@@ -39,6 +40,7 @@ impl ContextObjectBuilder {
             context_type: None,
             node_type: NodeDataEnum::Root(),
             parameters: Vec::new(),
+            defined_types: HashMap::new(),
         }
     }
 
@@ -51,6 +53,7 @@ impl ContextObjectBuilder {
             context_type: None,
             node_type: NodeDataEnum::Internal(Rc::downgrade(&parent)),
             parameters: Vec::new(),
+            defined_types: HashMap::new(),
         }
     }
 
@@ -85,6 +88,10 @@ impl ContextObjectBuilder {
                 self.field_names.push(m.get_name());
                 self.metaphors
                     .insert(m.get_name(), MethodEntry::from(m).into());
+            }
+            DefinitionEnum::UserType(t) => {
+                trace!(">>> inserting type {:?}", t.name);
+                self.defined_types.insert(t.name, t.body);
             }
         }
     }
@@ -180,6 +187,7 @@ impl ContextObjectBuilder {
             node: NodeData::new_fixed(self.childs, self.node_type),
             parameters: self.parameters,
             context_type: self.context_type,
+            defined_types: self.defined_types,
         };
 
         let ctx = Rc::new(RefCell::new(obj));

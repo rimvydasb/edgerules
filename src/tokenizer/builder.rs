@@ -265,7 +265,59 @@ pub mod factory {
             UnknownError(format!("'{}' assignment side is not complete", left_token)).before(err)
         })?;
 
+        // Detect if this is a `type Alias : ...` statement by scanning remaining left tokens
+        let is_type_stmt = left
+            .iter()
+            .any(|tok| matches!(tok, Unparsed(Literal(s)) if s == "type"));
+
         match (left_token, right_token) {
+            // Type alias: type Alias : <Type>
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) if is_type_stmt => {
+                let _ = left.pop_left_as_expected("type");
+                Ok(Definition(DefinitionEnum::UserType(UserTypeDefinition {
+                    name: link.get_name(),
+                    body: UserTypeBody::TypeRef(tref),
+                })))
+            }
+            // Typed placeholder: field : <Type>
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) => {
+                Ok(Expression(ObjectField(
+                    link.get_name(),
+                    Box::new(TypePlaceholder(tref)),
+                )))
+            }
+            // Type alias with object body: type Alias : { ... }
+            (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
+                let _ = left.pop_left_as_expected("type");
+
+                // Enforce: no functions or typed placeholders inside type definitions; only nested type objects
+                {
+                    let obj_ref = object.borrow();
+                    if !obj_ref.metaphors.is_empty() {
+                        return Err(UnknownError(
+                            "Type definition cannot contain function definitions".to_string(),
+                        ));
+                    }
+                    for (fname, entry) in obj_ref.expressions.iter() {
+                        let expr = &entry.borrow().expression;
+                        match expr {
+                            ExpressionEnum::StaticObject(_) => { /* ok: nested type object */ }
+                            ExpressionEnum::TypePlaceholder(_) => { /* ok: typed field in type body */ }
+                            _ => {
+                                return Err(UnknownError(format!(
+                                    "Type definition contains non-type field '{}'",
+                                    fname
+                                )));
+                            }
+                        }
+                    }
+                }
+
+                Ok(Definition(DefinitionEnum::UserType(UserTypeDefinition {
+                    name: link.get_name(),
+                    body: UserTypeBody::TypeObject(object),
+                })))
+            }
             (Expression(Variable(link)), Expression(right)) => {
                 Ok(Expression(ObjectField(link.get_name(), Box::new(right))))
             }
@@ -408,6 +460,24 @@ pub mod factory {
                 finding.clone(),
                 expressions.len(),
             )),
+        }
+    }
+
+    pub fn build_cast(
+        left: &mut TokenChain,
+        _token: EToken,
+        right: &mut TokenChain,
+    ) -> Result<EToken, ParseErrorEnum> {
+        let left_expr = left.pop_left_expression().map_err(|err| {
+            UnknownError("Left 'as' side is not complete".to_string()).before(err)
+        })?;
+        let right_token = right.pop_right().map_err(|err| {
+            UnknownError("Type after 'as' is not complete".to_string()).before(err)
+        })?;
+
+        match right_token {
+            Unparsed(TypeReferenceLiteral(tref)) => Ok(Expression(Cast(Box::new(left_expr), tref))),
+            _ => Err(UnknownError("Invalid type after 'as'".to_string())),
         }
     }
 
