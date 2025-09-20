@@ -1,6 +1,7 @@
 node_modules/
 dist/
 target/
+doc/_drafts/
 
 *.py[cod]
 *.log
