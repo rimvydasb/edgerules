@@ -12,25 +12,30 @@ Context ::= "{" ( Statement ( ";" Statement )* )? "}"
 
 ComplexTypeDefinition ::= "{" ( Field ( ";" Field )* )? "}"
 
-Field ::= Identifier ":" ( "<" ComplexType ">" | ComplexTypeDefinition | Expression )
+Field ::= Identifier ":" ( "<" ComplexType ">" | ComplexTypeDefinition | CastExpression )
 
 Statement ::=
       "type" TypeAlias ":" ComplexTypeDefinition
     | "type" TypeAlias ":" "<" ComplexType ">"
-    | "func" Identifier "(" ( Parameter ( "," Parameter )* )? ")" ":" ( Expression | Context )
-    
+    | "func" Identifier "(" ( Parameter ( "," Parameter )* )? ")" ":" ( CastExpression | Context )
     // typed variable placeholder 
     | Identifier ":" "<" ComplexType ">"
     
     // variable value assignment
-    | Identifier ":" ( Expression | Context )
+    | Identifier ":" ( CastExpression | Context )
 
+// --- Casting layer: only after an expression ---
+CastExpression ::= Expression ( "as" ComplexType )?
+
+// --- Types & Ids ---
 PrimitiveType ::= "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration"
 TypeAlias     ::= [A-Z][A-Za-z0-9_]*
-ComplexType   ::= (PrimitiveType | TypeAlias ) ("[]")*
+ComplexType   ::= (PrimitiveType | TypeAlias) ("[]")*
 
 Identifier  ::= [A-Za-z_][A-Za-z0-9_]*
 Parameter   ::= Identifier ( ":" (PrimitiveType | TypeAlias) ("[]")* )?
+
+// `Expression` is your existing (or to-be-defined) expression grammar.
 ```
 
 ## Example
@@ -73,14 +78,17 @@ Parameter   ::= Identifier ( ":" (PrimitiveType | TypeAlias) ("[]")* )?
 
 `type Customer: {name: <string>, birthdate: <date>, income: <number>}` 
 represents a standard type definition. It defines a type alias `Customer` that can be used in the rest of the model.
-In AST it will be represented as `ExpressionEnum::TypeDefinition` node.
+In `ContextObject` it will be in `defined_types` list (see how `metaphors` are implemented and stored).
+`TypeDefinition` will be implemented similarly to `FunctionDefinition`. The implementation plan to be defined.
+
+> Everything what is under `type...` statement it is just a type definition. Within a type definition it is
+> not possible to have any functions definitions or typed placeholders. Only the nested type definitions are allowed.
 
 ## Typed Placeholders
 
 `executionDatetime: <datetime>`
-represents a typed placeholder. 
-In AST it will be in the part of `ExpressionEnum::TypedObjectField` and will have `StaticLink` trait that could
-immediately return defined type, because it is known.
+represents a typed placeholder. In `ContextObject` it will be in `expressions` list as `ExpressionEnum::TypeDefinition`.
+`StaticLink` trait that could immediately return defined type, because it is known.
 `EvaluatableExpression` trait implemented eval will look for the value in the context and if not found will return `Missing` special value.
 
 ## Typed Arguments
@@ -157,4 +165,4 @@ will be evaluated to
 
 ## Limitations
 
-- Function return type cannot be defined right now.
+- Function return type cannot be defined by the user right now. FUnction type definition will be added later in the grammar.
