@@ -278,6 +278,7 @@ impl EdgeRules {
     /// Usage: create EdgeRules, load_source(...), then evaluate_field("a.b.c").
     ///
     /// @Todo: this method is absolutely not necessary, because to_runtime can be used to create runtime and then evaluate any field.
+    /// @Todo: review all usages of evaluate_field, because this method will be called from EdgeRulesRuntime
     ///
     #[deprecated]
     pub fn evaluate_field(&mut self, field: &str) -> String {
