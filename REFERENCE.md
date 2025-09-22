@@ -579,3 +579,14 @@ model : {
 | `join(["a","b","c"], ", ", "[", "]")` → `"[a, b, c]"` | Joins with delimiter and wraps result.   | `string join(list, delimiter, prefix, suffix)` *(Camunda)* | `prefix + list.filter(s=>s!=null).join(delimiter) + suffix` |
 | `isEmpty([])` → `true`                                | True if list has no elements.            | `is empty(list)` *(Camunda)*                               | `list.length===0`                                           |
 | `partition([1,2,3,4,5], 2)` → `[[1,2],[3,4],[5]]`     | Splits list into sublists of given size. | `partition(list, size)` *(Camunda)*                        | `_.chunk(list, size)`                                       |
+
+## Date and Time Functions (TBC)
+
+| EdgeRules function                                | Description                                                              |
+|---------------------------------------------------|--------------------------------------------------------------------------|
+| `between(x, start, end)` → `true`                 | Checks if `x` lies within `[start, end]` (inclusive by default).         |
+| `meets([start1,end1], [start2,end2])` → `true`    | Checks if the first interval ends exactly where the second begins.       |
+| `before([start1,end1], [start2,end2])` → `true`   | Checks if the first interval occurs entirely before the second interval. |
+| `after([start1,end1], [start2,end2])` → `true`    | Checks if the first interval occurs entirely after the second interval.  |
+| `overlaps([start1,end1], [start2,end2])` → `true` | Checks if two intervals share at least one point in common.              |
+

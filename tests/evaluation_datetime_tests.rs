@@ -90,5 +90,115 @@ fn datetime_additional_functions() {
     assert_value!("monthOfYear(date(\"2025-09-02\"))", "'September'");
     assert_value!("lastDayOfMonth(date(\"2025-02-10\"))", "28");
 }
+
+#[test]
+fn date_comparator_operators() {
+    assert_value!("date(\"2020-01-01\") = date(\"2020-01-01\")", "true");
+    assert_value!("date(\"2020-01-01\") <> date(\"2020-01-02\")", "true");
+    assert_value!("date(\"2020-01-01\") < date(\"2020-01-02\")", "true");
+    assert_value!("date(\"2020-01-02\") <= date(\"2020-01-02\")", "true");
+    assert_value!("date(\"2020-01-03\") > date(\"2020-01-02\")", "true");
+    assert_value!("date(\"2020-01-03\") >= date(\"2020-01-03\")", "true");
+    assert_value!("date(\"2020-01-01\") > date(\"2020-01-02\")", "false");
+}
+
+#[test]
+fn datetime_comparator_operators() {
+    assert_value!(
+        "datetime(\"2020-01-01T10:00:00\") = datetime(\"2020-01-01T10:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T10:00:00\") <> datetime(\"2020-01-01T12:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T08:00:00\") < datetime(\"2020-01-01T09:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T09:00:00\") <= datetime(\"2020-01-01T09:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T11:00:00\") > datetime(\"2020-01-01T09:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T11:00:00\") >= datetime(\"2020-01-01T11:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T11:00:00\") < datetime(\"2020-01-01T09:00:00\")",
+        "false"
+    );
+}
+
+#[test]
+fn duration_arithmetic_with_comparators() {
+    assert_value!(
+        "date(\"2020-01-01\") + duration(\"P1D\") = date(\"2020-01-02\")",
+        "true"
+    );
+    assert_value!(
+        "date(\"2020-01-01\") + duration(\"P1D\") <> date(\"2020-01-03\")",
+        "true"
+    );
+    assert_value!(
+        "date(\"2020-01-01\") + duration(\"P1D\") < date(\"2020-01-04\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-01T12:00:00\") + duration(\"PT6H\") <= datetime(\"2020-01-01T18:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-02T00:00:00\") - duration(\"PT30M\") > datetime(\"2019-12-31T23:00:00\")",
+        "true"
+    );
+    assert_value!(
+        "datetime(\"2020-01-02T00:00:00\") - duration(\"PT30M\") >= datetime(\"2020-01-01T23:30:00\")",
+        "true"
+    );
+}
+
+#[test]
+fn comparator_if_else_blocks() {
+    assert_value!(
+        "if date(\"2020-01-05\") >= date(\"2020-01-01\") then 'after' else 'before'",
+        "'after'"
+    );
+    assert_value!(
+        "if datetime(\"2020-01-01T18:00:00\") > datetime(\"2020-01-01T12:00:00\") then 'evening' else 'noon'",
+        "'evening'"
+    );
+    assert_value!(
+        "if date(\"2020-01-01\") + duration(\"P2D\") = date(\"2020-01-03\") then 'match' else 'mismatch'",
+        "'match'"
+    );
+    assert_value!(
+        "if date(\"2020-01-01\") + duration(\"P2D\") <> date(\"2020-01-04\") then 'still match' else 'unexpected'",
+        "'still match'"
+    );
+}
+
+#[test]
+fn duration_offset_age_gate_if_else() {
+    let lines = [
+        "executionDatetime : date(\"2024-01-01\")",
+        "applicantBirthdate : date(\"2005-01-01\")",
+        "eligible : if executionDatetime >= applicantBirthdate + duration(\"P6570D\") then true else false",
+    ];
+
+    assert_eq!(crate::eval_lines_field(&lines, "eligible"), "true");
+
+    let lines = [
+        "executionDatetime : date(\"2022-12-27\")",
+        "applicantBirthdate : date(\"2005-01-01\")",
+        "eligible : if executionDatetime >= applicantBirthdate + duration(\"P6570D\") then true else false",
+    ];
+
+    assert_eq!(crate::eval_lines_field(&lines, "eligible"), "false");
+}
 mod utilities;
 pub use utilities::*;

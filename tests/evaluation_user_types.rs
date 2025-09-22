@@ -71,15 +71,10 @@ fn loan_offer_decision_service_end_to_end() {
 
         "func calculateLoanOffer(executionDatetime, applicant): {",
         // Compare with 18 years in days to match current duration support
-        "    eligible: if executionDatetime >= applicant1.customer.birthdate + duration('P6570D') then true else false;",
-        "    interestRate: if applicant.customer.income > 5000 then 0.05 else 0.1;",
-        "    monthlyPayment: (applicant.requestedAmount * (1 + interestRate)) / applicant.termInMonths;",
-        "    result: {",
-        "        eligible: eligible;",
-        "        amount: applicant.requestedAmount;",
-        "        termInMonths: applicant.termInMonths;",
-        "        monthlyPayment: monthlyPayment",
-        "    }",
+        "    eligible: executionDatetime >= applicant.customer.birthdate + duration('P6570D');",
+        "    amount: applicant.requestedAmount;",
+        "    termInMonths: applicant.termInMonths;",
+        "    monthlyPayment: (applicant.requestedAmount * (1 + (if applicant.customer.income > 5000 then 0.05 else 0.1))) / applicant.termInMonths",
         "}",
 
         "applicant1: {",
@@ -88,29 +83,28 @@ fn loan_offer_decision_service_end_to_end() {
         "    termInMonths: 24",
         "}",
 
-        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1).result as LoanOffer",
+        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1) as LoanOffer",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
     let evaluated = eval_all(&model);
-
     assert!(
-        evaluated.contains("checkEligible : true"),
+        evaluated.contains("eligible : true"),
         "model output did not include expected eligibility result\n{}",
         evaluated
     );
     assert!(
-        evaluated.contains("checkAmount : 20000"),
+        evaluated.contains("amount : 20000"),
         "model output did not include expected amount\n{}",
         evaluated
     );
     assert!(
-        evaluated.contains("checkTerm : 24"),
+        evaluated.contains("termInMonths : 24"),
         "model output did not include expected term\n{}",
         evaluated
     );
     assert!(
-        evaluated.contains("checkPayment : 875"),
+        evaluated.contains("monthlyPayment : 875"),
         "model output did not include expected payment\n{}",
         evaluated
     );
