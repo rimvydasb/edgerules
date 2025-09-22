@@ -1,6 +1,8 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::token::ExpressionEnum;
+use crate::ast::token::{ComplexTypeRef, UserTypeBody};
+use crate::link::linker;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::typesystem::errors::LinkingError;
@@ -66,6 +68,9 @@ pub struct ContextObject {
     pub all_field_names: Vec<String>,
     /// context object can be treated as a function body, so it can have parameters
     pub parameters: Vec<FormalParameter>,
+
+    /// User-defined type aliases within this context
+    pub defined_types: HashMap<String, UserTypeBody>,
 
     pub node: NodeData<ContextObject>,
 
@@ -133,6 +138,43 @@ impl ContextObject {
 
     pub fn get_function(&self, name: &str) -> Option<Rc<RefCell<MethodEntry>>> {
         Some(Rc::clone(self.metaphors.get(name)?))
+    }
+
+    pub fn resolve_type_ref(&self, tref: &ComplexTypeRef) -> Result<ValueType, LinkingError> {
+        match tref {
+            ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
+            ComplexTypeRef::Alias(name) => {
+                let resolve_in = |ctx: &ContextObject| -> Link<Option<ValueType>> {
+                    if let Some(def) = ctx.defined_types.get(name) {
+                        let vt = match def {
+                            UserTypeBody::TypeRef(inner) => ctx.resolve_type_ref(inner)?,
+                            UserTypeBody::TypeObject(obj) => {
+                                linker::link_parts(Rc::clone(obj))?;
+                                ValueType::ObjectType(Rc::clone(obj))
+                            }
+                        };
+                        Ok(Some(vt))
+                    } else {
+                        Ok(None)
+                    }
+                };
+
+                if let Some(vt) = resolve_in(self)? {
+                    return Ok(vt);
+                }
+
+                let mut cur = self.node().node_type.get_parent();
+                while let Some(parent) = cur {
+                    if let Some(vt) = resolve_in(&parent.borrow())? {
+                        return Ok(vt);
+                    }
+                    cur = parent.borrow().node().node_type.get_parent();
+                }
+
+                LinkingError::other_error(format!("Unknown type '{}'", name)).into()
+            }
+            ComplexTypeRef::List(inner) => Ok(ValueType::ListType(Box::new(self.resolve_type_ref(inner)?))),
+        }
     }
 
     pub fn to_type_string(&self) -> String {

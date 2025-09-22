@@ -47,6 +47,7 @@ pub enum EPriorities {
     GatesXor = 11,
     GatesOr = 13,
     ComparatorPriority = 15,
+    CastPriority = 16,
     // Todo: is it really OK?
     FilterArray = 17,
     FieldSelectionPriority = 19,
@@ -84,9 +85,27 @@ pub enum EUnparsedToken {
     Literal(String),
     Annotation(AnnotationEnum),
     FunctionDefinitionLiteral(Vec<AnnotationEnum>, String, Vec<FormalParameter>),
+    TypeReferenceLiteral(ComplexTypeRef),
     MathOperatorToken(MathOperatorEnum),
     LogicalOperatorToken(LogicalOperatorEnum),
     ComparatorToken(ComparatorEnum),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ComplexTypeRef {
+    Primitive(ValueType),
+    Alias(String),
+    List(Box<ComplexTypeRef>),
+}
+
+impl Display for ComplexTypeRef {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ComplexTypeRef::Primitive(vt) => write!(f, "{}", vt),
+            ComplexTypeRef::Alias(name) => write!(f, "{}", name),
+            ComplexTypeRef::List(inner) => write!(f, "list of {}", inner),
+        }
+    }
 }
 
 pub fn into_valid(
@@ -152,12 +171,14 @@ pub enum DefinitionEnum {
     // TypeField(String, ValueType),
     /// Built-in metaphors (functions, decision tables, etc.)
     Metaphor(BuiltinMetaphor),
+    UserType(UserTypeDefinition),
 }
 
 impl Display for DefinitionEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Metaphor(m) => write!(f, "{}", m),
+            DefinitionEnum::UserType(t) => write!(f, "type {} : {}", t.name, t.body),
         }
     }
 }
@@ -181,7 +202,7 @@ pub enum ExpressionEnum {
 
     RangeExpression(Box<ExpressionEnum>, Box<ExpressionEnum>),
 
-    // invocation of sum, min, max (or user function) in the right side, etc...
+    // invocation of sum, min, max (or user function) on the right side, etc...
     FunctionCall(Box<dyn EvaluatableExpression>),
 
     Filter(Box<ExpressionFilter>),
@@ -196,6 +217,8 @@ pub enum ExpressionEnum {
     /// name and left side
     /// @Todo: move to unparsed
     ObjectField(String, Box<ExpressionEnum>),
+    /// Typed placeholder with known type, value provided externally at eval time
+    TypePlaceholder(ComplexTypeRef)
 }
 
 impl StaticLink for ExpressionEnum {
@@ -231,6 +254,7 @@ impl StaticLink for ExpressionEnum {
                 // @Todo: it is unknown when this must be linked separately or it is callers responsibility
                 Ok(ObjectType(Rc::clone(object)))
             }
+            TypePlaceholder(tref) => ctx.borrow().resolve_type_ref(tref)
         };
 
         if let Err(error) = linking_result {
@@ -331,6 +355,7 @@ impl Display for EUnparsedToken {
                     array_to_code_sep(args.iter(), ", ")
                 )
             }
+            TypeReferenceLiteral(r) => write!(f, "<{}>", r),
             Literal(value) => write!(f, "{}", value),
             Annotation(definition) => write!(f, "{}", definition),
             Comma => write!(f, ","),
@@ -376,8 +401,30 @@ impl Display for ExpressionEnum {
             ContextVariable => Display::fmt("...", f),
             Filter(value) => Display::fmt(value, f),
             StaticObject(obj) => write!(f, "{}", obj.borrow()),
+            TypePlaceholder(t) => write!(f, "<{}>", t)
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum UserTypeBody {
+    TypeRef(ComplexTypeRef),
+    TypeObject(Rc<RefCell<ContextObject>>),
+}
+
+impl Display for UserTypeBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            UserTypeBody::TypeRef(r) => write!(f, "<{}>", r),
+            UserTypeBody::TypeObject(obj) => write!(f, "{}", obj.borrow()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UserTypeDefinition {
+    pub name: String,
+    pub body: UserTypeBody,
 }
 
 impl Display for EToken {

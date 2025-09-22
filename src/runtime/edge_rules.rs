@@ -109,8 +109,12 @@ impl Display for EvalError {
 // Engine
 //--------------------------------------------------------------------------------------------------
 
+// @Todo: this is just a code parser that wraps tokenize. Move parse_code to EdgeRules (EdgeRulesModel)
+// @Todo: parse_code is also used for testing in expr - Update expr to just imply use tokenize directly
+#[deprecated]
 struct EdgeRulesEngine {}
 
+#[deprecated]
 impl EdgeRulesEngine {
     /// Code parsing to a single expression.
     /// Returns either a single expression or a single definition.
@@ -206,6 +210,10 @@ impl Default for EdgeRules {
     }
 }
 
+/// Reusable model holder that can be later converted to runtime to be executed.
+/// Model is reused across multiple executions.
+///
+/// @Todo: rename to EdgeRulesModel
 impl EdgeRules {
     pub fn new() -> EdgeRules {
         EdgeRules {
@@ -213,6 +221,8 @@ impl EdgeRules {
         }
     }
 
+    /// Loads a single expression or definition into the current AST root.
+    /// This method can be called multiple times to build up the AST root.
     pub fn load_source(&mut self, code: &str) -> Result<(), ParseErrors> {
         let parsed = EdgeRulesEngine::parse_code(code)?;
 
@@ -239,14 +249,18 @@ impl EdgeRules {
         Ok(())
     }
 
+    /// Builds the runtime from the currently loaded AST root.
+    /// @Todo: do I need to use std::mem::take(&mut self.ast_root) to build a non-consuming runtime snapshot to preserve current builder state?
+    /// Would be perfect if yes, because link_parts is an expensive operation. Maybe I can store already linked model?
     pub fn to_runtime(self) -> Result<EdgeRulesRuntime, LinkingError> {
         let static_context = self.ast_root.build();
-
         linker::link_parts(Rc::clone(&static_context))?;
-
         Ok(EdgeRulesRuntime::new(static_context))
     }
 
+    /// @Todo: this method must be removed: it is insufficient, because it returns only string and no reason to ask for code as an input
+    /// @Todo: use eval_all from EdgeRulesRuntime
+    #[deprecated]
     pub fn evaluate_all(mut self, code: &str) -> String {
         match self.load_source(code) {
             Ok(_service) => match self.to_runtime() {
@@ -262,6 +276,11 @@ impl EdgeRules {
 
     /// Evaluates a field/path using the currently loaded source.
     /// Usage: create EdgeRules, load_source(...), then evaluate_field("a.b.c").
+    ///
+    /// @Todo: this method is absolutely not necessary, because to_runtime can be used to create runtime and then evaluate any field.
+    /// @Todo: review all usages of evaluate_field, because this method will be called from EdgeRulesRuntime
+    ///
+    #[deprecated]
     pub fn evaluate_field(&mut self, field: &str) -> String {
         // Build a non-consuming runtime snapshot to preserve current builder state
         let current_builder = std::mem::take(&mut self.ast_root);
@@ -293,7 +312,9 @@ impl EdgeRules {
     // loaded code context.
     //
     // @Todo: optimize to avoid building and linking the static context on every call.
+    // @Todo: Move evaluate_expression to EdgeRulesRuntime and pass the expression to evaluate.
     //
+    #[deprecated]
     pub fn evaluate_expression(&mut self, code: &str) -> Result<ValueEnum, EvalError> {
         // 1) Detach current builder and build a static snapshot of the loaded code
         let current_builder = std::mem::take(&mut self.ast_root);
@@ -398,6 +419,7 @@ impl EdgeRulesRuntime {
 // Utilities
 //--------------------------------------------------------------------------------------------------
 
+// @Todo: expr is just for testing purposes only - move it under test module!
 pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
     match EdgeRulesEngine::parse_code(code)? {
         ParsedItem::Expression(expression) => Ok(expression),

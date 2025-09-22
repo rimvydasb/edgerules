@@ -145,3 +145,18 @@ fn type_objects_amd_functions() {
         "Type<a: number, b: number, c: string>",
     );
 }
+
+#[test]
+fn types_story_placeholders_and_aliases_link() {
+    // Simple typed placeholders in the model (not within type definitions)
+    assert_type_fields_unordered(
+        &[
+            "identification: <number>",
+            "relationsList: <number[]>",
+        ],
+        &[
+            "identification: number",
+            "relationsList: list of number",
+        ],
+    );
+}
