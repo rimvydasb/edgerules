@@ -16,7 +16,9 @@ use crate::typesystem::types::ValueType::{
 };
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{DateTimeValue, DateValue, DurationValue, NumberValue, StringValue, TimeValue};
+use crate::typesystem::values::ValueEnum::{
+    DateTimeValue, DateValue, DurationValue, NumberValue, StringValue, TimeValue,
+};
 use crate::typesystem::values::{DurationKind, DurationValue as ErDurationValue, ValueOrSv};
 use std::cell::RefCell;
 use std::fmt;
@@ -290,9 +292,7 @@ impl EvaluatableExpression for MathOperator {
                 Ok(NumberValue((self.function)(_left.clone(), _right.clone())?))
             }
             // string + string -> concatenate raw contents (no quotes added)
-            (StringValue(ls), StringValue(rs))
-                if matches!(self.data.operator, Addition) =>
-            {
+            (StringValue(ls), StringValue(rs)) if matches!(self.data.operator, Addition) => {
                 let mut out = String::new();
                 match ls {
                     TStringEnum::String(s) => out.push_str(s),

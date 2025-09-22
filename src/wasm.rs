@@ -76,7 +76,11 @@ pub(crate) fn regex_replace_js(
 }
 
 // Calls into JS RegExp split; returns vector of parts.
-pub(crate) fn regex_split_js(s: &str, pattern: &str, flags: Option<&str>) -> Result<Vec<String>, String> {
+pub(crate) fn regex_split_js(
+    s: &str,
+    pattern: &str,
+    flags: Option<&str>,
+) -> Result<Vec<String>, String> {
     let f = flags.unwrap_or("g");
     let out = __er_regex_split(s, pattern, f);
     if let Some(msg) = out.strip_prefix("__er_err__:") {
@@ -143,15 +147,27 @@ pub fn init_panic_hook() {
 
 #[wasm_bindgen]
 pub fn evaluate_all(code: &str) -> String {
-    let service = EdgeRules::new();
-    service.evaluate_all(code)
+    let mut service = EdgeRules::new();
+    match service.load_source(code) {
+        Ok(()) => match service.to_runtime() {
+            Ok(runtime) => match runtime.eval_all() {
+                Ok(()) => runtime.context.borrow().to_code(),
+                Err(err) => err.to_string(),
+            },
+            Err(err) => err.to_string(),
+        },
+        Err(err) => err.to_string(),
+    }
 }
 
 #[wasm_bindgen]
 pub fn evaluate_expression(code: &str) -> String {
     let mut service = EdgeRules::new();
-    match service.evaluate_expression(code) {
-        Ok(v) => v.to_string(),
+    match service.to_runtime_snapshot() {
+        Ok(runtime) => match runtime.evaluate_expression_str(code) {
+            Ok(v) => v.to_string(),
+            Err(e) => e.to_string(),
+        },
         Err(e) => e.to_string(),
     }
 }
@@ -160,7 +176,13 @@ pub fn evaluate_expression(code: &str) -> String {
 pub fn evaluate_field(code: &str, field: &str) -> String {
     let mut service = EdgeRules::new();
     match service.load_source(code) {
-        Ok(()) => service.evaluate_field(field),
-        Err(e) => e.to_string(),
+        Ok(()) => match service.to_runtime() {
+            Ok(runtime) => match runtime.evaluate_field(field) {
+                Ok(value) => value.to_string(),
+                Err(err) => err.to_string(),
+            },
+            Err(err) => err.to_string(),
+        },
+        Err(err) => err.to_string(),
     }
 }

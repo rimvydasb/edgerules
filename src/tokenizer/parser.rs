@@ -17,8 +17,8 @@ use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
 use log::trace;
 
-use crate::typesystem::values::ValueEnum::NumberValue;
 use crate::typesystem::types::ValueType;
+use crate::typesystem::values::ValueEnum::NumberValue;
 
 /// @TODO brackets counting and error returning
 pub fn tokenize(input: &String) -> VecDeque<EToken> {
@@ -299,7 +299,8 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                                 after_colon = false;
                             }
                             _ => {
-                                ast_builder.push_element(VariableLink::new_unlinked(literal).into());
+                                ast_builder
+                                    .push_element(VariableLink::new_unlinked(literal).into());
                                 after_colon = false;
                             }
                         }
@@ -456,16 +457,13 @@ fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
     let mut tref = parse_complex_type_from_name(ident.trim());
     loop {
         source.skip_whitespace();
-        match source.peek().cloned() {
-            Some('[') => {
+        if let Some('[') = source.peek().cloned() {
+            source.next();
+            if let Some(']') = source.peek().cloned() {
                 source.next();
-                if let Some(']') = source.peek().cloned() {
-                    source.next();
-                    tref = ComplexTypeRef::List(Box::new(tref));
-                    continue;
-                }
+                tref = ComplexTypeRef::List(Box::new(tref));
+                continue;
             }
-            _ => {}
         }
         break;
     }

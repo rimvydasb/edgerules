@@ -1,7 +1,7 @@
 use crate::ast::token::EToken;
+use crate::ast::token::EToken::Expression;
 use crate::ast::token::EToken::Unparsed;
 use crate::ast::token::EUnparsedToken::Literal;
-use crate::ast::token::EToken::Expression;
 use crate::ast::token::ExpressionEnum::{Value, Variable};
 use crate::tokenizer::utils::TokenChain;
 use crate::typesystem::errors::ParseErrorEnum;
@@ -281,12 +281,9 @@ pub mod factory {
                 })))
             }
             // Typed placeholder: field : <Type>
-            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) => {
-                Ok(Expression(ObjectField(
-                    link.get_name(),
-                    Box::new(TypePlaceholder(tref)),
-                )))
-            }
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) => Ok(Expression(
+                ObjectField(link.get_name(), Box::new(TypePlaceholder(tref))),
+            )),
             // Type alias with object body: type Alias : { ... }
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
                 let _ = left.pop_left_as_expected("type");
@@ -303,7 +300,8 @@ pub mod factory {
                         let expr = &entry.borrow().expression;
                         match expr {
                             ExpressionEnum::StaticObject(_) => { /* ok: nested type object */ }
-                            ExpressionEnum::TypePlaceholder(_) => { /* ok: typed field in type body */ }
+                            ExpressionEnum::TypePlaceholder(_) => { /* ok: typed field in type body */
+                            }
                             _ => {
                                 return Err(UnknownError(format!(
                                     "Type definition contains non-type field '{}'",

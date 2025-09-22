@@ -1,6 +1,6 @@
 mod utilities;
 
-use edge_rules::runtime::edge_rules::EdgeRules;
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
 pub use utilities::*;
 
 // Additional tests for user-defined types: limitations and potential problems
@@ -14,8 +14,10 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
         "{{\n{}\n}}",
         ["type Address: { street: <string>; house: { number: <number> } }"].join("\n")
     );
-    let mut service = edge_rules::runtime::edge_rules::EdgeRules::new();
-    service.load_source(&code1).expect("parse type with placeholders");
+    let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
+    service
+        .load_source(&code1)
+        .expect("parse type with placeholders");
 
     // 2) Using a function in type body should fail
     let code2 = format!(
@@ -37,22 +39,19 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
     );
 
     // 3) Only nested type objects are allowed
-    let code = vec![
-        "type Person: {}",
-    ];
+    let code = ["type Person: {}"];
     // Should parse and link with no errors
-    let mut service = edge_rules::runtime::edge_rules::EdgeRules::new();
-    service.load_source(&format!("{{\n{}\n}}", code.join("\n"))).unwrap();
+    let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
+    service
+        .load_source(&format!("{{\n{}\n}}", code.join("\n")))
+        .unwrap();
     let _ = service.to_runtime().expect("link");
 }
 
 #[test]
 fn typed_placeholders_are_allowed_in_model_but_evaluate_to_missing() {
     // Placeholders in model (not inside type definitions) are accepted and eval to Missing
-    let lines = vec![
-        "id: <number>",
-        "name: <string>",
-    ];
+    let lines = ["id: <number>", "name: <string>"];
     // Evaluated values are Missing (rendered in string form per to_string rules)
     let model = format!("{{\n{}\n}}", lines.join("\n"));
     let printed = eval_all(&model);
@@ -63,7 +62,7 @@ fn typed_placeholders_are_allowed_in_model_but_evaluate_to_missing() {
 #[test]
 #[ignore]
 fn loan_offer_decision_service_end_to_end() {
-    let lines = vec![
+    let lines = [
         "type Customer: {name: <string>, birthdate: <date>, income: <number>}",
         "type Applicant: {customer: <Customer>, requestedAmount: <number>, termInMonths: <number>}",
         "type LoanOffer: {eligible: <boolean>, amount: <number>, termInMonths: <number>, monthlyPayment: <number>}",
@@ -111,7 +110,7 @@ fn loan_offer_decision_service_end_to_end() {
 #[test]
 fn unknown_alias_in_placeholder_is_link_error() {
     link_error_contains(
-        &format!("{{\n{}\n}}", ["x: <NotDefined>"] .join("\n")),
+        &format!("{{\n{}\n}}", ["x: <NotDefined>"].join("\n")),
         &["unknown type", "notdefined"],
     );
 }
@@ -120,14 +119,16 @@ fn unknown_alias_in_placeholder_is_link_error() {
 #[ignore]
 fn cast_primitive_to_number_changes_do_not_change_type() {
     // @Todo: fix the behaviour to throw and exception "casting does not convert types. Use appropriate functions to convert types"
-    let lines = vec![
-        "x: '5' as number",
-        "y: x + 2",
-    ];
+    let lines = ["x: '5' as number", "y: x + 2"];
     let code = format!("{{\n{}\n}}", lines.join("\n"));
-    let mut service = EdgeRules::new();
-    service.load_source(&*code).unwrap();
-    assert_eq!(service.evaluate_field("y"),"7");
+    let mut service = EdgeRulesModel::new();
+    service.load_source(code.as_str()).unwrap();
+    let runtime_snapshot = service.to_runtime_snapshot().expect("runtime snapshot");
+    let value = runtime_snapshot
+        .evaluate_field("y")
+        .expect("evaluate field")
+        .to_string();
+    assert_eq!(value, "7");
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
     assert!(ty.contains("x: number"), "got `{}`", ty);
@@ -135,12 +136,14 @@ fn cast_primitive_to_number_changes_do_not_change_type() {
 
 #[test]
 fn cast_object_to_alias_shape_links_type() {
-    let code = vec![
+    let code = [
         "type Point: { x: <number>; y: <number> }",
         "p: { x: 1 } as Point",
     ];
-    let mut service = edge_rules::runtime::edge_rules::EdgeRules::new();
-    service.load_source(&format!("{{\n{}\n}}", code.join("\n"))).unwrap();
+    let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
+    service
+        .load_source(&format!("{{\n{}\n}}", code.join("\n")))
+        .unwrap();
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
     assert!(ty.contains("p: Type<x: number, y: number>"), "got `{}`", ty);
@@ -148,12 +151,11 @@ fn cast_object_to_alias_shape_links_type() {
 
 #[test]
 fn cast_list_to_alias_of_number_list() {
-    let code = vec![
-        "type NumList: <number[]>",
-        "vals: [1,2,3] as NumList",
-    ];
-    let mut service = edge_rules::runtime::edge_rules::EdgeRules::new();
-    service.load_source(&format!("{{\n{}\n}}", code.join("\n"))).unwrap();
+    let code = ["type NumList: <number[]>", "vals: [1,2,3] as NumList"];
+    let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
+    service
+        .load_source(&format!("{{\n{}\n}}", code.join("\n")))
+        .unwrap();
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
     assert!(ty.contains("vals: list of number"), "got `{}`", ty);
@@ -161,15 +163,21 @@ fn cast_list_to_alias_of_number_list() {
 
 #[test]
 fn cast_to_nested_alias() {
-    let code = vec![
+    let code = [
         "type Customer: {name: <string>; birthdate: <date>; income: <number>}",
         "c: {name: 'A'} as Customer",
     ];
-    let mut service = edge_rules::runtime::edge_rules::EdgeRules::new();
-    service.load_source(&format!("{{\n{}\n}}", code.join("\n"))).unwrap();
+    let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
+    service
+        .load_source(&format!("{{\n{}\n}}", code.join("\n")))
+        .unwrap();
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
-    assert!(ty.contains("c: Type<name: string, birthdate: date, income: number>"), "got `{}`", ty);
+    assert!(
+        ty.contains("c: Type<name: string, birthdate: date, income: number>"),
+        "got `{}`",
+        ty
+    );
 }
 
 // cast operator is parsed and linked; deeper shaping/validation to be covered separately

@@ -1,10 +1,10 @@
 mod utilities;
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
 pub use utilities::*;
-use edge_rules::runtime::edge_rules::EdgeRules;
 
 fn assert_type_string(lines: &[&str], expected: &str) {
     let code = format!("{{\n{}\n}}", lines.join("\n"));
-    let mut service = EdgeRules::new();
+    let mut service = EdgeRulesModel::new();
     let _ = service.load_source(&code);
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
@@ -13,13 +13,17 @@ fn assert_type_string(lines: &[&str], expected: &str) {
 
 fn assert_type_fields_unordered(lines: &[&str], expected_fields: &[&str]) {
     let code = format!("{{\n{}\n}}", lines.join("\n"));
-    let mut service = EdgeRules::new();
+    let mut service = EdgeRulesModel::new();
     let _ = service.load_source(&code);
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
     assert!(ty.starts_with("Type<") && ty.ends_with('>'));
     let inner = &ty[5..ty.len() - 1];
-    let mut actual: Vec<&str> = if inner.is_empty() { vec![] } else { inner.split(", ").collect() };
+    let mut actual: Vec<&str> = if inner.is_empty() {
+        vec![]
+    } else {
+        inner.split(", ").collect()
+    };
     let mut expected: Vec<&str> = expected_fields.to_vec();
     actual.sort();
     expected.sort();
@@ -43,17 +47,14 @@ fn to_string_for_various_values_and_lists() {
 #[test]
 fn date_time_and_duration_roundtrip_to_string() {
     // date/time/datetime/duration constructors and their stringification
-    assert_value!("toString(date('2024-01-01'))", "'2024-01-01'"
-    );
+    assert_value!("toString(date('2024-01-01'))", "'2024-01-01'");
     assert_value!("toString(time('12:00:00'))", "'12:00:00.0'");
     assert_value!(
         "toString(datetime('2024-06-05T07:30:00'))",
         "'2024-06-05 7:30:00.0'"
     );
-    assert_value!("toString(duration('P1Y2M'))", "'P1Y2M'"
-    );
-    assert_value!("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'"
-    );
+    assert_value!("toString(duration('P1Y2M'))", "'P1Y2M'");
+    assert_value!("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'");
 }
 
 #[test]
@@ -77,11 +78,7 @@ fn type_string_simple_root() {
 #[test]
 fn type_string_nested_object() {
     assert_type_string(
-        &[
-            "a : 1",
-            "b : 2",
-            "c : { x : 'Hello'; y : a + b }",
-        ],
+        &["a : 1", "b : 2", "c : { x : 'Hello'; y : a + b }"],
         "Type<a: number, b: number, c: Type<x: string, y: number>>",
     );
 }
@@ -93,7 +90,7 @@ fn type_string_deeper_nesting() {
             "a : time('12:00:00')",
             "b : date('2024-01-01')",
             "c : datetime('2024-06-05T07:30:00')",
-            "d : { inner : { z : time('08:15:00') } }"
+            "d : { inner : { z : time('08:15:00') } }",
         ],
         "Type<a: time, b: date, c: datetime, d: Type<inner: Type<z: time>>>",
     );
@@ -125,11 +122,7 @@ fn type_string_ranges() {
 #[test]
 fn type_string_lists_and_ranges_combined() {
     assert_type_string(
-        &[
-            "a : [1,2,3]",
-            "b : 10..20",
-            "c : [[10,20],[30]]",
-        ],
+        &["a : [1,2,3]", "b : 10..20", "c : [[10,20],[30]]"],
         "Type<a: list of number, b: range, c: list of list of number>",
     );
 }
@@ -137,11 +130,7 @@ fn type_string_lists_and_ranges_combined() {
 #[test]
 fn type_objects_amd_functions() {
     assert_type_string(
-        &[
-            "a : sum([1,2,3])",
-            "b : a",
-            "c : toString(a)",
-        ],
+        &["a : sum([1,2,3])", "b : a", "c : toString(a)"],
         "Type<a: number, b: number, c: string>",
     );
 }
@@ -150,13 +139,7 @@ fn type_objects_amd_functions() {
 fn types_story_placeholders_and_aliases_link() {
     // Simple typed placeholders in the model (not within type definitions)
     assert_type_fields_unordered(
-        &[
-            "identification: <number>",
-            "relationsList: <number[]>",
-        ],
-        &[
-            "identification: number",
-            "relationsList: list of number",
-        ],
+        &["identification: <number>", "relationsList: <number[]>"],
+        &["identification: number", "relationsList: list of number"],
     );
 }

@@ -73,36 +73,31 @@ EdgeRules is ready for four options based on your requirements:
 
 EdgeRules exposes a small, stateful API for loading source and evaluating expressions/fields. The typical flow is:
 
-- Create `EdgeRules`
-- Incrementally `load_source("...")` (can be called multiple times)
-- Evaluate using `evaluate_field("path")` or `evaluate_expression("expr")`
-
-All evaluations use the code loaded into the same `EdgeRules` instance.
-
 ```rust
 use edge_rules::runtime::edge_rules::EdgeRules;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a service instance (stateful)
-    let mut service = EdgeRules::new();
+    // Create a model builder
+    let mut model = EdgeRules::new();
 
     // Load some code (can be called multiple times to extend/override)
-    service.load_source("{ value: 3 }")?;
+    model.load_source("{ value: 3 }")?;
 
-    // Evaluate a pure expression using the loaded context
-    // e.g., "2 + value" where value comes from the loaded source above
-    let val = service.evaluate_expression("2 + value")?;
+    // Evaluate a pure expression using the loaded context without consuming the builder
+    let runtime = model.to_runtime_snapshot()?;
+    let val = runtime.evaluate_expression_str("2 + value")?;
     assert_eq!(val.to_string(), "5");
 
-    // Load more source and reuse the same instance
-    service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
+    // Load more source and reuse the same builder
+    model.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
 
-    // Evaluate a field/path from the loaded model
-    let start = service.evaluate_field("calendar.config.start");
-    assert_eq!(start, "7");
+    // Build a fresh runtime snapshot to evaluate fields
+    let runtime = model.to_runtime_snapshot()?;
+    let start = runtime.evaluate_field("calendar.config.start")?;
+    assert_eq!(start.to_string(), "7");
 
-    let end = service.evaluate_field("calendar.config.end");
-    assert_eq!(end, "12");
+    let end = runtime.evaluate_field("calendar.config.end")?;
+    assert_eq!(end.to_string(), "12");
 
     Ok(())
 }

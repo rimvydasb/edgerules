@@ -392,7 +392,11 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
 }
 
 // WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
-#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "regex_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
         match crate::wasm::regex_split_js(&h, &pat, Some("g")) {
@@ -428,7 +432,11 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 // WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
-#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "base64_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match crate::wasm::to_base64_js(&s) {
@@ -460,7 +468,11 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 // WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
-#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "base64_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match crate::wasm::from_base64_js(&s) {
@@ -510,7 +522,11 @@ pub fn eval_regex_replace(
 }
 
 // WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
-#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "regex_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_regex_replace(
     args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,

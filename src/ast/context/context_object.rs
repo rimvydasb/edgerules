@@ -2,8 +2,8 @@ use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
-use crate::link::linker;
 use crate::ast::Link;
+use crate::link::linker;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::typesystem::errors::LinkingError;
 use crate::typesystem::types::ValueType;
@@ -173,7 +173,9 @@ impl ContextObject {
 
                 LinkingError::other_error(format!("Unknown type '{}'", name)).into()
             }
-            ComplexTypeRef::List(inner) => Ok(ValueType::ListType(Box::new(self.resolve_type_ref(inner)?))),
+            ComplexTypeRef::List(inner) => {
+                Ok(ValueType::ListType(Box::new(self.resolve_type_ref(inner)?)))
+            }
         }
     }
 

@@ -78,7 +78,10 @@ fn datetime_comparisons_and_arithmetic() {
     assert_value!("time(\"13:10:30\") - time(\"12:00:00\")", "PT1H10M30S");
 
     // datetime + PT23H
-    assert_value!("datetime(\"2016-12-09T15:37:00\") + duration(\"PT23H\")", "2016-12-10 14:37:00.0");
+    assert_value!(
+        "datetime(\"2016-12-09T15:37:00\") + duration(\"PT23H\")",
+        "2016-12-10 14:37:00.0"
+    );
 }
 
 #[test]
