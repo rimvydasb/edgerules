@@ -88,8 +88,7 @@ fn loan_offer_decision_service_end_to_end() {
         "    termInMonths: 24",
         "}",
 
-        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1).result as LoanOffer",
-        "loanOffer2: loanOffer1.termInMonths * 100000",
+        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1).result as LoanOffer"
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));

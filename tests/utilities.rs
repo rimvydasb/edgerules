@@ -9,11 +9,11 @@ macro_rules! assert_value {
 
 #[macro_export]
 macro_rules! assert_string_contains {
-    ($string:expr, $needle:expr) => {
+    ($needle:expr, $haystack:expr) => {
         assert!(
-            $string.contains($needle),
+            $haystack.contains($needle),
             "expected `{}` to contain `{}`",
-            $string,
+            $haystack,
             $needle
         );
     };

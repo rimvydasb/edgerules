@@ -214,3 +214,25 @@ fn user_function_body_is_fully_evaluated() {
         ],
     );
 }
+
+#[test]
+fn user_function_field_with_math_operator() {
+    let lines = vec![
+        "func testFunction(a,b,c): {",
+        "   sumAll: sum([a,b,c])",
+        "   lvl1: { result: sumAll * 2 }",
+        "   lvl2: { result: lvl1.result + 1 }",
+        "}",
+        "output1: testFunction(1,2,3).lvl2.result + 1",
+    ];
+
+    assert_eq!(eval_lines_field(&lines, "output1"), "14");
+    assert_eval_all(
+        &lines,
+        &[
+            "{",
+            "   output1 : 14",
+            "}",
+        ],
+    );
+}

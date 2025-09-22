@@ -50,7 +50,7 @@ pub enum EPriorities {
     CastPriority = 16,
     // Todo: is it really OK?
     FilterArray = 17,
-    FieldSelectionPriority = 19,
+    FieldSelectionPriority = 26,
     Plus = 21,
     Minus = 22,
     DivideMultiply = 23,
