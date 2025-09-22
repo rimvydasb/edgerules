@@ -50,6 +50,7 @@ impl EvaluatableExpression for UserFunctionCall {
         match &self.definition {
             Ok(definition) => {
                 let eval_context = definition.create_eval_context(values)?;
+                ExecutionContext::eval_all_fields(Rc::clone(&eval_context))?;
                 Ok(Reference(eval_context))
             }
             Err(error) => {

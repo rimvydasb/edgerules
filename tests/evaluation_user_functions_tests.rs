@@ -189,19 +189,50 @@ fn nested_function_body() {
         "output1: testFunction(1,2,3).lvl2.result",
         "structOutput: testFunction(1,2,3).lvl1",
         "structOutputValue: structOutput.result",
+        "all: testFunction(1,2,3)",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
     let evaluated = eval_all(&model);
     assert!(evaluated.contains("output1 : 13"), "problem: {}", evaluated);
+    let line_refs: Vec<&str> = lines.iter().map(|s| s.as_ref()).collect();
+    let struct_output_display = eval_lines_field(&line_refs, "structOutput");
     assert!(
-        evaluated.contains("structOutput : { result: 10 } "),
+        struct_output_display.contains("result : 12"),
+        "problem: {}",
+        struct_output_display
+    );
+    assert!(
+        evaluated.contains("structOutputValue : 12"),
         "problem: {}",
         evaluated
     );
+}
+
+#[test]
+fn user_function_result_is_fully_evaluated() {
+    let lines = [
+        "func testFunction(a,b,c): {",
+        "   sumAll: sum([a,b,c])",
+        "   lvl1: { result: sumAll * 2 }",
+        "   lvl2: { result: lvl1.result + 1 }",
+        "}",
+        "all: testFunction(1,2,3)",
+        "output1: testFunction(1,2,3).lvl2.result",
+        "structOutput: testFunction(1,2,3).lvl1",
+        "structOutputValue: structOutput.result",
+    ];
+
+    let all_value = eval_lines_field(&lines, "all");
+    assert!(all_value.contains("sumAll : 6"), "problem: {}", all_value);
     assert!(
-        evaluated.contains("structOutputValue : 10 "),
+        all_value.contains("lvl1 : {result : 12}"),
         "problem: {}",
-        evaluated
+        all_value
+    );
+    assert!(
+        all_value.contains("lvl2 : {result : 13}"),
+        "problem: {}",
+        all_value
     );
 }

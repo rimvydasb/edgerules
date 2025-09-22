@@ -259,7 +259,13 @@ impl EvaluatableExpression for FieldSelection {
         trace!("Selecting from {} ({})", self.source, source_value);
 
         match source_value {
-            Reference(reference) => self.method.eval(reference),
+            Reference(reference) => {
+                let value = self.method.eval(Rc::clone(&reference))?;
+                if let Reference(child_ctx) = &value {
+                    ExecutionContext::eval_all_fields(Rc::clone(child_ctx))?;
+                }
+                Ok(value)
+            }
             DateValue(ValueOrSv::Value(d)) => {
                 let name = self.method.get_name();
                 match name.as_str() {

@@ -308,6 +308,36 @@ impl ExecutionContext {
     pub fn stack_insert(&self, field_name: String, value: Result<ValueEnum, RuntimeError>) {
         self.stack.borrow_mut().insert(field_name, value);
     }
+
+    pub fn eval_all_fields(ctx: Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
+        if ctx.borrow().promise_eval_all {
+            return Ok(());
+        }
+
+        ctx.borrow_mut().promise_eval_all = true;
+
+        let field_names = ctx.borrow().object.borrow().get_field_names();
+
+        for name in field_names {
+            let name_str = name.as_str();
+
+            match ctx.borrow().get(name_str)? {
+                EObjectContent::ExpressionRef(expression) => {
+                    ctx.borrow().node().lock_field(name_str)?;
+                    let value = expression.borrow().expression.eval(Rc::clone(&ctx));
+                    ctx.borrow().stack_insert(name.to_string(), value);
+                    ctx.borrow().node().unlock_field(name_str);
+                }
+                EObjectContent::ObjectRef(reference) => {
+                    NodeData::attach_child(&ctx, &reference);
+                    ExecutionContext::eval_all_fields(reference)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

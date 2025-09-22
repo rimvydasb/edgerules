@@ -1,13 +1,11 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
-use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::expression::StaticLink;
 use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
 use crate::ast::token::{DefinitionEnum, EToken, ExpressionEnum};
 use crate::ast::utils::array_to_code_sep;
 use crate::link::linker;
-use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::parser::tokenize;
 use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
@@ -299,43 +297,7 @@ impl EdgeRulesRuntime {
      * Evaluates all expressions in the context tree, starting from the root context
      */
     pub fn eval_all(&self) -> Result<(), RuntimeError> {
-        Self::eval_all_context(Rc::clone(&self.context))
-    }
-
-    fn eval_all_context(ctx: Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
-        if ctx.borrow().promise_eval_all {
-            return Ok(());
-        }
-
-        ctx.borrow_mut().promise_eval_all = true;
-
-        let field_names = ctx.borrow().object.borrow().get_field_names();
-
-        trace!(
-            "eval_all_context: {}(..) for {:?}",
-            ctx.borrow().node().node_type,
-            field_names
-        );
-
-        for name in field_names {
-            let name_str = name.as_str();
-
-            match ctx.borrow().get(name_str)? {
-                EObjectContent::ExpressionRef(expression) => {
-                    ctx.borrow().node().lock_field(name_str)?;
-                    let value = expression.borrow().expression.eval(Rc::clone(&ctx));
-                    ctx.borrow().stack_insert(name_str.to_string(), value);
-                    ctx.borrow().node().unlock_field(name_str);
-                }
-                EObjectContent::ObjectRef(reference) => {
-                    NodeData::attach_child(&ctx, &reference);
-                    Self::eval_all_context(Rc::clone(&reference))?;
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
+        ExecutionContext::eval_all_fields(Rc::clone(&self.context))
     }
 }
 
