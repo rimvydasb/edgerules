@@ -44,6 +44,14 @@ pub fn eval_lines_field(lines: &[&str], field: &str) -> String {
     eval_field(&code, field)
 }
 
+pub fn assert_eval_all(lines: &[&str], expected_lines: &[&str]) {
+    let model = format!("{{\n{}\n}}", lines.join("\n"));
+    let evaluated = eval_all(&model);
+    let mut expected = expected_lines.join("\n");
+    expected.push('\n');
+    assert_eq!(evaluated, expected);
+}
+
 /// For tests that must assert link errors (e.g., cyclic/self ref, missing field).
 pub fn link_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();

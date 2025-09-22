@@ -192,8 +192,25 @@ fn user_function_body_is_fully_evaluated() {
         "structOutputValue: structOutput.result",
     ];
 
-    let model = format!("{{\n{}\n}}", lines.join("\n"));
-    let evaluated = eval_all(&model);
-    let expected = "{\n   {\n      sumAll : 6\n      lvl1 : {\n         result : 12\n      }\n      lvl2 : {\n         result : 13\n      }\n   }\n   output1 : 13\n   lvl1 : {\n      result : 12\n   }\n   structOutputValue : 12\n}\n";
-    assert_eq!(evaluated, expected);
+    assert_eval_all(
+        &lines,
+        &[
+            "{",
+            "   {",
+            "      sumAll : 6",
+            "      lvl1 : {",
+            "         result : 12",
+            "      }",
+            "      lvl2 : {",
+            "         result : 13",
+            "      }",
+            "   }",
+            "   output1 : 13",
+            "   lvl1 : {",
+            "      result : 12",
+            "   }",
+            "   structOutputValue : 12",
+            "}",
+        ],
+    );
 }
