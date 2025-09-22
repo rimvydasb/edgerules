@@ -227,12 +227,74 @@ fn user_function_field_with_math_operator() {
     ];
 
     assert_eq!(eval_lines_field(&lines, "output1"), "14");
+    assert_eval_all(&lines, &["{", "   output1 : 14", "}"]);
+}
+
+#[test]
+fn user_function_has_types() {
+    let lines = vec![
+        "func testFunction(a: number,b: string,c: date): {",
+        "   sumAll: a + c.month",
+        "   label: toString(a) + b",
+        "}",
+        "all: testFunction(1,'x', date('2023-05-03'))",
+        "output1: testFunction(1,'x', date('2023-05-03')).sumAll",
+        "output2: testFunction(1,'x', date('2023-05-03')).label",
+    ];
+
     assert_eval_all(
         &lines,
         &[
             "{",
-            "   output1 : 14",
+            "   {",
+            "      sumAll : 6",
+            "      label : '1x'",
+            "   }",
+            "   output1 : 6",
+            "   output2 : '1x'",
             "}",
         ],
     );
+}
+
+#[test]
+fn user_function_argument_type_mismatch_errors() {
+    let model = format!(
+        "{{\n{}\n}}",
+        [
+            "func typed(a: number, b: string): { result: toString(a) + b }",
+            "value: typed('oops', 'fail')",
+        ]
+        .join("\n"),
+    );
+
+    link_error_contains(&model, &["Argument `a`", "number", "string"]);
+}
+
+#[test]
+fn user_function_accepts_list_parameter_type() {
+    let lines = vec![
+        "func total(values: <number[]>): {",
+        "   size: count(values)",
+        "   sum: sum(values)",
+        "}",
+        "count: total([1,2,3]).size",
+        "sum: total([1,2,3]).sum",
+    ];
+
+    assert_eval_all(&lines, &["{", "   count : 3", "   sum : 6", "}"]);
+}
+
+#[test]
+fn user_function_list_argument_type_mismatch_errors() {
+    let model = format!(
+        "{{\n{}\n}}",
+        [
+            "func total(values: <number[]>): { sum: sum(values) }",
+            "bad: total(['a']).sum",
+        ]
+        .join("\n"),
+    );
+
+    link_error_contains(&model, &["Argument `values`", "list of number", "string"]);
 }

@@ -3,6 +3,7 @@ use crate::ast::context::context_object_type::EObjectContent::{
     ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
 };
 use crate::ast::expression::StaticLink;
+use crate::ast::token::ComplexTypeRef;
 use crate::ast::Link;
 use crate::link::linker::link_parts;
 use crate::link::node_data::Node;
@@ -16,21 +17,48 @@ use std::rc::Rc;
 #[derive(Debug, Clone, PartialEq)]
 pub struct FormalParameter {
     pub name: String,
+    pub type_ref: Option<ComplexTypeRef>,
     pub value_type: ValueType,
 }
 
 impl FormalParameter {
     pub(crate) fn new(name: String, value_type: ValueType) -> FormalParameter {
-        FormalParameter { name, value_type }
+        FormalParameter {
+            name,
+            type_ref: None,
+            value_type,
+        }
+    }
+
+    pub(crate) fn with_type_ref(name: String, type_ref: Option<ComplexTypeRef>) -> FormalParameter {
+        FormalParameter {
+            name,
+            type_ref,
+            value_type: ValueType::UndefinedType,
+        }
+    }
+
+    pub fn declared_type(&self) -> Option<&ComplexTypeRef> {
+        self.type_ref.as_ref()
+    }
+
+    pub fn with_runtime_type(&self, value_type: ValueType) -> FormalParameter {
+        FormalParameter {
+            name: self.name.clone(),
+            type_ref: self.type_ref.clone(),
+            value_type,
+        }
     }
 }
 
 impl Display for FormalParameter {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if self.value_type == ValueType::UndefinedType {
-            write!(f, "{}", self.name)
-        } else {
+        if self.value_type != ValueType::UndefinedType {
             write!(f, "{}: {}", self.name, self.value_type)
+        } else if let Some(type_ref) = &self.type_ref {
+            write!(f, "{}: {}", self.name, type_ref)
+        } else {
+            write!(f, "{}", self.name)
         }
     }
 }

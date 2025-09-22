@@ -19,7 +19,6 @@ macro_rules! assert_string_contains {
     };
 }
 
-
 pub fn eval_all(code: &str) -> String {
     let mut service = EdgeRulesModel::new();
     match service.load_source(code) {

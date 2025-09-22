@@ -67,9 +67,12 @@ impl From<&str> for FormalParameter {
         let name = split.next().unwrap();
         let arg_type = split.next().unwrap_or("unknown");
 
+        let parsed_type = ValueType::try_from(arg_type.trim()).ok();
+
         FormalParameter {
             name: name.trim().to_string(),
-            value_type: ValueType::try_from(arg_type.trim()).unwrap_or(ValueType::UndefinedType),
+            type_ref: parsed_type.clone().map(ComplexTypeRef::Primitive),
+            value_type: parsed_type.unwrap_or(ValueType::UndefinedType),
         }
     }
 }

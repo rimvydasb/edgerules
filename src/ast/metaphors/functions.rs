@@ -73,9 +73,10 @@ impl Metaphor for FunctionDefinition {
     }
 
     fn create_context(&self, parameters: Vec<FormalParameter>) -> Link<FunctionContext> {
-        parameters.iter().for_each(|arg| {
-            self.body.borrow_mut().parameters.push(arg.clone());
-        });
+        {
+            let mut body = self.body.borrow_mut();
+            body.parameters = parameters.clone();
+        }
 
         linker::link_parts(Rc::clone(&self.body))?;
 

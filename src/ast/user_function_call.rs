@@ -1,9 +1,9 @@
 use crate::ast::context::context_object::ContextObject;
-use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::FunctionContext;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::metaphors::metaphor::Metaphor;
-use crate::ast::token::ExpressionEnum;
+use crate::ast::token::{ComplexTypeRef, ExpressionEnum};
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
 use crate::link::linker;
@@ -83,16 +83,22 @@ impl StaticLink for UserFunctionCall {
             }
 
             // 3. Creating a mid context where all parameter values are set
-            let mut parameters_list = Vec::new();
             let ctx_name = ctx.borrow().node.node_type.to_code();
             let function_name = self.name.clone();
 
-            for (parameter, input_argument) in definition
-                .borrow()
-                .metaphor
-                .get_parameters()
-                .iter()
-                .zip(self.args.iter_mut())
+            let (declared_parameters, function_body_ctx) = {
+                let borrowed = definition.borrow();
+                let params = borrowed.metaphor.get_parameters().clone();
+                let body = match &borrowed.metaphor {
+                    BuiltinMetaphor::Function(func_def) => Some(Rc::clone(&func_def.body)),
+                    _ => None,
+                };
+                (params, body)
+            };
+
+            let mut parameters = Vec::new();
+
+            for (parameter, input_argument) in declared_parameters.iter().zip(self.args.iter_mut())
             {
                 let arg_type = if let ExpressionEnum::Variable(var) = input_argument {
                     if var.path.len() == 1 && var.path[0] == ctx_name {
@@ -107,12 +113,22 @@ impl StaticLink for UserFunctionCall {
                 } else {
                     input_argument.link(Rc::clone(&ctx))
                 };
-                parameters_list.push((parameter.name.clone(), arg_type));
-            }
+                let resolved_type = arg_type?;
 
-            let mut parameters = Vec::new();
-            for (name, linked_type) in parameters_list {
-                parameters.push(FormalParameter::new(name, linked_type?));
+                if let Some(tref) = parameter.declared_type() {
+                    let expected = resolve_declared_type(tref, function_body_ctx.as_ref())?;
+                    let validated = LinkingError::expect_single_type(
+                        &format!(
+                            "Argument `{}` of function `{}`",
+                            parameter.name, function_name
+                        ),
+                        resolved_type.clone(),
+                        &expected,
+                    )?;
+                    parameters.push(parameter.with_runtime_type(validated));
+                } else {
+                    parameters.push(parameter.with_runtime_type(resolved_type));
+                }
             }
 
             self.definition = Ok(definition.borrow().metaphor.create_context(parameters)?);
@@ -121,6 +137,26 @@ impl StaticLink for UserFunctionCall {
         match &self.definition {
             Ok(ok) => Ok(ok.get_type()),
             Err(err) => Err(err.clone()),
+        }
+    }
+}
+
+fn resolve_declared_type(
+    tref: &ComplexTypeRef,
+    ctx: Option<&Rc<RefCell<ContextObject>>>,
+) -> Link<ValueType> {
+    match tref {
+        ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
+        ComplexTypeRef::List(inner) => {
+            let inner_type = resolve_declared_type(inner, ctx)?;
+            Ok(ValueType::ListType(Box::new(inner_type)))
+        }
+        ComplexTypeRef::Alias(_) => {
+            if let Some(context) = ctx {
+                context.borrow().resolve_type_ref(tref)
+            } else {
+                LinkingError::other_error(format!("Unknown type `{}`", tref)).into()
+            }
         }
     }
 }

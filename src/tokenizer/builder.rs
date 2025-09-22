@@ -299,9 +299,8 @@ pub mod factory {
                     for (fname, entry) in obj_ref.expressions.iter() {
                         let expr = &entry.borrow().expression;
                         match expr {
-                            ExpressionEnum::StaticObject(_) => { /* ok: nested type object */ }
-                            ExpressionEnum::TypePlaceholder(_) => { /* ok: typed field in type body */
-                            }
+                            StaticObject(_) => { /* ok: nested type object */ }
+                            TypePlaceholder(_) => { /* ok: typed field in type body */ }
                             _ => {
                                 return Err(UnknownError(format!(
                                     "Type definition contains non-type field '{}'",
@@ -512,12 +511,16 @@ pub mod factory {
                         ));
                     }
                 }
-                _ => {
-                    // @Todo: implement type parsing
-                    arguments.push(FormalParameter::new(
-                        format!("{}", right_token),
-                        ValueType::UndefinedType,
-                    ));
+                ParseError(err) => return Err(err),
+                Expression(expression) => {
+                    let parameter = parse_function_parameter(expression)?;
+                    arguments.push(parameter);
+                }
+                other => {
+                    return Err(UnknownError(format!(
+                        "Unsupported token `{}` in function parameter list",
+                        other
+                    )));
                 }
             }
         }
@@ -527,6 +530,98 @@ pub mod factory {
             token.into_string_or_literal()?,
             arguments,
         )))
+    }
+
+    fn parse_function_parameter(
+        expression: ExpressionEnum,
+    ) -> Result<FormalParameter, ParseErrorEnum> {
+        match expression {
+            Variable(variable) => {
+                if variable.path.len() != 1 {
+                    return Err(UnknownError(format!(
+                        "Function parameter must be a simple identifier, got `{}`",
+                        variable
+                    )));
+                }
+
+                Ok(FormalParameter::with_type_ref(variable.get_name(), None))
+            }
+            ObjectField(name, boxed_expression) => {
+                let annotation = extract_type_annotation(*boxed_expression)?;
+                Ok(FormalParameter::with_type_ref(name, annotation))
+            }
+            _ => Err(UnknownError(format!(
+                "Unsupported expression `{}` in function parameter list",
+                expression
+            ))),
+        }
+    }
+
+    fn extract_type_annotation(
+        expression: ExpressionEnum,
+    ) -> Result<Option<ComplexTypeRef>, ParseErrorEnum> {
+        match expression {
+            TypePlaceholder(tref) => Ok(Some(tref)),
+            Variable(variable) => {
+                if variable.path.len() != 1 {
+                    return Err(UnknownError(format!(
+                        "Type annotation must be a simple identifier, got `{}`",
+                        variable
+                    )));
+                }
+
+                let type_name = variable.get_name();
+                Ok(Some(parse_type_identifier(&type_name)))
+            }
+            Value(_) => Err(UnknownError(
+                "Default values for function parameters are not supported".to_string(),
+            )),
+            other => Err(UnknownError(format!(
+                "Unsupported type annotation expression `{}`",
+                other
+            ))),
+        }
+    }
+
+    fn parse_type_identifier(name: &str) -> ComplexTypeRef {
+        let mut base = name.trim().to_string();
+        let mut layers = 0usize;
+
+        while base.ends_with("[]") {
+            base.truncate(base.len() - 2);
+            layers += 1;
+        }
+
+        let mut tref = match base {
+            ref primitive if primitive.eq_ignore_ascii_case("number") => {
+                ComplexTypeRef::Primitive(ValueType::NumberType)
+            }
+            ref primitive if primitive.eq_ignore_ascii_case("string") => {
+                ComplexTypeRef::Primitive(ValueType::StringType)
+            }
+            ref primitive if primitive.eq_ignore_ascii_case("boolean") => {
+                ComplexTypeRef::Primitive(ValueType::BooleanType)
+            }
+            ref primitive if primitive.eq_ignore_ascii_case("date") => {
+                ComplexTypeRef::Primitive(ValueType::DateType)
+            }
+            ref primitive if primitive.eq_ignore_ascii_case("time") => {
+                ComplexTypeRef::Primitive(ValueType::TimeType)
+            }
+            ref primitive if primitive.eq_ignore_ascii_case("datetime") => {
+                ComplexTypeRef::Primitive(ValueType::DateTimeType)
+            }
+            ref primitive if primitive.eq_ignore_ascii_case("duration") => {
+                ComplexTypeRef::Primitive(ValueType::DurationType)
+            }
+            alias => ComplexTypeRef::Alias(alias.to_string()),
+        };
+
+        for _ in 0..layers {
+            tref = ComplexTypeRef::List(Box::new(tref));
+        }
+
+        tref
     }
 
     pub fn build_sequence(
@@ -626,7 +721,7 @@ pub mod factory {
             (Expression(left_expression), Expression(right_expression)) => Ok(Expression(
                 RangeExpression(Box::new(left_expression), Box::new(right_expression)),
             )),
-            (_left_unknown, _right_unknown) => Err(ParseErrorEnum::UnknownParseError(format!(
+            (_left_unknown, _right_unknown) => Err(UnknownParseError(format!(
                 "Range not completed '{}'",
                 token
             ))),
