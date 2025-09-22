@@ -90,7 +90,6 @@ impl ContextObjectBuilder {
                     .insert(m.get_name(), MethodEntry::from(m).into());
             }
             DefinitionEnum::UserType(t) => {
-                trace!(">>> inserting type {:?}", t.name);
                 self.defined_types.insert(t.name, t.body);
             }
         }
@@ -122,6 +121,10 @@ impl ContextObjectBuilder {
         // Merge metaphors by name
         for (key, value) in another.borrow().metaphors.iter() {
             self.metaphors.insert(key.clone(), Rc::clone(value));
+        }
+
+        for (key, value) in another.borrow().defined_types.iter() {
+            self.defined_types.insert(key.clone(), value.clone());
         }
 
         // Update field_names and deduplicate them

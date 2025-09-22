@@ -202,7 +202,7 @@ pub enum ExpressionEnum {
 
     RangeExpression(Box<ExpressionEnum>, Box<ExpressionEnum>),
 
-    // invocation of sum, min, max (or user function) in the right side, etc...
+    // invocation of sum, min, max (or user function) on the right side, etc...
     FunctionCall(Box<dyn EvaluatableExpression>),
 
     Filter(Box<ExpressionFilter>),
@@ -218,9 +218,7 @@ pub enum ExpressionEnum {
     /// @Todo: move to unparsed
     ObjectField(String, Box<ExpressionEnum>),
     /// Typed placeholder with known type, value provided externally at eval time
-    TypePlaceholder(ComplexTypeRef),
-    /// Cast: (expr as Type)
-    Cast(Box<ExpressionEnum>, ComplexTypeRef),
+    TypePlaceholder(ComplexTypeRef)
 }
 
 impl StaticLink for ExpressionEnum {
@@ -256,8 +254,7 @@ impl StaticLink for ExpressionEnum {
                 // @Todo: it is unknown when this must be linked separately or it is callers responsibility
                 Ok(ObjectType(Rc::clone(object)))
             }
-            TypePlaceholder(tref) => ctx.borrow().resolve_type_ref(tref),
-            Cast(_expr, tref) => ctx.borrow().resolve_type_ref(tref),
+            TypePlaceholder(tref) => ctx.borrow().resolve_type_ref(tref)
         };
 
         if let Err(error) = linking_result {
@@ -404,8 +401,7 @@ impl Display for ExpressionEnum {
             ContextVariable => Display::fmt("...", f),
             Filter(value) => Display::fmt(value, f),
             StaticObject(obj) => write!(f, "{}", obj.borrow()),
-            TypePlaceholder(t) => write!(f, "<{}>", t),
-            Cast(expr, t) => write!(f, "({}) as {}", expr, t),
+            TypePlaceholder(t) => write!(f, "<{}>", t)
         }
     }
 }

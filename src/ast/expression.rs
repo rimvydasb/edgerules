@@ -5,7 +5,7 @@ use crate::ast::token::*;
 use crate::ast::variable::VariableLink;
 use crate::ast::Link;
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{ErrorStack, RuntimeError};
+use crate::typesystem::errors::{ErrorStack, LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
@@ -151,8 +151,58 @@ fn cast_value_to_type(
 }
 
 
+#[derive(Debug)]
+pub struct CastCall {
+    expression: ExpressionEnum,
+    target_ref: ComplexTypeRef,
+    target_type: Link<ValueType>,
+}
+
+impl CastCall {
+    pub fn new(expression: ExpressionEnum, target_ref: ComplexTypeRef) -> Self {
+        CastCall {
+            expression,
+            target_ref,
+            target_type: LinkingError::not_linked().into(),
+        }
+    }
+}
+
+impl StaticLink for CastCall {
+    fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
+        self.expression.link(Rc::clone(&ctx))?;
+        let resolved = ctx.borrow().resolve_type_ref(&self.target_ref)?;
+        self.target_type = Ok(resolved.clone());
+        Ok(resolved)
+    }
+}
+
+impl Display for CastCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({} as {})", self.expression, self.target_ref)
+    }
+}
+
+
 pub trait EvaluatableExpression: StaticLink {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError>;
+}
+
+impl EvaluatableExpression for CastCall {
+    fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
+        let target_type = match &self.target_type {
+            Ok(ty) => ty.clone(),
+            Err(link_err) => {
+                let err = link_err
+                    .clone()
+                    .with_context(|| format!("Evaluating cast `{}`", self));
+                return Err(RuntimeError::from(err));
+            }
+        };
+
+        let value = self.expression.eval(Rc::clone(&context))?;
+        cast_value_to_type(value, target_type, context)
+    }
 }
 
 impl<T> From<T> for ExpressionEnum
@@ -209,18 +259,6 @@ impl ExpressionEnum {
                 Ok(ValueEnum::StringValue(crate::typesystem::types::string::StringEnum::from(
                     crate::typesystem::types::SpecialValueEnum::Missing,
                 )))
-            }
-            Cast(inner, tref) => {
-                // Resolve target type against current static context
-                let target_type = context
-                    .borrow()
-                    .object
-                    .borrow()
-                    .resolve_type_ref(tref)
-                    .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
-
-                let src_val = inner.eval(Rc::clone(&context))?;
-                Ok(cast_value_to_type(src_val, target_type, Rc::clone(&context))?)
             }
         };
 

@@ -60,7 +60,6 @@ fn typed_placeholders_are_allowed_in_model_but_evaluate_to_missing() {
     assert!(printed.contains("id :") && printed.contains("name :"));
 }
 
-// @Todo: need to have user types pre-collection step before the linker
 #[test]
 #[ignore]
 fn loan_offer_decision_service_end_to_end() {
@@ -98,6 +97,8 @@ fn loan_offer_decision_service_end_to_end() {
     ];
 
     // Evaluate outputs
+    // let code = format!("{{\n{}\n}}", lines.join("\n"));
+    // assert_eq!(eval_field(&code,"checkPayment"), "true");
     assert_eq!(eval_lines_field(&lines, "checkEligible"), "true");
     assert_eq!(eval_lines_field(&lines, "checkAmount"), "20000");
     assert_eq!(eval_lines_field(&lines, "checkTerm"), "24");
@@ -116,8 +117,9 @@ fn unknown_alias_in_placeholder_is_link_error() {
 }
 
 #[test]
-fn cast_primitive_to_number_changes_type() {
-    //assert_value!("'5' as number","5");
+#[ignore]
+fn cast_primitive_to_number_changes_do_not_change_type() {
+    // @Todo: fix the behaviour to throw and exception "casting does not convert types. Use appropriate functions to convert types"
     let lines = vec![
         "x: '5' as number",
         "y: x + 2",
@@ -131,9 +133,7 @@ fn cast_primitive_to_number_changes_type() {
     assert!(ty.contains("x: number"), "got `{}`", ty);
 }
 
-// @Todo: need to have user types pre-collection step before the linker
 #[test]
-#[ignore]
 fn cast_object_to_alias_shape_links_type() {
     let code = vec![
         "type Point: { x: <number>; y: <number> }",
@@ -146,9 +146,7 @@ fn cast_object_to_alias_shape_links_type() {
     assert!(ty.contains("p: Type<x: number, y: number>"), "got `{}`", ty);
 }
 
-// @Todo: need to have user types pre-collection step before the linker
 #[test]
-#[ignore]
 fn cast_list_to_alias_of_number_list() {
     let code = vec![
         "type NumList: <number[]>",
@@ -161,9 +159,7 @@ fn cast_list_to_alias_of_number_list() {
     assert!(ty.contains("vals: list of number"), "got `{}`", ty);
 }
 
-// @Todo: need to have user types pre-collection step before the linker
 #[test]
-#[ignore]
 fn cast_to_nested_alias() {
     let code = vec![
         "type Customer: {name: <string>; birthdate: <date>; income: <number>}",

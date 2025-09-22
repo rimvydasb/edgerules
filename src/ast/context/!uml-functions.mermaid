@@ -1,0 +1,34 @@
+classDiagram
+    class FunctionContext {
+    %% created during link
+    }
+
+    class UserFunctionCall {
+        FunctionCallData data
+    %% On last defined class
+    %% va1 = userFunctionCall("a1")
+    }
+
+    class ContextObject
+    class ExecutionContext
+    class ForFunction
+
+    class FunctionDefinition {
+        annotations
+        name
+    %% userFunctionCall(a : string) : { ... }
+    }
+
+    class Node
+    class Metaphor
+
+%% Inheritance
+    Node <|-- FunctionContext
+    Node <|-- ContextObject
+    Node <|-- ExecutionContext
+    Metaphor <|-- FunctionDefinition
+
+%% Associations
+    FunctionContext *-- ContextObject : body
+    FunctionDefinition o-- ContextObject : body
+    UserFunctionCall o-- FunctionContext : definition

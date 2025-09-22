@@ -2,6 +2,7 @@ use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
+use crate::link::linker;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::typesystem::errors::LinkingError;
@@ -143,23 +144,28 @@ impl ContextObject {
         match tref {
             ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
             ComplexTypeRef::Alias(name) => {
-                // walk up parents if not found locally
-                let mut cur: Option<Rc<RefCell<ContextObject>>> = None;
-                // Simple closure to lookup in a given context
-                let mut lookup = |ctx: &ContextObject| -> Option<ValueType> {
-                    ctx.defined_types.get(name).map(|def| match def {
-                        UserTypeBody::TypeRef(inner) => ctx.resolve_type_ref(inner).unwrap_or(ValueType::UndefinedType),
-                        UserTypeBody::TypeObject(obj) => ValueType::ObjectType(Rc::clone(obj)),
-                    })
+                let resolve_in = |ctx: &ContextObject| -> Link<Option<ValueType>> {
+                    if let Some(def) = ctx.defined_types.get(name) {
+                        let vt = match def {
+                            UserTypeBody::TypeRef(inner) => ctx.resolve_type_ref(inner)?,
+                            UserTypeBody::TypeObject(obj) => {
+                                linker::link_parts(Rc::clone(obj))?;
+                                ValueType::ObjectType(Rc::clone(obj))
+                            }
+                        };
+                        Ok(Some(vt))
+                    } else {
+                        Ok(None)
+                    }
                 };
 
-                if let Some(vt) = lookup(self) {
+                if let Some(vt) = resolve_in(self)? {
                     return Ok(vt);
                 }
 
-                cur = self.node().node_type.get_parent();
+                let mut cur = self.node().node_type.get_parent();
                 while let Some(parent) = cur {
-                    if let Some(vt) = lookup(&parent.borrow()) {
+                    if let Some(vt) = resolve_in(&parent.borrow())? {
                         return Ok(vt);
                     }
                     cur = parent.borrow().node().node_type.get_parent();

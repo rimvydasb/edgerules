@@ -265,10 +265,11 @@ pub mod factory {
             UnknownError(format!("'{}' assignment side is not complete", left_token)).before(err)
         })?;
 
-        // Detect if this is a `type Alias : ...` statement by scanning remaining left tokens
-        let is_type_stmt = left
-            .iter()
-            .any(|tok| matches!(tok, Unparsed(Literal(s)) if s == "type"));
+        // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
+        let is_type_stmt = matches!(
+            left.back(),
+            Some(Unparsed(Literal(ref s))) if s == "type"
+        );
 
         match (left_token, right_token) {
             // Type alias: type Alias : <Type>
@@ -476,7 +477,9 @@ pub mod factory {
         })?;
 
         match right_token {
-            Unparsed(TypeReferenceLiteral(tref)) => Ok(Expression(Cast(Box::new(left_expr), tref))),
+            Unparsed(TypeReferenceLiteral(tref)) => Ok(Expression(FunctionCall(Box::new(
+                crate::ast::expression::CastCall::new(left_expr, tref),
+            )))),
             _ => Err(UnknownError("Invalid type after 'as'".to_string())),
         }
     }
