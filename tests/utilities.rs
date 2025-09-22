@@ -7,6 +7,19 @@ macro_rules! assert_value {
     };
 }
 
+#[macro_export]
+macro_rules! assert_string_contains {
+    ($string:expr, $needle:expr) => {
+        assert!(
+            $string.contains($needle),
+            "expected `{}` to contain `{}`",
+            $string,
+            $needle
+        );
+    };
+}
+
+
 pub fn eval_all(code: &str) -> String {
     let mut service = EdgeRulesModel::new();
     match service.load_source(code) {

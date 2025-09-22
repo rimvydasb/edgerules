@@ -89,30 +89,15 @@ fn loan_offer_decision_service_end_to_end() {
         "}",
 
         "loanOffer1: calculateLoanOffer(executionDatetime, applicant1).result as LoanOffer",
+        "loanOffer2: loanOffer1.termInMonths * 100000",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
     let evaluated = eval_all(&model);
-    assert!(
-        evaluated.contains("eligible : true"),
-        "model output did not include expected eligibility result\n{}",
-        evaluated
-    );
-    assert!(
-        evaluated.contains("amount : 20000"),
-        "model output did not include expected amount\n{}",
-        evaluated
-    );
-    assert!(
-        evaluated.contains("termInMonths : 24"),
-        "model output did not include expected term\n{}",
-        evaluated
-    );
-    assert!(
-        evaluated.contains("monthlyPayment : 875"),
-        "model output did not include expected payment\n{}",
-        evaluated
-    );
+    assert_string_contains!("eligible : true", &evaluated);
+    assert_string_contains!("amount : 20000", &evaluated);
+    assert_string_contains!("termInMonths : 24", &evaluated);
+    assert_string_contains!("monthlyPayment : 875", &evaluated);
 }
 
 #[test]

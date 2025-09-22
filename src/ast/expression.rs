@@ -1,4 +1,6 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_builder::ContextObjectBuilder;
+use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::*;
 use crate::ast::variable::VariableLink;
@@ -30,7 +32,7 @@ fn missing_for_type(ty: &ValueType, ctx: &Rc<RefCell<ExecutionContext>>) -> Valu
     use crate::typesystem::values::ValueEnum as V;
 
     match ty {
-        ValueType::NumberType => V::NumberValue(NumberEnum::SV(SV::Missing)),
+        ValueType::NumberType => NumberValue(NumberEnum::SV(SV::Missing)),
         ValueType::StringType => V::StringValue(StringEnum::SV(SV::Missing)),
         ValueType::BooleanType => V::StringValue(StringEnum::SV(SV::Missing)),
         ValueType::DateType => V::DateValue(Sv(SV::Missing)),
@@ -40,14 +42,11 @@ fn missing_for_type(ty: &ValueType, ctx: &Rc<RefCell<ExecutionContext>>) -> Valu
         ValueType::ListType(inner) => V::Array(vec![], ValueType::ListType(inner.clone())),
         ValueType::ObjectType(obj) => {
             // Build empty object filled with missing values for each field
-            let mut builder =
-                crate::ast::context::context_object_builder::ContextObjectBuilder::new();
+            let mut builder = ContextObjectBuilder::new();
             for name in obj.borrow().get_field_names() {
                 if let Ok(content) = obj.borrow().get(&name) {
                     match content {
-                        crate::ast::context::context_object_type::EObjectContent::ExpressionRef(
-                            entry,
-                        ) => {
+                        EObjectContent::ExpressionRef(entry) => {
                             // Determine field type via placeholder if present
                             let fty = match &entry.borrow().expression {
                                 TypePlaceholder(tref) => obj.borrow().resolve_type_ref(tref).ok(),
@@ -56,7 +55,7 @@ fn missing_for_type(ty: &ValueType, ctx: &Rc<RefCell<ExecutionContext>>) -> Valu
                             .unwrap_or(ValueType::UndefinedType);
                             builder.add_expression(&name, missing_for_type(&fty, ctx).into());
                         }
-                        crate::ast::context::context_object_type::EObjectContent::ObjectRef(o) => {
+                        EObjectContent::ObjectRef(o) => {
                             let inner = missing_for_type(&ValueType::ObjectType(o.clone()), ctx);
                             builder.add_expression(&name, inner.into());
                         }
@@ -66,7 +65,7 @@ fn missing_for_type(ty: &ValueType, ctx: &Rc<RefCell<ExecutionContext>>) -> Valu
             }
             let static_obj = builder.build();
             let exec = ExecutionContext::create_temp_child_context(Rc::clone(ctx), static_obj);
-            V::Reference(exec)
+            Reference(exec)
         }
         ValueType::RangeType | ValueType::UndefinedType => {
             V::StringValue(StringEnum::SV(SV::Missing))
@@ -100,30 +99,26 @@ fn cast_value_to_type(
         ValueType::ObjectType(schema) => {
             // Expect source to be an object reference
             let src_exec = match value {
-                V::Reference(r) => r,
+                Reference(r) => r,
                 _ => {
                     // cannot shape non-object to object; build missing object
                     return Ok(missing_for_type(&ValueType::ObjectType(schema), &ctx));
                 }
             };
 
-            let mut builder =
-                crate::ast::context::context_object_builder::ContextObjectBuilder::new();
+            let mut builder = ContextObjectBuilder::new();
             for name in schema.borrow().get_field_names() {
                 if let Ok(content) = schema.borrow().get(&name) {
                     match content {
-                        crate::ast::context::context_object_type::EObjectContent::ExpressionRef(
-                            entry,
-                        ) => {
+                        EObjectContent::ExpressionRef(entry) => {
                             // Attempt to resolve expected field type
-                            let mut expected_ty = match entry.borrow().field_type.clone() {
-                                Ok(t) => t,
-                                Err(_) => ValueType::UndefinedType,
-                            };
+                            let mut expected_ty = entry
+                                .borrow()
+                                .field_type
+                                .clone()
+                                .unwrap_or_else(|_| ValueType::UndefinedType);
                             // If expression is a TypePlaceholder, try to resolve from schema
-                            if let crate::ast::token::ExpressionEnum::TypePlaceholder(tref) =
-                                &entry.borrow().expression
-                            {
+                            if let TypePlaceholder(tref) = &entry.borrow().expression {
                                 expected_ty = schema
                                     .borrow()
                                     .resolve_type_ref(tref)
@@ -131,15 +126,20 @@ fn cast_value_to_type(
                             }
                             // Get source field value and cast if possible
                             let casted = match src_exec.borrow().get(&name) {
-                                Ok(crate::ast::context::context_object_type::EObjectContent::ObjectRef(obj_exec)) => {
+                                Ok(EObjectContent::ObjectRef(obj_exec)) => {
                                     // nested object; reuse reference
-                                    cast_value_to_type(V::Reference(obj_exec), expected_ty.clone(), Rc::clone(&ctx))?
+                                    cast_value_to_type(
+                                        V::Reference(obj_exec),
+                                        expected_ty.clone(),
+                                        Rc::clone(&ctx),
+                                    )?
                                 }
-                                Ok(crate::ast::context::context_object_type::EObjectContent::ExpressionRef(src_entry)) => {
-                                    let v = src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
+                                Ok(EObjectContent::ExpressionRef(src_entry)) => {
+                                    let v =
+                                        src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
                                     cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
                                 }
-                                Ok(crate::ast::context::context_object_type::EObjectContent::ConstantValue(v)) => {
+                                Ok(EObjectContent::ConstantValue(v)) => {
                                     cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
                                 }
                                 Ok(_) => missing_for_type(&expected_ty, &ctx),
@@ -147,9 +147,7 @@ fn cast_value_to_type(
                             };
                             builder.add_expression(&name, casted.into());
                         }
-                        crate::ast::context::context_object_type::EObjectContent::ObjectRef(
-                            obj,
-                        ) => {
+                        EObjectContent::ObjectRef(obj) => {
                             // create empty shaped nested object
                             let val = missing_for_type(&ValueType::ObjectType(obj.clone()), &ctx);
                             builder.add_expression(&name, val.into());
