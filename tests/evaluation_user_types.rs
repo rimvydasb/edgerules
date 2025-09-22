@@ -62,14 +62,14 @@ fn typed_placeholders_are_allowed_in_model_but_evaluate_to_missing() {
 #[test]
 fn loan_offer_decision_service_end_to_end() {
     let lines = [
-        "type Customer: {name: <string>, birthdate: <date>, income: <number>}",
-        "type Applicant: {customer: <Customer>, requestedAmount: <number>, termInMonths: <number>}",
-        "type LoanOffer: {eligible: <boolean>, amount: <number>, termInMonths: <number>, monthlyPayment: <number>}",
+        "type Customer: {name: <string>; birthdate: <date>; income: <number>}",
+        "type Applicant: {customer: <Customer>; requestedAmount: <number>; termInMonths: <number>}",
+        "type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}",
 
         // NOTE: placeholder not supported yet, so set a concrete date
         "executionDatetime: date('2024-01-01')",
 
-        "func calculateLoanOffer(applicant): {",
+        "func calculateLoanOffer(executionDatetime, applicant): {",
         // Compare with 18 years in days to match current duration support
         "    eligible: if executionDatetime >= applicant1.customer.birthdate + duration('P6570D') then true else false;",
         "    interestRate: if applicant.customer.income > 5000 then 0.05 else 0.1;",
@@ -88,10 +88,7 @@ fn loan_offer_decision_service_end_to_end() {
         "    termInMonths: 24",
         "}",
 
-        "checkEligible: if executionDatetime - applicant1.customer.birthdate >= duration('P6570D') then true else false",
-        "checkAmount: applicant1.requestedAmount",
-        "checkTerm: applicant1.termInMonths",
-        "checkPayment: (applicant1.requestedAmount * (1 + (if applicant1.customer.income > 5000 then 0.05 else 0.1))) / applicant1.termInMonths",
+        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1).result as LoanOffer",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
@@ -115,6 +112,37 @@ fn loan_offer_decision_service_end_to_end() {
     assert!(
         evaluated.contains("checkPayment : 875"),
         "model output did not include expected payment\n{}",
+        evaluated
+    );
+}
+
+#[test]
+#[ignore]
+fn loan_offer_decision_service_end_to_end_reduced() {
+    let lines = [
+        "type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}",
+        "sample: {eligible: false}",
+        "result: sample as LoanOffer",
+    ];
+
+    let model = format!("{{\n{}\n}}", lines.join("\n"));
+    let evaluated = eval_all(&model);
+
+    // {
+    //     #child : {
+    //     eligible : false
+    //     amount : number.Missing
+    //     termInMonths : number.Missing
+    //     monthlyPayment : number.Missing
+    // }
+    //     sample : {
+    //     eligible : false
+    // }
+    // }
+
+    assert!(
+        evaluated.contains("result : true"),
+        "model output did not include expected eligibility result\n{}",
         evaluated
     );
 }
