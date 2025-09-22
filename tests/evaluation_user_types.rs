@@ -70,11 +70,16 @@ fn loan_offer_decision_service_end_to_end() {
         "executionDatetime: date('2024-01-01')",
 
         "func calculateLoanOffer(executionDatetime, applicant): {",
-        // Compare with 18 years in days to match current duration support
-        "    eligible: executionDatetime >= applicant.customer.birthdate + duration('P6570D');",
+        "    eligibleCalc: executionDatetime >= applicant.customer.birthdate + duration('P6570D');",
         "    amount: applicant.requestedAmount;",
         "    termInMonths: applicant.termInMonths;",
-        "    monthlyPayment: (applicant.requestedAmount * (1 + (if applicant.customer.income > 5000 then 0.05 else 0.1))) / applicant.termInMonths",
+        "    monthlyPaymentCalc: (applicant.requestedAmount * (1 + (if applicant.customer.income > 5000 then 0.05 else 0.1))) / applicant.termInMonths",
+        "    result: {",
+        "        eligible: eligibleCalc;",
+        "        amount: applicant.requestedAmount;",
+        "        termInMonths: applicant.termInMonths;",
+        "        monthlyPayment: monthlyPaymentCalc",
+        "    }",
         "}",
 
         "applicant1: {",
@@ -83,7 +88,7 @@ fn loan_offer_decision_service_end_to_end() {
         "    termInMonths: 24",
         "}",
 
-        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1) as LoanOffer",
+        "loanOffer1: calculateLoanOffer(executionDatetime, applicant1).result as LoanOffer",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
