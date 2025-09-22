@@ -179,60 +179,21 @@ fn application_record_example_extended_with_lists() {
 }
 
 #[test]
-fn nested_function_body() {
+fn user_function_body_is_fully_evaluated() {
     let lines = vec![
         "func testFunction(a,b,c): {",
         "   sumAll: sum([a,b,c])",
         "   lvl1: { result: sumAll * 2 }",
         "   lvl2: { result: lvl1.result + 1 }",
         "}",
+        "all: testFunction(1,2,3)",
         "output1: testFunction(1,2,3).lvl2.result",
         "structOutput: testFunction(1,2,3).lvl1",
         "structOutputValue: structOutput.result",
-        "all: testFunction(1,2,3)",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
     let evaluated = eval_all(&model);
-    assert!(evaluated.contains("output1 : 13"), "problem: {}", evaluated);
-    let line_refs: Vec<&str> = lines.iter().map(|s| s.as_ref()).collect();
-    let struct_output_display = eval_lines_field(&line_refs, "structOutput");
-    assert!(
-        struct_output_display.contains("result : 12"),
-        "problem: {}",
-        struct_output_display
-    );
-    assert!(
-        evaluated.contains("structOutputValue : 12"),
-        "problem: {}",
-        evaluated
-    );
-}
-
-#[test]
-fn user_function_result_is_fully_evaluated() {
-    let lines = [
-        "func testFunction(a,b,c): {",
-        "   sumAll: sum([a,b,c])",
-        "   lvl1: { result: sumAll * 2 }",
-        "   lvl2: { result: lvl1.result + 1 }",
-        "}",
-        "all: testFunction(1,2,3)",
-        "output1: testFunction(1,2,3).lvl2.result",
-        "structOutput: testFunction(1,2,3).lvl1",
-        "structOutputValue: structOutput.result",
-    ];
-
-    let all_value = eval_lines_field(&lines, "all");
-    assert!(all_value.contains("sumAll : 6"), "problem: {}", all_value);
-    assert!(
-        all_value.contains("lvl1 : {result : 12}"),
-        "problem: {}",
-        all_value
-    );
-    assert!(
-        all_value.contains("lvl2 : {result : 13}"),
-        "problem: {}",
-        all_value
-    );
+    let expected = "{\n   {\n      sumAll : 6\n      lvl1 : {\n         result : 12\n      }\n      lvl2 : {\n         result : 13\n      }\n   }\n   output1 : 13\n   lvl1 : {\n      result : 12\n   }\n   structOutputValue : 12\n}\n";
+    assert_eq!(evaluated, expected);
 }
