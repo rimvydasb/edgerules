@@ -188,10 +188,20 @@ fn nested_function_body() {
         "}",
         "output1: testFunction(1,2,3).lvl2.result",
         "structOutput: testFunction(1,2,3).lvl1",
+        "structOutputValue: structOutput.result",
     ];
 
     let model = format!("{{\n{}\n}}", lines.join("\n"));
     let evaluated = eval_all(&model);
     assert!(evaluated.contains("output1 : 13"), "problem: {}", evaluated);
-    assert!(evaluated.contains("structOutput : 10"), "problem: {}", evaluated);
+    assert!(
+        evaluated.contains("structOutput : { result: 10 } "),
+        "problem: {}",
+        evaluated
+    );
+    assert!(
+        evaluated.contains("structOutputValue : 10 "),
+        "problem: {}",
+        evaluated
+    );
 }
