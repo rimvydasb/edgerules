@@ -177,3 +177,21 @@ fn application_record_example_extended_with_lists() {
     assert_eq!(eval_lines_field(&lines, "model.output2"), "20");
     assert_eq!(eval_lines_field(&lines, "model.output3"), "[20, 40, 10]");
 }
+
+#[test]
+fn nested_function_body() {
+    let lines = vec![
+        "func testFunction(a,b,c): {",
+        "   sumAll: sum([a,b,c])",
+        "   lvl1: { result: sumAll * 2 }",
+        "   lvl2: { result: lvl1.result + 1 }",
+        "}",
+        "output1: testFunction(1,2,3).lvl2.result",
+        "structOutput: testFunction(1,2,3).lvl1",
+    ];
+
+    let model = format!("{{\n{}\n}}", lines.join("\n"));
+    let evaluated = eval_all(&model);
+    assert!(evaluated.contains("output1 : 13"), "problem: {}", evaluated);
+    assert!(evaluated.contains("structOutput : 10"), "problem: {}", evaluated);
+}
