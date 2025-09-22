@@ -299,6 +299,18 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                                 after_colon = false;
                             }
                             _ => {
+                                if after_colon {
+                                    if let Some(tref) = parse_type_with_trailing_lists(
+                                        literal.as_str(),
+                                        &mut source,
+                                    ) {
+                                        ast_builder
+                                            .push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                        after_colon = false;
+                                        continue;
+                                    }
+                                }
+
                                 ast_builder
                                     .push_element(VariableLink::new_unlinked(literal).into());
                                 after_colon = false;
@@ -468,6 +480,32 @@ fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
         break;
     }
     tref
+}
+
+fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option<ComplexTypeRef> {
+    let mut layers = 0usize;
+    loop {
+        let mut iter = source.iter.clone();
+        match (iter.next(), iter.peek().copied()) {
+            (Some('['), Some(']')) => {
+                source.next();
+                source.next();
+                layers += 1;
+            }
+            _ => break,
+        }
+    }
+
+    if layers == 0 {
+        return None;
+    }
+
+    let mut tref = parse_complex_type_from_name(base);
+    for _ in 0..layers {
+        tref = ComplexTypeRef::List(Box::new(tref));
+    }
+
+    Some(tref)
 }
 
 fn parse_complex_type_from_name(name: &str) -> ComplexTypeRef {

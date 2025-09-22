@@ -274,7 +274,7 @@ fn user_function_argument_type_mismatch_errors() {
 #[test]
 fn user_function_accepts_list_parameter_type() {
     let lines = vec![
-        "func total(values: <number[]>): {",
+        "func total(values: number[]): {",
         "   size: count(values)",
         "   sum: sum(values)",
         "}",
@@ -290,11 +290,29 @@ fn user_function_list_argument_type_mismatch_errors() {
     let model = format!(
         "{{\n{}\n}}",
         [
-            "func total(values: <number[]>): { sum: sum(values) }",
+            "func total(values: number[]): { sum: sum(values) }",
             "bad: total(['a']).sum",
         ]
         .join("\n"),
     );
 
     link_error_contains(&model, &["Argument `values`", "list of number", "string"]);
+}
+
+#[test]
+fn user_function_accepts_alias_and_fills_missing_fields() {
+    let lines = vec![
+        "type Customer: {name: <string>; birthdate: <date>; income: <number>}",
+        "func normalize(customer: Customer): {",
+        "   copy: customer",
+        "}",
+        "result: normalize({name: 'Sara'}).copy",
+    ];
+
+    let model = format!("{{\n{}\n}}", lines.join("\n"));
+    let evaluated = eval_all(&model);
+
+    assert_string_contains!("name : 'Sara'", &evaluated);
+    assert_string_contains!("birthdate : Missing", &evaluated);
+    assert_string_contains!("income : number.Missing", &evaluated);
 }

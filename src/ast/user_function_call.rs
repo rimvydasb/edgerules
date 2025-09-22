@@ -1,6 +1,6 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::function_context::FunctionContext;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::expression::{CastCall, EvaluatableExpression, StaticLink};
 use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::token::{ComplexTypeRef, ExpressionEnum};
@@ -113,10 +113,23 @@ impl StaticLink for UserFunctionCall {
                 } else {
                     input_argument.link(Rc::clone(&ctx))
                 };
-                let resolved_type = arg_type?;
+                let mut resolved_type = arg_type?;
+
+                if let ValueType::ObjectType(obj) = &resolved_type {
+                    linker::link_parts(Rc::clone(obj))?;
+                }
 
                 if let Some(tref) = parameter.declared_type() {
-                    let expected = resolve_declared_type(tref, function_body_ctx.as_ref())?;
+                    let expected = resolve_declared_type(tref, function_body_ctx.as_ref(), &ctx)?;
+                    if resolved_type != expected && complex_type_ref_contains_alias(tref) {
+                        let original = std::mem::replace(
+                            input_argument,
+                            ExpressionEnum::Value(ValueEnum::BooleanValue(false)),
+                        );
+                        *input_argument =
+                            ExpressionEnum::from(CastCall::new(original, tref.clone()));
+                        resolved_type = input_argument.link(Rc::clone(&ctx))?;
+                    }
                     let validated = LinkingError::expect_single_type(
                         &format!(
                             "Argument `{}` of function `{}`",
@@ -143,21 +156,32 @@ impl StaticLink for UserFunctionCall {
 
 fn resolve_declared_type(
     tref: &ComplexTypeRef,
-    ctx: Option<&Rc<RefCell<ContextObject>>>,
+    function_ctx: Option<&Rc<RefCell<ContextObject>>>,
+    call_ctx: &Rc<RefCell<ContextObject>>,
 ) -> Link<ValueType> {
     match tref {
         ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
         ComplexTypeRef::List(inner) => {
-            let inner_type = resolve_declared_type(inner, ctx)?;
+            let inner_type = resolve_declared_type(inner, function_ctx, call_ctx)?;
             Ok(ValueType::ListType(Box::new(inner_type)))
         }
         ComplexTypeRef::Alias(_) => {
-            if let Some(context) = ctx {
-                context.borrow().resolve_type_ref(tref)
-            } else {
-                LinkingError::other_error(format!("Unknown type `{}`", tref)).into()
+            if let Some(context) = function_ctx {
+                if let Ok(vt) = context.borrow().resolve_type_ref(tref) {
+                    return Ok(vt);
+                }
             }
+
+            call_ctx.borrow().resolve_type_ref(tref)
         }
+    }
+}
+
+fn complex_type_ref_contains_alias(tref: &ComplexTypeRef) -> bool {
+    match tref {
+        ComplexTypeRef::Alias(_) => true,
+        ComplexTypeRef::List(inner) => complex_type_ref_contains_alias(inner),
+        ComplexTypeRef::Primitive(_) => false,
     }
 }
 
