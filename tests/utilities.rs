@@ -2,8 +2,43 @@ use edge_rules::runtime::edge_rules::EdgeRulesModel;
 
 #[macro_export]
 macro_rules! assert_value {
+    // &["a","b","c"] form
+    (&[ $($line:expr),* $(,)? ], $expected:expr) => {{
+        let lines: &[&str] = &[$($line),*];
+        assert_eq!($crate::eval_lines_field(lines, "value"), $expected, "for lines: {:?}", lines)
+    }};
+    // Raw string / string literal block form (e.g., r#"..."#)
+    ($src:literal, $expected:expr) => {{
+        let body = $src.trim_matches(|c| c == '\n' || c == '\r').trim();
+        if (body.starts_with('{') && body.ends_with('}')) {
+            assert_eq!($crate::eval_field(body, "value"), $expected, "for body: {:?}", body);
+        } else if body.contains('\n') {
+            let code = {
+                let mut s = ::std::string::String::new();
+                s.push_str("{\n");
+                s.push_str(body);
+                s.push_str("\n}");
+                s
+            };
+            assert_eq!($crate::eval_field(&code, "value"), $expected, "for body: {:?}", $src);
+        } else {
+            if body.starts_with("value:") || body.starts_with("value :") || body.starts_with("value\t:") {
+                let code = {
+                    let mut s = ::std::string::String::new();
+                    s.push_str("{\n");
+                    s.push_str(body);
+                    s.push_str("\n}");
+                    s
+                };
+                assert_eq!($crate::eval_field(&code, "value"), $expected, "for body: {:?}", body);
+            } else {
+                assert_eq!($crate::eval_value(&format!("value : {}", body)), $expected, "for body: {:?}", body);
+            }
+        }
+    }};
+    // Expression string form (fallback)
     ($expr:expr, $expected:expr) => {
-        assert_eq!($crate::eval_value(concat!("value : ", $expr)), $expected);
+        assert_eq!($crate::eval_value(&format!("value : {}", $expr)), $expected);
     };
 }
 

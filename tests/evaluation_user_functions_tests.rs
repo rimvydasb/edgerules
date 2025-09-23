@@ -6,16 +6,15 @@ pub use utilities::*;
 #[test]
 fn user_function_with_list_argument_and_return_list() {
     // Map over a list inside a user function and return a new list
-    let out = eval_lines_field(
-        &[
-            "func doubleAll(xs) : {",
-            "  result : for x in xs return x * 2",
-            "}",
-            "value : doubleAll([1,2,3]).result",
-        ],
-        "value",
+    assert_value!(
+        r#"
+        func doubleAll(xs) : {
+            result : for x in xs return x * 2
+        }
+        value : doubleAll([1,2,3]).result
+        "#,
+        "[2, 4, 6]"
     );
-    assert_eq!(out, "[2, 4, 6]");
 }
 
 #[test]
