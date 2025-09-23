@@ -57,6 +57,8 @@ mod test {
         );
         is_equals("{ r : { a : 1 + 2} b : 3}", "{r:{a:1+2};b:3}");
         is_equals("{ r : { a : 1 + 2}; b : 3}", "{r:{a:1+2};b:3}"); // testing comma separator that should be OK
+
+        // @Todo: duplicate keys are not supported and should raise an error
         is_equals(
             "{ record : { age1 : 11; variable : 100; variable : 200 }; record2 : { age2 : 22 }}",
             "{record:{age1:11;variable:200;variable:200};record2:{age2:22}}",

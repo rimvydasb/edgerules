@@ -354,9 +354,9 @@ fn order_test() {
             r#"
         {
            xx : 6
-           c1 : "b1a1c1"
-           b1 : "b1"
-           a1 : "b1a1"
+           c1 : 'b1a1c1'
+           b1 : 'b1'
+           a1 : 'b1a1'
            yy : 5
         }"#
         )

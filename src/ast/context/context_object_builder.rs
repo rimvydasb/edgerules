@@ -7,7 +7,7 @@ use crate::link::node_data::{Node, NodeData, NodeDataEnum};
 use crate::typesystem::types::ValueType;
 use log::trace;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 /// ---
@@ -18,6 +18,7 @@ pub struct ContextObjectBuilder {
     metaphors: HashMap<String, Rc<RefCell<MethodEntry>>>,
     childs: HashMap<String, Rc<RefCell<ContextObject>>>,
     field_names: Vec<String>,
+    field_name_set: HashSet<String>,
     context_type: Option<ValueType>,
     parameters: Vec<FormalParameter>,
     node_type: NodeDataEnum<ContextObject>,
@@ -37,6 +38,7 @@ impl ContextObjectBuilder {
             metaphors: HashMap::new(),
             childs: HashMap::new(),
             field_names: Vec::new(),
+            field_name_set: HashSet::new(),
             context_type: None,
             node_type: NodeDataEnum::Root(),
             parameters: Vec::new(),
@@ -50,6 +52,7 @@ impl ContextObjectBuilder {
             metaphors: HashMap::new(),
             childs: HashMap::new(),
             field_names: Vec::new(),
+            field_name_set: HashSet::new(),
             context_type: None,
             node_type: NodeDataEnum::Internal(Rc::downgrade(&parent)),
             parameters: Vec::new(),
@@ -66,7 +69,7 @@ impl ContextObjectBuilder {
     // @Todo: optimize by inserting by a number, not a field name
     // @Todo: return an error and propogate it to the top
     pub fn add_expression(&mut self, field_name: &str, field: ExpressionEnum) -> &mut Self {
-        self.field_names.push(field_name.to_string());
+        self.insert_field_name(field_name);
 
         if let ExpressionEnum::StaticObject(obj) = &field {
             // No need to assign parent now, it is done later in build
@@ -84,10 +87,10 @@ impl ContextObjectBuilder {
     pub fn add_definition(&mut self, field: DefinitionEnum) {
         match field {
             MetaphorDef(m) => {
-                trace!(">>> inserting function {:?}", m.get_name());
-                self.field_names.push(m.get_name());
-                self.metaphors
-                    .insert(m.get_name(), MethodEntry::from(m).into());
+                let name = m.get_name();
+                trace!(">>> inserting function {:?}", name);
+                self.insert_field_name(name.as_str());
+                self.metaphors.insert(name, MethodEntry::from(m).into());
             }
             DefinitionEnum::UserType(t) => {
                 self.defined_types.insert(t.name, t.body);
@@ -128,9 +131,9 @@ impl ContextObjectBuilder {
         }
 
         // Update field_names and deduplicate them
-        self.field_names.extend(another.borrow().get_field_names());
-        self.field_names.sort_unstable();
-        self.field_names.dedup();
+        for field_name in another.borrow().get_field_names() {
+            self.insert_field_name(field_name.as_str());
+        }
     }
 
     pub fn merge(target: Rc<RefCell<ContextObject>>, another: Rc<RefCell<ContextObject>>) {
@@ -170,12 +173,12 @@ impl ContextObjectBuilder {
         }
 
         // Update field_names and deduplicate them
-        target
-            .borrow_mut()
-            .all_field_names
-            .extend(another.borrow().get_field_names());
-        target.borrow_mut().all_field_names.sort_unstable();
-        target.borrow_mut().all_field_names.dedup();
+        {
+            let mut target_ref = target.borrow_mut();
+            for field_name in another.borrow().get_field_names() {
+                target_ref.add_field_name(field_name.as_str());
+            }
+        }
     }
 
     pub fn get_field_names(&self) -> Vec<String> {
@@ -187,6 +190,7 @@ impl ContextObjectBuilder {
             expressions: self.fields,
             metaphors: self.metaphors,
             all_field_names: self.field_names,
+            field_name_set: self.field_name_set,
             node: NodeData::new_fixed(self.childs, self.node_type),
             parameters: self.parameters,
             context_type: self.context_type,
@@ -206,5 +210,14 @@ impl ContextObjectBuilder {
             });
 
         ctx
+    }
+
+    fn insert_field_name(&mut self, field_name: &str) {
+        if self.field_name_set.contains(field_name) {
+            return;
+        }
+
+        self.field_name_set.insert(field_name.to_string());
+        self.field_names.push(field_name.to_string());
     }
 }

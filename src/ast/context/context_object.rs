@@ -9,7 +9,7 @@ use crate::typesystem::errors::LinkingError;
 use crate::typesystem::types::ValueType;
 use log::trace;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
@@ -66,6 +66,7 @@ pub struct ContextObject {
     pub metaphors: HashMap<String, Rc<RefCell<MethodEntry>>>,
     /// node.childs, expressions and metaphors have names
     pub all_field_names: Vec<String>,
+    pub field_name_set: HashSet<String>,
     /// context object can be treated as a function body, so it can have parameters
     pub parameters: Vec<FormalParameter>,
 
@@ -130,6 +131,15 @@ impl ContextObject {
 
     pub fn get_field_names(&self) -> Vec<String> {
         self.all_field_names.clone()
+    }
+
+    pub fn add_field_name(&mut self, field_name: &str) {
+        if self.field_name_set.contains(field_name) {
+            return;
+        }
+
+        self.field_name_set.insert(field_name.to_string());
+        self.all_field_names.push(field_name.to_string());
     }
 
     pub fn size(&self) -> usize {

@@ -137,7 +137,10 @@ pub fn unshift(text: &str) -> String {
 }
 
 pub fn to_lines(text: &str) -> Vec<&str> {
-    text.lines().map(|line| line.trim()).filter(|line| !line.is_empty()).collect()
+    text.lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect()
 }
 
 #[test]

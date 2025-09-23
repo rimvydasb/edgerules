@@ -51,6 +51,7 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - Avoid single letter ot two letter variable names.
 - Avoid unclear abbreviations, instead use: `cfg` → `config`, `ctx` → `context`.
 - Avoid casting with "as", instead use ::from - if "from" does not exist, implement it.
+- Avoid long namespaces; use `use` to import types/functions.
 - Use `?` for error propagation; avoid `unwrap()`/`expect()` in runtime paths except test code.
 - Naming: modules/files `snake_case`; types/enums `CamelCase`; functions/fields `snake_case`.
 - Formatting: run `cargo fmt` before commits; keep `clippy` clean.
@@ -62,17 +63,10 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - Use `tests/` for integration-style, text-based fixtures; mirror feature areas (e.g., `tests/errors/*.txt`).
 - Run `cargo test` locally; add tests for new behavior and bug fixes.
 
-## Commit & Pull Request Guidelines
+## Main Considerations
 
-- Commits: short, imperative subject lines (e.g., "fix tokenizer range parsing"); group related changes; avoid "various
-  updates".
-- PRs: clear description, rationale, and scope; link issues; include run/build steps and demo notes (Node/Web) when
-  relevant; attach screenshots for web demos.
-
-## Security & Configuration Tips
-
-- Validate untrusted model inputs; avoid panics in runtime paths.
-- For WASI/Node/Web, prefer explicit feature flags and minimal exports to keep binaries/WASM small.
+- Project priority is small WASM size
+- Second priority is performance
 
 # Quality Assurance
 

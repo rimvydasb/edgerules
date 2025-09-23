@@ -648,22 +648,22 @@ pub mod test {
             .expect_num("b", Int(1));
 
         test_code("{ c : b; a : {x : 1}; b : a.x }")
-            .expect_type("Type<a: Type<x: number>, b: number, c: number>")
+            .expect_type("Type<c: number, a: Type<x: number>, b: number>")
             .expect_num("c", Int(1));
 
         // roundtrip test
         test_code("{ c : b; a : {x : 1; aa: b}; b : a.x }")
-            .expect_type("Type<a: Type<x: number, aa: number>, b: number, c: number>")
+            .expect_type("Type<c: number, a: Type<x: number, aa: number>, b: number>")
             .expect_num("c", Int(1));
 
         // messy handover test
         test_code("{ c : b; a : {x : {y : 1}}; b : a.x; d : c.y }")
-            .expect_type("Type<a: Type<x: Type<y: number>>, b: Type<y: number>, c: Type<y: number>, d: number>")
+            .expect_type("Type<c: Type<y: number>, a: Type<x: Type<y: number>>, b: Type<y: number>, d: number>")
             .expect_num("d", Int(1));
 
         // deep roundtrip test
         test_code("{ c : b; a : {x : {x : 1; aa: b}}; b : a.x.x }")
-            .expect_type("Type<a: Type<x: Type<x: number, aa: number>>, b: number, c: number>")
+            .expect_type("Type<c: number, a: Type<x: Type<x: number, aa: number>>, b: number>")
             .expect_num("c", Int(1));
 
         test_code("{ func f(arg1) :  { a : arg1 } }").expect_type("Type<>");

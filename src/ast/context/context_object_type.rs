@@ -162,7 +162,7 @@ pub mod test {
 
         assert_eq!(
             obj3.borrow().to_type_string(),
-            "Type<a: number, b: number, x: string, y: number>"
+            "Type<x: string, y: number, a: number, b: number>"
         );
 
         Ok(())
