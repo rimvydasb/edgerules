@@ -335,6 +335,35 @@ fn variable_linkin_test() {
 }
 
 #[test]
+fn order_test() {
+    let result = eval_all(
+        r#"
+    {
+        xx : yy + 1
+        c1 : a1 + "c1"
+        b1 : "b1"
+        a1 : b1 + "a1"
+        yy : 5
+    }
+    "#,
+    );
+
+    assert_eq!(
+        to_lines(&result),
+        to_lines(
+            r#"
+        {
+           xx : 6
+           c1 : "b1a1c1"
+           b1 : "b1"
+           a1 : "b1a1"
+           yy : 5
+        }"#
+        )
+    );
+}
+
+#[test]
 fn test_problems() {
     // nested value
     assert_eq!(
