@@ -24,26 +24,58 @@ fn test_common() {
 
     // Selection, paths
     assert_eq!(
-        eval_field("{ record : [1,2,3]; record2 : record[1]}", "record2"),
+        eval_field(
+            r#"
+            {
+                record : [1,2,3];
+                record2 : record[1]
+            }
+            "#
+            .trim(),
+            "record2"
+        ),
         "2"
     );
     assert_eq!(
         eval_field(
-            "{ list : [1,2,3]; value : list[0] * list[1] + list[2]}",
+            r#"
+            {
+                list : [1,2,3];
+                value : list[0] * list[1] + list[2]
+            }
+            "#
+            .trim(),
             "value"
         ),
         "5"
     );
     assert_eq!(
         eval_field(
-            "{ list : [1,2,3]; value : list[0] * (list[1] + list[2] * 3)}",
+            r#"
+            {
+                list : [1,2,3];
+                value : list[0] * (list[1] + list[2] * 3)
+            }
+            "#
+            .trim(),
             "value"
         ),
         "11"
     );
 
     assert_eq!(
-        eval_field("{ record : { age : 18; value : 1 + 2 }}", "record.value"),
+        eval_field(
+            r#"
+            {
+                record : {
+                    age : 18;
+                    value : 1 + 2
+                }
+            }
+            "#
+            .trim(),
+            "record.value"
+        ),
         "3"
     );
 
@@ -54,13 +86,33 @@ fn test_common() {
     );
 
     assert_eq!(
-        eval_field("{ record : { age : 18; value : age + 1 }}", "record.value"),
+        eval_field(
+            r#"
+            {
+                record : {
+                    age : 18;
+                    value : age + 1
+                }
+            }
+            "#
+            .trim(),
+            "record.value"
+        ),
         "19"
     );
 
     assert_eq!(
         eval_field(
-            "{ record : { age : 18; value : age + 2 + addition; addition : age + 2 }}",
+            r#"
+            {
+                record : {
+                    age : 18;
+                    value : age + 2 + addition;
+                    addition : age + 2
+                }
+            }
+            "#
+            .trim(),
             "record.value"
         ),
         "40"
@@ -68,7 +120,15 @@ fn test_common() {
 
     assert_eq!(
         eval_field(
-            "{ record : { age : 18; value : record.age + 1 }}",
+            r#"
+            {
+                record : {
+                    age : 18;
+                    value : record.age + 1
+                }
+            }
+            "#
+            .trim(),
             "record.value"
         ),
         "19"
@@ -76,17 +136,51 @@ fn test_common() {
 
     assert_eq!(
         eval_field(
-            "{ record : { value : record2.age2 }; record2 : { age2 : 22 }}",
+            r#"
+            {
+                record : {
+                    value : record2.age2
+                };
+                record2 : {
+                    age2 : 22
+                }
+            }
+            "#
+            .trim(),
             "record.value"
         ),
         "22"
     );
 
-    assert_eq!(eval_field("{ record : { age : 18; value : age + 2 + addition; addition : age + record2.age2 }; record2 : { age2 : 22 }}", "record.value"), "60");
+    assert_eq!(
+        eval_field(
+            r#"
+            {
+                record : {
+                    age : 18;
+                    value : age + 2 + addition;
+                    addition : age + record2.age2
+                };
+                record2 : {
+                    age2 : 22
+                }
+            }
+            "#
+            .trim(),
+            "record.value"
+        ),
+        "60"
+    );
 
     assert_eq!(
         eval_field(
-            "{ func doublethis(input) : { out : input * input }; result : doublethis(2).out }",
+            r#"
+            {
+                func doublethis(input) : { out : input * input };
+                result : doublethis(2).out
+            }
+            "#
+            .trim(),
             "result"
         ),
         "4"
@@ -114,85 +208,72 @@ fn test_functions() {
 #[test]
 fn client_functions_test() {
     // variant 1
-    assert_eq!(
-        eval_lines_field(
-            &[
-                "month : 1",
-                "sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                "value : sales[month] + sales[month + 1] + sales[month + 2]",
-            ],
-            "value"
-        ),
+    assert_value!(
+        r#"
+        month : 1
+        sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        value : sales[month] + sales[month + 1] + sales[month + 2]
+        "#,
         "35"
     );
 
     // variant 2
-    assert_eq!(
-        eval_lines_field(
-            &[
-                "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                "func salesIn3Months(month,sales) : {",
-                "result : sales[month] + sales[month + 1] + sales[month + 2]",
-                "}",
-                "value : salesIn3Months(1,inputSales).result",
-            ],
-            "value"
-        ),
+    assert_value!(
+        r#"
+        inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        func salesIn3Months(month,sales) : {
+            result : sales[month] + sales[month + 1] + sales[month + 2]
+        }
+        value : salesIn3Months(1,inputSales).result
+        "#,
         "35"
     );
 
     // variant 3 with subContext
-    assert_eq!(
-        eval_lines_field(
-            &[
-                "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                "func salesIn3Months(month,sales) : {",
-                "result : sales[month] + sales[month + 1] + sales[month + 2]",
-                "}",
-                "subContext : {",
-                "subResult : salesIn3Months(1,inputSales).result",
-                "}",
-                "value : subContext.subResult",
-            ],
-            "value"
-        ),
+    assert_value!(
+        r#"
+        inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        func salesIn3Months(month,sales) : {
+            result : sales[month] + sales[month + 1] + sales[month + 2]
+        }
+        subContext : {
+            subResult : salesIn3Months(1,inputSales).result
+        }
+        value : subContext.subResult
+        "#,
         "35"
     );
 
     // bestMonths[0]
-    assert_eq!(
-            eval_lines_field(
-                &[
-                    "inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]",
-                    "func salesIn3Months(month,sales) : {",
-                    "result : sales[month] + sales[month + 1] + sales[month + 2]",
-                    "}",
-                    "bestMonths : for monthIter in 0..11 return salesIn3Months(monthIter,inputSales).result",
-                    "value : bestMonths[0]",
-                ],
-                "value"
-            ),
-            "38"
-        );
+    assert_value!(
+        r#"
+        inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        func salesIn3Months(month,sales) : {
+            result : sales[month] + sales[month + 1] + sales[month + 2]
+        }
+        bestMonths : for monthIter in 0..11 return salesIn3Months(monthIter,inputSales).result
+        value : bestMonths[0]
+        "#,
+        "38"
+    );
 }
 
 // #[test]  // kept disabled like the original
 #[allow(dead_code)]
 fn tables_test() {
-    let out = eval_lines_field(
-        &[
-            "@DecisionTable",
-            "simpleTable(age,score) : [",
-            "[age, score, eligibility],",
-            "[18, 300, 0],",
-            "[22, 100, 1],",
-            "[65, 200, 0]",
-            "]",
-            "value : simpleTable(22,100).eligibility",
-        ],
-        "value",
+    assert_value!(
+        r#"
+        @DecisionTable
+        simpleTable(age,score) : [
+        [age, score, eligibility],
+        [18, 300, 0],
+        [22, 100, 1],
+        [65, 200, 0]
+        ]
+        value : simpleTable(22,100).eligibility
+        "#,
+        "1"
     );
-    assert_eq!(out, "1");
 }
 
 #[test]
@@ -210,37 +291,43 @@ fn test_filter_not_alias() {
 #[test]
 fn variable_linkin_test() {
     assert_eq!(
-        eval_lines_field(
-            &[
-                "input : {",
-                "   application: {",
-                "      status: 1",
-                "   }",
-                "}",
-                "model: {",
-                "   output: input.application.status",
-                "}",
-            ],
+        eval_field(
+            r#"
+            {
+                input : {
+                    application: {
+                        status: 1
+                    }
+                }
+                model: {
+                    output: input.application.status
+                }
+            }
+            "#
+            .trim(),
             "model.output"
         ),
         "1"
     );
 
     assert_eq!(
-        eval_lines_field(
-            &[
-                "input : {",
-                "   application: {",
-                "      status: 1",
-                "   }",
-                "}",
-                "model: {",
-                "   func applicationRecord(application): {",
-                "      statusFlag: if application.status = 1 then 'ok' else 'no'",
-                "   }",
-                "   output: applicationRecord(input.application).statusFlag",
-                "}",
-            ],
+        eval_field(
+            r#"
+            {
+                input : {
+                    application: {
+                        status: 1
+                    }
+                }
+                model: {
+                    func applicationRecord(application): {
+                        statusFlag: if application.status = 1 then 'ok' else 'no'
+                    }
+                    output: applicationRecord(input.application).statusFlag
+                }
+            }
+            "#
+            .trim(),
             "model.output"
         ),
         "'ok'"

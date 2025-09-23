@@ -20,61 +20,57 @@ fn user_function_with_list_argument_and_return_list() {
 #[test]
 fn user_function_with_list_stats_and_nested_access() {
     // Accept a list, compute stats in the function body, and read nested fields
-    let out_sum = eval_lines_field(
-        &[
-            "func listStats(xs) : {",
-            "  total : sum(xs)",
-            "  maxVal : max(xs)",
-            "  first : xs[0]",
-            "  doubled : for v in xs return v * 2",
-            "}",
-            "value : listStats([1,5,3]).total",
-        ],
-        "value",
+    assert_value!(
+        r#"
+        func listStats(xs) : {
+            total : sum(xs)
+            maxVal : max(xs)
+            first : xs[0]
+            doubled : for v in xs return v * 2
+        }
+        value : listStats([1,5,3]).total
+        "#,
+        "9"
     );
-    assert_eq!(out_sum, "9");
 
-    let out_max = eval_lines_field(
-        &[
-            "func listStats(xs) : {",
-            "  total : sum(xs)",
-            "  maxVal : max(xs)",
-            "  first : xs[0]",
-            "  doubled : for v in xs return v * 2",
-            "}",
-            "value : listStats([1,5,3]).maxVal",
-        ],
-        "value",
+    assert_value!(
+        r#"
+        func listStats(xs) : {
+            total : sum(xs)
+            maxVal : max(xs)
+            first : xs[0]
+            doubled : for v in xs return v * 2
+        }
+        value : listStats([1,5,3]).maxVal
+        "#,
+        "5"
     );
-    assert_eq!(out_max, "5");
 
-    let out_first = eval_lines_field(
-        &[
-            "func listStats(xs) : {",
-            "  total : sum(xs)",
-            "  maxVal : max(xs)",
-            "  first : xs[0]",
-            "  doubled : for v in xs return v * 2",
-            "}",
-            "value : listStats([9,5,3]).first",
-        ],
-        "value",
+    assert_value!(
+        r#"
+        func listStats(xs) : {
+            total : sum(xs)
+            maxVal : max(xs)
+            first : xs[0]
+            doubled : for v in xs return v * 2
+        }
+        value : listStats([9,5,3]).first
+        "#,
+        "9"
     );
-    assert_eq!(out_first, "9");
 
-    let out_doubled = eval_lines_field(
-        &[
-            "func listStats(xs) : {",
-            "  total : sum(xs)",
-            "  maxVal : max(xs)",
-            "  first : xs[0]",
-            "  doubled : for v in xs return v * 2",
-            "}",
-            "value : listStats([2,1]).doubled",
-        ],
-        "value",
+    assert_value!(
+        r#"
+        func listStats(xs) : {
+            total : sum(xs)
+            maxVal : max(xs)
+            first : xs[0]
+            doubled : for v in xs return v * 2
+        }
+        value : listStats([2,1]).doubled
+        "#,
+        "[4, 2]"
     );
-    assert_eq!(out_doubled, "[4, 2]");
 }
 
 #[test]
@@ -100,26 +96,26 @@ fn cannot_define_user_function_inside_list_literal() {
 fn cannot_pass_self_context_as_any_argument() {
     // Mirror and extend the guard: cannot pass the same context object into a function defined in it
     link_error_contains(
-        &[
-            "calendar : {",
-            "  shift : 2",
-            "  func start1(calendar) : { result : calendar.shift + 1 }",
-            "  firstDay : start1(calendar).result",
-            "}",
-        ]
-        .join("\n"),
+        r#"
+        calendar : {
+            shift : 2
+            func start1(calendar) : { result : calendar.shift + 1 }
+            firstDay : start1(calendar).result
+        }
+        "#
+        .trim(),
         &["Cannot pass context `calendar` as argument to function `start1`"],
     );
 
     link_error_contains(
-        &[
-            "calendar : {",
-            "  shift : 2",
-            "  func start2(x, cal) : { result : cal.shift + x }",
-            "  firstDay : start2(1, calendar).result",
-            "}",
-        ]
-        .join("\n"),
+        r#"
+        calendar : {
+            shift : 2
+            func start2(x, cal) : { result : cal.shift + x }
+            firstDay : start2(1, calendar).result
+        }
+        "#
+        .trim(),
         &["Cannot pass context `calendar` as argument to function `start2`"],
     );
 }
@@ -128,68 +124,67 @@ fn cannot_pass_self_context_as_any_argument() {
 fn can_pass_sub_context_with_other_functions_and_use_them() {
     // User can pass a sub-context that contains other fields (and even functions) to another function,
     // and still use root-level functions at the call site.
-    let out = eval_lines_field(
-        &[
-            // Helper function in the root scope
-            "func inc(a) : { r : a + 1 }",
-            // A function that takes a sub-context and a list and returns a mapped list (no nested calls inside)
-            "func apply(list, cfg) : {",
-            "  mapped : [ list[0] + cfg.shift, list[1] + cfg.shift ]",
-            "}",
-            // Build a sub-context with data and an extra (unused here) function
-            "helpers : {",
-            "  shift : 2",
-            "  func dec(a) : { r : a - 1 }",
-            "}",
-            // Use root-level function `inc` on the results of `apply(...)`
-            "value : for n in apply([1,2], helpers).mapped return inc(n).r",
-        ],
-        "value",
-    );
     // (1+2)+1 = 4, (2+2)+1 = 5
-    assert_eq!(out, "[4, 5]");
+    assert_value!(
+        r#"
+        func inc(a) : { r : a + 1 }
+        func apply(list, cfg) : {
+            mapped : [ list[0] + cfg.shift, list[1] + cfg.shift ]
+        }
+        helpers : {
+            shift : 2
+            func dec(a) : { r : a - 1 }
+        }
+        value : for n in apply([1,2], helpers).mapped return inc(n).r
+        "#,
+        "[4, 5]"
+    );
 }
 
 #[test]
 fn application_record_example_extended_with_lists() {
     // Extend the applicationRecord(application) pattern with a list field
-    let lines = vec![
-        "input : {",
-        "   application: {",
-        "      status: 1",
-        "      scores: [10, 20, 5]",
-        "   }",
-        "}",
-        "model: {",
-        "   func applicationRecord(application): {",
-        "      statusFlag: if application.status = 1 then 'ok' else 'no'",
-        "      maxScore: max(application.scores)",
-        "      doubled: for s in application.scores return s * 2",
-        "   }",
-        "   output1: applicationRecord(input.application).statusFlag",
-        "   output2: applicationRecord(input.application).maxScore",
-        "   output3: applicationRecord(input.application).doubled",
-        "}",
-    ];
+    let code = r#"
+    {
+        input : {
+            application: {
+                status: 1
+                scores: [10, 20, 5]
+            }
+        }
+        model: {
+            func applicationRecord(application): {
+                statusFlag: if application.status = 1 then 'ok' else 'no'
+                maxScore: max(application.scores)
+                doubled: for s in application.scores return s * 2
+            }
+            output1: applicationRecord(input.application).statusFlag
+            output2: applicationRecord(input.application).maxScore
+            output3: applicationRecord(input.application).doubled
+        }
+    }
+    "#;
 
-    assert_eq!(eval_lines_field(&lines, "model.output1"), "'ok'");
-    assert_eq!(eval_lines_field(&lines, "model.output2"), "20");
-    assert_eq!(eval_lines_field(&lines, "model.output3"), "[20, 40, 10]");
+    assert_eq!(eval_field(code, "model.output1"), "'ok'");
+    assert_eq!(eval_field(code, "model.output2"), "20");
+    assert_eq!(eval_field(code, "model.output3"), "[20, 40, 10]");
 }
 
 #[test]
 fn user_function_body_is_fully_evaluated() {
-    let lines = vec![
-        "func testFunction(a,b,c): {",
-        "   sumAll: sum([a,b,c])",
-        "   lvl1: { result: sumAll * 2 }",
-        "   lvl2: { result: lvl1.result + 1 }",
-        "}",
-        "all: testFunction(1,2,3)",
-        "output1: testFunction(1,2,3).lvl2.result",
-        "structOutput: testFunction(1,2,3).lvl1",
-        "structOutputValue: structOutput.result",
-    ];
+    let code = r#"
+    func testFunction(a,b,c): {
+        sumAll: sum([a,b,c])
+        lvl1: { result: sumAll * 2 }
+        lvl2: { result: lvl1.result + 1 }
+    }
+    all: testFunction(1,2,3)
+    output1: testFunction(1,2,3).lvl2.result
+    structOutput: testFunction(1,2,3).lvl1
+    structOutputValue: structOutput.result
+    "#;
+
+    let lines: Vec<&str> = code.lines().collect();
 
     assert_eval_all(
         &lines,
@@ -216,30 +211,36 @@ fn user_function_body_is_fully_evaluated() {
 
 #[test]
 fn user_function_field_with_math_operator() {
-    let lines = vec![
-        "func testFunction(a,b,c): {",
-        "   sumAll: sum([a,b,c])",
-        "   lvl1: { result: sumAll * 2 }",
-        "   lvl2: { result: lvl1.result + 1 }",
-        "}",
-        "output1: testFunction(1,2,3).lvl2.result + 1",
-    ];
+    let code = r#"
+    func testFunction(a,b,c): {
+        sumAll: sum([a,b,c])
+        lvl1: { result: sumAll * 2 }
+        lvl2: { result: lvl1.result + 1 }
+    }
+    output1: testFunction(1,2,3).lvl2.result + 1
+    "#;
 
-    assert_eq!(eval_lines_field(&lines, "output1"), "14");
+    let lines: Vec<&str> = code.lines().collect();
+
+    let model = format!("{{\n{}\n}}", code);
+
+    assert_eq!(eval_field(&model, "output1"), "14");
     assert_eval_all(&lines, &["{", "   output1 : 14", "}"]);
 }
 
 #[test]
 fn user_function_has_types() {
-    let lines = vec![
-        "func testFunction(a: number,b: string,c: date): {",
-        "   sumAll: a + c.month",
-        "   label: toString(a) + b",
-        "}",
-        "all: testFunction(1,'x', date('2023-05-03'))",
-        "output1: testFunction(1,'x', date('2023-05-03')).sumAll",
-        "output2: testFunction(1,'x', date('2023-05-03')).label",
-    ];
+    let code = r#"
+    func testFunction(a: number,b: string,c: date): {
+        sumAll: a + c.month
+        label: toString(a) + b
+    }
+    all: testFunction(1,'x', date('2023-05-03'))
+    output1: testFunction(1,'x', date('2023-05-03')).sumAll
+    output2: testFunction(1,'x', date('2023-05-03')).label
+    "#;
+
+    let lines: Vec<&str> = code.lines().collect();
 
     assert_eval_all(
         &lines,
@@ -258,58 +259,57 @@ fn user_function_has_types() {
 
 #[test]
 fn user_function_argument_type_mismatch_errors() {
-    let model = format!(
-        "{{\n{}\n}}",
-        [
-            "func typed(a: number, b: string): { result: toString(a) + b }",
-            "value: typed('oops', 'fail')",
-        ]
-        .join("\n"),
-    );
+    let model = r#"
+    {
+        func typed(a: number, b: string): { result: toString(a) + b }
+        value: typed('oops', 'fail')
+    }
+    "#;
 
-    link_error_contains(&model, &["Argument `a`", "number", "string"]);
+    link_error_contains(model, &["Argument `a`", "number", "string"]);
 }
 
 #[test]
 fn user_function_accepts_list_parameter_type() {
-    let lines = vec![
-        "func total(values: number[]): {",
-        "   size: count(values)",
-        "   sum: sum(values)",
-        "}",
-        "count: total([1,2,3]).size",
-        "sum: total([1,2,3]).sum",
-    ];
+    let code = r#"
+    func total(values: number[]): {
+        size: count(values)
+        sum: sum(values)
+    }
+    count: total([1,2,3]).size
+    sum: total([1,2,3]).sum
+    "#;
+
+    let lines: Vec<&str> = code.lines().collect();
 
     assert_eval_all(&lines, &["{", "   count : 3", "   sum : 6", "}"]);
 }
 
 #[test]
 fn user_function_list_argument_type_mismatch_errors() {
-    let model = format!(
-        "{{\n{}\n}}",
-        [
-            "func total(values: number[]): { sum: sum(values) }",
-            "bad: total(['a']).sum",
-        ]
-        .join("\n"),
-    );
+    let model = r#"
+    {
+        func total(values: number[]): { sum: sum(values) }
+        bad: total(['a']).sum
+    }
+    "#;
 
-    link_error_contains(&model, &["Argument `values`", "list of number", "string"]);
+    link_error_contains(model, &["Argument `values`", "list of number", "string"]);
 }
 
 #[test]
 fn user_function_accepts_alias_and_fills_missing_fields() {
-    let lines = vec![
-        "type Customer: {name: <string>; birthdate: <date>; income: <number>}",
-        "func normalize(customer: Customer): {",
-        "   copy: customer",
-        "}",
-        "result: normalize({name: 'Sara'}).copy",
-    ];
+    let model = r#"
+    {
+        type Customer: {name: <string>; birthdate: <date>; income: <number>}
+        func normalize(customer: Customer): {
+            copy: customer
+        }
+        result: normalize({name: 'Sara'}).copy
+    }
+    "#;
 
-    let model = format!("{{\n{}\n}}", lines.join("\n"));
-    let evaluated = eval_all(&model);
+    let evaluated = eval_all(model);
 
     assert_string_contains!("name : 'Sara'", &evaluated);
     assert_string_contains!("birthdate : Missing", &evaluated);

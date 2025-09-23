@@ -102,21 +102,30 @@ fn test_constraints() {
     assert_value!("[1,2,3][...<-5]", "[]");
 
     assert_eq!(
-        crate::eval_lines_field(
-            &["nums : [1, 5, 12, 7]", "filtered: nums[...>6]"],
+        eval_field(
+            r#"
+            {
+                nums : [1, 5, 12, 7];
+                filtered: nums[...>6]
+            }
+            "#
+            .trim(),
             "filtered"
         ),
         "[12, 7]"
     );
 
     assert_eq!(
-        crate::eval_lines_field(
-            &[
-                "input : {",
-                "   nums : [1, 5, 12, 7]",
-                "   filtered: nums[...>6]",
-                "}",
-            ],
+        eval_field(
+            r#"
+            {
+                input : {
+                    nums : [1, 5, 12, 7]
+                    filtered: nums[...>6]
+                }
+            }
+            "#
+            .trim(),
             "input.filtered"
         ),
         "[12, 7]"

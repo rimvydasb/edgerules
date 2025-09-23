@@ -30,6 +30,16 @@ fn assert_type_fields_unordered(lines: &[&str], expected_fields: &[&str]) {
     assert_eq!(actual, expected, "got type `{}`", ty);
 }
 
+fn assert_type_string_block(code: &str, expected: &str) {
+    let lines: Vec<&str> = code.trim().lines().collect();
+    assert_type_string(&lines, expected);
+}
+
+fn assert_type_fields_unordered_block(code: &str, expected_fields: &[&str]) {
+    let lines: Vec<&str> = code.trim().lines().collect();
+    assert_type_fields_unordered(&lines, expected_fields);
+}
+
 #[test]
 fn to_string_for_various_values_and_lists() {
     // numbers, booleans, strings
@@ -69,29 +79,37 @@ fn type_validation_errors_when_mismatched() {
 
 #[test]
 fn type_string_simple_root() {
-    assert_type_string(
-        &["a : 1", "b : 's'", "c : true"],
+    assert_type_string_block(
+        r#"
+        a : 1
+        b : 's'
+        c : true
+        "#,
         "Type<a: number, b: string, c: boolean>",
     );
 }
 
 #[test]
 fn type_string_nested_object() {
-    assert_type_string(
-        &["a : 1", "b : 2", "c : { x : 'Hello'; y : a + b }"],
+    assert_type_string_block(
+        r#"
+        a : 1
+        b : 2
+        c : { x : 'Hello'; y : a + b }
+        "#,
         "Type<a: number, b: number, c: Type<x: string, y: number>>",
     );
 }
 
 #[test]
 fn type_string_deeper_nesting() {
-    assert_type_string(
-        &[
-            "a : time('12:00:00')",
-            "b : date('2024-01-01')",
-            "c : datetime('2024-06-05T07:30:00')",
-            "d : { inner : { z : time('08:15:00') } }",
-        ],
+    assert_type_string_block(
+        r#"
+        a : time('12:00:00')
+        b : date('2024-01-01')
+        c : datetime('2024-06-05T07:30:00')
+        d : { inner : { z : time('08:15:00') } }
+        "#,
         "Type<a: time, b: date, c: datetime, d: Type<inner: Type<z: time>>>",
     );
 }
@@ -99,12 +117,12 @@ fn type_string_deeper_nesting() {
 #[test]
 fn type_string_lists() {
     // list of numbers, list of strings, nested list of numbers
-    assert_type_fields_unordered(
-        &[
-            "nums : [1,2,3]",
-            "strs : ['a','b']",
-            "nested : [[1,2], [3]]",
-        ],
+    assert_type_fields_unordered_block(
+        r#"
+        nums : [1,2,3]
+        strs : ['a','b']
+        nested : [[1,2], [3]]
+        "#,
         &[
             "nums: list of number",
             "strs: list of string",
@@ -116,21 +134,34 @@ fn type_string_lists() {
 #[test]
 fn type_string_ranges() {
     // numeric range
-    assert_type_string(&["r : 1..5"], "Type<r: range>");
+    assert_type_string_block(
+        r#"
+        r : 1..5
+        "#,
+        "Type<r: range>",
+    );
 }
 
 #[test]
 fn type_string_lists_and_ranges_combined() {
-    assert_type_string(
-        &["a : [1,2,3]", "b : 10..20", "c : [[10,20],[30]]"],
+    assert_type_string_block(
+        r#"
+        a : [1,2,3]
+        b : 10..20
+        c : [[10,20],[30]]
+        "#,
         "Type<a: list of number, b: range, c: list of list of number>",
     );
 }
 
 #[test]
 fn type_objects_amd_functions() {
-    assert_type_string(
-        &["a : sum([1,2,3])", "b : a", "c : toString(a)"],
+    assert_type_string_block(
+        r#"
+        a : sum([1,2,3])
+        b : a
+        c : toString(a)
+        "#,
         "Type<a: number, b: number, c: string>",
     );
 }
@@ -138,8 +169,11 @@ fn type_objects_amd_functions() {
 #[test]
 fn types_story_placeholders_and_aliases_link() {
     // Simple typed placeholders in the model (not within type definitions)
-    assert_type_fields_unordered(
-        &["identification: <number>", "relationsList: <number[]>"],
+    assert_type_fields_unordered_block(
+        r#"
+        identification: <number>
+        relationsList: <number[]>
+        "#,
         &["identification: number", "relationsList: list of number"],
     );
 }

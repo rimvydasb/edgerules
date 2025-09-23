@@ -20,14 +20,17 @@ fn datetime_primitives_and_components() {
 
     // all date component elements
     assert_eq!(
-        crate::eval_lines_field(
-            &[
-                "d1 : date(\"2017-05-03\")",
-                "y : d1.year",
-                "m : d1.month",
-                "d : d1.day",
-                "result : [y,m,d]",
-            ],
+        eval_field(
+            r#"
+            {
+                d1 : date("2017-05-03");
+                y : d1.year;
+                m : d1.month;
+                d : d1.day;
+                result : [y,m,d]
+            }
+            "#
+            .trim(),
             "result"
         ),
         "[2017, 5, 3]"
@@ -35,13 +38,16 @@ fn datetime_primitives_and_components() {
 
     // complex browsing and type inference
     assert_eq!(
-        crate::eval_lines_field(
-            &[
-                "d1 : date(\"2017-05-03\")",
-                "d2 : date(\"2018-12-31\")",
-                "y : d1.year",
-                "plusOneYear : y + 1 - d2.year",
-            ],
+        eval_field(
+            r#"
+            {
+                d1 : date("2017-05-03");
+                d2 : date("2018-12-31");
+                y : d1.year;
+                plusOneYear : y + 1 - d2.year
+            }
+            "#
+            .trim(),
             "plusOneYear"
         ),
         "0"
@@ -184,21 +190,35 @@ fn comparator_if_else_blocks() {
 
 #[test]
 fn duration_offset_age_gate_if_else() {
-    let lines = [
-        "executionDatetime : date(\"2024-01-01\")",
-        "applicantBirthdate : date(\"2005-01-01\")",
-        "eligible : if executionDatetime >= applicantBirthdate + duration(\"P6570D\") then true else false",
-    ];
+    assert_eq!(
+        eval_field(
+            r#"
+            {
+                executionDatetime : date("2024-01-01");
+                applicantBirthdate : date("2005-01-01");
+                eligible : if executionDatetime >= applicantBirthdate + duration("P6570D") then true else false
+            }
+            "#
+            .trim(),
+            "eligible"
+        ),
+        "true"
+    );
 
-    assert_eq!(crate::eval_lines_field(&lines, "eligible"), "true");
-
-    let lines = [
-        "executionDatetime : date(\"2022-12-27\")",
-        "applicantBirthdate : date(\"2005-01-01\")",
-        "eligible : if executionDatetime >= applicantBirthdate + duration(\"P6570D\") then true else false",
-    ];
-
-    assert_eq!(crate::eval_lines_field(&lines, "eligible"), "false");
+    assert_eq!(
+        eval_field(
+            r#"
+            {
+                executionDatetime : date("2022-12-27");
+                applicantBirthdate : date("2005-01-01");
+                eligible : if executionDatetime >= applicantBirthdate + duration("P6570D") then true else false
+            }
+            "#
+            .trim(),
+            "eligible"
+        ),
+        "false"
+    );
 }
 mod utilities;
 pub use utilities::*;
