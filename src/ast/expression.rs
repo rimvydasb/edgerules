@@ -12,6 +12,7 @@ use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{NumberValue, RangeValue, Reference};
+use crate::utils::intern_field_name;
 use crate::*;
 use log::{error, trace};
 use std::cell::RefCell;
@@ -292,9 +293,11 @@ impl ExpressionEnum {
     }
 
     pub fn variable(_literal: &str) -> ExpressionEnum {
-        let path: Vec<&str> = _literal.split('.').collect();
-        let path = VariableLink::new_unlinked_path(path.iter().map(|s| String::from(*s)).collect());
-        Variable(path)
+        let path: Vec<&'static str> = _literal
+            .split('.')
+            .map(|segment| intern_field_name(segment))
+            .collect();
+        Variable(VariableLink::new_interned_path(path))
     }
 }
 
