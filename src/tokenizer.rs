@@ -14,7 +14,7 @@ mod test {
     use log::info;
 
     fn is_equals(code: &str, expected: &str) {
-        let result = &tokenize(&code.to_string());
+        let result = &tokenize(code);
         let result_line = array_to_code_sep(result.iter(), ", ");
 
         if result.len() > 1 {

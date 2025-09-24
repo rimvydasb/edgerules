@@ -127,7 +127,7 @@ impl EdgeRulesModel {
     }
 
     fn parse_item(code: &str) -> Result<ParsedItem, ParseErrors> {
-        let mut result = tokenize(&code.to_string());
+        let mut result = tokenize(code);
 
         if result.len() == 1 {
             match result.pop_front() {
@@ -279,6 +279,14 @@ impl EdgeRulesRuntime {
         variable.link(Rc::clone(&self.static_tree))?;
         variable.eval(Rc::clone(&self.context))
     }
+
+    // pub fn call_method(
+    //     &self,
+    //     name: &str,
+    //     args: Vec<ExpressionEnum>,
+    // ) -> Result<ValueEnum, RuntimeError> {
+    //     // @Todo: implement method calling
+    // }
 
     pub fn evaluate_expression(
         &self,

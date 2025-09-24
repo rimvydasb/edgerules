@@ -21,7 +21,7 @@ use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum::NumberValue;
 
 /// @TODO brackets counting and error returning
-pub fn tokenize(input: &String) -> VecDeque<EToken> {
+pub fn tokenize(input: &str) -> VecDeque<EToken> {
     let mut ast_builder = ASTBuilder::new();
     let mut source = CharStream::new(input);
 
@@ -38,7 +38,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
     //let mut position: usize = 0;
 
     while let Some(symbol) = source.peek() {
-        trace!("- got {} for {}", symbol, input);
+        trace!("- got {}", symbol);
 
         match symbol {
             '0'..='9' => {
