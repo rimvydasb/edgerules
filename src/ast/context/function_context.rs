@@ -10,6 +10,7 @@ use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use crate::utils::intern_field_name;
 use log::trace;
 use std::cell::RefCell;
 use std::fmt;
@@ -51,7 +52,7 @@ impl ContentHolder<ContextObject> for FunctionContext {
         }
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> Vec<&'static str> {
         self.body.borrow().get_field_names()
     }
 }
@@ -123,7 +124,8 @@ impl FunctionContext {
                     arg.name,
                     &value
                 );
-                ctx.borrow().stack_insert(arg.name.clone(), value);
+                ctx.borrow()
+                    .stack_insert(intern_field_name(arg.name.as_str()), value);
             });
 
         Ok(ctx)

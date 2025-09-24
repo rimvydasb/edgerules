@@ -10,6 +10,7 @@ use crate::typesystem::errors::LinkingErrorEnum::*;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::ValueType::ObjectType;
 use crate::typesystem::values::ValueEnum;
+use crate::utils::intern_field_name;
 use log::{error, trace};
 use std::cell::RefCell;
 use std::fmt::Display;
@@ -27,9 +28,9 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
     let mut references = Vec::new();
 
     for name in field_names {
-        match context.borrow().get(&name)? {
+        match context.borrow().get(name)? {
             EObjectContent::ExpressionRef(expression) => {
-                context.borrow().node().lock_field(&name)?;
+                context.borrow().node().lock_field(name)?;
                 {
                     let linked_type = expression
                         .borrow_mut()
@@ -38,7 +39,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
                     trace!("expression: {:?} -> {}", expression, linked_type);
                     expression.borrow_mut().field_type = Ok(linked_type);
                 }
-                context.borrow().node().unlock_field(&name);
+                context.borrow().node().unlock_field(name);
             }
             EObjectContent::ObjectRef(reference) => {
                 references.push((name, reference));
@@ -103,12 +104,13 @@ pub fn find_implementation(
 pub fn get_till_root<T: Node<T>>(
     ctx: Rc<RefCell<T>>,
     name: &str,
-) -> Result<BrowseResultFound<'_, T>, LinkingError> {
-    ctx.borrow().node().lock_field(name)?;
+) -> Result<BrowseResultFound<T>, LinkingError> {
+    let interned = intern_field_name(name);
+    ctx.borrow().node().lock_field(interned)?;
     let result;
     match ctx.borrow().get(name) {
         Ok(finding) => {
-            result = Ok(BrowseResultFound::new(Rc::clone(&ctx), name, finding));
+            result = Ok(BrowseResultFound::new(Rc::clone(&ctx), interned, finding));
         }
         Err(LinkingError {
             error: FieldNotFound(obj_name, field),
@@ -126,23 +128,23 @@ pub fn get_till_root<T: Node<T>>(
             result = Err(error);
         }
     }
-    ctx.borrow().node().unlock_field(name);
+    ctx.borrow().node().unlock_field(interned);
     result
 }
 
 #[derive(Debug, Clone)]
-pub struct BrowseResultFound<'a, T: Node<T>> {
+pub struct BrowseResultFound<T: Node<T>> {
     pub context: Rc<RefCell<T>>,
-    pub field_name: &'a str,
+    pub field_name: &'static str,
     pub content: EObjectContent<T>,
 }
 
-impl<T: Node<T>> BrowseResultFound<'_, T> {
+impl<T: Node<T>> BrowseResultFound<T> {
     pub fn new(
         context: Rc<RefCell<T>>,
-        field_name: &str,
+        field_name: &'static str,
         content: EObjectContent<T>,
-    ) -> BrowseResultFound<'_, T> {
+    ) -> BrowseResultFound<T> {
         BrowseResultFound {
             context,
             field_name,
@@ -151,7 +153,7 @@ impl<T: Node<T>> BrowseResultFound<'_, T> {
     }
 }
 
-impl BrowseResultFound<'_, ExecutionContext> {
+impl BrowseResultFound<ExecutionContext> {
     /// ObjectContent was retrieved, but to evaluate it it is necessary to provide context:
     /// - context is the execution context where this object is being acquired
     /// - content_name is the name that was used to acquire this content
@@ -164,7 +166,7 @@ impl BrowseResultFound<'_, ExecutionContext> {
                 // no need to check if in stack, if it was already acquired as expression, it is not in stack
                 self.context
                     .borrow()
-                    .stack_insert(self.field_name.to_string(), result.clone());
+                    .stack_insert(self.field_name, result.clone());
                 result
             }
             MetaphorRef(_value) => {
@@ -182,7 +184,7 @@ impl BrowseResultFound<'_, ExecutionContext> {
     }
 }
 
-impl<T: Node<T>> Display for BrowseResultFound<'_, T> {
+impl<T: Node<T>> Display for BrowseResultFound<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -196,7 +198,7 @@ impl<T: Node<T>> Display for BrowseResultFound<'_, T> {
 
 #[derive(Debug, Clone)]
 pub enum BrowseResult<'a, T: Node<T>> {
-    Found(BrowseResultFound<'a, T>),
+    Found(BrowseResultFound<T>),
 
     // context, expression, remaining path
     OnExpression(Rc<RefCell<T>>, Rc<RefCell<ExpressionEntry>>, Vec<&'a str>),
@@ -210,14 +212,15 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
         field_name: &'a str,
         content: EObjectContent<T>,
     ) -> BrowseResult<'a, T> {
-        BrowseResult::Found(BrowseResultFound::new(context, field_name, content))
+        let interned = intern_field_name(field_name);
+        BrowseResult::Found(BrowseResultFound::new(context, interned, content))
     }
 
     pub fn on_incomplete<FE, FC>(
         self,
         mut on_expression: FE,
         mut on_object_type: FC,
-    ) -> Result<BrowseResultFound<'a, T>, LinkingError>
+    ) -> Result<BrowseResultFound<T>, LinkingError>
     where
         FE: FnMut(
             Rc<RefCell<T>>,

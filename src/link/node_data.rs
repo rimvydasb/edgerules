@@ -17,7 +17,7 @@ use std::rc::{Rc, Weak};
 pub enum NodeDataEnum<T: Debug + Node<T>> {
     /// This is a normal context child. Child can access parent context and parent context can access child. Used in:
     /// 1. Context child
-    Child(String, Weak<RefCell<T>>),
+    Child(&'static str, Weak<RefCell<T>>),
     /// internal content can reach parent context. Used in:
     /// 1. Loops
     /// 2. Inline functions (if supported)
@@ -60,7 +60,7 @@ impl<T: Debug + Node<T>> NodeDataEnum<T> {
 
     pub fn to_code(&self) -> String {
         match self {
-            Child(name, _parent) => name.clone(),
+            Child(name, _parent) => (*name).to_string(),
             Isolated() | Root() => String::new(),
             Internal(_) => "#child".to_string(),
         }
@@ -72,15 +72,15 @@ pub struct NodeData<T: Debug + Node<T>> {
     /// The type of node: root, isolated, internal or child
     pub node_type: NodeDataEnum<T>,
     /// Simple placeholder to lock object fields from modification
-    object_field_locks: RefCell<HashSet<String>>,
+    object_field_locks: RefCell<HashSet<&'static str>>,
     /// Usually child list is not modified byt execution context is an exception
-    childs: RefCell<HashMap<String, Rc<RefCell<T>>>>,
+    childs: RefCell<HashMap<&'static str, Rc<RefCell<T>>>>,
 }
 
 pub trait ContentHolder<T: Node<T>> {
     fn get(&self, name: &str) -> Result<EObjectContent<T>, LinkingError>;
 
-    fn get_field_names(&self) -> Vec<String>;
+    fn get_field_names(&self) -> Vec<&'static str>;
 
     fn print_object(&self, f: &mut Formatter) -> fmt::Result {
         trace!("print_object: {:?}", self.get_field_names());
@@ -135,7 +135,10 @@ impl<T: Node<T>> NodeData<T> {
     //     }
     // }
     //
-    pub fn new_fixed(childs: HashMap<String, Rc<RefCell<T>>>, node_type: NodeDataEnum<T>) -> Self {
+    pub fn new_fixed(
+        childs: HashMap<&'static str, Rc<RefCell<T>>>,
+        node_type: NodeDataEnum<T>,
+    ) -> Self {
         let object_field_locks = RefCell::new(HashSet::with_capacity(childs.len()));
         let childs = RefCell::new(childs);
 
@@ -154,14 +157,14 @@ impl<T: Node<T>> NodeData<T> {
         }
     }
 
-    pub fn get_assigned_to_field(&self) -> Option<String> {
+    pub fn get_assigned_to_field(&self) -> Option<&'static str> {
         match self.node_type {
-            Child(ref name, _) => Some(name.clone()),
+            Child(name, _) => Some(name),
             _ => None,
         }
     }
 
-    pub fn lock_field(&self, field: &str) -> Result<(), LinkingError> {
+    pub fn lock_field(&self, field: &'static str) -> Result<(), LinkingError> {
         trace!("lock_field: {}.{}", self.node_type, field);
         if self.is_field_locked(field) {
             return LinkingError::new(CyclicReference(
@@ -170,23 +173,21 @@ impl<T: Node<T>> NodeData<T> {
             ))
             .into();
         }
-        self.object_field_locks
-            .borrow_mut()
-            .insert(field.to_string());
+        self.object_field_locks.borrow_mut().insert(field);
 
         Ok(())
     }
 
-    pub fn unlock_field(&self, field: &str) {
+    pub fn unlock_field(&self, field: &'static str) {
         trace!("unlock_field: {}.{}", self.node_type, field);
         self.object_field_locks.borrow_mut().remove(field);
     }
 
-    pub fn is_field_locked(&self, field: &str) -> bool {
+    pub fn is_field_locked(&self, field: &'static str) -> bool {
         self.object_field_locks.borrow().contains(field)
     }
 
-    pub fn get_childs(&self) -> RefCell<HashMap<String, Rc<RefCell<T>>>> {
+    pub fn get_childs(&self) -> RefCell<HashMap<&'static str, Rc<RefCell<T>>>> {
         RefCell::clone(&self.childs)
     }
 
@@ -194,8 +195,8 @@ impl<T: Node<T>> NodeData<T> {
         self.childs.borrow().get(name).cloned()
     }
 
-    pub fn add_child(&self, name: String, child: Rc<RefCell<T>>) {
-        self.childs.borrow_mut().insert(name.clone(), child);
+    pub fn add_child(&self, name: &'static str, child: Rc<RefCell<T>>) {
+        self.childs.borrow_mut().insert(name, child);
     }
     //
     // /// The attachment can be made for a child to access the parent.
@@ -208,17 +209,14 @@ impl<T: Node<T>> NodeData<T> {
     pub fn attach_child(parent: &Rc<RefCell<T>>, child: &Rc<RefCell<T>>) {
         let name = match &child.borrow().node().node_type {
             Child(name, parent) => match parent.upgrade() {
-                None => Some(name.clone()),
+                None => Some(*name),
                 Some(_) => None,
             },
             _ => None,
         };
 
         if let Some(name) = name {
-            parent
-                .borrow()
-                .node()
-                .add_child(name.clone(), Rc::clone(child));
+            parent.borrow().node().add_child(name, Rc::clone(child));
             child.borrow_mut().mut_node().node_type = Child(name, Rc::downgrade(parent));
         };
     }

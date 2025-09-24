@@ -61,12 +61,12 @@ impl From<MethodEntry> for Rc<RefCell<MethodEntry>> {
 #[derive(Debug, Clone)]
 pub struct ContextObject {
     /// fields can also referenced by variables in various places in AST. This is why it is Rc.
-    pub expressions: HashMap<String, Rc<RefCell<ExpressionEntry>>>,
+    pub expressions: HashMap<&'static str, Rc<RefCell<ExpressionEntry>>>,
     /// metaphors are reference counted because they are linked to UserFunctionCall
-    pub metaphors: HashMap<String, Rc<RefCell<MethodEntry>>>,
+    pub metaphors: HashMap<&'static str, Rc<RefCell<MethodEntry>>>,
     /// node.childs, expressions and metaphors have names
-    pub all_field_names: Vec<String>,
-    pub field_name_set: HashSet<String>,
+    pub all_field_names: Vec<&'static str>,
+    pub field_name_set: HashSet<&'static str>,
     /// context object can be treated as a function body, so it can have parameters
     pub parameters: Vec<FormalParameter>,
 
@@ -106,7 +106,7 @@ impl ContentHolder<ContextObject> for ContextObject {
         }
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> Vec<&'static str> {
         self.get_field_names()
     }
 }
@@ -129,17 +129,17 @@ impl ContextObject {
         Rc::new(RefCell::new(self))
     }
 
-    pub fn get_field_names(&self) -> Vec<String> {
+    pub fn get_field_names(&self) -> Vec<&'static str> {
         self.all_field_names.clone()
     }
 
-    pub fn add_field_name(&mut self, field_name: &str) {
+    pub fn add_field_name(&mut self, field_name: &'static str) {
         if self.field_name_set.contains(field_name) {
             return;
         }
 
-        self.field_name_set.insert(field_name.to_string());
-        self.all_field_names.push(field_name.to_string());
+        self.field_name_set.insert(field_name);
+        self.all_field_names.push(field_name);
     }
 
     pub fn size(&self) -> usize {

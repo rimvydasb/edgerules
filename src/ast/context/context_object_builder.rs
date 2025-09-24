@@ -5,6 +5,7 @@ use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
 use crate::typesystem::types::ValueType;
+use crate::utils::intern_field_name;
 use log::trace;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -14,11 +15,11 @@ use std::rc::Rc;
 /// **ContextObjectBuilder**
 /// - Builds Execution Context Object and gets dismissed after building.
 pub struct ContextObjectBuilder {
-    fields: HashMap<String, Rc<RefCell<ExpressionEntry>>>,
-    metaphors: HashMap<String, Rc<RefCell<MethodEntry>>>,
-    childs: HashMap<String, Rc<RefCell<ContextObject>>>,
-    field_names: Vec<String>,
-    field_name_set: HashSet<String>,
+    fields: HashMap<&'static str, Rc<RefCell<ExpressionEntry>>>,
+    metaphors: HashMap<&'static str, Rc<RefCell<MethodEntry>>>,
+    childs: HashMap<&'static str, Rc<RefCell<ContextObject>>>,
+    field_names: Vec<&'static str>,
+    field_name_set: HashSet<&'static str>,
     context_type: Option<ValueType>,
     parameters: Vec<FormalParameter>,
     node_type: NodeDataEnum<ContextObject>,
@@ -69,17 +70,18 @@ impl ContextObjectBuilder {
     // @Todo: optimize by inserting by a number, not a field name
     // @Todo: return an error and propogate it to the top
     pub fn add_expression(&mut self, field_name: &str, field: ExpressionEnum) -> &mut Self {
+        let field_name = intern_field_name(field_name);
         self.insert_field_name(field_name);
 
         if let ExpressionEnum::StaticObject(obj) = &field {
             // No need to assign parent now, it is done later in build
-            self.childs.insert(field_name.to_string(), Rc::clone(obj));
+            self.childs.insert(field_name, Rc::clone(obj));
             return self;
         }
 
         trace!(">>> inserting field {:?}", field_name);
         self.fields
-            .insert(field_name.to_string(), ExpressionEntry::from(field).into());
+            .insert(field_name, ExpressionEntry::from(field).into());
 
         self
     }
@@ -89,8 +91,9 @@ impl ContextObjectBuilder {
             MetaphorDef(m) => {
                 let name = m.get_name();
                 trace!(">>> inserting function {:?}", name);
-                self.insert_field_name(name.as_str());
-                self.metaphors.insert(name, MethodEntry::from(m).into());
+                let interned = intern_field_name(name.as_str());
+                self.insert_field_name(interned);
+                self.metaphors.insert(interned, MethodEntry::from(m).into());
             }
             DefinitionEnum::UserType(t) => {
                 self.defined_types.insert(t.name, t.body);
@@ -104,11 +107,11 @@ impl ContextObjectBuilder {
 
     pub fn append(&mut self, another: Rc<RefCell<ContextObject>>) {
         for (key, value) in another.borrow().expressions.iter() {
-            self.fields.insert(key.clone(), Rc::clone(value));
+            self.fields.insert(*key, Rc::clone(value));
         }
 
         for (key, value) in another.borrow().metaphors.iter() {
-            self.metaphors.insert(key.clone(), Rc::clone(value));
+            self.metaphors.insert(*key, Rc::clone(value));
         }
 
         for (key, value) in another.borrow().node().get_childs().borrow().iter() {
@@ -118,12 +121,12 @@ impl ContextObjectBuilder {
                 continue;
             }
 
-            self.childs.insert(key.clone(), Rc::clone(value));
+            self.childs.insert(*key, Rc::clone(value));
         }
 
         // Merge metaphors by name
         for (key, value) in another.borrow().metaphors.iter() {
-            self.metaphors.insert(key.clone(), Rc::clone(value));
+            self.metaphors.insert(*key, Rc::clone(value));
         }
 
         for (key, value) in another.borrow().defined_types.iter() {
@@ -132,7 +135,7 @@ impl ContextObjectBuilder {
 
         // Update field_names and deduplicate them
         for field_name in another.borrow().get_field_names() {
-            self.insert_field_name(field_name.as_str());
+            self.insert_field_name(field_name);
         }
     }
 
@@ -141,14 +144,11 @@ impl ContextObjectBuilder {
             target
                 .borrow_mut()
                 .expressions
-                .insert(key.clone(), Rc::clone(value));
+                .insert(*key, Rc::clone(value));
         }
 
         for (key, value) in another.borrow().metaphors.iter() {
-            target
-                .borrow_mut()
-                .metaphors
-                .insert(key.clone(), Rc::clone(value));
+            target.borrow_mut().metaphors.insert(*key, Rc::clone(value));
         }
 
         for (key, value) in another.borrow().node().get_childs().borrow().iter() {
@@ -158,30 +158,24 @@ impl ContextObjectBuilder {
                 continue;
             }
 
-            target
-                .borrow()
-                .node()
-                .add_child(key.clone(), Rc::clone(value));
+            target.borrow().node().add_child(*key, Rc::clone(value));
         }
 
         // Merge metaphors by name
         for (key, value) in another.borrow().metaphors.iter() {
-            target
-                .borrow_mut()
-                .metaphors
-                .insert(key.clone(), Rc::clone(value));
+            target.borrow_mut().metaphors.insert(*key, Rc::clone(value));
         }
 
         // Update field_names and deduplicate them
         {
             let mut target_ref = target.borrow_mut();
             for field_name in another.borrow().get_field_names() {
-                target_ref.add_field_name(field_name.as_str());
+                target_ref.add_field_name(field_name);
             }
         }
     }
 
-    pub fn get_field_names(&self) -> Vec<String> {
+    pub fn get_field_names(&self) -> Vec<&'static str> {
         self.field_names.clone()
     }
 
@@ -205,19 +199,18 @@ impl ContextObjectBuilder {
             .borrow()
             .iter()
             .for_each(|(name, child)| {
-                child.borrow_mut().node.node_type =
-                    NodeDataEnum::Child(name.clone(), Rc::downgrade(&ctx));
+                child.borrow_mut().node.node_type = NodeDataEnum::Child(*name, Rc::downgrade(&ctx));
             });
 
         ctx
     }
 
-    fn insert_field_name(&mut self, field_name: &str) {
+    fn insert_field_name(&mut self, field_name: &'static str) {
         if self.field_name_set.contains(field_name) {
             return;
         }
 
-        self.field_name_set.insert(field_name.to_string());
-        self.field_names.push(field_name.to_string());
+        self.field_name_set.insert(field_name);
+        self.field_names.push(field_name);
     }
 }

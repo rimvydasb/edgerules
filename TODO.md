@@ -1,5 +1,70 @@
 ## Todo / Optimization Checklist
 
+> Critical Gaps
+
+- All three binaries (edgerules, er, edgerules-wasi) point at the same
+  native entry; the WASI target can’t get its own feature set or I/O defaults,
+  which blocks size-sensitive builds and automation promised in the docs
+  (Cargo.toml:14-23).
+- Context storage keeps every field name as owned String and clones
+  on each lock/stack insert, inflating WASM size and runtime allocs;
+  interning is still missing despite being called out in TODOs (src/ast/
+  context/context_object.rs:64, src/link/node_data.rs:164, src/runtime/
+  execution_context.rs:308).
+- Parsing still forces tokenize(&code.to_string()), re-allocating the whole
+  source for every call and passing &String through the tokenizer layer, which
+  slows the CLI and hampers agents that repeatedly re-run parses (src/runtime/
+  edge_rules.rs:130, src/tokenizer/parser.rs:24).
+
+High-Impact Opportunities
+
+- Replace HashMap<String, …>/HashSet<String> hot paths with interned u32 ids
+  (and migrate VariableLink) so linking and locking stop cloning strings; this
+  also shrinks the binary by removing duplicate literals (src/ast/context/
+  context_object.rs:68, src/link/node_data.rs:193).
+- Gate trace!/debug! blocks behind a cfg(any(debug_assertions, feature =
+  "native")) to avoid shipping format strings into release WASM (src/link/
+  linker.rs:17, src/runtime/execution_context.rs:263).
+- Cache variable handles during linking so evaluate_field and
+  evaluate_expression stop re-linking every call; persist the resolved
+  handles inside ExecutionContext to cut repeated graph walks (src/runtime/
+  edge_rules.rs:277).
+- Collapse the pervasive Rc<RefCell> churn by making ContextObject
+  immutable at runtime and storing evaluation results in a separate arena;
+  most RefCell usage is only to bypass borrowing rules (src/ast/context/
+  context_object.rs:64, src/runtime/execution_context.rs:37).
+
+Agent & Maintainability
+
+- Enforce the documented naming standards (no ctx/cfg) so automated
+  agents don’t have to fight inconsistent style (src/runtime/
+  execution_context.rs:312).
+- Split the WASI entry into src/bin/edgerules-wasi.rs so command examples in
+  AGENTS.md match the filesystem, easing scripted use.
+- Surface a high-level module map/AST diagram in doc/ to shorten orientation
+  time (the Mermaid stub is present but unused: src/ast/context/!uml-
+  functions.mermaid).
+- Expand the smoke tests to cover CLI/WASM size assertions, giving agents a
+  quick regression check they can run before altering hot paths.
+
+Improvement Plan
+
+2. Introduce a lightweight string interner module shared by linker/runtime;
+   migrate ContextObject and VariableLink to store ids, remove String cloning,
+   and swap global maps to FxHashMap.
+3. Wrap all logging macros behind compile-time guards and confirm the
+   release WASM shrinks (compare wasm-opt output before/after).
+4. Teach the linker to emit field handles (SmallVec of interned ids) and
+   let ExecutionContext cache evaluation results keyed by those handles,
+   eliminating per-call link() work.
+5. Refactor the tokenizer API to accept &str, stop cloning the source
+   string, and add a bench/dev test so future grammar work keeps parse costs
+   flat.
+
+These steps unlock smaller WASM artifacts (priority 1), cut hot-path
+allocations (priority 2), and align the layout/documentation with the
+workflow expectations for Codex CLI and GPT-5 coding agents (priority 3).
+
 ### Features & Dependencies
 
 - [x] Default features: remove wasm-bindgen and console_error_panic_hook from

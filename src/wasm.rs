@@ -2,7 +2,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::runtime::edge_rules::EdgeRules;
+use crate::runtime::edge_rules::EdgeRulesModel;
 
 // Inline JS glue to leverage host RegExp for regexReplace/regexSplit on Web/Node
 // without pulling in the Rust regex crate (keeps WASM small).
@@ -147,7 +147,7 @@ pub fn init_panic_hook() {
 
 #[wasm_bindgen]
 pub fn evaluate_all(code: &str) -> String {
-    let mut service = EdgeRules::new();
+    let mut service = EdgeRulesModel::new();
     match service.load_source(code) {
         Ok(()) => match service.to_runtime() {
             Ok(runtime) => match runtime.eval_all() {
@@ -162,7 +162,7 @@ pub fn evaluate_all(code: &str) -> String {
 
 #[wasm_bindgen]
 pub fn evaluate_expression(code: &str) -> String {
-    let mut service = EdgeRules::new();
+    let mut service = EdgeRulesModel::new();
     match service.to_runtime_snapshot() {
         Ok(runtime) => match runtime.evaluate_expression_str(code) {
             Ok(v) => v.to_string(),
@@ -174,7 +174,7 @@ pub fn evaluate_expression(code: &str) -> String {
 
 #[wasm_bindgen]
 pub fn evaluate_field(code: &str, field: &str) -> String {
-    let mut service = EdgeRules::new();
+    let mut service = EdgeRulesModel::new();
     match service.load_source(code) {
         Ok(()) => match service.to_runtime() {
             Ok(runtime) => match runtime.evaluate_field(field) {
