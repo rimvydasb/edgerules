@@ -405,21 +405,27 @@ fn context_fields_duplicate() {
 
     parse_error_contains(model, &["Duplicate field 'a'"]);
 
-    assert_value!(r#"
+    assert_value!(
+        r#"
     {
         z: 1;
         ctx: { z: 2; d: z }
         value: ctx.d
     }
-    "#, "2");
+    "#,
+        "2"
+    );
 
-    assert_value!(r#"
+    assert_value!(
+        r#"
     {
         z: 1;
         ctx: { z: 2; d: { zz: z } }
         value: ctx.d.zz
     }
-    "#, "2");
+    "#,
+        "2"
+    );
 
     let model = r#"
     {

@@ -18,6 +18,65 @@ fn user_function_with_list_argument_and_return_list() {
 }
 
 #[test]
+fn context_functions_duplicate() {
+    let model = r#"
+    {
+        ctx: {
+            func calc(x) : { result: x + 1 }
+            func calc(x) : { result: x + 2 }
+        }
+    }
+    "#;
+
+    parse_error_contains(model, &["duplicate function 'calc'"]);
+
+    assert_value!(
+        r#"
+        {
+            func inc(x) : { result: x + 2 }
+            ctx: {
+                func inc(x) : { result: x + 1 }
+                baseline: inc(7).result
+            }
+            value: ctx.baseline
+        }
+        "#,
+        "8"
+    );
+
+    assert_value!(
+        r#"
+        {
+            func echo(v) : { value: v + 2 }
+            ctx: {
+                func echo(v) : { value: v + 1 }
+                nested: {
+                    func echo(v) : { value: v }
+                    fallback: echo(10).value
+                }
+                fallback: echo(10).value
+            }
+            value: ctx.fallback
+        }
+        "#,
+        "11"
+    );
+
+    let model = r#"
+    {
+        ctx: {
+            nested: {
+                func echo(v) : { value: v }
+                func echo(v) : { value: v + 1 }
+            }
+        }
+    }
+    "#;
+
+    parse_error_contains(model, &["duplicate function 'echo'"]);
+}
+
+#[test]
 fn user_function_with_list_stats_and_nested_access() {
     // Accept a list, compute stats in the function body, and read nested fields
     assert_value!(
