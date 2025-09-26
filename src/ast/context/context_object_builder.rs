@@ -68,7 +68,7 @@ impl ContextObjectBuilder {
 
     // @Todo: check if field is not duplicated
     // @Todo: optimize by inserting by a number, not a field name
-    // @Todo: return an error and propogate it to the top
+    // @Todo: return an error and propagate it to the top
     pub fn add_expression(&mut self, field_name: &str, field: ExpressionEnum) -> &mut Self {
         let field_name = intern_field_name(field_name);
         self.insert_field_name(field_name);
@@ -207,6 +207,7 @@ impl ContextObjectBuilder {
 
     fn insert_field_name(&mut self, field_name: &'static str) {
         if self.field_name_set.contains(field_name) {
+            // @Todo: return Error instead with duplicates are not supported message
             return;
         }
 

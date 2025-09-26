@@ -6,10 +6,6 @@
   native entry; the WASI target can’t get its own feature set or I/O defaults,
   which blocks size-sensitive builds and automation promised in the docs
   (Cargo.toml:14-23).
-- Parsing still forces tokenize(&code.to_string()), re-allocating the whole
-  source for every call and passing &String through the tokenizer layer, which
-  slows the CLI and hampers agents that repeatedly re-run parses (src/runtime/
-  edge_rules.rs:130, src/tokenizer/parser.rs:24).
 
 High-Impact Opportunities
 
