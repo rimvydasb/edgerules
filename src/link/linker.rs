@@ -31,15 +31,42 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
         match context.borrow().get(name)? {
             EObjectContent::ExpressionRef(expression) => {
                 context.borrow().node().lock_field(name)?;
-                {
-                    let linked_type = expression
-                        .borrow_mut()
-                        .expression
-                        .link(Rc::clone(&context))?;
-                    trace!("expression: {:?} -> {}", expression, linked_type);
-                    expression.borrow_mut().field_type = Ok(linked_type);
-                }
+
+                let linked_type = {
+                    match expression.try_borrow_mut() {
+                        Ok(mut entry) => {
+                            let result = entry.expression.link(Rc::clone(&context));
+                            match result {
+                                Ok(field_type) => {
+                                    entry.field_type = Ok(field_type.clone());
+                                    Ok(field_type)
+                                }
+                                Err(err) => Err(err),
+                            }
+                        }
+                        Err(_) => {
+                            let context_name = context.borrow().node().node_type.to_string();
+                            Err(LinkingError::new(CyclicReference(
+                                context_name,
+                                name.to_string(),
+                            )))
+                        }
+                    }
+                };
+
                 context.borrow().node().unlock_field(name);
+
+                if let Ok(field_type) = &linked_type {
+                    let context_name = context.borrow().node().node_type.to_string();
+                    trace!(
+                        "expression: {}.{} -> {}",
+                        context_name,
+                        name,
+                        field_type
+                    );
+                }
+
+                linked_type?;
             }
             EObjectContent::ObjectRef(reference) => {
                 references.push((name, reference));

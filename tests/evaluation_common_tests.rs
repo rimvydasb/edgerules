@@ -414,7 +414,6 @@ fn field_self_references_test() {
     }
     "#;
 
-    // @Todo: getting "RefCell already borrowed" thread 'field_self_references_test' panicked at src/ast/context/context_object_type.rs:81:40:
     link_error_contains(model, &["cyclic reference loop"]);
 }
 

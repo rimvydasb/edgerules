@@ -7,6 +7,8 @@ use crate::ast::token::ComplexTypeRef;
 use crate::ast::Link;
 use crate::link::linker::link_parts;
 use crate::link::node_data::Node;
+use crate::typesystem::errors::LinkingError;
+use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use core::fmt;
@@ -78,9 +80,26 @@ impl StaticLink for EObjectContent<ContextObject> {
         match self {
             ConstantValue(value) => Ok(value.get_type()),
             ExpressionRef(value) => {
-                let field_type = value.borrow_mut().expression.link(ctx);
-                value.borrow_mut().field_type = field_type.clone();
-                field_type
+                match value.try_borrow_mut() {
+                    Ok(mut entry) => {
+                        let field_type = entry.expression.link(Rc::clone(&ctx));
+                        if let Ok(field_type_value) = &field_type {
+                            entry.field_type = Ok(field_type_value.clone());
+                        }
+                        field_type
+                    }
+                    Err(_) => {
+                        let ctx_ref = ctx.borrow();
+                        let context_name = ctx_ref.node().node_type.to_string();
+                        let field_name = ctx_ref.node().node_type.to_code();
+                        let field_label = if field_name.is_empty() {
+                            "<self>".to_string()
+                        } else {
+                            field_name
+                        };
+                        Err(LinkingError::new(CyclicReference(context_name, field_label)))
+                    }
+                }
             }
             MetaphorRef(_metaphor) => {
                 todo!("MetaphorRef")
