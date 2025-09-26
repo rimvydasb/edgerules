@@ -44,6 +44,20 @@ fn context_functions_duplicate() {
         "8"
     );
 
+    let model = r#"
+    {
+        func inc(x) : { result: x + 2 }
+        ctx: {
+            func inc(x) : { result: x + 1 }
+            inc: 777
+            baseline: inc(7).result
+        }
+        value: ctx.baseline
+    }
+    "#;
+
+    parse_error_contains(model, &["duplicate field 'inc'"]);
+
     assert_value!(
         r#"
         {
