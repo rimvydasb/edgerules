@@ -394,5 +394,43 @@ fn test_problems() {
         "expected pretty output to contain normalized array of objects, got: {printed}"
     );
 }
+
+#[test]
+fn context_fields_duplicate() {
+    let model = r#"
+    {
+        ctx: { a: 1; a: 2 }
+    }
+    "#;
+
+    parse_error_contains(model, &["Duplicate field 'a'"]);
+
+    assert_value!(r#"
+    {
+        z: 1;
+        ctx: { z: 2; d: z }
+        value: ctx.d
+    }
+    "#, "2");
+
+    assert_value!(r#"
+    {
+        z: 1;
+        ctx: { z: 2; d: { zz: z } }
+        value: ctx.d.zz
+    }
+    "#, "2");
+
+    let model = r#"
+    {
+        z: 1;
+        ctx: { z: 2; d: { zz: z; zz: 5 } }
+        value: ctx.d.zz
+    }
+    "#;
+
+    parse_error_contains(model, &["Duplicate field 'zz'"]);
+}
+
 mod utilities;
 pub use utilities::*;

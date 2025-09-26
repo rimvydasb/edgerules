@@ -326,9 +326,9 @@ pub mod factory {
                 // let plain = SimpleObject::try_unwrap(object)
                 //     .map_err(|_err| UnknownError(format!("'{}' failed to construct", function_name)))?;
 
-                Ok(Definition(DefinitionEnum::Metaphor(
-                    FunctionDefinition::build(annotations, function_name, arguments, object).into(),
-                )))
+                let function =
+                    FunctionDefinition::build(annotations, function_name, arguments, object)?;
+                Ok(Definition(DefinitionEnum::Metaphor(function.into())))
             }
             (
                 Unparsed(FunctionDefinitionLiteral(annotations, function_name, _arguments)),
@@ -370,7 +370,7 @@ pub mod factory {
         while let Some(right_token) = right.pop_front() {
             match right_token {
                 Definition(definition) => {
-                    obj.add_definition(definition);
+                    obj.add_definition(definition)?;
                 }
                 Expression(ObjectField(field_name, expression)) => {
                     // if let Object(_) = &mut *expression {
@@ -379,7 +379,7 @@ pub mod factory {
                     //         obj.object_type = ValueType::ObjectType(type_name)
                     //     }
                     // }
-                    obj.add_expression(field_name.as_str(), *expression);
+                    obj.add_expression(field_name.as_str(), *expression)?;
                 }
 
                 // @Todo: need to accumulate errors instead of just returning - same applies for an array
@@ -803,7 +803,7 @@ pub mod factory {
                                 format!("{}", in_loop_variable),
                                 in_expression,
                                 return_expression,
-                            ))))
+                            )?)))
                         } else {
                             return Err(UnknownParseError("??? ... in ... return ...".to_string()));
                         }

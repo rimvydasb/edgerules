@@ -7,7 +7,7 @@ use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::token::ExpressionEnum;
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::utils::intern_field_name;
@@ -94,18 +94,18 @@ impl FunctionContext {
         expression: ExpressionEnum,
         parameters: Vec<FormalParameter>,
         parent: Rc<RefCell<ContextObject>>,
-    ) -> Self {
+    ) -> Result<Self, ParseErrorEnum> {
         let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&parent));
 
-        builder
-            .set_parameters(parameters.clone())
-            .add_expression(RETURN_EXPRESSION, expression);
+        builder.set_parameters(parameters.clone());
 
-        Self {
+        builder.add_expression(RETURN_EXPRESSION, expression)?;
+
+        Ok(Self {
             body: builder.build(),
             parameters,
             node: NodeData::new(NodeDataEnum::Isolated()),
-        }
+        })
     }
 
     pub fn create_eval_context(

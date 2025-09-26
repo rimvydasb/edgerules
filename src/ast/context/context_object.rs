@@ -240,27 +240,27 @@ pub mod test {
         info!(">>> test_nesting()");
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
+        builder.add_expression("a", E::from(1.0))?;
+        builder.add_expression("b", E::from(2.0))?;
 
         let child_instance;
 
         {
             let mut child = ContextObjectBuilder::new();
-            child.add_expression("x", E::from("Hello"));
-            child.add_expression("y", expr("a + b")?);
+            child.add_expression("x", E::from("Hello"))?;
+            child.add_expression("y", expr("a + b")?)?;
             child.add_definition(DefinitionEnum::Metaphor(
                 FunctionDefinition::build(
                     vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                )
+                )?
                 .into(),
-            ));
+            ))?;
             let instance = child.build();
             child_instance = Rc::clone(&instance);
-            builder.add_expression("c", ExpressionEnum::StaticObject(instance));
+            builder.add_expression("c", ExpressionEnum::StaticObject(instance))?;
         }
 
         let ctx = builder.build();

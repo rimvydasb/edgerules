@@ -4,6 +4,7 @@ use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
+use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::types::ValueType;
 use crate::utils::intern_field_name;
 use log::trace;
@@ -69,110 +70,91 @@ impl ContextObjectBuilder {
     // @Todo: check if field is not duplicated
     // @Todo: optimize by inserting by a number, not a field name
     // @Todo: return an error and propagate it to the top
-    pub fn add_expression(&mut self, field_name: &str, field: ExpressionEnum) -> &mut Self {
+    pub fn add_expression(
+        &mut self,
+        field_name: &str,
+        field: ExpressionEnum,
+    ) -> Result<&mut Self, ParseErrorEnum> {
         let field_name = intern_field_name(field_name);
-        self.insert_field_name(field_name);
+        self.insert_field_name(field_name, NameKind::Field)?;
 
         if let ExpressionEnum::StaticObject(obj) = &field {
             // No need to assign parent now, it is done later in build
             self.childs.insert(field_name, Rc::clone(obj));
-            return self;
+            return Ok(self);
         }
 
         trace!(">>> inserting field {:?}", field_name);
         self.fields
             .insert(field_name, ExpressionEntry::from(field).into());
 
-        self
+        Ok(self)
     }
 
-    pub fn add_definition(&mut self, field: DefinitionEnum) {
+    pub fn add_definition(&mut self, field: DefinitionEnum) -> Result<&mut Self, ParseErrorEnum> {
         match field {
             MetaphorDef(m) => {
                 let name = m.get_name();
                 trace!(">>> inserting function {:?}", name);
                 let interned = intern_field_name(name.as_str());
-                self.insert_field_name(interned);
+                self.insert_field_name(interned, NameKind::Function)?;
                 self.metaphors.insert(interned, MethodEntry::from(m).into());
             }
             DefinitionEnum::UserType(t) => {
                 self.defined_types.insert(t.name, t.body);
             }
         }
+        Ok(self)
     }
 
     pub fn set_context_type(&mut self, context_type: ValueType) {
         self.context_type = Some(context_type);
     }
 
-    pub fn append(&mut self, another: Rc<RefCell<ContextObject>>) {
-        for (key, value) in another.borrow().expressions.iter() {
-            self.fields.insert(*key, Rc::clone(value));
+    pub fn append(
+        &mut self,
+        another: Rc<RefCell<ContextObject>>,
+    ) -> Result<&mut Self, ParseErrorEnum> {
+        let borrowed = another.borrow();
+        let other_names = borrowed.get_field_names();
+
+        for &name in &other_names {
+            let kind = if borrowed.metaphors.contains_key(&name) {
+                NameKind::Function
+            } else {
+                NameKind::Field
+            };
+
+            self.ensure_name_unique(name, kind)?;
         }
 
-        for (key, value) in another.borrow().metaphors.iter() {
-            self.metaphors.insert(*key, Rc::clone(value));
-        }
+        let childs_ref = borrowed.node().get_childs();
+        let childs_ref = childs_ref.borrow();
 
-        for (key, value) in another.borrow().node().get_childs().borrow().iter() {
-            if let Some(existing_child) = self.childs.get(key) {
-                let another_child = another.borrow().node.get_child(key).unwrap();
-                Self::merge(Rc::clone(existing_child), another_child);
+        for name in other_names {
+            if let Some(field) = borrowed.expressions.get(name) {
+                self.insert_field_name(name, NameKind::Field)?;
+                self.fields.insert(name, Rc::clone(field));
                 continue;
             }
 
-            self.childs.insert(*key, Rc::clone(value));
+            if let Some(child) = childs_ref.get(name) {
+                self.insert_field_name(name, NameKind::Field)?;
+                self.childs.insert(name, Rc::clone(child));
+                continue;
+            }
+
+            if let Some(method) = borrowed.metaphors.get(name) {
+                self.insert_field_name(name, NameKind::Function)?;
+                self.metaphors.insert(name, Rc::clone(method));
+            }
         }
 
-        // Merge metaphors by name
-        for (key, value) in another.borrow().metaphors.iter() {
-            self.metaphors.insert(*key, Rc::clone(value));
-        }
-
-        for (key, value) in another.borrow().defined_types.iter() {
+        for (key, value) in borrowed.defined_types.iter() {
             self.defined_types.insert(key.clone(), value.clone());
         }
 
-        // Update field_names and deduplicate them
-        for field_name in another.borrow().get_field_names() {
-            self.insert_field_name(field_name);
-        }
-    }
-
-    pub fn merge(target: Rc<RefCell<ContextObject>>, another: Rc<RefCell<ContextObject>>) {
-        for (key, value) in another.borrow().expressions.iter() {
-            target
-                .borrow_mut()
-                .expressions
-                .insert(*key, Rc::clone(value));
-        }
-
-        for (key, value) in another.borrow().metaphors.iter() {
-            target.borrow_mut().metaphors.insert(*key, Rc::clone(value));
-        }
-
-        for (key, value) in another.borrow().node().get_childs().borrow().iter() {
-            if let Some(existing_child) = target.borrow().node.get_child(key) {
-                let another_child = another.borrow().node.get_child(key).unwrap();
-                Self::merge(existing_child, another_child);
-                continue;
-            }
-
-            target.borrow().node().add_child(*key, Rc::clone(value));
-        }
-
-        // Merge metaphors by name
-        for (key, value) in another.borrow().metaphors.iter() {
-            target.borrow_mut().metaphors.insert(*key, Rc::clone(value));
-        }
-
-        // Update field_names and deduplicate them
-        {
-            let mut target_ref = target.borrow_mut();
-            for field_name in another.borrow().get_field_names() {
-                target_ref.add_field_name(field_name);
-            }
-        }
+        Ok(self)
     }
 
     pub fn get_field_names(&self) -> Vec<&'static str> {
@@ -205,13 +187,110 @@ impl ContextObjectBuilder {
         ctx
     }
 
-    fn insert_field_name(&mut self, field_name: &'static str) {
+    fn ensure_name_unique(
+        &self,
+        field_name: &'static str,
+        kind: NameKind,
+    ) -> Result<(), ParseErrorEnum> {
         if self.field_name_set.contains(field_name) {
-            // @Todo: return Error instead with duplicates are not supported message
-            return;
+            return Err(ParseErrorEnum::UnknownError(format!(
+                "Duplicate {} '{}'",
+                kind.as_str(),
+                field_name
+            )));
         }
+
+        Ok(())
+    }
+
+    fn insert_field_name(
+        &mut self,
+        field_name: &'static str,
+        kind: NameKind,
+    ) -> Result<(), ParseErrorEnum> {
+        self.ensure_name_unique(field_name, kind)?;
 
         self.field_name_set.insert(field_name);
         self.field_names.push(field_name);
+
+        Ok(())
+    }
+}
+
+#[derive(Copy, Clone)]
+enum NameKind {
+    Field,
+    Function,
+}
+
+impl NameKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            NameKind::Field => "field",
+            NameKind::Function => "function",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::metaphors::functions::FunctionDefinition;
+    use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
+    use crate::ast::token::ExpressionEnum;
+    use crate::typesystem::errors::ParseErrorEnum;
+
+    #[test]
+    fn add_expression_rejects_duplicate_field() {
+        let mut builder = ContextObjectBuilder::new();
+        builder
+            .add_expression("value", ExpressionEnum::from(1.0))
+            .expect("first insertion must succeed");
+
+        let err = builder
+            .add_expression("value", ExpressionEnum::from(2.0))
+            .err()
+            .expect("duplicate field must return an error");
+
+        match err {
+            ParseErrorEnum::UnknownError(message) => assert!(
+                message.contains("value"),
+                "error message should mention duplicated field name: {}",
+                message
+            ),
+            other => panic!("unexpected error variant: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn add_definition_rejects_duplicate_function_name() {
+        let mut builder = ContextObjectBuilder::new();
+
+        let body = ContextObjectBuilder::new().build();
+        let function = FunctionDefinition::build(vec![], "duplicate".to_string(), vec![], body)
+            .expect("function definition must succeed");
+
+        builder
+            .add_definition(MetaphorDef(function.into()))
+            .expect("first function insertion must succeed");
+
+        let body_second = ContextObjectBuilder::new().build();
+        let duplicate_function =
+            FunctionDefinition::build(vec![], "duplicate".to_string(), vec![], body_second)
+                .expect("function definition must succeed");
+
+        let err = builder
+            .add_definition(MetaphorDef(duplicate_function.into()))
+            .err()
+            .expect("duplicate function must return an error");
+
+        match err {
+            ParseErrorEnum::UnknownError(message) => assert!(
+                message.contains("duplicate"),
+                "error message should mention duplicated function name: {}",
+                message
+            ),
+            other => panic!("unexpected error variant: {:?}", other),
+        }
     }
 }

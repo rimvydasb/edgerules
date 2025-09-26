@@ -20,6 +20,7 @@ and all intermediate steps (TBC)
 to avoid re-linking and unnecessary overhead
 - after each **decision service method** call, the decision service model must be reusable 
 for the next call without any side effects from the previous execution
+- If decision service has none or more than one argument, return an error with a proper message
 
 ## Limitations and Notes:
 

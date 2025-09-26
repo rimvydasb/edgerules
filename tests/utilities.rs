@@ -113,6 +113,20 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
     }
 }
 
+pub fn parse_error_contains(code: &str, needles: &[&str]) {
+    let mut service = EdgeRulesModel::new();
+    let err = service.load_source(code);
+
+    let err = err.err().map(|e| e.to_string()).unwrap();
+    let lower = err.to_lowercase();
+    for n in needles {
+        assert!(
+            lower.contains(&n.to_lowercase()),
+            "expected error to contain `{n}`, got: {err}"
+        );
+    }
+}
+
 pub fn unshift(text: &str) -> String {
     let lines: Vec<&str> = text.lines().collect();
     let min_indent = lines

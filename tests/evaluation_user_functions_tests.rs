@@ -270,6 +270,18 @@ fn user_function_argument_type_mismatch_errors() {
 }
 
 #[test]
+fn user_function_arguments_duplicate() {
+    let model = r#"
+    {
+        func typed(a: number, b: string, b: date): { result: toString(a) + b }
+        value: typed('oops', 'fail')
+    }
+    "#;
+
+    parse_error_contains(model, &["Duplicate function argument name 'b'"]);
+}
+
+#[test]
 fn user_function_accepts_list_parameter_type() {
     let code = r#"
     func total(values: number[]): {

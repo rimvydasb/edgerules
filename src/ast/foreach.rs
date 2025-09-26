@@ -10,7 +10,7 @@ use crate::link::linker::link_parts;
 use crate::link::node_data::{NodeData, NodeDataEnum};
 use crate::runtime::execution_context::*;
 use crate::tokenizer::utils::Either;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{Integer, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, RangeValue};
@@ -58,27 +58,31 @@ impl ForFunction {
         in_loop_variable: String,
         in_expression: ExpressionEnum,
         return_expression: ExpressionEnum,
-    ) -> Self {
+    ) -> Result<Self, ParseErrorEnum> {
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression(RETURN_EXPRESSION, return_expression);
+        builder.add_expression(RETURN_EXPRESSION, return_expression)?;
 
-        ForFunction {
+        Ok(ForFunction {
             in_loop_variable,
             in_expression,
             return_expression: builder.build(),
             return_type: LinkingError::not_linked().into(),
-        }
+        })
     }
 
     fn create_in_loop_context(
         &self,
         parent: &Rc<RefCell<ExecutionContext>>,
         value: ExpressionEnum,
-    ) -> Rc<RefCell<ExecutionContext>> {
+    ) -> Result<Rc<RefCell<ExecutionContext>>, RuntimeError> {
         let mut obj = ContextObjectBuilder::new();
-        obj.add_expression(self.in_loop_variable.as_str(), value);
+        obj.add_expression(self.in_loop_variable.as_str(), value)
+            .map_err(|err| RuntimeError::eval_error(err.to_string()))?;
 
-        ExecutionContext::create_temp_child_context(Rc::clone(parent), obj.build())
+        Ok(ExecutionContext::create_temp_child_context(
+            Rc::clone(parent),
+            obj.build(),
+        ))
     }
 
     fn iterate_values(
@@ -90,7 +94,7 @@ impl ForFunction {
         let mut result: Vec<Result<ValueEnum, RuntimeError>> = Vec::new();
 
         for value in values {
-            let ctx = self.create_in_loop_context(&parent, Value(value?));
+            let ctx = self.create_in_loop_context(&parent, Value(value?))?;
             //@Todo way too complex
             let map_value = self
                 .return_expression
@@ -122,7 +126,7 @@ impl ForFunction {
         let mut result: Vec<Result<ValueEnum, RuntimeError>> = Vec::new();
 
         for value in values {
-            let ctx = self.create_in_loop_context(&parent, Value(ValueEnum::from(value)));
+            let ctx = self.create_in_loop_context(&parent, Value(ValueEnum::from(value)))?;
             //@Todo way too complex
             let map_value = self
                 .return_expression

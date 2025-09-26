@@ -9,10 +9,12 @@ use crate::ast::utils::array_to_code_sep;
 use crate::ast::Link;
 use crate::link::linker;
 use crate::tokenizer::C_ASSIGN;
+use crate::typesystem::errors::ParseErrorEnum;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 use crate::typesystem::types::{TypedValue, ValueType};
+use std::collections::HashSet;
 
 /// Non executable function definition holder. For an executable function definition see FunctionContext.
 #[derive(Debug)]
@@ -31,13 +33,23 @@ impl FunctionDefinition {
         name: String,
         arguments: Vec<FormalParameter>,
         body: Rc<RefCell<ContextObject>>,
-    ) -> Self {
-        FunctionDefinition {
+    ) -> Result<Self, ParseErrorEnum> {
+        let mut seen: HashSet<&str> = HashSet::new();
+        for argument in &arguments {
+            if !seen.insert(argument.name.as_str()) {
+                return Err(ParseErrorEnum::UnknownError(format!(
+                    "Duplicate function argument name '{}'",
+                    argument.name
+                )));
+            }
+        }
+
+        Ok(FunctionDefinition {
             annotations,
             name,
             arguments,
             body,
-        }
+        })
     }
 }
 

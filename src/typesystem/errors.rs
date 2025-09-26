@@ -408,6 +408,12 @@ impl From<LinkingError> for RuntimeError {
     }
 }
 
+impl From<ParseErrorEnum> for RuntimeError {
+    fn from(err: ParseErrorEnum) -> Self {
+        RuntimeError::eval_error(err.to_string())
+    }
+}
+
 impl RuntimeError {
     fn into_runtime(error: LinkingError) -> Self {
         let mut runtime_error = match &error.error {

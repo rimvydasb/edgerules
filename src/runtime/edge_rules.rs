@@ -75,6 +75,12 @@ impl From<ParseErrors> for EvalError {
     }
 }
 
+impl From<ParseErrorEnum> for EvalError {
+    fn from(err: ParseErrorEnum) -> Self {
+        EvalError::FailedParsing(ParseErrors(vec![err]))
+    }
+}
+
 impl From<RuntimeError> for EvalError {
     fn from(res: RuntimeError) -> Self {
         EvalError::FailedExecution(res)
@@ -213,13 +219,18 @@ impl EdgeRulesModel {
         match parsed {
             ParsedItem::Expression(ObjectField(field, field_expression)) => {
                 self.ast_root
-                    .add_expression(field.as_str(), *field_expression);
+                    .add_expression(field.as_str(), *field_expression)
+                    .map_err(|err| ParseErrors(vec![err]))?;
             }
             ParsedItem::Expression(ExpressionEnum::StaticObject(context_object)) => {
-                self.ast_root.append(context_object);
+                self.ast_root
+                    .append(context_object)
+                    .map_err(|err| ParseErrors(vec![err]))?;
             }
             ParsedItem::Definition(definition) => {
-                self.ast_root.add_definition(definition);
+                self.ast_root
+                    .add_definition(definition)
+                    .map_err(|err| ParseErrors(vec![err]))?;
             }
             ParsedItem::Expression(unexpected) => {
                 return Err(ParseErrors::unexpected_token(
@@ -245,7 +256,9 @@ impl EdgeRulesModel {
             Ok(()) => Ok(EdgeRulesRuntime::new(Rc::clone(&static_context))),
             Err(err) => Err(err),
         };
-        self.ast_root.append(static_context);
+        self.ast_root
+            .append(static_context)
+            .map_err(|err| LinkingError::other_error(err.to_string()))?;
         result
     }
 }
@@ -506,16 +519,17 @@ pub mod test {
         {
             let mut service = EdgeRulesModel::new();
             service.load_source("value: 2 + 2")?;
-            service.load_source("value: 2 + 3")?;
-            match service.to_runtime() {
-                Ok(runtime) => {
-                    let result = runtime.evaluate_field("value")?;
-                    assert_eq!(result, ValueEnum::NumberValue(Int(5)));
-                }
-                Err(error) => {
-                    panic!("Failed to link: {:?}", error);
-                }
-            }
+            let duplicate = service.load_source("value: 2 + 3");
+            let errors = duplicate.expect_err("duplicate field should fail");
+            let first_error = errors
+                .errors()
+                .first()
+                .expect("expected duplicate field error");
+            assert!(first_error.to_string().contains("value"));
+
+            let runtime = service.to_runtime()?;
+            let result = runtime.evaluate_field("value")?;
+            assert_eq!(result, ValueEnum::NumberValue(Int(4)));
         }
 
         test_code("value").expect_parse_error(UnexpectedToken(
@@ -540,15 +554,22 @@ pub mod test {
         let result = runtime.evaluate_field("value")?;
         assert_eq!(result.to_string(), "3");
 
-        service.load_source("value: 2 + 2")?;
-        let runtime = service.to_runtime_snapshot()?;
-        let out1 = runtime.evaluate_field("value")?;
-        assert_eq!(out1.to_string(), "4");
+        let duplicate = service.load_source("value: 2 + 2");
+        let errors = duplicate.expect_err("duplicate field should fail");
+        let first_error = errors
+            .errors()
+            .first()
+            .expect("expected duplicate field error");
+        assert!(first_error.to_string().contains("value"));
 
-        service.load_source("value: 2 + 3")?;
         let runtime = service.to_runtime_snapshot()?;
-        let out2 = runtime.evaluate_field("value")?;
-        assert_eq!(out2.to_string(), "5");
+        let still_three = runtime.evaluate_field("value")?;
+        assert_eq!(still_three.to_string(), "3");
+
+        service.load_source("extra: value + 2")?;
+        let runtime = service.to_runtime_snapshot()?;
+        let extra = runtime.evaluate_field("extra")?;
+        assert_eq!(extra.to_string(), "5");
 
         Ok(())
     }
@@ -569,15 +590,21 @@ pub mod test {
         let out2 = runtime.evaluate_field("calendar.sub.inner.value")?;
         assert_eq!(out2.to_string(), "42");
 
-        service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
-        let runtime = service.to_runtime_snapshot()?;
+        let duplicate =
+            service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }");
+        let errors = duplicate.expect_err("duplicate calendar should fail");
+        let first_error = errors
+            .errors()
+            .first()
+            .expect("expected duplicate calendar error");
+        assert!(first_error.to_string().contains("calendar"));
 
-        // Evaluate a field/path from the loaded model
+        let runtime = service.to_runtime_snapshot()?;
         let start = runtime.evaluate_field("calendar.config.start")?;
         assert_eq!(start.to_string(), "7");
 
-        let end = runtime.evaluate_field("calendar.config.end")?;
-        assert_eq!(end.to_string(), "12");
+        let end = runtime.evaluate_field("calendar.config.end");
+        assert!(end.is_err());
 
         Ok(())
     }

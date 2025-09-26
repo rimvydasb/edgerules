@@ -128,8 +128,8 @@ pub mod test {
         info!(">>> test_builder()");
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
+        builder.add_expression("a", E::from(1.0))?;
+        builder.add_expression("b", E::from(2.0))?;
 
         let obj = builder.build();
 
@@ -142,8 +142,8 @@ pub mod test {
         assert_eq!(obj.borrow().to_type_string(), "Type<a: number, b: number>");
 
         let mut builder2 = ContextObjectBuilder::new();
-        builder2.add_expression("x", E::from("Hello"));
-        builder2.add_expression("y", expr("1 + 2")?);
+        builder2.add_expression("x", E::from("Hello"))?;
+        builder2.add_expression("y", expr("1 + 2")?)?;
 
         let obj2 = builder2.build();
 
@@ -152,9 +152,9 @@ pub mod test {
         assert_eq!(obj2.borrow().to_type_string(), "Type<x: string, y: number>");
 
         let mut builder3 = ContextObjectBuilder::new();
-        builder3.add_expression("x", E::from("Hello"));
-        builder3.add_expression("y", expr("a + b")?);
-        builder3.append(Rc::clone(&obj));
+        builder3.add_expression("x", E::from("Hello"))?;
+        builder3.add_expression("y", expr("a + b")?)?;
+        builder3.append(Rc::clone(&obj))?;
 
         let obj3 = builder3.build();
 
@@ -175,23 +175,23 @@ pub mod test {
         info!(">>> test_nesting()");
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
+        builder.add_expression("a", E::from(1.0))?;
+        builder.add_expression("b", E::from(2.0))?;
 
         {
             let mut child = ContextObjectBuilder::new();
-            child.add_expression("x", E::from("Hello"));
-            child.add_expression("y", expr("a + b")?);
+            child.add_expression("x", E::from("Hello"))?;
+            child.add_expression("y", expr("a + b")?)?;
             child.add_definition(MetaphorDef(
                 FunctionDefinition::build(
                     vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                )
+                )?
                 .into(),
-            ));
-            builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
+            ))?;
+            builder.add_expression("c", ExpressionEnum::StaticObject(child.build()))?;
         }
 
         let obj = builder.build();
