@@ -396,6 +396,29 @@ fn test_problems() {
 }
 
 #[test]
+fn field_self_references_test() {
+
+    let model = r#"
+    {
+        ctx: { b: 1; a: a }
+    }
+    "#;
+
+    link_error_contains(model, &["cyclic reference loop"]);
+
+    let model = r#"
+    {
+        z: 1;
+        ctx: { z: 2; d: { z: z } }
+        value: ctx.d.z
+    }
+    "#;
+
+    // @Todo: getting "RefCell already borrowed" thread 'field_self_references_test' panicked at src/ast/context/context_object_type.rs:81:40:
+    link_error_contains(model, &["cyclic reference loop"]);
+}
+
+#[test]
 fn context_fields_duplicate() {
     let model = r#"
     {
