@@ -86,11 +86,6 @@ pub fn eval_value(code: &str) -> String {
     eval_field(code, "value")
 }
 
-pub fn eval_lines_field(lines: &[&str], field: &str) -> String {
-    let code = format!("{{\n{}\n}}", lines.join("\n"));
-    eval_field(&code, field)
-}
-
 fn wrap_in_object(lines: &str) -> String {
     if lines.trim().starts_with('{') && lines.trim().ends_with('}') {
         return lines.trim().to_string();
@@ -141,29 +136,6 @@ pub fn parse_error_contains(code: &str, needles: &[&str]) {
             }
         }
     }
-}
-
-pub fn unshift(text: &str) -> String {
-    let lines: Vec<&str> = text.lines().collect();
-    let min_indent = lines
-        .iter()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.chars().take_while(|c| c.is_whitespace()).count())
-        .min()
-        .unwrap_or(0);
-    lines
-        .into_iter()
-        .map(|line| {
-            if line.len() >= min_indent {
-                &line[min_indent..]
-            } else {
-                line
-            }
-        })
-        .collect::<Vec<&str>>()
-        .join("\n")
-        .trim()
-        .to_string()
 }
 
 pub fn to_lines(text: &str) -> Vec<&str> {
