@@ -1,7 +1,9 @@
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
+use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::token::ExpressionEnum;
+use crate::link::linker;
 use crate::link::node_data::ContentHolder;
 use crate::runtime::edge_rules::EdgeRulesModel;
 use crate::runtime::execution_context::ExecutionContext;
@@ -243,11 +245,8 @@ fn execution_context_to_js(
     let js_object = Object::new();
     let field_names: Vec<&'static str> = {
         let ctx_ref = context.borrow();
-        let names = {
-            let object_ref = ctx_ref.object.borrow();
-            object_ref.get_field_names()
-        };
-        names
+        let object = ctx_ref.object.borrow();
+        object.get_field_names()
     };
 
     for field_name in field_names {
@@ -404,6 +403,17 @@ fn js_to_value(js_value: &JsValue) -> Result<ValueEnum, String> {
         return js_date_to_value(date);
     }
 
+    if js_value.is_object() {
+        if js_value.is_function() {
+            return Err("Functions are not supported as EdgeRules values".to_string());
+        }
+        let obj: Object = js_value
+            .clone()
+            .dyn_into()
+            .map_err(|_| "Unsupported JS object value for EdgeRules".to_string())?;
+        return js_object_to_value(obj);
+    }
+
     Err("Unsupported JS value type for EdgeRules".to_string())
 }
 
@@ -421,4 +431,28 @@ fn js_date_to_value(date: JsDate) -> Result<ValueEnum, String> {
         .map_err(|err| format!("Invalid date: {}", err))?;
 
     Ok(ValueEnum::DateValue(ValueOrSv::Value(feel_date)))
+}
+
+fn js_object_to_value(object: Object) -> Result<ValueEnum, String> {
+    let entries = Object::entries(&object);
+    let mut builder = ContextObjectBuilder::new();
+
+    for entry in entries.iter() {
+        let pair = Array::from(&entry);
+        let key = pair
+            .get(0)
+            .as_string()
+            .ok_or_else(|| "Object keys must be strings".to_string())?;
+        let value_js = pair.get(1);
+        let value_enum = js_to_value(&value_js)?;
+        builder
+            .add_expression(key.as_str(), ExpressionEnum::from(value_enum.clone()))
+            .map_err(|err| err.to_string())?;
+    }
+
+    let static_context = builder.build();
+    linker::link_parts(Rc::clone(&static_context)).map_err(|err| err.to_string())?;
+    let exec_ctx = ExecutionContext::create_isolated_context(Rc::clone(&static_context));
+    ExecutionContext::eval_all_fields(Rc::clone(&exec_ctx)).map_err(|err| err.to_string())?;
+    Ok(ValueEnum::Reference(exec_ctx))
 }

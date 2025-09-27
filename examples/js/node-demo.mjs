@@ -29,3 +29,29 @@ console.log('fromBase64:', from);
 if (from !== 'FEEL') {
   throw new Error('fromBase64 failed: ' + from);
 }
+
+const methodResult = wasm.evaluate_method(
+  `{
+    func personalize(customer) : {
+      greeting: 'Hello ' + customer.name;
+      total: customer.subtotal + customer.tax;
+      vip: customer.vip
+    }
+  }`,
+  'personalize',
+  [{
+    name: 'Ada',
+    subtotal: 40,
+    tax: 5,
+    vip: true
+  }],
+);
+console.log('evaluate_method:', methodResult);
+if (
+  !methodResult ||
+  methodResult.greeting !== 'Hello Ada' ||
+  methodResult.total !== 45 ||
+  methodResult.vip !== true
+) {
+  throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
+}

@@ -114,7 +114,8 @@ WASM exported methods via `wasm_bindgen`:
   with given `args`.
 
 All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors
-instead of encoding everything as strings.
+instead of encoding everything as strings. `evaluate_method` accepts primitives, arrays, dates, or plain JavaScript objects
+as arguments, and context outputs are surfaced as plain objects.
 
 ### Optional Function Groups for WASM
 
