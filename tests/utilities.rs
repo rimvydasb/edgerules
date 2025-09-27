@@ -91,19 +91,20 @@ pub fn eval_lines_field(lines: &[&str], field: &str) -> String {
     eval_field(&code, field)
 }
 
-pub fn assert_eval_all(lines: &[&str], expected_lines: &[&str]) {
-    let model = format!("{{\n{}\n}}", lines.join("\n"));
-    let evaluated = eval_all(&model);
-    let mut expected = expected_lines.join("\n");
-    expected.push('\n');
-    assert_eq!(evaluated, expected);
+fn wrap_in_object(lines: &str) -> String {
+    if lines.trim().starts_with('{') && lines.trim().ends_with('}') {
+        return lines.trim().to_string();
+    }
+
+    format!("{{{}}}", lines.trim().to_string())
 }
 
-pub fn assert_eval_all_code(code: &str, expected_lines: &[&str]) {
-    let evaluated = eval_all(code);
+pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
+    let model = wrap_in_object(lines);
+    let evaluated = eval_all(&*model);
     assert_eq!(
         evaluated.lines().map(|l| l.trim()).collect::<Vec<_>>(),
-        expected_lines
+        expected_lines.iter().map(|l| l.trim()).collect::<Vec<_>>()
     );
 }
 

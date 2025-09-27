@@ -272,7 +272,7 @@ fn input_type_validation() {
     "#;
 
     // @Todo: this is absolutely incorrect - should be a link error about a type mismatch
-    assert_eval_all_code(model, &["{", "value : 1", "}"]);
+    assert_eval_all(model, &["{", "value : 1", "}"]);
 
     let model = r#"
     {
@@ -282,7 +282,7 @@ fn input_type_validation() {
     }
     "#;
 
-    assert_eval_all_code(model, &["{", "value : 2", "}"]);
+    assert_eval_all(model, &["{", "value : 2", "}"]);
 }
 
 #[test]
@@ -295,6 +295,13 @@ fn missing_is_applied_for_function_argument() {
     }
     "#;
 
-    // @Todo: for some reasons internal context placeholder variable "#child" is rendered instead of a correct value assignment
-    assert_eval_all_code(model, &["{", "value : {", "eligible : Missing", "amount : 100", "termInMonths : number.Missing", "monthlyPayment : number.Missing", "}", "}"]);
+    assert_eval_all(model, &[
+        "{",
+        "   value : {",
+        "      eligible : Missing",
+        "      amount : 100",
+        "      termInMonths : number.Missing",
+        "      monthlyPayment : number.Missing",
+        "   }",
+        "}"]);
 }

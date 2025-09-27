@@ -257,29 +257,23 @@ fn user_function_body_is_fully_evaluated() {
     structOutputValue: structOutput.result
     "#;
 
-    let lines: Vec<&str> = code.lines().collect();
-
-    assert_eval_all(
-        &lines,
-        &[
-            "{",
-            "   {",
-            "      sumAll : 6",
-            "      lvl1 : {",
-            "         result : 12",
-            "      }",
-            "      lvl2 : {",
-            "         result : 13",
-            "      }",
-            "   }",
-            "   output1 : 13",
-            "   lvl1 : {",
-            "      result : 12",
-            "   }",
-            "   structOutputValue : 12",
-            "}",
-        ],
-    );
+    assert_eval_all(code, &[
+        "{",
+        "   all : {",
+        "      sumAll : 6",
+        "      lvl1 : {",
+        "         result : 12",
+        "      }",
+        "      lvl2 : {",
+        "         result : 13",
+        "      }",
+        "   }",
+        "   output1 : 13",
+        "   structOutput : {",
+        "      result : 12",
+        "   }",
+        "   structOutputValue : 12",
+        "}"]);
 }
 
 #[test]
@@ -293,12 +287,7 @@ fn user_function_field_with_math_operator() {
     output1: testFunction(1,2,3).lvl2.result + 1
     "#;
 
-    let lines: Vec<&str> = code.lines().collect();
-
-    let model = format!("{{\n{}\n}}", code);
-
-    assert_eq!(eval_field(&model, "output1"), "14");
-    assert_eval_all(&lines, &["{", "   output1 : 14", "}"]);
+    assert_eval_all(code, &["{", "output1 : 14", "}"]);
 }
 
 #[test]
@@ -313,21 +302,7 @@ fn user_function_has_types() {
     output2: testFunction(1,'x', date('2023-05-03')).label
     "#;
 
-    let lines: Vec<&str> = code.lines().collect();
-
-    assert_eval_all(
-        &lines,
-        &[
-            "{",
-            "   {",
-            "      sumAll : 6",
-            "      label : '1x'",
-            "   }",
-            "   output1 : 6",
-            "   output2 : '1x'",
-            "}",
-        ],
-    );
+    assert_eval_all(&code, &["{", "all : {", "sumAll : 6", "label : '1x'", "}", "output1 : 6", "output2 : '1x'", "}"]);
 }
 
 #[test]
@@ -365,9 +340,7 @@ fn user_function_accepts_list_parameter_type() {
     sum: total([1,2,3]).sum
     "#;
 
-    let lines: Vec<&str> = code.lines().collect();
-
-    assert_eval_all(&lines, &["{", "   count : 3", "   sum : 6", "}"]);
+    assert_eval_all(code, &["{", "count : 3", "sum : 6", "}"]);
 }
 
 #[test]
@@ -403,7 +376,6 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
 
 #[test]
 fn user_function_not_found() {
-
     let model = "{ value: inc(1) }";
     link_error_contains(model, &["Function 'inc(...)' not found"]);
 
@@ -438,7 +410,7 @@ fn user_function_deeper_level_call_is_allowed() {
     }
     "#;
 
-    assert_eval_all_code(
+    assert_eval_all(
         model,
         &["{", "deeper : {", "value : 2", "}", "value : 2", "}"],
     );
@@ -462,8 +434,16 @@ fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
     }
     "#;
 
-    assert_eval_all_code(
+    assert_eval_all(
         model,
-        &["{", "deeper : {", "value1 : 11", "value2 : 51", "}", "value : 62", "}"],
+        &[
+            "{",
+            "deeper : {",
+            "value1 : 11",
+            "value2 : 51",
+            "}",
+            "value : 62",
+            "}",
+        ],
     );
 }

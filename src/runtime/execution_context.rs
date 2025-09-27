@@ -306,6 +306,15 @@ impl ExecutionContext {
     }
 
     pub fn stack_insert(&self, field_name: &'static str, value: Result<ValueEnum, RuntimeError>) {
+        if let Ok(Reference(child_ctx)) = &value {
+            if let Some(parent) = self.self_ref.upgrade() {
+                {
+                    let mut child = child_ctx.borrow_mut();
+                    child.mut_node().node_type = NodeDataEnum::Child(field_name, Weak::new());
+                }
+                NodeData::attach_child(&parent, child_ctx);
+            }
+        }
         self.stack.borrow_mut().insert(field_name, value);
     }
 

@@ -200,7 +200,7 @@ impl BrowseResultFound<ExecutionContext> {
                 todo!("MetaphorRef")
             }
             ObjectRef(value) => {
-                NodeData::attach_child(value, &self.context);
+                NodeData::attach_child(&self.context, value);
                 Ok(ValueEnum::Reference(Rc::clone(value)))
             }
             Definition(definition) => Err(RuntimeError::eval_error(format!(
