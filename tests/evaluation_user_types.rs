@@ -271,7 +271,7 @@ fn input_type_validation() {
     }
     "#;
 
-    // @Todo: this is absolutely incorrect - should be a link error about type mismatch
+    // @Todo: this is absolutely incorrect - should be a link error about a type mismatch
     assert_eval_all_code(model, &["{", "value : 1", "}"]);
 
     let model = r#"
@@ -285,4 +285,16 @@ fn input_type_validation() {
     assert_eval_all_code(model, &["{", "value : 2", "}"]);
 }
 
-// cast operator is parsed and linked; deeper shaping/validation to be covered separately
+#[test]
+fn missing_is_applied_for_function_argument() {
+    let model = r#"
+    {
+        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        func inc(x: LoanOffer) : { result: x }
+        value: inc({amount: 100}).result
+    }
+    "#;
+
+    // @Todo: for some reasons internal context placeholder variable "#child" is rendered instead of a correct value assignment
+    assert_eval_all_code(model, &["{", "value : {", "eligible : Missing", "amount : 100", "termInMonths : number.Missing", "monthlyPayment : number.Missing", "}", "}"]);
+}
