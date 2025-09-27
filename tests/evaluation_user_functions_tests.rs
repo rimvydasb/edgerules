@@ -400,3 +400,70 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
     assert_string_contains!("birthdate : Missing", &evaluated);
     assert_string_contains!("income : number.Missing", &evaluated);
 }
+
+#[test]
+fn user_function_not_found() {
+
+    let model = "{ value: inc(1) }";
+    link_error_contains(model, &["Function 'inc(...)' not found"]);
+
+    let model = r#"
+    {
+        deeper : { func inc(x) : { result: x + 1 } }
+        value: inc(1).result
+    }
+    "#;
+
+    link_error_contains(model, &["Function 'inc(...)' not found"]);
+
+    let model = r#"
+    {
+        deeper : { func inc(x) : { result: x + 1 } }
+        value: deeper.inc(1).result
+    }
+    "#;
+
+    link_error_contains(model, &["Function 'deeper.inc(...)' not found"]);
+}
+
+#[test]
+fn user_function_deeper_level_call_is_allowed() {
+    let model = r#"
+    {
+        deeper : {
+            func inc(x) : { result: x + 1 }
+            value: inc(1).result
+        }
+        value: deeper.value
+    }
+    "#;
+
+    assert_eval_all_code(
+        model,
+        &["{", "deeper : {", "value : 2", "}", "value : 2", "}"],
+    );
+}
+
+#[test]
+fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
+    let model = r#"
+    {
+        deeper : {
+            func inc(x) : {
+                func helper(y) : {
+                    result: y * 10
+                }
+                result: helper(x).result + 1
+            }
+            value1: inc(1).result
+            value2: inc(5).result
+        }
+        value: deeper.value1 + deeper.value2
+    }
+    "#;
+
+    assert_eval_all_code(
+        model,
+        &["{", "deeper : {", "value1 : 11", "value2 : 51", "}", "value : 62", "}"],
+    );
+}
