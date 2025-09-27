@@ -4,6 +4,7 @@ use crate::ast::expression::StaticLink;
 use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
 use crate::ast::token::{DefinitionEnum, EToken, ExpressionEnum};
+use crate::ast::user_function_call::UserFunctionCall;
 use crate::ast::utils::array_to_code_sep;
 use crate::link::linker;
 use crate::runtime::execution_context::ExecutionContext;
@@ -301,7 +302,8 @@ impl EdgeRulesRuntime {
         name: &str,
         args: Vec<ExpressionEnum>,
     ) -> Result<ValueEnum, RuntimeError> {
-        // @Todo: implement method calling
+        let call = UserFunctionCall::new(name.to_string(), args);
+        self.evaluate_expression(ExpressionEnum::from(call))
     }
 
     pub fn evaluate_expression(
@@ -347,6 +349,7 @@ pub mod test {
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
     use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
 
+    use crate::runtime::edge_rules::expr;
     use crate::typesystem::types::number::NumberEnum::{self, Int};
 
     use crate::typesystem::values::ValueEnum;
@@ -667,6 +670,78 @@ pub mod test {
         assert_eq!(result, ValueEnum::NumberValue(Int(3)));
 
         Ok(())
+    }
+
+    #[test]
+    fn call_method_errors_when_function_missing() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service.load_source("{ value: 1 }")?;
+        let runtime = service.to_runtime_snapshot()?;
+
+        let err = runtime
+            .call_method("missing", vec![])
+            .expect_err("expected missing function error");
+
+        let message = err.to_string();
+        assert!(
+            message.contains("Function 'missing(...)' not found"),
+            "unexpected error: {message}"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn call_method_errors_when_argument_count_mismatches() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service.load_source("{ func greet(name, age) : { result: name } }")?;
+        let runtime = service.to_runtime_snapshot()?;
+
+        let err = runtime
+            .call_method("greet", vec![expr("'tom'")?])
+            .expect_err("expected argument mismatch error");
+
+        let message = err.to_string();
+        assert!(
+            message.contains("Function greet expects 2 arguments, but 1 were provided"),
+            "unexpected error: {message}"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn call_method_happy_path_with_single_and_multiple_arguments() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service.load_source(
+            "{ func inc(x) : { result: x + 1 }; func add(left, right) : { result: left + right } }",
+        )?;
+        let runtime = service.to_runtime_snapshot()?;
+
+        let single = runtime.call_method("inc", vec![expr("41")?])?;
+        assert_function_result_number(&single, 42);
+
+        let multiple = runtime.call_method("add", vec![expr("1")?, expr("2")?])?;
+        assert_function_result_number(&multiple, 3);
+
+        Ok(())
+    }
+
+    fn assert_function_result_number(value: &ValueEnum, expected: i64) {
+        match value {
+            ValueEnum::Reference(ctx) => {
+                let code = ctx.borrow().to_code();
+                let needle = format!("result : {}", expected);
+                assert!(code.contains(&needle), "unexpected context: {code}");
+            }
+            other => panic!("expected function context reference, got: {other}"),
+        }
     }
 
     #[test]
