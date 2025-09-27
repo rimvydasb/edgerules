@@ -257,23 +257,27 @@ fn user_function_body_is_fully_evaluated() {
     structOutputValue: structOutput.result
     "#;
 
-    assert_eval_all(code, &[
-        "{",
-        "   all : {",
-        "      sumAll : 6",
-        "      lvl1 : {",
-        "         result : 12",
-        "      }",
-        "      lvl2 : {",
-        "         result : 13",
-        "      }",
-        "   }",
-        "   output1 : 13",
-        "   structOutput : {",
-        "      result : 12",
-        "   }",
-        "   structOutputValue : 12",
-        "}"]);
+    assert_eval_all(
+        code,
+        &[
+            "{",
+            "   all : {",
+            "      sumAll : 6",
+            "      lvl1 : {",
+            "         result : 12",
+            "      }",
+            "      lvl2 : {",
+            "         result : 13",
+            "      }",
+            "   }",
+            "   output1 : 13",
+            "   structOutput : {",
+            "      result : 12",
+            "   }",
+            "   structOutputValue : 12",
+            "}",
+        ],
+    );
 }
 
 #[test]
@@ -302,7 +306,19 @@ fn user_function_has_types() {
     output2: testFunction(1,'x', date('2023-05-03')).label
     "#;
 
-    assert_eval_all(&code, &["{", "all : {", "sumAll : 6", "label : '1x'", "}", "output1 : 6", "output2 : '1x'", "}"]);
+    assert_eval_all(
+        &code,
+        &[
+            "{",
+            "all : {",
+            "sumAll : 6",
+            "label : '1x'",
+            "}",
+            "output1 : 6",
+            "output2 : '1x'",
+            "}",
+        ],
+    );
 }
 
 #[test]

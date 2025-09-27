@@ -121,7 +121,10 @@ impl StaticLink for UserFunctionCall {
 
                 if let Some(tref) = parameter.declared_type() {
                     let expected = resolve_declared_type(tref, function_body_ctx.as_ref(), &ctx)?;
-                    if resolved_type != expected && complex_type_ref_contains_alias(tref) {
+                    if resolved_type != expected
+                        && complex_type_ref_contains_alias(tref)
+                        && can_cast_alias(&resolved_type, &expected)
+                    {
                         let original = std::mem::replace(
                             input_argument,
                             ExpressionEnum::Value(ValueEnum::BooleanValue(false)),
@@ -182,6 +185,16 @@ fn complex_type_ref_contains_alias(tref: &ComplexTypeRef) -> bool {
         ComplexTypeRef::Alias(_) => true,
         ComplexTypeRef::List(inner) => complex_type_ref_contains_alias(inner),
         ComplexTypeRef::Primitive(_) => false,
+    }
+}
+
+fn can_cast_alias(actual: &ValueType, expected: &ValueType) -> bool {
+    match (actual, expected) {
+        (ValueType::ObjectType(_), ValueType::ObjectType(_)) => true,
+        (ValueType::ListType(inner_actual), ValueType::ListType(inner_expected)) => {
+            can_cast_alias(inner_actual.as_ref(), inner_expected.as_ref())
+        }
+        _ => false,
     }
 }
 

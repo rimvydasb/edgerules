@@ -270,8 +270,46 @@ fn input_type_validation() {
     }
     "#;
 
-    // @Todo: this is absolutely incorrect - should be a link error about a type mismatch
-    assert_eval_all(model, &["{", "value : 1", "}"]);
+    link_error_contains(
+        model,
+        &[
+            "Argument `x` of function `inc`",
+            "type 'number'",
+            "expected 'Type<eligible: boolean",
+        ],
+    );
+
+    let model = r#"
+    {
+        func greet(name: string) : { result: name }
+        value: greet(10).result
+    }
+    "#;
+
+    link_error_contains(
+        model,
+        &[
+            "Argument `name` of function `greet`",
+            "type 'number'",
+            "expected 'string'",
+        ],
+    );
+
+    let model = r#"
+    {
+        func flag(value: boolean) : { result: value }
+        value: flag("yes").result
+    }
+    "#;
+
+    link_error_contains(
+        model,
+        &[
+            "Argument `value` of function `flag`",
+            "type 'string'",
+            "expected 'boolean'",
+        ],
+    );
 
     let model = r#"
     {
@@ -294,13 +332,17 @@ fn missing_is_applied_for_function_argument() {
     }
     "#;
 
-    assert_eval_all(model, &[
-        "{",
-        "   value : {",
-        "      eligible : Missing",
-        "      amount : 100",
-        "      termInMonths : number.Missing",
-        "      monthlyPayment : number.Missing",
-        "   }",
-        "}"]);
+    assert_eval_all(
+        model,
+        &[
+            "{",
+            "   value : {",
+            "      eligible : Missing",
+            "      amount : 100",
+            "      termInMonths : number.Missing",
+            "      monthlyPayment : number.Missing",
+            "   }",
+            "}",
+        ],
+    );
 }

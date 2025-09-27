@@ -733,6 +733,34 @@ pub mod test {
         Ok(())
     }
 
+    #[test]
+    fn call_method_type_mismatch_does_not_poison_context() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service.load_source(
+            "{ type LoanOffer: { amount: <number> }; func inc(offer: LoanOffer) : { result: offer.amount + 1 } }",
+        )?;
+        let runtime = service.to_runtime_snapshot()?;
+
+        let err = runtime
+            .call_method("inc", vec![expr("1")?])
+            .expect_err("expected type mismatch error");
+        let message = err.to_string();
+        assert!(
+            message.contains("Argument `offer` of function `inc`"),
+            "unexpected error: {message}"
+        );
+
+        let first = runtime.call_method("inc", vec![expr("{amount: 10}")?])?;
+        assert_function_result_number(&first, 11);
+
+        let second = runtime.call_method("inc", vec![expr("{amount: 20}")?])?;
+        assert_function_result_number(&second, 21);
+
+        Ok(())
+    }
+
     fn assert_function_result_number(value: &ValueEnum, expected: i64) {
         match value {
             ValueEnum::Reference(ctx) => {

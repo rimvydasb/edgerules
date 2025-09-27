@@ -397,7 +397,6 @@ fn test_problems() {
 
 #[test]
 fn field_self_references_test() {
-
     let model = r#"
     {
         ctx: { b: 1; a: a }

@@ -79,28 +79,29 @@ impl StaticLink for EObjectContent<ContextObject> {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         match self {
             ConstantValue(value) => Ok(value.get_type()),
-            ExpressionRef(value) => {
-                match value.try_borrow_mut() {
-                    Ok(mut entry) => {
-                        let field_type = entry.expression.link(Rc::clone(&ctx));
-                        if let Ok(field_type_value) = &field_type {
-                            entry.field_type = Ok(field_type_value.clone());
-                        }
-                        field_type
+            ExpressionRef(value) => match value.try_borrow_mut() {
+                Ok(mut entry) => {
+                    let field_type = entry.expression.link(Rc::clone(&ctx));
+                    if let Ok(field_type_value) = &field_type {
+                        entry.field_type = Ok(field_type_value.clone());
                     }
-                    Err(_) => {
-                        let ctx_ref = ctx.borrow();
-                        let context_name = ctx_ref.node().node_type.to_string();
-                        let field_name = ctx_ref.node().node_type.to_code();
-                        let field_label = if field_name.is_empty() {
-                            "<self>".to_string()
-                        } else {
-                            field_name
-                        };
-                        Err(LinkingError::new(CyclicReference(context_name, field_label)))
-                    }
+                    field_type
                 }
-            }
+                Err(_) => {
+                    let ctx_ref = ctx.borrow();
+                    let context_name = ctx_ref.node().node_type.to_string();
+                    let field_name = ctx_ref.node().node_type.to_code();
+                    let field_label = if field_name.is_empty() {
+                        "<self>".to_string()
+                    } else {
+                        field_name
+                    };
+                    Err(LinkingError::new(CyclicReference(
+                        context_name,
+                        field_label,
+                    )))
+                }
+            },
             MetaphorRef(_metaphor) => {
                 todo!("MetaphorRef")
             }

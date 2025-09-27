@@ -58,12 +58,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
 
                 if let Ok(field_type) = &linked_type {
                     let context_name = context.borrow().node().node_type.to_string();
-                    trace!(
-                        "expression: {}.{} -> {}",
-                        context_name,
-                        name,
-                        field_type
-                    );
+                    trace!("expression: {}.{} -> {}", context_name, name, field_type);
                 }
 
                 linked_type?;
