@@ -99,6 +99,14 @@ pub fn assert_eval_all(lines: &[&str], expected_lines: &[&str]) {
     assert_eq!(evaluated, expected);
 }
 
+pub fn assert_eval_all_code(code: &str, expected_lines: &[&str]) {
+    let evaluated = eval_all(code);
+    assert_eq!(
+        evaluated.lines().map(|l| l.trim()).collect::<Vec<_>>(),
+        expected_lines
+    );
+}
+
 /// For tests that must assert link errors (e.g., cyclic/self ref, missing field).
 pub fn link_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();

@@ -257,7 +257,32 @@ fn context_types_duplicate() {
     }
     "#;
 
+    // @Todo: this test fails, because no duplicate type check is implemented yet
     parse_error_contains(model, &["duplicate type 'LoanOffer'"]);
+}
+
+#[test]
+fn input_type_validation() {
+    let model = r#"
+    {
+        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        func inc(x: LoanOffer) : { result: x.amount + 1 }
+        value: inc(1).result
+    }
+    "#;
+
+    // @Todo: this is absolutely incorrect - should be a link error about type mismatch
+    assert_eval_all_code(model, &["{", "value : 1", "}"]);
+
+    let model = r#"
+    {
+        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        func inc(x: LoanOffer) : { result: x.amount + 1 }
+        value: inc({amount: 1}).result
+    }
+    "#;
+
+    assert_eval_all_code(model, &["{", "value : 2", "}"]);
 }
 
 // cast operator is parsed and linked; deeper shaping/validation to be covered separately
