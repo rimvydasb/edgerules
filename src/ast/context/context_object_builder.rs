@@ -101,7 +101,7 @@ impl ContextObjectBuilder {
                 self.metaphors.insert(interned, MethodEntry::from(m).into());
             }
             DefinitionEnum::UserType(t) => {
-                self.defined_types.insert(t.name, t.body);
+                self.insert_type_definition(t.name, t.body)?;
             }
         }
         Ok(self)
@@ -151,7 +151,7 @@ impl ContextObjectBuilder {
         }
 
         for (key, value) in borrowed.defined_types.iter() {
-            self.defined_types.insert(key.clone(), value.clone());
+            self.insert_type_definition(key.clone(), value.clone())?;
         }
 
         Ok(self)
@@ -213,6 +213,22 @@ impl ContextObjectBuilder {
         self.field_name_set.insert(field_name);
         self.field_names.push(field_name);
 
+        Ok(())
+    }
+
+    fn insert_type_definition(
+        &mut self,
+        name: String,
+        body: UserTypeBody,
+    ) -> Result<(), ParseErrorEnum> {
+        if self.defined_types.contains_key(&name) {
+            return Err(ParseErrorEnum::UnknownError(format!(
+                "Duplicate type '{}'",
+                name
+            )));
+        }
+
+        self.defined_types.insert(name, body);
         Ok(())
     }
 }

@@ -257,7 +257,6 @@ fn context_types_duplicate() {
     }
     "#;
 
-    // @Todo: this test fails, because no duplicate type check is implemented yet
     parse_error_contains(model, &["duplicate type 'LoanOffer'"]);
 }
 
