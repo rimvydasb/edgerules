@@ -113,6 +113,9 @@ WASM exported methods via `wasm_bindgen`:
 - `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
   with given `args`.
 
+All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors
+instead of encoding everything as strings.
+
 ### Optional Function Groups for WASM
 
 To keep Web/Node WASM builds small, WASM uses Node.js and web native base64 and regexp functionality.

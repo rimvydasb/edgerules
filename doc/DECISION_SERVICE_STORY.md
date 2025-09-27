@@ -80,6 +80,7 @@ Upgrade wasm API to work with JavaScript values instead of strings:
 Use `js-sys` and do not use `serde_json`, because serde is too big.
 As of now, only primitive types are supported as arguments: numbers, strings, booleans, arrays, date.
 As an output, primitives, objects, arrays of objects must be supported.
+Multiple function arguments should be passed as an array.
 
 Example data conversion:
 
