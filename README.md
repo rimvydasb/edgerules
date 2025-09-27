@@ -107,9 +107,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 WASM exported methods via `wasm_bindgen`:
 
-- `evaluate_all(code: &str) -> String` – loads model code and returns the fully evaluated model as code.
-- `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
-- `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
+- `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
+- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
+- `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
+- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
+  with given `args`.
 
 ### Optional Function Groups for WASM
 

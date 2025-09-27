@@ -67,21 +67,74 @@ evaluate_decision_service(
 ) -> String
 ```
 
-## Method Calling From Outside The Model
+## WASM Intermediate API
 
-The decision service method calling from outside the model is implemented as a function call expression.
+Upgrade wasm API to work with JavaScript values instead of strings:
 
-Start from investigating EdgeRulesRuntime
+- `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
+- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
+- `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
+- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
+  with given `args`.
 
-### Method call flow:
+Use `js-sys` and do not use `serde_json`, because serde is too big.
+As of now, only primitive types are supported as arguments: numbers, strings, booleans, arrays, date.
+As an output, primitives, objects, arrays of objects must be supported.
 
-1. EdgeRulesRuntime::call_method is called
-2. UserFunctionCall expression is constructed
-3. EdgeRulesRuntime::evaluate_expression is called (link and evaluate) happens
-4. expression is evaluated and the result is returned
+Example data conversion:
 
-check UserFunctionCall.
-Add tests that assert:
-1. Error message if function is not found
-2. Error message if function arguments do not match (Function {} expects {} arguments, but {} were provided)
-3. Happy path with one and multiple arguments
+```rust
+use wasm_bindgen::prelude::*;
+use js_sys::Date;
+use time::{Date, OffsetDateTime, UtcOffset};
+
+#[wasm_bindgen]
+pub fn convert_js_date(js_date: JsValue) -> Result<String, JsValue> {
+    if !js_date.is_instance_of::<Date>() {
+        return Err(JsValue::from_str("Expected JS Date"));
+    }
+
+    let d: Date = js_date.into();
+    // get_time() → milliseconds since UNIX epoch as f64
+    let millis = d.get_time();
+    let seconds = (millis / 1000.0).trunc() as i64;
+    let nanos = ((millis % 1000.0) * 1_000_000.0).round() as i128;
+
+    // Construct OffsetDateTime in UTC
+    let odt = OffsetDateTime::from_unix_timestamp(seconds)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?
+        .replace_nanosecond(nanos as u32)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+    // Extract the Date part
+    let date: Date = odt.date();
+
+    Ok(format!("Rust time::Date = {}", date))
+}
+```
+
+Example JSON creation:
+
+```rust
+use wasm_bindgen::prelude::*;
+use js_sys::{Object, Reflect};
+use wasm_bindgen::JsValue;
+use std::collections::HashMap;
+
+#[wasm_bindgen]
+pub fn make_json_manual() -> JsValue {
+    let mut outer = HashMap::new();
+    outer.insert("first", vec![("x", 10), ("y", 20)]);
+    outer.insert("second", vec![("a", 1), ("b", 2)]);
+
+    let outer_obj = Object::new();
+    for (outer_key, inner_pairs) in outer {
+        let inner_obj = Object::new();
+        for (k, v) in inner_pairs {
+            Reflect::set(&inner_obj, &JsValue::from_str(k), &JsValue::from_f64(v as f64)).unwrap();
+        }
+        Reflect::set(&outer_obj, &JsValue::from_str(outer_key), &inner_obj).unwrap();
+    }
+    JsValue::from(outer_obj)
+}
+```
