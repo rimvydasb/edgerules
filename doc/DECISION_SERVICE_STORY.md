@@ -67,24 +67,21 @@ evaluate_decision_service(
 ) -> String
 ```
 
-## Prevent function name, field name and argument name duplications
+## Method Calling From Outside The Model
 
-- user defined function names in the given context must be unique
-- user defined field names in the given context must be unique
+The decision service method calling from outside the model is implemented as a function call expression.
 
-To complete this task, review all usages of `insert_field_name`
-This method must return an error if the field name already exists in the context
+Start from investigating EdgeRulesRuntime
 
-Related Todos:
-@Todo: return Error instead with duplicates are not supported message
-@Todo: check if field is not duplicated
-@Todo: return an error and propagate it to the top
+### Method call flow:
 
-Remove those todos when task is completed.
+1. EdgeRulesRuntime::call_method is called
+2. UserFunctionCall expression is constructed
+3. EdgeRulesRuntime::evaluate_expression is called (link and evaluate) happens
+4. expression is evaluated and the result is returned
 
-Add unhappy path tests for those scenarios:
-1. duplicate field names in the context
-2. duplicate function names in the context
-3. duplicate function argument names in function definition
-
-Assert that the error is returned and contains proper message with duplicate field/function name.
+check UserFunctionCall.
+Add tests that assert:
+1. Error message if function is not found
+2. Error message if function arguments do not match (Function {} expects {} arguments, but {} were provided)
+3. Happy path with one and multiple arguments

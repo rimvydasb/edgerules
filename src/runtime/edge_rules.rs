@@ -293,13 +293,16 @@ impl EdgeRulesRuntime {
         variable.eval(Rc::clone(&self.context))
     }
 
-    // pub fn call_method(
-    //     &self,
-    //     name: &str,
-    //     args: Vec<ExpressionEnum>,
-    // ) -> Result<ValueEnum, RuntimeError> {
-    //     // @Todo: implement method calling
-    // }
+    /**
+     * Calls a method with given arguments that is already defined in the context
+     */
+    pub fn call_method(
+        &self,
+        name: &str,
+        args: Vec<ExpressionEnum>,
+    ) -> Result<ValueEnum, RuntimeError> {
+        // @Todo: implement method calling
+    }
 
     pub fn evaluate_expression(
         &self,
