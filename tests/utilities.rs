@@ -113,17 +113,24 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
     }
 }
 
+/// For tests that must assert parse errors (e.g., invalid syntax, duplicate fields).
 pub fn parse_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let err = service.load_source(code);
 
-    let err = err.err().map(|e| e.to_string()).unwrap();
-    let lower = err.to_lowercase();
-    for n in needles {
-        assert!(
-            lower.contains(&n.to_lowercase()),
-            "expected error to contain `{n}`, got: {err}"
-        );
+    match (err.err().map(|e| e.to_string())) {
+        None => {
+            panic!("expected parse error, got none\ncode:\n{code}");
+        }
+        Some(err) => {
+            let lower = err.to_lowercase();
+            for n in needles {
+                assert!(
+                    lower.contains(&n.to_lowercase()),
+                    "expected error to contain `{n}`, got: {err}\ncode:\n{code}"
+                );
+            }
+        }
     }
 }
 

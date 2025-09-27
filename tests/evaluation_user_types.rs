@@ -246,4 +246,18 @@ fn cast_to_nested_alias() {
     );
 }
 
+#[test]
+fn context_types_duplicate() {
+    let model = r#"
+    {
+        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        func inc(x) : { result: x + 1 }
+        value: inc(1).result
+    }
+    "#;
+
+    parse_error_contains(model, &["duplicate type 'LoanOffer'"]);
+}
+
 // cast operator is parsed and linked; deeper shaping/validation to be covered separately
