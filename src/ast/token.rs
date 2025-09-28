@@ -181,7 +181,7 @@ impl Display for DefinitionEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Metaphor(m) => write!(f, "{}", m),
-            DefinitionEnum::UserType(t) => write!(f, "type {} : {}", t.name, t.body),
+            DefinitionEnum::UserType(t) => write!(f, "type {}: {}", t.name, t.body),
         }
     }
 }

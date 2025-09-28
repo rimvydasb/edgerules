@@ -157,6 +157,49 @@ impl ContextObjectBuilder {
         Ok(self)
     }
 
+    pub fn append_if_missing(
+        &mut self,
+        another: Rc<RefCell<ContextObject>>,
+    ) -> Result<&mut Self, ParseErrorEnum> {
+        let borrowed = another.borrow();
+        let childs_ref = borrowed.node().get_childs();
+        let childs_ref = childs_ref.borrow();
+
+        for &name in borrowed.get_field_names().iter() {
+            if self.field_name_set.contains(name) {
+                continue;
+            }
+
+            if borrowed.metaphors.contains_key(&name) {
+                self.insert_field_name(name, NameKind::Function)?;
+                if let Some(method) = borrowed.metaphors.get(&name) {
+                    self.metaphors.insert(name, Rc::clone(method));
+                }
+                continue;
+            }
+
+            self.insert_field_name(name, NameKind::Field)?;
+
+            if let Some(field) = borrowed.expressions.get(name) {
+                self.fields.insert(name, Rc::clone(field));
+                continue;
+            }
+
+            if let Some(child) = childs_ref.get(name) {
+                self.childs.insert(name, Rc::clone(child));
+                continue;
+            }
+        }
+
+        for (key, value) in borrowed.defined_types.iter() {
+            self.defined_types
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
+        }
+
+        Ok(self)
+    }
+
     pub fn get_field_names(&self) -> Vec<&'static str> {
         self.field_names.clone()
     }

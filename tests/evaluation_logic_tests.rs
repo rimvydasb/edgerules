@@ -138,6 +138,7 @@ fn test_complex_constraints() {
     assert_value!("[{a: 1},{a: 2},{c: 2}][a > 1]", "[{a: 2}]");
     // missing fields are ignored in comparisons (treated as NotFound)
     assert_value!("[{a: 1},{a: 2},{c: 2}][a + 1 > 1]", "[{a: 1},{a: 2}]");
+    // deeply nested objects are allowed
     assert_value!("[{a: {b: 1}},{a: {b: 2}}][a.b > 1]", "[{a: {b: 2}}]");
 }
 

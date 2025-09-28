@@ -7,7 +7,9 @@ use crate::ast::variable::VariableLink;
 use crate::ast::{is_linked, Link};
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::ParseErrorEnum::UnknownError;
-use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::errors::{
+    ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
+};
 use log::trace;
 use std::cell::RefCell;
 use std::fmt;
@@ -65,21 +67,44 @@ impl ExpressionFilter {
         if self.method_type.clone()? == ValueType::BooleanType {
             let mut filtered_values = Vec::new();
 
+            let interpret_result = |result: Result<ValueEnum, RuntimeError>| match result {
+                Ok(BooleanValue(true)) => Ok(true),
+                Ok(BooleanValue(false)) => Ok(false),
+                Ok(_) => Ok(false),
+                Err(err) => match err.error {
+                    RuntimeErrorEnum::RuntimeFieldNotFound(_, _) => Ok(false),
+                    _ => Err(err),
+                },
+            };
+
             for value in values {
-                // Evaluate the predicate in a temporary child context to avoid
-                // borrowing the same ExecutionContext while evaluating the filter condition.
-                // This child can still access the parent for variables, while holding
-                // its own context variable for `...` / `it`.
+                // Evaluate the predicate per element without borrowing the main context.
                 let candidate = value?;
-                let tmp_ctx = ExecutionContext::create_temp_child_context(
-                    Rc::clone(&context),
-                    ContextObjectBuilder::new().build(),
-                );
-                {
-                    // Limit the mutable borrow strictly to this scope.
-                    tmp_ctx.borrow_mut().context_variable = Some(candidate.clone());
-                }
-                if self.method.eval(Rc::clone(&tmp_ctx))? == BooleanValue(true) {
+                let passes = match &candidate {
+                    Reference(reference_ctx) => {
+                        let element_ctx = Rc::clone(reference_ctx);
+                        let previous_context_variable =
+                            element_ctx.borrow().context_variable.clone();
+
+                        element_ctx.borrow_mut().context_variable = Some(candidate.clone());
+                        let evaluation = self.method.eval(Rc::clone(&element_ctx));
+                        element_ctx.borrow_mut().context_variable = previous_context_variable;
+
+                        interpret_result(evaluation)?
+                    }
+                    _ => {
+                        let tmp_ctx = ExecutionContext::create_temp_child_context(
+                            Rc::clone(&context),
+                            ContextObjectBuilder::new().build(),
+                        );
+                        {
+                            tmp_ctx.borrow_mut().context_variable = Some(candidate.clone());
+                        }
+                        interpret_result(self.method.eval(Rc::clone(&tmp_ctx)))?
+                    }
+                };
+
+                if passes {
                     filtered_values.push(Ok(candidate));
                 }
             }
@@ -110,10 +135,34 @@ impl StaticLink for ExpressionFilter {
             if let ValueType::ListType(list_type) = source_type {
                 let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&ctx));
 
+                if let ValueType::ObjectType(object_type) = list_type.as_ref() {
+                    if let Err(err) = builder.append_if_missing(Rc::clone(object_type)) {
+                        let linking_error = LinkingError::other_error(err.to_string());
+                        self.method_type = Err(linking_error.clone());
+                        self.return_type = Err(linking_error.clone());
+                        return Err(linking_error);
+                    }
+
+                    if let ExpressionEnum::Collection(collection) = &self.source {
+                        for element in &collection.elements {
+                            if let ExpressionEnum::StaticObject(obj) = element {
+                                if let Err(err) = builder.append_if_missing(Rc::clone(obj)) {
+                                    let linking_error = LinkingError::other_error(err.to_string());
+                                    self.method_type = Err(linking_error.clone());
+                                    self.return_type = Err(linking_error.clone());
+                                    return Err(linking_error);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // in the iteration the context variable will be of the type of the list
                 builder.set_context_type(*list_type.clone());
 
-                self.method_type = self.method.link(Rc::clone(&builder.build()));
+                let method_context = builder.build();
+
+                self.method_type = self.method.link(Rc::clone(&method_context));
 
                 // @Todo: what about List type?
                 let static_type = match &self.method_type.clone()? {

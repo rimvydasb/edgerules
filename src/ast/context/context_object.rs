@@ -269,7 +269,7 @@ pub mod test {
 
         assert_eq!(
             ctx.borrow().to_string(),
-            "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}"
+            "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}"
         );
         assert_eq!(
             ctx.borrow().to_type_string(),
@@ -281,7 +281,7 @@ pub mod test {
         assert!(ctx.borrow().get("x").is_err());
         assert_eq!(
             ctx.borrow().get("c")?.to_string(),
-            "{x : 'Hello'; y : a + b; income() : {}}"
+            "{x: 'Hello'; y: a + b; income() : {}}"
         );
 
         assert_eq!(

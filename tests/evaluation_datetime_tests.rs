@@ -23,11 +23,11 @@ fn datetime_primitives_and_components() {
         eval_field(
             r#"
             {
-                d1 : date("2017-05-03");
-                y : d1.year;
-                m : d1.month;
-                d : d1.day;
-                result : [y,m,d]
+                d1: date("2017-05-03");
+                y: d1.year;
+                m: d1.month;
+                d: d1.day;
+                result: [y,m,d]
             }
             "#
             .trim(),
@@ -41,10 +41,10 @@ fn datetime_primitives_and_components() {
         eval_field(
             r#"
             {
-                d1 : date("2017-05-03");
-                d2 : date("2018-12-31");
-                y : d1.year;
-                plusOneYear : y + 1 - d2.year
+                d1: date("2017-05-03");
+                d2: date("2018-12-31");
+                y: d1.year;
+                plusOneYear: y + 1 - d2.year
             }
             "#
             .trim(),
@@ -59,7 +59,7 @@ fn datetime_comparisons_and_arithmetic() {
     // Comparisons
     assert_eq!(
         crate::eval_field(
-            "value : date(\"2017-05-03\") < date(\"2017-05-04\")",
+            "value: date(\"2017-05-03\") < date(\"2017-05-04\")",
             "value"
         ),
         "true"
@@ -68,7 +68,7 @@ fn datetime_comparisons_and_arithmetic() {
     // date - date => P1D
     assert_eq!(
         crate::eval_field(
-            "value : date(\"2017-05-04\") - date(\"2017-05-03\")",
+            "value: date(\"2017-05-04\") - date(\"2017-05-03\")",
             "value"
         ),
         "P1D"
@@ -194,9 +194,9 @@ fn duration_offset_age_gate_if_else() {
         eval_field(
             r#"
             {
-                executionDatetime : date("2024-01-01");
-                applicantBirthdate : date("2005-01-01");
-                eligible : if executionDatetime >= applicantBirthdate + duration("P6570D") then true else false
+                executionDatetime: date("2024-01-01");
+                applicantBirthdate: date("2005-01-01");
+                eligible: if executionDatetime >= applicantBirthdate + duration("P6570D") then true else false
             }
             "#
             .trim(),
@@ -209,9 +209,9 @@ fn duration_offset_age_gate_if_else() {
         eval_field(
             r#"
             {
-                executionDatetime : date("2022-12-27");
-                applicantBirthdate : date("2005-01-01");
-                eligible : if executionDatetime >= applicantBirthdate + duration("P6570D") then true else false
+                executionDatetime: date("2022-12-27");
+                applicantBirthdate: date("2005-01-01");
+                eligible: if executionDatetime >= applicantBirthdate + duration("P6570D") then true else false
             }
             "#
             .trim(),

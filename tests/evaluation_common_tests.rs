@@ -20,15 +20,15 @@ fn test_common() {
     assert_value!("1 * 2 / 3 + 1 - 2", "-0.33333333333333337");
     assert_eq!(1.0 * 2.0 / 3.0 + 1.0 - 2.0, -0.3333333333333335);
 
-    assert_eq!(eval_value("{ age : 18; value : 1 + 2 }"), "3");
+    assert_eq!(eval_value("{ age: 18; value: 1 + 2 }"), "3");
 
     // Selection, paths
     assert_eq!(
         eval_field(
             r#"
             {
-                record : [1,2,3];
-                record2 : record[1]
+                record: [1,2,3];
+                record2: record[1]
             }
             "#
             .trim(),
@@ -40,8 +40,8 @@ fn test_common() {
         eval_field(
             r#"
             {
-                list : [1,2,3];
-                value : list[0] * list[1] + list[2]
+                list: [1,2,3];
+                value: list[0] * list[1] + list[2]
             }
             "#
             .trim(),
@@ -53,8 +53,8 @@ fn test_common() {
         eval_field(
             r#"
             {
-                list : [1,2,3];
-                value : list[0] * (list[1] + list[2] * 3)
+                list: [1,2,3];
+                value: list[0] * (list[1] + list[2] * 3)
             }
             "#
             .trim(),
@@ -67,9 +67,9 @@ fn test_common() {
         eval_field(
             r#"
             {
-                record : {
-                    age : 18;
-                    value : 1 + 2
+                record: {
+                    age: 18;
+                    value: 1 + 2
                 }
             }
             "#
@@ -81,7 +81,7 @@ fn test_common() {
 
     // FieldNotFound link error
     link_error_contains(
-        "{ record : { age : somefield; value : 1 + 2 }}",
+        "{ record: { age: somefield; value: 1 + 2 }}",
         &["field", "somefield"],
     );
 
@@ -89,9 +89,9 @@ fn test_common() {
         eval_field(
             r#"
             {
-                record : {
-                    age : 18;
-                    value : age + 1
+                record: {
+                    age: 18;
+                    value: age + 1
                 }
             }
             "#
@@ -105,10 +105,10 @@ fn test_common() {
         eval_field(
             r#"
             {
-                record : {
-                    age : 18;
-                    value : age + 2 + addition;
-                    addition : age + 2
+                record: {
+                    age: 18;
+                    value: age + 2 + addition;
+                    addition: age + 2
                 }
             }
             "#
@@ -122,9 +122,9 @@ fn test_common() {
         eval_field(
             r#"
             {
-                record : {
-                    age : 18;
-                    value : record.age + 1
+                record: {
+                    age: 18;
+                    value: record.age + 1
                 }
             }
             "#
@@ -138,11 +138,11 @@ fn test_common() {
         eval_field(
             r#"
             {
-                record : {
-                    value : record2.age2
+                record: {
+                    value: record2.age2
                 };
-                record2 : {
-                    age2 : 22
+                record2: {
+                    age2: 22
                 }
             }
             "#
@@ -156,13 +156,13 @@ fn test_common() {
         eval_field(
             r#"
             {
-                record : {
-                    age : 18;
-                    value : age + 2 + addition;
-                    addition : age + record2.age2
+                record: {
+                    age: 18;
+                    value: age + 2 + addition;
+                    addition: age + record2.age2
                 };
-                record2 : {
-                    age2 : 22
+                record2: {
+                    age2: 22
                 }
             }
             "#
@@ -176,8 +176,8 @@ fn test_common() {
         eval_field(
             r#"
             {
-                func doublethis(input) : { out : input * input };
-                result : doublethis(2).out
+                func doublethis(input): { out: input * input };
+                result: doublethis(2).out
             }
             "#
             .trim(),
@@ -193,7 +193,7 @@ fn test_functions() {
     assert_value!("sum(1,2,3) + (2 * 2)", "10");
     assert_eq!(
         eval_field(
-            "value : sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)",
+            "value: sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)",
             "value"
         ),
         "14"
@@ -210,9 +210,9 @@ fn client_functions_test() {
     // variant 1
     assert_value!(
         r#"
-        month : 1
-        sales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
-        value : sales[month] + sales[month + 1] + sales[month + 2]
+        month: 1
+        sales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        value: sales[month] + sales[month + 1] + sales[month + 2]
         "#,
         "35"
     );
@@ -220,11 +220,11 @@ fn client_functions_test() {
     // variant 2
     assert_value!(
         r#"
-        inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
-        func salesIn3Months(month,sales) : {
-            result : sales[month] + sales[month + 1] + sales[month + 2]
+        inputSales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        func salesIn3Months(month,sales): {
+            result: sales[month] + sales[month + 1] + sales[month + 2]
         }
-        value : salesIn3Months(1,inputSales).result
+        value: salesIn3Months(1,inputSales).result
         "#,
         "35"
     );
@@ -232,14 +232,14 @@ fn client_functions_test() {
     // variant 3 with subContext
     assert_value!(
         r#"
-        inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
-        func salesIn3Months(month,sales) : {
-            result : sales[month] + sales[month + 1] + sales[month + 2]
+        inputSales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        func salesIn3Months(month,sales): {
+            result: sales[month] + sales[month + 1] + sales[month + 2]
         }
-        subContext : {
-            subResult : salesIn3Months(1,inputSales).result
+        subContext: {
+            subResult: salesIn3Months(1,inputSales).result
         }
-        value : subContext.subResult
+        value: subContext.subResult
         "#,
         "35"
     );
@@ -247,12 +247,12 @@ fn client_functions_test() {
     // bestMonths[0]
     assert_value!(
         r#"
-        inputSales : [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
-        func salesIn3Months(month,sales) : {
-            result : sales[month] + sales[month + 1] + sales[month + 2]
+        inputSales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+        func salesIn3Months(month,sales): {
+            result: sales[month] + sales[month + 1] + sales[month + 2]
         }
-        bestMonths : for monthIter in 0..11 return salesIn3Months(monthIter,inputSales).result
-        value : bestMonths[0]
+        bestMonths: for monthIter in 0..11 return salesIn3Months(monthIter,inputSales).result
+        value: bestMonths[0]
         "#,
         "38"
     );
@@ -264,13 +264,13 @@ fn tables_test() {
     assert_value!(
         r#"
         @DecisionTable
-        simpleTable(age,score) : [
+        simpleTable(age,score): [
         [age, score, eligibility],
         [18, 300, 0],
         [22, 100, 1],
         [65, 200, 0]
         ]
-        value : simpleTable(22,100).eligibility
+        value: simpleTable(22,100).eligibility
         "#,
         "1"
     );
@@ -294,7 +294,7 @@ fn variable_linkin_test() {
         eval_field(
             r#"
             {
-                input : {
+                input: {
                     application: {
                         status: 1
                     }
@@ -314,7 +314,7 @@ fn variable_linkin_test() {
         eval_field(
             r#"
             {
-                input : {
+                input: {
                     application: {
                         status: 1
                     }
@@ -339,11 +339,11 @@ fn order_test() {
     let result = eval_all(
         r#"
     {
-        xx : yy + 1
-        c1 : a1 + "c1"
-        b1 : "b1"
-        a1 : b1 + "a1"
-        yy : 5
+        xx: yy + 1
+        c1: a1 + "c1"
+        b1: "b1"
+        a1: b1 + "a1"
+        yy: 5
     }
     "#,
     );
@@ -353,11 +353,11 @@ fn order_test() {
         to_lines(
             r#"
         {
-           xx : 6
-           c1 : 'b1a1c1'
-           b1 : 'b1'
-           a1 : 'b1a1'
-           yy : 5
+           xx: 6
+           c1: 'b1a1c1'
+           b1: 'b1'
+           a1: 'b1a1'
+           yy: 5
         }"#
         )
     );
@@ -367,30 +367,30 @@ fn order_test() {
 fn test_problems() {
     // nested value
     assert_eq!(
-        eval_field("{ record : { age : 18; value : 1 + 2 }}", "record.value"),
+        eval_field("{ record: { age: 18; value: 1 + 2 }}", "record.value"),
         "3"
     );
 
     // cyclic link errors
-    link_error_contains("value : value + 1", &["cyclic"]);
+    link_error_contains("value: value + 1", &["cyclic"]);
     link_error_contains(
-        "{ record1 : 15 + record2; record2 : 7 + record3; record3 : record1 * 10 }",
+        "{ record1: 15 + record2; record2: 7 + record3; record3: record1 * 10 }",
         &["cyclic", "record1"],
     );
 
     // simple arithmetic across fields
     assert_eq!(
         eval_field(
-            "{ record1 : { age : 18}; record2 : record1.age + record1.age}",
+            "{ record1: { age: 18}; record2: record1.age + record1.age}",
             "record2"
         ),
         "36"
     );
 
     // pretty-print containment check (keep the intent)
-    let printed = eval_all("{ p : [{a:1},5] }");
+    let printed = eval_all("{ p: [{a:1},5] }");
     assert!(
-        printed.contains("[{a : 1}, 5]") || printed.contains("[{a: 1}, 5]"),
+        printed.contains("[{a: 1}, 5]") || printed.contains("[{a: 1}, 5]"),
         "expected pretty output to contain normalized array of objects, got: {printed}"
     );
 }

@@ -250,10 +250,10 @@ impl ExecutionContext {
             let mut line = Line::new();
             match &self.node().node_type {
                 NodeDataEnum::Child(name, _) => {
-                    line.add(name).add(" : {");
+                    line.add(name).add(": {");
                 }
                 NodeDataEnum::Internal(_) => {
-                    line.add("#child").add(" : {");
+                    line.add("#child").add(": {");
                 }
                 NodeDataEnum::Isolated() | NodeDataEnum::Root() => {
                     line.add("{");
@@ -275,11 +275,11 @@ impl ExecutionContext {
                 Ok(field) => {
                     match field {
                         ConstantValue(value) => {
-                            lines.add_str(format!("{} : {}", field_name, value).as_str());
+                            lines.add_str(format!("{}: {}", field_name, value).as_str());
                         }
                         ExpressionRef(expression) => {
                             lines.add_str(
-                                format!("{} : {}", field_name, expression.borrow().expression)
+                                format!("{}: {}", field_name, expression.borrow().expression)
                                     .as_str(),
                             );
                         }
@@ -406,7 +406,7 @@ pub mod test {
         assert!(ex.borrow().get("x").is_err());
         assert_eq!(
             ex.borrow().to_string(),
-            "{a : 88; b : 99; c : {x : 'Hello'; y : a + b; income() : {}}}"
+            "{a: 88; b: 99; c: {x: 'Hello'; y: a + b; income() : {}}}"
         );
         assert_eq!(
             ex.borrow().get_type().to_string(),
@@ -414,7 +414,7 @@ pub mod test {
         );
         assert_eq!(
             ex.borrow().get("c")?.to_string(),
-            "{x : 'Hello'; y : a + b; income() : {}}"
+            "{x: 'Hello'; y: a + b; income() : {}}"
         );
 
         // @Todo: update tests

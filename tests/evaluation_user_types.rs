@@ -68,7 +68,7 @@ fn typed_placeholders_are_allowed_in_model_but_evaluate_to_missing() {
     // Evaluated values are Missing (rendered in string form per to_string rules)
     let printed = eval_all(model);
     // At least ensure fields exist; exact Missing rendering can vary across types
-    assert!(printed.contains("id :") && printed.contains("name :"));
+    assert!(printed.contains("id:") && printed.contains("name:"));
 }
 
 #[test]
@@ -107,10 +107,10 @@ fn loan_offer_decision_service_end_to_end() {
     .trim();
 
     let evaluated = eval_all(model);
-    assert_string_contains!("eligible : true", &evaluated);
-    assert_string_contains!("amount : 20000", &evaluated);
-    assert_string_contains!("termInMonths : 24", &evaluated);
-    assert_string_contains!("monthlyPayment : 875", &evaluated);
+    assert_string_contains!("eligible: true", &evaluated);
+    assert_string_contains!("amount: 20000", &evaluated);
+    assert_string_contains!("termInMonths: 24", &evaluated);
+    assert_string_contains!("monthlyPayment: 875", &evaluated);
 }
 
 #[test]
@@ -128,19 +128,19 @@ fn loan_offer_decision_service_end_to_end_reduced() {
     let evaluated = eval_all(model);
 
     // {
-    //     #child : {
-    //     eligible : false
-    //     amount : number.Missing
-    //     termInMonths : number.Missing
-    //     monthlyPayment : number.Missing
+    //     #child: {
+    //     eligible: false
+    //     amount: number.Missing
+    //     termInMonths: number.Missing
+    //     monthlyPayment: number.Missing
     // }
-    //     sample : {
-    //     eligible : false
+    //     sample: {
+    //     eligible: false
     // }
     // }
 
     assert!(
-        evaluated.contains("result : true"),
+        evaluated.contains("result: true"),
         "model output did not include expected eligibility result\n{}",
         evaluated
     );
@@ -251,7 +251,7 @@ fn context_types_duplicate() {
     {
         type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
         type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-        func inc(x) : { result: x + 1 }
+        func inc(x): { result: x + 1 }
         value: inc(1).result
     }
     "#;
@@ -264,7 +264,7 @@ fn input_type_validation() {
     let model = r#"
     {
         type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-        func inc(x: LoanOffer) : { result: x.amount + 1 }
+        func inc(x: LoanOffer): { result: x.amount + 1 }
         value: inc(1).result
     }
     "#;
@@ -280,7 +280,7 @@ fn input_type_validation() {
 
     let model = r#"
     {
-        func greet(name: string) : { result: name }
+        func greet(name: string): { result: name }
         value: greet(10).result
     }
     "#;
@@ -296,7 +296,7 @@ fn input_type_validation() {
 
     let model = r#"
     {
-        func flag(value: boolean) : { result: value }
+        func flag(value: boolean): { result: value }
         value: flag("yes").result
     }
     "#;
@@ -313,10 +313,10 @@ fn input_type_validation() {
     link_error_contains(
         r#"
         {
-            func double(xs: number) : {
-                result : xs * 2
+            func double(xs: number): {
+                result: xs * 2
             }
-            value : double([1,2,3]).result
+            value: double([1,2,3]).result
         }
         "#,
         &[
@@ -329,12 +329,12 @@ fn input_type_validation() {
     let model = r#"
     {
         type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-        func inc(x: LoanOffer) : { result: x.amount + 1 }
+        func inc(x: LoanOffer): { result: x.amount + 1 }
         value: inc({amount: 1}).result
     }
     "#;
 
-    assert_eval_all(model, &["{", "value : 2", "}"]);
+    assert_eval_all(model, &["{", "value: 2", "}"]);
 }
 
 #[test]
@@ -342,7 +342,7 @@ fn missing_is_applied_for_function_argument() {
     let model = r#"
     {
         type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-        func inc(x: LoanOffer) : { termInMonths: x.termInMonths * 2; result: x }
+        func inc(x: LoanOffer): { termInMonths: x.termInMonths * 2; result: x }
         value: inc({amount: 100}).result
         termInMonths: inc({amount: 100}).termInMonths
     }
@@ -352,13 +352,13 @@ fn missing_is_applied_for_function_argument() {
         model,
         &[
             "{",
-            "   value : {",
-            "      eligible : Missing",
-            "      amount : 100",
-            "      termInMonths : number.Missing",
-            "      monthlyPayment : number.Missing",
+            "   value: {",
+            "      eligible: Missing",
+            "      amount: 100",
+            "      termInMonths: number.Missing",
+            "      monthlyPayment: number.Missing",
             "   }",
-            "   termInMonths : 2", // termInMonths is 2, because missing in multiply is replaced by 1
+            "   termInMonths: 2", // termInMonths is 2, because missing in multiply is replaced by 1
             "}",
         ],
     );
@@ -368,20 +368,20 @@ fn missing_is_applied_for_function_argument() {
 fn primitive_function_arguments() {
     assert_value!(
         r#"
-        func double(xs: number) : {
-            result : xs * 2
+        func double(xs: number): {
+            result: xs * 2
         }
-        value : double(2).result
+        value: double(2).result
         "#,
         "4"
     );
 
     assert_value!(
         r#"
-        func doubleAll(xs: number[]) : {
-            result : for x in xs return x * 2
+        func doubleAll(xs: number[]): {
+            result: for x in xs return x * 2
         }
-        value : doubleAll([1,2,3]).result
+        value: doubleAll([1,2,3]).result
         "#,
         "[2, 4, 6]"
     );
@@ -393,13 +393,20 @@ fn complex_type_array_function_argument() {
         r#"
         {
             type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-            func incAll(offers: LoanOffer[]) : {
+            func incAll(offers: LoanOffer[]): {
                 simpleResult: offers[0].amount + offers[1].amount
                 forResult: for offer in offers return offer.amount + 1
             }
             value: incAll([{amount: 1}, {amount: 2}])
         }
         "#,
-        &["{", "value : {", "simpleResult : 3", "forResult : [2, 3]", "}", "}"],
+        &[
+            "{",
+            "value: {",
+            "simpleResult: 3",
+            "forResult: [2, 3]",
+            "}",
+            "}",
+        ],
     );
 }

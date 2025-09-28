@@ -91,16 +91,16 @@ pub trait ContentHolder<T: Node<T>> {
             match self.get(field_name) {
                 Ok(ExpressionRef(field)) => {
                     let value = bracket_unwrap(format!("{}", field.borrow().expression));
-                    lines.push(format!("{} : {}", field_name, value));
+                    lines.push(format!("{}: {}", field_name, value));
                 }
                 Ok(MetaphorRef(definition)) => {
                     lines.push(format!("{}", definition.borrow().metaphor));
                 }
                 Ok(ObjectRef(obj)) => {
-                    lines.push(format!("{} : {}", field_name, obj.borrow()));
+                    lines.push(format!("{}: {}", field_name, obj.borrow()));
                 }
                 Ok(ConstantValue(value)) => {
-                    lines.push(format!("{} : {}", field_name, value));
+                    lines.push(format!("{}: {}", field_name, value));
                 }
                 _ => {}
             }

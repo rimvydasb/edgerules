@@ -11,8 +11,6 @@ use std::ops::Range;
 use std::rc::Rc;
 use time::{Date, Month, PrimitiveDateTime, Time};
 
-use crate::ast::utils::results_to_code;
-
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::types::string::StringEnum::String;
 use crate::typesystem::values::ValueEnum::{
@@ -157,7 +155,26 @@ impl Display for ValueEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Array(args, _) => {
-                write!(f, "[{}]", results_to_code(args))
+                let mut parts: Vec<std::string::String> = Vec::with_capacity(args.len());
+                let mut all_objects = !args.is_empty();
+
+                for result in args {
+                    match result {
+                        Ok(value) => {
+                            if !matches!(value, Reference(_)) {
+                                all_objects = false;
+                            }
+                            parts.push(format!("{}", value));
+                        }
+                        Err(err) => {
+                            all_objects = false;
+                            parts.push(format!("{}", err));
+                        }
+                    }
+                }
+
+                let separator = if all_objects { "," } else { ", " };
+                write!(f, "[{}]", parts.join(separator))
             }
             NumberValue(number) => write!(f, "{}", number),
             StringValue(str) => write!(f, "{}", str),

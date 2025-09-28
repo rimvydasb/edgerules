@@ -233,6 +233,7 @@ pub mod factory {
     use crate::ast::token::ExpressionEnum::*;
     use crate::ast::token::*;
     use crate::ast::user_function_call::UserFunctionCall;
+    use crate::tokenizer::parser::parse_type;
     use crate::tokenizer::utils::*;
     use crate::typesystem::errors::ParseErrorEnum;
     use crate::typesystem::errors::ParseErrorEnum::{
@@ -241,7 +242,6 @@ pub mod factory {
     use crate::typesystem::types::ValueType;
     use log::trace;
     use std::collections::vec_deque::VecDeque;
-    use crate::tokenizer::parser::parse_type;
 
     fn pop_back_as_expected(deque: &mut VecDeque<EToken>, expected: &str) -> bool {
         if let Some(Unparsed(Literal(maybe))) = deque.pop_back() {

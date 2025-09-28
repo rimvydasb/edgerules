@@ -200,7 +200,7 @@ impl EdgeRulesModel {
         original_errors: ParseErrors,
     ) -> Result<ExpressionEnum, ParseErrors> {
         const DUMMY_NAME: &str = "tmp000001";
-        match Self::parse_item(&format!("{DUMMY_NAME} : {code}")) {
+        match Self::parse_item(&format!("{DUMMY_NAME}: {code}")) {
             Ok(ParsedItem::Expression(ObjectField(_, field_expression))) => Ok(*field_expression),
             Ok(ParsedItem::Expression(unexpected)) => Err(ParseErrors::unexpected_token(
                 Expression(unexpected),
@@ -449,14 +449,14 @@ pub mod test {
         pub fn expect_no_errors(&self) -> &Self {
             if let Some(errors) = &self.parse_errors {
                 panic!(
-                    "Expected no errors, but got parse errors : `{}`\nFailed to parse:\n{}",
+                    "Expected no errors, but got parse errors: `{}`\nFailed to parse:\n{}",
                     errors, self.original_code
                 );
             }
 
             if let Some(errors) = &self.linking_errors {
                 panic!(
-                    "Expected no errors, but got linking errors : `{}`\nFailed to parse:\n{}",
+                    "Expected no errors, but got linking errors: `{}`\nFailed to parse:\n{}",
                     errors, self.original_code
                 );
             }
@@ -467,7 +467,7 @@ pub mod test {
         pub fn expect_link_error(&self, expected: LinkingErrorEnum) -> &Self {
             if let Some(errors) = &self.parse_errors {
                 panic!(
-                    "Expected linking error, but got parse errors : `{:?}`\nFailed to parse:\n{}",
+                    "Expected linking error, but got parse errors: `{:?}`\nFailed to parse:\n{}",
                     errors, self.original_code
                 );
             }
@@ -489,7 +489,7 @@ pub mod test {
 
             if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
                 panic!(
-                    "Expected value, but got linking errors : `{:?}`\nFailed to parse:\n{}",
+                    "Expected value, but got linking errors: `{:?}`\nFailed to parse:\n{}",
                     error, _expr
                 );
             }
@@ -545,7 +545,7 @@ pub mod test {
         test_code("value: 2 + 2").expect_num("value", Int(4));
         test_code("value: 2 + ").expect_parse_error(UnknownError("any".to_string()));
         test_code("{ value: 2 + 2 }").expect_num("value", Int(4));
-        test_code("{ v1 : 100; value: v1 + v1 }").expect_num("value", Int(200));
+        test_code("{ v1: 100; value: v1 + v1 }").expect_num("value", Int(200));
 
         Ok(())
     }
@@ -586,7 +586,7 @@ pub mod test {
 
         let mut service = EdgeRulesModel::new();
         service.load_source(
-            "{ calendar : { config : { start : 7 }; sub : { inner : { value : 42 } } } }",
+            "{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }",
         )?;
 
         let runtime = service.to_runtime_snapshot()?;
@@ -664,7 +664,7 @@ pub mod test {
         init_logger();
 
         let mut service = EdgeRulesModel::new();
-        service.load_source("{ func f(a) : { result : a + 1 }; tmp : f(2).result }")?;
+        service.load_source("{ func f(a): { result: a + 1 }; tmp: f(2).result }")?;
         let runtime = service.to_runtime_snapshot()?;
         let result = runtime.evaluate_expression_str("tmp")?;
         assert_eq!(result, ValueEnum::NumberValue(Int(3)));
@@ -698,7 +698,7 @@ pub mod test {
         init_logger();
 
         let mut service = EdgeRulesModel::new();
-        service.load_source("{ func greet(name, age) : { result: name } }")?;
+        service.load_source("{ func greet(name, age): { result: name } }")?;
         let runtime = service.to_runtime_snapshot()?;
 
         let err = runtime
@@ -720,7 +720,7 @@ pub mod test {
 
         let mut service = EdgeRulesModel::new();
         service.load_source(
-            "{ func inc(x) : { result: x + 1 }; func add(left, right) : { result: left + right } }",
+            "{ func inc(x): { result: x + 1 }; func add(left, right): { result: left + right } }",
         )?;
         let runtime = service.to_runtime_snapshot()?;
 
@@ -739,7 +739,7 @@ pub mod test {
 
         let mut service = EdgeRulesModel::new();
         service.load_source(
-            "{ type LoanOffer: { amount: <number> }; func inc(offer: LoanOffer) : { result: offer.amount + 1 } }",
+            "{ type LoanOffer: { amount: <number> }; func inc(offer: LoanOffer): { result: offer.amount + 1 } }",
         )?;
         let runtime = service.to_runtime_snapshot()?;
 
@@ -765,7 +765,7 @@ pub mod test {
         match value {
             ValueEnum::Reference(ctx) => {
                 let code = ctx.borrow().to_code();
-                let needle = format!("result : {}", expected);
+                let needle = format!("result: {}", expected);
                 assert!(code.contains(&needle), "unexpected context: {code}");
             }
             other => panic!("expected function context reference, got: {other}"),
@@ -776,68 +776,68 @@ pub mod test {
     fn test_linking() -> Result<(), EvalError> {
         init_logger();
 
-        test_code("{ a : 1; b : a  }")
+        test_code("{ a: 1; b: a  }")
             .expect_type("Type<a: number, b: number>")
             .expect_num("a", Int(1));
 
-        test_code("{ a : z; b : a; z : 8 * 2  }")
+        test_code("{ a: z; b: a; z: 8 * 2  }")
             .expect_type("Type<a: number, b: number, z: number>")
             .expect_num("a", Int(16));
 
-        test_code("{ a : {x : 1}; b : a.x }")
+        test_code("{ a: {x: 1}; b: a.x }")
             .expect_type("Type<a: Type<x: number>, b: number>")
             .expect_num("b", Int(1));
 
-        test_code("{ c : b; a : {x : 1}; b : a.x }")
+        test_code("{ c: b; a: {x: 1}; b: a.x }")
             .expect_type("Type<c: number, a: Type<x: number>, b: number>")
             .expect_num("c", Int(1));
 
         // roundtrip test
-        test_code("{ c : b; a : {x : 1; aa: b}; b : a.x }")
+        test_code("{ c: b; a: {x: 1; aa: b}; b: a.x }")
             .expect_type("Type<c: number, a: Type<x: number, aa: number>, b: number>")
             .expect_num("c", Int(1));
 
         // messy handover test
-        test_code("{ c : b; a : {x : {y : 1}}; b : a.x; d : c.y }")
+        test_code("{ c: b; a: {x: {y: 1}}; b: a.x; d: c.y }")
             .expect_type("Type<c: Type<y: number>, a: Type<x: Type<y: number>>, b: Type<y: number>, d: number>")
             .expect_num("d", Int(1));
 
         // deep roundtrip test
-        test_code("{ c : b; a : {x : {x : 1; aa: b}}; b : a.x.x }")
+        test_code("{ c: b; a: {x: {x: 1; aa: b}}; b: a.x.x }")
             .expect_type("Type<c: number, a: Type<x: Type<x: number, aa: number>>, b: number>")
             .expect_num("c", Int(1));
 
-        test_code("{ func f(arg1) :  { a : arg1 } }").expect_type("Type<>");
+        test_code("{ func f(arg1):  { a: arg1 } }").expect_type("Type<>");
 
-        test_code("{ func f(arg1) :  { a : arg1 }; b : 1 }")
+        test_code("{ func f(arg1):  { a: arg1 }; b: 1 }")
             .expect_type("Type<b: number>")
             .expect_num("b", Int(1));
 
-        test_code("{ func f(arg1) :  { a : arg1 }; b : f(1) }")
+        test_code("{ func f(arg1):  { a: arg1 }; b: f(1) }")
             .expect_type("Type<b: Type<a: number>>");
 
-        test_code("{ func f(arg1) :  { a : arg1 }; b : f(1).a }")
+        test_code("{ func f(arg1):  { a: arg1 }; b: f(1).a }")
             .expect_type("Type<b: number>")
             .expect_num("b", Int(1));
 
         // possibility to call a function from a sub-context
         test_code_lines(&[
-            "func func1(a) : { result : a }",
-            "subContext : {",
-            "subResult : func1(35).result",
+            "func func1(a): { result: a }",
+            "subContext: {",
+            "subResult: func1(35).result",
             "}",
-            "value : subContext.subResult",
+            "value: subContext.subResult",
         ])
         .expect_num("value", Int(35));
 
         // argument as a parameter works well
         test_code_lines(&[
-            "myInput : 35",
-            "func func1(a) : { result : a }",
-            "subContext : {",
-            "subResult : func1(myInput).result",
+            "myInput: 35",
+            "func func1(a): { result: a }",
+            "subContext: {",
+            "subResult: func1(myInput).result",
             "}",
-            "value : subContext.subResult",
+            "value: subContext.subResult",
         ])
         .expect_num("value", Int(35));
 
@@ -849,14 +849,14 @@ pub mod test {
         init_logger();
 
         let tb = test_code_lines(&[
-            "calendar : {",
-            "    shift : 2",
-            "    days : [",
-            "        { start : calendar.shift + 1 },",
-            "        { start : calendar.shift + 31 }",
+            "calendar: {",
+            "    shift: 2",
+            "    days: [",
+            "        { start: calendar.shift + 1 },",
+            "        { start: calendar.shift + 31 }",
             "    ]",
-            "    firstDay : days[0].start",
-            "    secondDay : days[1].start",
+            "    firstDay: days[0].start",
+            "    secondDay: days[1].start",
             "}",
         ]);
         tb.expect_num("calendar.firstDay", Int(3));
@@ -871,10 +871,10 @@ pub mod test {
 
         // Users cannot pass the context object itself into a function defined in that same context.
         test_code_lines(&[
-            "calendar : {",
-            "    shift : 2",
-            "    func start1(calendar) : { result : calendar.shift + 1 }",
-            "    firstDay : start1(calendar).result",
+            "calendar: {",
+            "    shift: 2",
+            "    func start1(calendar): { result: calendar.shift + 1 }",
+            "    firstDay: start1(calendar).result",
             "}",
         ])
         .expect_link_error(LinkingErrorEnum::OtherLinkingError(
@@ -888,10 +888,10 @@ pub mod test {
 
         // The guard applies to any argument position, not just the first one.
         test_code_lines(&[
-            "calendar : {",
-            "    shift : 2",
-            "    func start2(x, cal) : { result : cal.shift + x }",
-            "    firstDay : start2(1, calendar).result",
+            "calendar: {",
+            "    shift: 2",
+            "    func start2(x, cal): { result: cal.shift + x }",
+            "    firstDay: start2(1, calendar).result",
             "}",
         ])
         .expect_link_error(LinkingErrorEnum::OtherLinkingError(
@@ -904,10 +904,10 @@ pub mod test {
         init_logger();
 
         let tb = test_code_lines(&[
-            "calendar : {",
-            "    config : { shift : 2 }",
-            "    func start1(calendar) : { result : calendar.shift + 1 }",
-            "    firstDay : start1(config).result",
+            "calendar: {",
+            "    config: { shift: 2 }",
+            "    func start1(calendar): { result: calendar.shift + 1 }",
+            "    firstDay: start1(config).result",
             "}",
         ]);
         tb.expect_num("calendar.firstDay", Int(3));

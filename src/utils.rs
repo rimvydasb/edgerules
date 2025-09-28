@@ -29,10 +29,17 @@ pub fn context_unwrap(input: String) -> String {
     if input.starts_with('{') && input.ends_with('}') {
         let stripped = input[1..input.len() - 1].to_string();
         // @Todo: this is hack that must be solved differently
-        match stripped.strip_prefix(format!("{} : ", RETURN_EXPRESSION).as_str()) {
-            None => stripped,
-            Some(end) => end.to_string(),
+        let prefix = format!("{}:", RETURN_EXPRESSION);
+        if let Some(rest) = stripped.strip_prefix(&prefix) {
+            return rest.trim_start().to_string();
         }
+
+        let legacy_prefix = format!("{} : ", RETURN_EXPRESSION);
+        if let Some(rest) = stripped.strip_prefix(&legacy_prefix) {
+            return rest.to_string();
+        }
+
+        stripped
     } else {
         input
     }

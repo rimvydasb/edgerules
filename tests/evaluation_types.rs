@@ -70,20 +70,20 @@ fn date_time_and_duration_roundtrip_to_string() {
 #[test]
 fn type_validation_errors_when_mismatched() {
     // List of booleans for all/any
-    link_error_contains("value : all([1,2])", &["unexpected", "boolean"]);
-    link_error_contains("value : any(['x'])", &["unexpected", "boolean"]);
+    link_error_contains("value: all([1,2])", &["unexpected", "boolean"]);
+    link_error_contains("value: any(['x'])", &["unexpected", "boolean"]);
 
     // Numeric lists for numeric aggregates
-    link_error_contains("value : product(['a','b'])", &["unexpected", "number"]);
+    link_error_contains("value: product(['a','b'])", &["unexpected", "number"]);
 }
 
 #[test]
 fn type_string_simple_root() {
     assert_type_string_block(
         r#"
-        a : 1
-        b : 's'
-        c : true
+        a: 1
+        b: 's'
+        c: true
         "#,
         "Type<a: number, b: string, c: boolean>",
     );
@@ -93,9 +93,9 @@ fn type_string_simple_root() {
 fn type_string_nested_object() {
     assert_type_string_block(
         r#"
-        a : 1
-        b : 2
-        c : { x : 'Hello'; y : a + b }
+        a: 1
+        b: 2
+        c: { x: 'Hello'; y: a + b }
         "#,
         "Type<a: number, b: number, c: Type<x: string, y: number>>",
     );
@@ -105,10 +105,10 @@ fn type_string_nested_object() {
 fn type_string_deeper_nesting() {
     assert_type_string_block(
         r#"
-        a : time('12:00:00')
-        b : date('2024-01-01')
-        c : datetime('2024-06-05T07:30:00')
-        d : { inner : { z : time('08:15:00') } }
+        a: time('12:00:00')
+        b: date('2024-01-01')
+        c: datetime('2024-06-05T07:30:00')
+        d: { inner: { z: time('08:15:00') } }
         "#,
         "Type<a: time, b: date, c: datetime, d: Type<inner: Type<z: time>>>",
     );
@@ -119,9 +119,9 @@ fn type_string_lists() {
     // list of numbers, list of strings, nested list of numbers
     assert_type_fields_unordered_block(
         r#"
-        nums : [1,2,3]
-        strs : ['a','b']
-        nested : [[1,2], [3]]
+        nums: [1,2,3]
+        strs: ['a','b']
+        nested: [[1,2], [3]]
         "#,
         &[
             "nums: list of number",
@@ -136,7 +136,7 @@ fn type_string_ranges() {
     // numeric range
     assert_type_string_block(
         r#"
-        r : 1..5
+        r: 1..5
         "#,
         "Type<r: range>",
     );
@@ -146,9 +146,9 @@ fn type_string_ranges() {
 fn type_string_lists_and_ranges_combined() {
     assert_type_string_block(
         r#"
-        a : [1,2,3]
-        b : 10..20
-        c : [[10,20],[30]]
+        a: [1,2,3]
+        b: 10..20
+        c: [[10,20],[30]]
         "#,
         "Type<a: list of number, b: range, c: list of list of number>",
     );
@@ -158,9 +158,9 @@ fn type_string_lists_and_ranges_combined() {
 fn type_objects_amd_functions() {
     assert_type_string_block(
         r#"
-        a : sum([1,2,3])
-        b : a
-        c : toString(a)
+        a: sum([1,2,3])
+        b: a
+        c: toString(a)
         "#,
         "Type<a: number, b: number, c: string>",
     );

@@ -8,10 +8,10 @@ fn user_function_with_list_argument_and_return_list() {
     // Map over a list inside a user function and return a new list
     assert_value!(
         r#"
-        func doubleAll(xs) : {
-            result : for x in xs return x * 2
+        func doubleAll(xs): {
+            result: for x in xs return x * 2
         }
-        value : doubleAll([1,2,3]).result
+        value: doubleAll([1,2,3]).result
         "#,
         "[2, 4, 6]"
     );
@@ -22,8 +22,8 @@ fn context_functions_duplicate() {
     let model = r#"
     {
         ctx: {
-            func calc(x) : { result: x + 1 }
-            func calc(x) : { result: x + 2 }
+            func calc(x): { result: x + 1 }
+            func calc(x): { result: x + 2 }
         }
     }
     "#;
@@ -33,9 +33,9 @@ fn context_functions_duplicate() {
     assert_value!(
         r#"
         {
-            func inc(x) : { result: x + 2 }
+            func inc(x): { result: x + 2 }
             ctx: {
-                func inc(x) : { result: x + 1 }
+                func inc(x): { result: x + 1 }
                 baseline: inc(7).result
             }
             value: ctx.baseline
@@ -46,9 +46,9 @@ fn context_functions_duplicate() {
 
     let model = r#"
     {
-        func inc(x) : { result: x + 2 }
+        func inc(x): { result: x + 2 }
         ctx: {
-            func inc(x) : { result: x + 1 }
+            func inc(x): { result: x + 1 }
             inc: 777
             baseline: inc(7).result
         }
@@ -61,11 +61,11 @@ fn context_functions_duplicate() {
     assert_value!(
         r#"
         {
-            func echo(v) : { value: v + 2 }
+            func echo(v): { value: v + 2 }
             ctx: {
-                func echo(v) : { value: v + 1 }
+                func echo(v): { value: v + 1 }
                 nested: {
-                    func echo(v) : { value: v }
+                    func echo(v): { value: v }
                     fallback: echo(10).value
                 }
                 fallback: echo(10).value
@@ -80,8 +80,8 @@ fn context_functions_duplicate() {
     {
         ctx: {
             nested: {
-                func echo(v) : { value: v }
-                func echo(v) : { value: v + 1 }
+                func echo(v): { value: v }
+                func echo(v): { value: v + 1 }
             }
         }
     }
@@ -95,52 +95,52 @@ fn user_function_with_list_stats_and_nested_access() {
     // Accept a list, compute stats in the function body, and read nested fields
     assert_value!(
         r#"
-        func listStats(xs) : {
-            total : sum(xs)
-            maxVal : max(xs)
-            first : xs[0]
-            doubled : for v in xs return v * 2
+        func listStats(xs): {
+            total: sum(xs)
+            maxVal: max(xs)
+            first: xs[0]
+            doubled: for v in xs return v * 2
         }
-        value : listStats([1,5,3]).total
+        value: listStats([1,5,3]).total
         "#,
         "9"
     );
 
     assert_value!(
         r#"
-        func listStats(xs) : {
-            total : sum(xs)
-            maxVal : max(xs)
-            first : xs[0]
-            doubled : for v in xs return v * 2
+        func listStats(xs): {
+            total: sum(xs)
+            maxVal: max(xs)
+            first: xs[0]
+            doubled: for v in xs return v * 2
         }
-        value : listStats([1,5,3]).maxVal
+        value: listStats([1,5,3]).maxVal
         "#,
         "5"
     );
 
     assert_value!(
         r#"
-        func listStats(xs) : {
-            total : sum(xs)
-            maxVal : max(xs)
-            first : xs[0]
-            doubled : for v in xs return v * 2
+        func listStats(xs): {
+            total: sum(xs)
+            maxVal: max(xs)
+            first: xs[0]
+            doubled: for v in xs return v * 2
         }
-        value : listStats([9,5,3]).first
+        value: listStats([9,5,3]).first
         "#,
         "9"
     );
 
     assert_value!(
         r#"
-        func listStats(xs) : {
-            total : sum(xs)
-            maxVal : max(xs)
-            first : xs[0]
-            doubled : for v in xs return v * 2
+        func listStats(xs): {
+            total: sum(xs)
+            maxVal: max(xs)
+            first: xs[0]
+            doubled: for v in xs return v * 2
         }
-        value : listStats([2,1]).doubled
+        value: listStats([2,1]).doubled
         "#,
         "[4, 2]"
     );
@@ -151,7 +151,7 @@ fn cannot_define_user_function_inside_list_literal() {
     // Defining a function inside a list should be a parse error.
     // Parse as a pure expression to ensure the function definition token appears inside the sequence.
     // Expect: "Function definition is not allowed in sequence"
-    let expr_str = "[ func myFunc(a) : { out : a } ]";
+    let expr_str = "[ func myFunc(a): { out: a } ]";
     match edge_rules::runtime::edge_rules::expr(expr_str) {
         Ok(_) => panic!("expected parse error, but expression parsed successfully"),
         Err(e) => {
@@ -170,10 +170,10 @@ fn cannot_pass_self_context_as_any_argument() {
     // Mirror and extend the guard: cannot pass the same context object into a function defined in it
     link_error_contains(
         r#"
-        calendar : {
-            shift : 2
-            func start1(calendar) : { result : calendar.shift + 1 }
-            firstDay : start1(calendar).result
+        calendar: {
+            shift: 2
+            func start1(calendar): { result: calendar.shift + 1 }
+            firstDay: start1(calendar).result
         }
         "#
         .trim(),
@@ -182,10 +182,10 @@ fn cannot_pass_self_context_as_any_argument() {
 
     link_error_contains(
         r#"
-        calendar : {
-            shift : 2
-            func start2(x, cal) : { result : cal.shift + x }
-            firstDay : start2(1, calendar).result
+        calendar: {
+            shift: 2
+            func start2(x, cal): { result: cal.shift + x }
+            firstDay: start2(1, calendar).result
         }
         "#
         .trim(),
@@ -200,15 +200,15 @@ fn can_pass_sub_context_with_other_functions_and_use_them() {
     // (1+2)+1 = 4, (2+2)+1 = 5
     assert_value!(
         r#"
-        func inc(a) : { r : a + 1 }
-        func apply(list, cfg) : {
-            mapped : [ list[0] + cfg.shift, list[1] + cfg.shift ]
+        func inc(a): { r: a + 1 }
+        func apply(list, cfg): {
+            mapped: [ list[0] + cfg.shift, list[1] + cfg.shift ]
         }
-        helpers : {
-            shift : 2
-            func dec(a) : { r : a - 1 }
+        helpers: {
+            shift: 2
+            func dec(a): { r: a - 1 }
         }
-        value : for n in apply([1,2], helpers).mapped return inc(n).r
+        value: for n in apply([1,2], helpers).mapped return inc(n).r
         "#,
         "[4, 5]"
     );
@@ -219,7 +219,7 @@ fn application_record_example_extended_with_lists() {
     // Extend the applicationRecord(application) pattern with a list field
     let code = r#"
     {
-        input : {
+        input: {
             application: {
                 status: 1
                 scores: [10, 20, 5]
@@ -261,20 +261,20 @@ fn user_function_body_is_fully_evaluated() {
         code,
         &[
             "{",
-            "   all : {",
-            "      sumAll : 6",
-            "      lvl1 : {",
-            "         result : 12",
+            "   all: {",
+            "      sumAll: 6",
+            "      lvl1: {",
+            "         result: 12",
             "      }",
-            "      lvl2 : {",
-            "         result : 13",
+            "      lvl2: {",
+            "         result: 13",
             "      }",
             "   }",
-            "   output1 : 13",
-            "   structOutput : {",
-            "      result : 12",
+            "   output1: 13",
+            "   structOutput: {",
+            "      result: 12",
             "   }",
-            "   structOutputValue : 12",
+            "   structOutputValue: 12",
             "}",
         ],
     );
@@ -291,7 +291,7 @@ fn user_function_field_with_math_operator() {
     output1: testFunction(1,2,3).lvl2.result + 1
     "#;
 
-    assert_eval_all(code, &["{", "output1 : 14", "}"]);
+    assert_eval_all(code, &["{", "output1: 14", "}"]);
 }
 
 #[test]
@@ -310,12 +310,12 @@ fn user_function_has_types() {
         &code,
         &[
             "{",
-            "all : {",
-            "sumAll : 6",
-            "label : '1x'",
+            "all: {",
+            "sumAll: 6",
+            "label: '1x'",
             "}",
-            "output1 : 6",
-            "output2 : '1x'",
+            "output1: 6",
+            "output2: '1x'",
             "}",
         ],
     );
@@ -356,7 +356,7 @@ fn user_function_accepts_list_parameter_type() {
     sum: total([1,2,3]).sum
     "#;
 
-    assert_eval_all(code, &["{", "count : 3", "sum : 6", "}"]);
+    assert_eval_all(code, &["{", "count: 3", "sum: 6", "}"]);
 }
 
 #[test]
@@ -385,9 +385,9 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
 
     let evaluated = eval_all(model);
 
-    assert_string_contains!("name : 'Sara'", &evaluated);
-    assert_string_contains!("birthdate : Missing", &evaluated);
-    assert_string_contains!("income : number.Missing", &evaluated);
+    assert_string_contains!("name: 'Sara'", &evaluated);
+    assert_string_contains!("birthdate: Missing", &evaluated);
+    assert_string_contains!("income: number.Missing", &evaluated);
 }
 
 #[test]
@@ -397,7 +397,7 @@ fn user_function_not_found() {
 
     let model = r#"
     {
-        deeper : { func inc(x) : { result: x + 1 } }
+        deeper: { func inc(x): { result: x + 1 } }
         value: inc(1).result
     }
     "#;
@@ -406,7 +406,7 @@ fn user_function_not_found() {
 
     let model = r#"
     {
-        deeper : { func inc(x) : { result: x + 1 } }
+        deeper: { func inc(x): { result: x + 1 } }
         value: deeper.inc(1).result
     }
     "#;
@@ -418,8 +418,8 @@ fn user_function_not_found() {
 fn user_function_deeper_level_call_is_allowed() {
     let model = r#"
     {
-        deeper : {
-            func inc(x) : { result: x + 1 }
+        deeper: {
+            func inc(x): { result: x + 1 }
             value: inc(1).result
         }
         value: deeper.value
@@ -428,7 +428,7 @@ fn user_function_deeper_level_call_is_allowed() {
 
     assert_eval_all(
         model,
-        &["{", "deeper : {", "value : 2", "}", "value : 2", "}"],
+        &["{", "deeper: {", "value: 2", "}", "value: 2", "}"],
     );
 }
 
@@ -436,9 +436,9 @@ fn user_function_deeper_level_call_is_allowed() {
 fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
     let model = r#"
     {
-        deeper : {
-            func inc(x) : {
-                func helper(y) : {
+        deeper: {
+            func inc(x): {
+                func helper(y): {
                     result: y * 10
                 }
                 result: helper(x).result + 1
@@ -454,11 +454,11 @@ fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
         model,
         &[
             "{",
-            "deeper : {",
-            "value1 : 11",
-            "value2 : 51",
+            "deeper: {",
+            "value1: 11",
+            "value2: 51",
             "}",
-            "value : 62",
+            "value: 62",
             "}",
         ],
     );

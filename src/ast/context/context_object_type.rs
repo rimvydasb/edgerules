@@ -158,7 +158,7 @@ pub mod test {
         assert_eq!(obj.borrow().expressions.len(), 2);
         assert_eq!(obj.borrow().metaphors.len(), 0);
         assert_eq!(obj.borrow().all_field_names.len(), 2);
-        assert_eq!(obj.borrow().to_string(), "{a : 1; b : 2}");
+        assert_eq!(obj.borrow().to_string(), "{a: 1; b: 2}");
         assert_eq!(obj.borrow().to_type_string(), "Type<a: number, b: number>");
 
         let mut builder2 = ContextObjectBuilder::new();
@@ -220,7 +220,7 @@ pub mod test {
 
         assert_eq!(
             obj.borrow().to_string(),
-            "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}"
+            "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}"
         );
         assert_eq!(
             obj.borrow().to_type_string(),
