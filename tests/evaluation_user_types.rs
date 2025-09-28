@@ -385,6 +385,19 @@ fn primitive_function_arguments() {
         "#,
         "[2, 4, 6]"
     );
+
+    assert_value!(
+        r#"
+        func doubleAll(xs: number[]): {
+            result: for x in xs return x * 2
+        }
+        baseline: {
+            items: [1,2,3]
+        }
+        value: doubleAll(baseline.items).result
+        "#,
+        "[2, 4, 6]"
+    );
 }
 
 #[test]

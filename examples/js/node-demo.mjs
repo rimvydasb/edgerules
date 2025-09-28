@@ -59,13 +59,13 @@ if (
 const arrayResult = wasm.evaluate_method(
   `{
     func interpolate(baseline) : {
-       result : for x in baseline.items return x * 2
+       resultset : for x in baseline.items return x * 2
     }
   }`,
     'interpolate',
     {items: [1,2,3,4,5]},
 );
-console.log('evaluate_method:', methodResult);
+console.log('evaluate_method (interpolate):', arrayResult);
 if (
     !methodResult ||
     methodResult.greeting !== 'Hello Ada' ||
