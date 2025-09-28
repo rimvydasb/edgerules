@@ -107,13 +107,20 @@ pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
 pub fn link_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let _ = service.load_source(code);
-    let err = service.to_runtime().err().map(|e| e.to_string()).unwrap();
-    let lower = err.to_lowercase();
-    for n in needles {
-        assert!(
-            lower.contains(&n.to_lowercase()),
-            "expected error to contain `{n}`, got: {err}"
-        );
+
+    match (service.to_runtime().err().map(|e| e.to_string())) {
+        None => {
+            panic!("expected link error, got none\ncode:\n{code}");
+        }
+        Some(err) => {
+            let lower = err.to_lowercase();
+            for n in needles {
+                assert!(
+                    lower.contains(&n.to_lowercase()),
+                    "expected error to contain `{n}`, got: {err}\ncode:\n{code}"
+                );
+            }
+        }
     }
 }
 
