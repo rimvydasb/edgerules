@@ -342,8 +342,9 @@ fn missing_is_applied_for_function_argument() {
     let model = r#"
     {
         type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-        func inc(x: LoanOffer) : { result: x }
+        func inc(x: LoanOffer) : { termInMonths: x.termInMonths * 2; result: x }
         value: inc({amount: 100}).result
+        termInMonths: inc({amount: 100}).termInMonths
     }
     "#;
 
@@ -357,6 +358,7 @@ fn missing_is_applied_for_function_argument() {
             "      termInMonths : number.Missing",
             "      monthlyPayment : number.Missing",
             "   }",
+            "   termInMonths : 2", // termInMonths is 2, because missing in multiply is replaced by 1
             "}",
         ],
     );
