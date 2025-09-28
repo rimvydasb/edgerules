@@ -312,15 +312,17 @@ fn input_type_validation() {
 
     link_error_contains(
         r#"
-        func double(xs: integer) : {
-            result : xs * 2
+        {
+            func double(xs: number) : {
+                result : xs * 2
+            }
+            value : double([1,2,3]).result
         }
-        value : double([1,2,3]).result
         "#,
         &[
             "Argument `xs` of function `double`",
-            "type 'list of integer'",
-            "expected 'integer'",
+            "type 'list of number'",
+            "expected 'number'",
         ],
     );
 
@@ -364,7 +366,7 @@ fn missing_is_applied_for_function_argument() {
 fn primitive_function_arguments() {
     assert_value!(
         r#"
-        func double(xs: integer) : {
+        func double(xs: number) : {
             result : xs * 2
         }
         value : double(2).result
@@ -374,11 +376,28 @@ fn primitive_function_arguments() {
 
     assert_value!(
         r#"
-        func doubleAll(xs: integer[]) : {
+        func doubleAll(xs: number[]) : {
             result : for x in xs return x * 2
         }
         value : doubleAll([1,2,3]).result
         "#,
         "[2, 4, 6]"
+    );
+}
+
+#[test]
+fn complex_type_array_function_argument() {
+    assert_eval_all(
+        r#"
+        {
+            type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+            func incAll(offers: LoanOffer[]) : {
+                simpleResult: offers[0].amount + offers[1].amount
+                forResult: for offer in offers return offer.amount + 1
+            }
+            value: incAll([{amount: 1}, {amount: 2}])
+        }
+        "#,
+        &["{", "value : {", "simpleResult : 3", "forResult : [2, 3]", "}", "}"],
     );
 }

@@ -460,26 +460,13 @@ fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
             source.next();
         }
     }
-    parse_complex_type_from_name(name.trim())
+    parse_type(name.trim())
 }
 
 fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
     source.skip_whitespace();
-    let ident = source.get_alphanumeric();
-    let mut tref = parse_complex_type_from_name(ident.trim());
-    loop {
-        source.skip_whitespace();
-        if let Some('[') = source.peek().cloned() {
-            source.next();
-            if let Some(']') = source.peek().cloned() {
-                source.next();
-                tref = ComplexTypeRef::List(Box::new(tref));
-                continue;
-            }
-        }
-        break;
-    }
-    tref
+    let ident = source.get_alphanumeric_or(&['[', ']']);
+    parse_type(&*ident)
 }
 
 fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option<ComplexTypeRef> {
@@ -500,7 +487,7 @@ fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option
         return None;
     }
 
-    let mut tref = parse_complex_type_from_name(base);
+    let mut tref = parse_type(base);
     for _ in 0..layers {
         tref = ComplexTypeRef::List(Box::new(tref));
     }
@@ -508,8 +495,16 @@ fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option
     Some(tref)
 }
 
-fn parse_complex_type_from_name(name: &str) -> ComplexTypeRef {
-    match name {
+pub fn parse_type(name: &str) -> ComplexTypeRef {
+    let mut string = name;
+    let mut layers = 0usize;
+
+    while string.as_bytes().len() >= 2 && &string.as_bytes()[string.len() - 2..] == b"[]" {
+        string = &string[..string.len() - 2];
+        layers += 1;
+    }
+
+    let mut return_type = match string {
         "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
         "string" => ComplexTypeRef::Primitive(ValueType::StringType),
         "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
@@ -517,29 +512,12 @@ fn parse_complex_type_from_name(name: &str) -> ComplexTypeRef {
         "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
         "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
         "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
-        other => {
-            // peel off [] suffixes first
-            let mut base = other.to_string();
-            let mut layers = 0usize;
-            while base.ends_with("[]") {
-                base.truncate(base.len() - 2);
-                layers += 1;
-            }
-            // decide primitive vs alias for base
-            let mut t = match base.as_str() {
-                "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
-                "string" => ComplexTypeRef::Primitive(ValueType::StringType),
-                "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
-                "date" => ComplexTypeRef::Primitive(ValueType::DateType),
-                "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
-                "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
-                "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
-                _ => ComplexTypeRef::Alias(base),
-            };
-            for _ in 0..layers {
-                t = ComplexTypeRef::List(Box::new(t));
-            }
-            t
-        }
+        _ => ComplexTypeRef::Alias(string.to_owned()),
+    };
+
+    for _ in 0..layers {
+        return_type = ComplexTypeRef::List(Box::new(return_type));
     }
+
+    return_type
 }

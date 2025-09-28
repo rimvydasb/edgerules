@@ -241,6 +241,7 @@ pub mod factory {
     use crate::typesystem::types::ValueType;
     use log::trace;
     use std::collections::vec_deque::VecDeque;
+    use crate::tokenizer::parser::parse_type;
 
     fn pop_back_as_expected(deque: &mut VecDeque<EToken>, expected: &str) -> bool {
         if let Some(Unparsed(Literal(maybe))) = deque.pop_back() {
@@ -571,7 +572,7 @@ pub mod factory {
                 }
 
                 let type_name = variable.get_name();
-                Ok(Some(parse_type_identifier(&type_name)))
+                Ok(Some(parse_type(&type_name)))
             }
             Value(_) => Err(UnknownError(
                 "Default values for function parameters are not supported".to_string(),
@@ -581,47 +582,6 @@ pub mod factory {
                 other
             ))),
         }
-    }
-
-    fn parse_type_identifier(name: &str) -> ComplexTypeRef {
-        let mut base = name.trim().to_string();
-        let mut layers = 0usize;
-
-        while base.ends_with("[]") {
-            base.truncate(base.len() - 2);
-            layers += 1;
-        }
-
-        let mut tref = match base {
-            ref primitive if primitive.eq_ignore_ascii_case("number") => {
-                ComplexTypeRef::Primitive(ValueType::NumberType)
-            }
-            ref primitive if primitive.eq_ignore_ascii_case("string") => {
-                ComplexTypeRef::Primitive(ValueType::StringType)
-            }
-            ref primitive if primitive.eq_ignore_ascii_case("boolean") => {
-                ComplexTypeRef::Primitive(ValueType::BooleanType)
-            }
-            ref primitive if primitive.eq_ignore_ascii_case("date") => {
-                ComplexTypeRef::Primitive(ValueType::DateType)
-            }
-            ref primitive if primitive.eq_ignore_ascii_case("time") => {
-                ComplexTypeRef::Primitive(ValueType::TimeType)
-            }
-            ref primitive if primitive.eq_ignore_ascii_case("datetime") => {
-                ComplexTypeRef::Primitive(ValueType::DateTimeType)
-            }
-            ref primitive if primitive.eq_ignore_ascii_case("duration") => {
-                ComplexTypeRef::Primitive(ValueType::DurationType)
-            }
-            alias => ComplexTypeRef::Alias(alias.to_string()),
-        };
-
-        for _ in 0..layers {
-            tref = ComplexTypeRef::List(Box::new(tref));
-        }
-
-        tref
     }
 
     pub fn build_sequence(

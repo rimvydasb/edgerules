@@ -55,3 +55,22 @@ if (
 ) {
   throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
 }
+
+const arrayResult = wasm.evaluate_method(
+  `{
+    func interpolate(baseline) : {
+       result : for x in baseline.items return x * 2
+    }
+  }`,
+    'interpolate',
+    {items: [1,2,3,4,5]},
+);
+console.log('evaluate_method:', methodResult);
+if (
+    !methodResult ||
+    methodResult.greeting !== 'Hello Ada' ||
+    methodResult.total !== 45 ||
+    methodResult.vip !== true
+) {
+    throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
+}
