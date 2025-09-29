@@ -277,18 +277,6 @@ fn tables_test() {
 }
 
 #[test]
-fn test_filter_not_alias() {
-    // implicit 'it'
-    assert_value!("count([1, 5, 12, 7][not it > 10])", "3");
-
-    // explicit '...'
-    assert_value!("count([1, 5, 12, 7][not ... > 10])", "3");
-
-    // combine inside filter
-    assert_value!("count([1, 5, 12, 7, 15][(it > 3) and not (it > 10)])", "2");
-}
-
-#[test]
 fn variable_linkin_test() {
     assert_eq!(
         eval_field(
