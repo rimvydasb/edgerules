@@ -585,9 +585,8 @@ pub mod test {
         init_logger();
 
         let mut service = EdgeRulesModel::new();
-        service.load_source(
-            "{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }",
-        )?;
+        service
+            .load_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
 
         let runtime = service.to_runtime_snapshot()?;
         let out1 = runtime.evaluate_field("calendar.config.start")?;
@@ -725,10 +724,10 @@ pub mod test {
         let runtime = service.to_runtime_snapshot()?;
 
         let single = runtime.call_method("inc", vec![expr("41")?])?;
-        assert_function_result_number(&single, 42);
+        assert_eq!(single.to_string(), "{result: 42}");
 
         let multiple = runtime.call_method("add", vec![expr("1")?, expr("2")?])?;
-        assert_function_result_number(&multiple, 3);
+        assert_eq!(multiple.to_string(), "{result: 3}");
 
         Ok(())
     }
@@ -753,23 +752,34 @@ pub mod test {
         );
 
         let first = runtime.call_method("inc", vec![expr("{amount: 10}")?])?;
-        assert_function_result_number(&first, 11);
+        assert_eq!(first.to_string(), "{result: 11}");
 
         let second = runtime.call_method("inc", vec![expr("{amount: 20}")?])?;
-        assert_function_result_number(&second, 21);
+        assert_eq!(second.to_string(), "{result: 21}");
 
         Ok(())
     }
 
-    fn assert_function_result_number(value: &ValueEnum, expected: i64) {
-        match value {
-            ValueEnum::Reference(ctx) => {
-                let code = ctx.borrow().to_code();
-                let needle = format!("result: {}", expected);
-                assert!(code.contains(&needle), "unexpected context: {code}");
+    #[test]
+    fn call_method_list_iteration() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service.load_source(r#"
+        {
+            func interpolate(baseline: number[]) : {
+               resultset : for x in baseline return x * 2
             }
-            other => panic!("expected function context reference, got: {other}"),
         }
+        "#
+        )?;
+
+        let runtime = service.to_runtime_snapshot()?;
+
+        let first = runtime.call_method("interpolate", vec![expr("[1,2,3,4,5]")?])?;
+        assert_eq!(first.to_string(), "{resultset: [2, 4, 6, 8, 10]}");
+
+        Ok(())
     }
 
     #[test]

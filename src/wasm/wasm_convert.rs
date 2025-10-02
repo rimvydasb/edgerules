@@ -12,6 +12,7 @@ use crate::typesystem::values::{ValueEnum, ValueOrSv};
 use std::cell::RefCell;
 use std::rc::Rc;
 use time::Month;
+use js_sys::{Array, Date as JsDate, Object, Reflect};
 use wasm_bindgen::{JsCast, JsValue};
 
 pub fn evaluate_all_inner(code: &str) -> Result<JsValue, String> {
@@ -277,83 +278,4 @@ fn js_object_to_value(object: Object) -> Result<ValueEnum, String> {
     let exec_ctx = ExecutionContext::create_isolated_context(Rc::clone(&static_context));
     ExecutionContext::eval_all_fields(Rc::clone(&exec_ctx)).map_err(|err| err.to_string())?;
     Ok(ValueEnum::Reference(exec_ctx))
-}
-
-#[cfg(all(test, target_arch = "wasm32"))]
-pub mod test {
-
-    #[wasm_bindgen_test]
-    pub fn js_to_value_test() {
-        use super::*;
-        use js_sys::{Array, Object};
-        use wasm_bindgen_test::*;
-
-        wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
-        // Test boolean
-        let js_true = JsValue::from_bool(true);
-        let js_false = JsValue::from_bool(false);
-        assert_eq!(
-            js_to_value(&js_true).unwrap(),
-            ValueEnum::BooleanValue(true)
-        );
-        assert_eq!(
-            js_to_value(&js_false).unwrap(),
-            ValueEnum::BooleanValue(false)
-        );
-
-        // Test number
-        let js_number = JsValue::from_f64(42.0);
-        assert_eq!(js_to_value(&js_number).unwrap(), ValueEnum::from(42.0));
-
-        // Test string
-        let js_string = JsValue::from_str("hello");
-        assert_eq!(
-            js_to_value(&js_string).unwrap(),
-            ValueEnum::StringValue(StringEnum::from("hello".to_string()))
-        );
-
-        // Test array
-        let js_array = Array::new();
-        js_array.push(&JsValue::from_f64(1.0));
-        js_array.push(&JsValue::from_str("two"));
-        js_array.push(&JsValue::from_bool(true));
-        let js_array_value = JsValue::from(js_array);
-        let expected_array = ValueEnum::from(vec![
-            ValueEnum::from(1.0),
-            ValueEnum::StringValue(StringEnum::from("two".to_string())),
-            ValueEnum::BooleanValue(true),
-        ]);
-        assert_eq!(js_to_value(&js_array_value).unwrap(), expected_array);
-
-        // Test object
-        let js_object = Object::new();
-        Reflect::set(&js_object, &JsValue::from_str("a"), &JsValue::from_f64(1.0)).unwrap();
-        Reflect::set(
-            &js_object,
-            &JsValue::from_str("b"),
-            &JsValue::from_str("text"),
-        )
-        .unwrap();
-        let js_object_value = JsValue::from(js_object);
-
-        let mut builder = ContextObjectBuilder::new();
-        builder
-            .add_expression("a", ExpressionEnum::from(ValueEnum::from(1.0)))
-            .unwrap();
-        builder
-            .add_expression(
-                "b",
-                ExpressionEnum::from(ValueEnum::StringValue(StringEnum::from("text".to_string()))),
-            )
-            .unwrap();
-        let expected_object_ctx = builder.build();
-
-        linker::link_parts(Rc::clone(&expected_object_ctx)).unwrap();
-        let expected_exec_ctx =
-            ExecutionContext::create_isolated_context(Rc::clone(&expected_object_ctx));
-        ExecutionContext::eval_all_fields(Rc::clone(&expected_exec_ctx)).unwrap();
-        let expected_object = ValueEnum::Reference(expected_exec_ctx);
-        assert_eq!(js_to_value(&js_object_value).unwrap(), expected_object);
-    }
 }

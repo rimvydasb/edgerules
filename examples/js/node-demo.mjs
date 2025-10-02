@@ -58,7 +58,8 @@ if (
 
 const arrayResult = wasm.evaluate_method(
   `{
-    func interpolate(baseline) : {
+    type BaselineType: { items : <number[]> };
+    func interpolate(baseline: BaselineType) : {
        resultset : for x in baseline.items return x * 2
     }
   }`,
@@ -66,11 +67,6 @@ const arrayResult = wasm.evaluate_method(
     {items: [1,2,3,4,5]},
 );
 console.log('evaluate_method (interpolate):', arrayResult);
-if (
-    !methodResult ||
-    methodResult.greeting !== 'Hello Ada' ||
-    methodResult.total !== 45 ||
-    methodResult.vip !== true
-) {
+if (arrayResult === null || !Array.isArray(arrayResult.resultset) || arrayResult.resultset.join(',') !== '2,4,6,8,10') {
     throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
 }
