@@ -31,11 +31,15 @@ project might be volatile.
 - **FEEL**: Friendly Enough Expression Language, part of DMN standard; designed for business users to define decision
   logic.
 
-|                       | Jsonnet | DMN FEEL                   | EdgeRules             |
-|-----------------------|---------|----------------------------|-----------------------|
-| Null value treatment  | N/A     | nn (Proposed By Trisotech) | Native Special Values |
-| Objects, lists, types | Yes     | Yes                        | Yes                   |
-| TBC.                  |         |                            |                       |
+|                          | Jsonnet          | DMN FEEL          | EdgeRules             |
+|--------------------------|------------------|-------------------|-----------------------|
+| Null value treatment     | N/A              | nn (By Trisotech) | Native Special Values |
+| Objects, lists, types    | Yes              | Yes               | Yes                   |
+| Strict Types             | No               | No                | Yes                   |
+| Time and date operations | No               | Yes               | Yes                   |
+| GUI Needed               | No               | Yes, DMN Modeler  | No                    |
+| Runtime                  | Rust, WASM, etc. | Java              | Rust, WASM            |
+| Purpose                  | Data templating  | Business rules    | Business rules        |
 
 ## Deployment Options
 
@@ -60,8 +64,8 @@ EdgeRules is ready for four options based on your requirements:
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
 - [ ] Hard to fail: no infinite loops (TBA: optimistic limits strategy)
 - [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
-- [ ] Full DMN FEEL coverage
-- [ ] Strongly typed and statically typed with type inference
+- [x] Full DMN FEEL coverage
+- [x] Strongly typed and statically typed with type inference
 - [ ] Fractional mathematics for infinite precision
 - [ ] Infinite lists
 - [ ] Structures composition
@@ -108,13 +112,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 WASM exported methods via `wasm_bindgen`:
 
 - `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
-- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
+- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript
+  value.
 - `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
 - `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
   with given `args`.
 
 All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors
-instead of encoding everything as strings. `evaluate_method` accepts primitives, arrays, dates, or plain JavaScript objects
+instead of encoding everything as strings. `evaluate_method` accepts primitives, arrays, dates, or plain JavaScript
+objects
 as arguments, and context outputs are surfaced as plain objects.
 
 ### Optional Function Groups for WASM

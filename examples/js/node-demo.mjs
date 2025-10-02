@@ -9,64 +9,98 @@ console.log('evaluate_expression:', wasm.evaluate_expression('2 + 3'));
 const result = wasm.evaluate_expression(`regexReplace('Hello 123 world 456', '\\d+', 'X', 'g')`);
 console.log('regexReplace:', result);
 if (result !== 'Hello X world X') {
-  throw new Error('regexReplace failed: ' + result);
+    throw new Error('regexReplace failed: ' + result);
 }
 
 const split = wasm.evaluate_expression(`regexSplit('one   two\tthree', '\\s+')`);
 console.log('regexSplit:', split);
 if (!Array.isArray(split) || split.join(',') !== 'one,two,three') {
-  throw new Error('regexSplit failed: ' + JSON.stringify(split));
+    throw new Error('regexSplit failed: ' + JSON.stringify(split));
 }
 
 const b64 = wasm.evaluate_expression(`toBase64('FEEL')`);
 console.log('toBase64:', b64);
 if (b64 !== 'RkVFTA==') {
-  throw new Error('toBase64 failed: ' + b64);
+    throw new Error('toBase64 failed: ' + b64);
 }
 
 const from = wasm.evaluate_expression(`fromBase64('RkVFTA==')`);
 console.log('fromBase64:', from);
 if (from !== 'FEEL') {
-  throw new Error('fromBase64 failed: ' + from);
+    throw new Error('fromBase64 failed: ' + from);
 }
 
 const methodResult = wasm.evaluate_method(
-  `{
+    `{
     func personalize(customer) : {
       greeting: 'Hello ' + customer.name;
       total: customer.subtotal + customer.tax;
       vip: customer.vip
     }
   }`,
-  'personalize',
-  [{
-    name: 'Ada',
-    subtotal: 40,
-    tax: 5,
-    vip: true
-  }],
+    'personalize',
+    [{
+        name: 'Ada',
+        subtotal: 40,
+        tax: 5,
+        vip: true
+    }],
 );
 console.log('evaluate_method:', methodResult);
 if (
-  !methodResult ||
-  methodResult.greeting !== 'Hello Ada' ||
-  methodResult.total !== 45 ||
-  methodResult.vip !== true
+    !methodResult ||
+    methodResult.greeting !== 'Hello Ada' ||
+    methodResult.total !== 45 ||
+    methodResult.vip !== true
 ) {
-  throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
+    throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
 }
 
 const arrayResult = wasm.evaluate_method(
-  `{
+    `{
     type BaselineType: { items : <number[]> };
     func interpolate(baseline: BaselineType) : {
        resultset : for x in baseline.items return x * 2
     }
   }`,
     'interpolate',
-    {items: [1,2,3,4,5]},
+    {items: [1, 2, 3, 4, 5]},
 );
 console.log('evaluate_method (interpolate):', arrayResult);
 if (arrayResult === null || !Array.isArray(arrayResult.resultset) || arrayResult.resultset.join(',') !== '2,4,6,8,10') {
     throw new Error('evaluate_method failed: ' + JSON.stringify(methodResult));
 }
+
+const decisionServiceResponse = wasm.evaluate_method(
+    `
+    {
+        type Customer: {name: <string>; birthdate: <date>; income: <number>}
+        type Applicant: {customer: <Customer>; requestedAmount: <number>; termInMonths: <number>}
+        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+
+        func calculateLoanOffer(applicant: Applicant): {
+            // NOTE: placeholder not supported yet, so set a concrete date
+            executionDatetime: date('2024-01-01')
+        
+            eligibleCalc: executionDatetime >= applicant.customer.birthdate + duration('P6570D');
+            amount: applicant.requestedAmount;
+            termInMonths: applicant.termInMonths;
+            monthlyPaymentCalc: (applicant.requestedAmount * (1 + (if applicant.customer.income > 5000 then 0.05 else 0.1))) / applicant.termInMonths
+            result: {
+                eligible: eligibleCalc;
+                amount: applicant.requestedAmount;
+                termInMonths: applicant.termInMonths;
+                monthlyPayment: monthlyPaymentCalc
+            }
+        }
+    }
+`, "calculateLoanOffer", {
+        customer: {
+            name: 'Alice',
+            birthdate: new Date('2001-01-01'),
+            income: 6000
+        },
+        requestedAmount: 20000,
+        termInMonths: 24
+    }
+)
