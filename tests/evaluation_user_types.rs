@@ -398,6 +398,16 @@ fn primitive_function_arguments() {
         "#,
         "[2, 4, 6]"
     );
+
+    assert_value!(
+        r#"
+        func add(dd: DateTime): {
+            result: dd.hour + 1
+        }
+        value: add(datetime('2020-01-01T11:00:00')).result
+        "#,
+        "12"
+    );
 }
 
 #[test]
@@ -406,6 +416,31 @@ fn complex_type_array_function_argument() {
         r#"
         {
             type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+            func incAll(offers: LoanOffer[]): {
+                simpleResult: offers[0].amount + offers[1].amount
+                forResult: for offer in offers return offer.amount + 1
+            }
+            value: incAll([{amount: 1}, {amount: 2}])
+        }
+        "#,
+        &[
+            "{",
+            "value: {",
+            "simpleResult: 3",
+            "forResult: [2, 3]",
+            "}",
+            "}",
+        ],
+    );
+}
+
+#[test]
+fn complex_nested_types_in_function_argument() {
+    assert_eval_all(
+        r#"
+        {
+            type Customer: {name: <string>; birthdate: <date>; income: <number>}
+            type LoanOffer: {customer: <Customer>; eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
             func incAll(offers: LoanOffer[]): {
                 simpleResult: offers[0].amount + offers[1].amount
                 forResult: for offer in offers return offer.amount + 1
