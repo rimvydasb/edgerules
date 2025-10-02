@@ -4,18 +4,14 @@ JSON-native business rules for the edge.
 
 ## Preface
 
-**EdgeRules** is a structure and programming language specification for defining algorithms and business rules.
-The project was started early in 2022 to create a simple, safe, and expressive language for business users and
-developers
-to oppose poor DMN FEEL language syntax decisions such as bizarre syntax choices and no proper missing value handling.
-Unfortunately, the Jsonnet project wasn't on my radar at that time, and it
-appeared to be the closest to what I wanted to achieve. Nonetheless, EdgeRules had its unique features and goals:
-hard to fail strategies such that the absence of reference loops, no nulls, fully traceable, referentially transparent,
-and the most crucial target was a small WASM binary size for inexpensive use in client browsers... until it exploded to
-600Kb,
-and I barely implemented one-third of my ideas... Due to the shift in my focus, I dropped the project in late 2023.
-In late 2025, I moved the project to GitHub and kept it for my experimentation and research. For this reason, the
-project might be volatile.
+**EdgeRules** is JSON-native, domain-focused DSL with statically-typed semantics and
+missing data handling that is positioned as a safer alternative of FEEL and other bulkier DMN runtimes.
+
+Main features: simple, safe expressive language for business users and developers,
+with referential transparency and cycle-prevention give predictable
+runtimes—valuable for embedding in larger decisioning pipelines that need
+deterministic behavior and audit trails. That comes with a small runtime and hardly matched performance
+of Pratt’s top‑down operator precedence.
 
 - Interactive playground / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
 - [Language Reference](REFERENCE.md)
