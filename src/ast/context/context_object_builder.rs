@@ -218,14 +218,22 @@ impl ContextObjectBuilder {
 
         let ctx = Rc::new(RefCell::new(obj));
 
-        ctx.borrow()
-            .node()
-            .get_childs()
-            .borrow()
-            .iter()
-            .for_each(|(name, child)| {
+        {
+            let child_map = ctx.borrow().node().get_childs();
+            for (name, child) in child_map.borrow().iter() {
                 child.borrow_mut().node.node_type = NodeDataEnum::Child(*name, Rc::downgrade(&ctx));
-            });
+            }
+        }
+
+        {
+            let type_defs = ctx.borrow();
+            for body in type_defs.defined_types.values() {
+                if let UserTypeBody::TypeObject(type_ctx) = body {
+                    type_ctx.borrow_mut().node.node_type =
+                        NodeDataEnum::Internal(Rc::downgrade(&ctx));
+                }
+            }
+        }
 
         ctx
     }

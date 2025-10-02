@@ -435,13 +435,30 @@ fn complex_type_array_function_argument() {
 }
 
 #[test]
+fn special_values_are_set_in_function_argument() {
+    assert_eval_all(
+        r#"
+        {
+            type Customer: {valid: <boolean>; name: <string>; birthdate: <date>; birthtime: <time>; birthdatetime: <datetime>; income: <number>}
+            func incAll(customer: Customer): {
+                primaryCustomer: customer
+            }
+            value: incAll({})
+        }
+        "#,
+        &["{", "value: {", "primaryCustomer: {", "valid: Missing", "name: Missing", "birthdate: Missing", "birthtime: Missing", "birthdatetime: Missing", "income: number.Missing", "}", "}", "}"],
+    );
+}
+
+#[test]
 fn complex_nested_types_in_function_argument() {
     assert_eval_all(
         r#"
         {
-            type Customer: {name: <string>; birthdate: <date>; income: <number>}
+            type Customer: {valid: <boolean>; name: <string>; birthdate: <date>; birthtime: <time>; birthdatetime: <datetime>; income: <number>}
             type LoanOffer: {customer: <Customer>; eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
             func incAll(offers: LoanOffer[]): {
+                primaryCustomer: offers[0].customer
                 simpleResult: offers[0].amount + offers[1].amount
                 forResult: for offer in offers return offer.amount + 1
             }
