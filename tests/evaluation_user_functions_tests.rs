@@ -426,10 +426,7 @@ fn user_function_deeper_level_call_is_allowed() {
     }
     "#;
 
-    assert_eval_all(
-        model,
-        &["{", "deeper: {", "value: 2", "}", "value: 2", "}"],
-    );
+    assert_eval_all(model, &["{", "deeper: {", "value: 2", "}", "value: 2", "}"]);
 }
 
 #[test]

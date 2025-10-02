@@ -765,13 +765,14 @@ pub mod test {
         init_logger();
 
         let mut service = EdgeRulesModel::new();
-        service.load_source(r#"
+        service.load_source(
+            r#"
         {
             func interpolate(baseline: number[]) : {
                resultset : for x in baseline return x * 2
             }
         }
-        "#
+        "#,
         )?;
 
         let runtime = service.to_runtime_snapshot()?;

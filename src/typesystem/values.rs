@@ -137,7 +137,7 @@ impl TypedValue for ValueEnum {
             ValueEnum::NumberValue(_) => ValueType::NumberType,
             ValueEnum::BooleanValue(_) => ValueType::BooleanType,
             ValueEnum::StringValue(_) => ValueType::StringType,
-            ValueEnum::Array(_, value_type) => value_type.clone(),
+            ValueEnum::Array(_, value_type) => ValueType::ListType(Box::new(value_type.clone())),
             ValueEnum::Reference(obj) => obj.borrow().get_type(),
             ValueEnum::DateValue(_) => ValueType::DateType,
             ValueEnum::TimeValue(_) => ValueType::TimeType,

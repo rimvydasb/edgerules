@@ -9,10 +9,10 @@ use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::values::{ValueEnum, ValueOrSv};
+use js_sys::{Array, Date as JsDate, Object, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
 use time::Month;
-use js_sys::{Array, Date as JsDate, Object, Reflect};
 use wasm_bindgen::{JsCast, JsValue};
 
 pub fn evaluate_all_inner(code: &str) -> Result<JsValue, String> {
