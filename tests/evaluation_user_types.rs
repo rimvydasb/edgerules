@@ -401,12 +401,12 @@ fn primitive_function_arguments() {
 
     assert_value!(
         r#"
-        func add(dd: DateTime): {
-            result: dd.hour + 1
+        func add(dd: datetime, tt: time, do: date): {
+            result: dd.hour + 1 + tt.hour + 1 + do.day + 1
         }
-        value: add(datetime('2020-01-01T11:00:00')).result
+        value: add(datetime('2020-01-01T11:00:00'), time('11:00:00'), date('2020-01-01')).result
         "#,
-        "12"
+        "26"
     );
 }
 
@@ -446,7 +446,20 @@ fn special_values_are_set_in_function_argument() {
             value: incAll({})
         }
         "#,
-        &["{", "value: {", "primaryCustomer: {", "valid: Missing", "name: Missing", "birthdate: Missing", "birthtime: Missing", "birthdatetime: Missing", "income: number.Missing", "}", "}", "}"],
+        &[
+            "{",
+            "value: {",
+            "primaryCustomer: {",
+            "valid: Missing",
+            "name: Missing",
+            "birthdate: Missing",
+            "birthtime: Missing",
+            "birthdatetime: Missing",
+            "income: number.Missing",
+            "}",
+            "}",
+            "}",
+        ],
     );
 }
 
@@ -468,6 +481,14 @@ fn complex_nested_types_in_function_argument() {
         &[
             "{",
             "value: {",
+            "primaryCustomer: {",
+            "valid: Missing",
+            "name: Missing",
+            "birthdate: Missing",
+            "birthtime: Missing",
+            "birthdatetime: Missing",
+            "income: number.Missing",
+            "}",
             "simpleResult: 3",
             "forResult: [2, 3]",
             "}",

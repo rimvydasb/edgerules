@@ -43,7 +43,10 @@ fn missing_for_type(
         ValueType::TimeType => Ok(V::TimeValue(Sv(SV::Missing))),
         ValueType::DateTimeType => Ok(V::DateTimeValue(Sv(SV::Missing))),
         ValueType::DurationType => Ok(V::DurationValue(Sv(SV::Missing))),
-        ValueType::ListType(inner) => Ok(V::Array(vec![], ValueType::ListType(inner.clone()))),
+        ValueType::ListType(inner) => {
+            let item_type = inner.as_ref().clone();
+            Ok(V::Array(vec![], item_type))
+        }
         ValueType::ObjectType(obj) => {
             // Build empty object filled with missing values for each field
             let mut builder = ContextObjectBuilder::new();
@@ -94,13 +97,29 @@ fn cast_value_to_type(
         | ValueType::DurationType
         | ValueType::RangeType
         | ValueType::UndefinedType => Ok(value),
-        ValueType::ListType(inner) => match value {
-            V::Array(items, _) => {
-                // rewrap items; no element-wise casting for now
-                Ok(V::Array(items, ValueType::ListType(inner)))
+        ValueType::ListType(inner) => {
+            let item_type = *inner;
+            match value {
+                V::Array(items, _) => {
+                    let mut casted_items = Vec::with_capacity(items.len());
+                    for item in items {
+                        match item {
+                            Ok(v) => {
+                                let mapped =
+                                    cast_value_to_type(v, item_type.clone(), Rc::clone(&ctx))?;
+                                casted_items.push(Ok(mapped));
+                            }
+                            Err(err) => casted_items.push(Err(err)),
+                        }
+                    }
+                    Ok(V::Array(casted_items, item_type))
+                }
+                other => {
+                    let mapped = cast_value_to_type(other, item_type.clone(), Rc::clone(&ctx))?;
+                    Ok(V::Array(vec![Ok(mapped)], item_type))
+                }
             }
-            other => Ok(other),
-        },
+        }
         ValueType::ObjectType(schema) => {
             // Expect source to be an object reference
             let src_exec = match value {
