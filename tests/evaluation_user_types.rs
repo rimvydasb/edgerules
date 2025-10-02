@@ -260,6 +260,31 @@ fn context_types_duplicate() {
 }
 
 #[test]
+fn cycle_reference_prevention() {
+    let model = r#"
+    {
+        type Customer: {valid: <Customer>; name: <string>; birthdate: <date>; birthtime: <time>; birthdatetime: <datetime>; income: <number>}
+        type LoanOffer: {eligible: <Customer>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        func inc(x: LoanOffer): { result: x.eligible }
+        value: inc({}).result
+    }
+    "#;
+
+    link_error_contains(model, &["cyclic reference loop"]);
+
+    let model = r#"
+    {
+        type Customer: {valid: <LoanOffer>; name: <string>; birthdate: <date>; birthtime: <time>; birthdatetime: <datetime>; income: <number>}
+        type LoanOffer: {eligible: <Customer>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
+        func inc(x: LoanOffer): { result: x.eligible }
+        value: inc({}).result
+    }
+    "#;
+
+    link_error_contains(model, &["cyclic reference loop"]);
+}
+
+#[test]
 fn input_type_validation() {
     let model = r#"
     {
