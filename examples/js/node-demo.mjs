@@ -104,3 +104,19 @@ const decisionServiceResponse = wasm.evaluate_method(
         termInMonths: 24
     }
 )
+console.log('evaluate_method (calculateLoanOffer):', decisionServiceResponse);
+
+if (
+    decisionServiceResponse === null ||
+    decisionServiceResponse.executionDatetime !== '2024-01-01' ||
+    decisionServiceResponse.eligibleCalc !== true ||
+    decisionServiceResponse.amount !== 20000 ||
+    decisionServiceResponse.termInMonths !== 24 ||
+    decisionServiceResponse.monthlyPaymentCalc !== 875 ||
+    decisionServiceResponse.result.eligible !== true ||
+    decisionServiceResponse.result.amount !== 20000 ||
+    decisionServiceResponse.result.termInMonths !== 24 ||
+    decisionServiceResponse.result.monthlyPayment !== 875
+) {
+    throw new Error('evaluate_method failed: ' + JSON.stringify(decisionServiceResponse));
+}
