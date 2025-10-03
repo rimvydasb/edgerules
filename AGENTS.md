@@ -45,6 +45,17 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - `just demo-node`: Run Node demo (expects `target/pkg-node/`).
 - `just demo-wasi`: Run WASI demo via wasmtime.
 
+### Daily Workflow Checklist
+
+Follow this loop for every change:
+
+1. `cargo fmt`
+2. `cargo clippy --all-targets --all-features -- -D warnings`
+3. Reproduce the scenario you are touching:
+   - Rust: `cargo test <suite>` / `cargo test <path>::<name>`
+   - WASM demos: rebuild first (`just node` or `just web`), then run `just demo-node` / `just demo-web`
+4. If something fails, use the **Debugging & Verification Playbook** below before guessing.
+
 ## Coding Style & Naming Conventions
 
 - Rust 2021 edition; 4 spaces; keep modules small and cohesive.
@@ -56,6 +67,23 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - Naming: modules/files `snake_case`; types/enums `CamelCase`; functions/fields `snake_case`.
 - Formatting: run `cargo fmt` before commits; keep `clippy` clean.
 - WASM features: `wasm` is the lean baseline; `wasm_debug` enables `console_error_panic_hook` for better panic traces in dev. Use `web-debug`/`node-debug` to build debug artifacts in separate folders to avoid shipping debug hooks.
+- Treat clippy warnings as hard errors—keep builds clean by default.
+
+## Debugging & Verification Playbook
+
+- Run the equivalent Rust test whenever a WASM demo breaks; most demos mirror helpers in `tests/`.
+- When list or context fields report `Unlinked`, inspect `src/ast/sequence.rs` and related linking helpers to ensure inline objects are linked with `linker::link_parts`.
+- Use `tests/utilities.rs` helpers (`assert_eval_all`, `link_error_contains`, etc.) so expectations stay centralized and easy to diff.
+- Refresh `target/pkg-*` before demos: `just node` or `just web` rebuilds the WASM bundle; demos reuse those folders.
+- Shape conversions live in `src/wasm/wasm_convert.rs`; check there when JS output diverges from Rust results.
+
+## WASM Bridge Checklist
+
+1. Confirm the snippet passes `cargo test` (see **Reference Tests** below).
+2. Rebuild the target package (`just node`, `just web`).
+3. Ensure `CollectionExpression::link` handles nested static objects (arrays of contexts).
+4. Verify conversions in `wasm_convert.rs` match runtime expectations.
+5. Keep `src/wasm.rs` imports minimal to avoid `wasm-pack` warnings.
 
 ## Testing Guidelines
 
@@ -67,6 +95,19 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 
 - Project priority is small WASM size
 - Second priority is performance
+
+## Common Pitfalls
+
+- Empty arrays and inline objects must be linked—update collection linking when you touch `CollectionExpression`.
+- Running `just demo-*` without re-running `just node` / `just web` uses stale WASM artifacts.
+- Clippy runs with `-D warnings`; unused imports or needless borrows must be resolved immediately.
+
+## Reference Tests
+
+- Array casting & special values: `tests/evaluation_user_types.rs::complex_type_array_function_argument_v2`
+- Nested typed arguments: `tests/evaluation_user_types.rs::complex_nested_types_in_function_argument`
+- User function behaviour: `tests/evaluation_user_functions_tests.rs`
+- Tokenizer fuzz cases mirroring demos: `src/tokenizer.rs::test_fuzzy_code`
 
 # Quality Assurance
 
