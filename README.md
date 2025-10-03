@@ -4,13 +4,12 @@ JSON-native business rules for the edge.
 
 ## Preface
 
-**EdgeRules** is JSON-native, domain-focused DSL with statically-typed semantics and
+**EdgeRules** is JSON-native, Domain-Specific Language with statically-typed semantics and
 missing data handling that is positioned as a safer alternative of FEEL and other bulkier DMN runtimes.
 
-Main features: simple, safe expressive language for business users and developers,
-with referential transparency and cycle-prevention give predictable
-runtimes—valuable for embedding in larger decisioning pipelines that need
-deterministic behavior and audit trails. That comes with a small runtime and hardly matched performance
+Main features: simple expressive language for business users and developers
+with safety features such as no nulls, no runtime exceptions, no side effects,
+cycle-prevention that comes with a small runtime and hardly matched interpretation performance
 of Pratt’s top‑down operator precedence.
 
 - Interactive playground / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)

@@ -460,6 +460,35 @@ fn complex_type_array_function_argument() {
 }
 
 #[test]
+fn complex_type_array_function_argument_v2() {
+    assert_eval_all(
+        r#"
+        {
+            type Person: { name: <string>; age: <number>; tags: <string[]> }
+            type PeopleList: Person[]
+            func getAdults(people: PeopleList): {
+                result: people[age >= 18]
+            }
+            persons: [
+                {name: "Alice"; age: 30; tags: []}
+                {name: "Bob"; age: 15; tags: []}
+                {name: "Charlie"; age: 22; tags: []}
+            ]
+            adults: getAdults(persons).result
+        }
+        "#,
+        &[
+            "{",
+            "value: {",
+            "simpleResult: 3",
+            "forResult: [2, 3]",
+            "}",
+            "}",
+        ],
+    );
+}
+
+#[test]
 fn special_values_are_set_in_function_argument() {
     assert_eval_all(
         r#"

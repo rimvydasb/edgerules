@@ -199,6 +199,41 @@ mod test {
     }
 
     #[test]
+    fn test_fuzzy_code() {
+        is_equals(r#"
+        { p : [{a:1},5] }
+         "#, "{ p : [{a:1},5] }");
+
+        is_equals(r#"
+        { p : [] }
+         "#, "{ p : [] }");
+
+        is_equals(r#"
+        { p : [
+        {a:1}
+        ,
+        5] }
+         "#, "{ p : [{a:1},5] }");
+
+        is_equals(r#"
+        { p : [
+            {a:1; g: []},
+            {b:1},
+            {c:1}
+        ] }
+         "#, "{p:[{a:1,g:[]},{b:1},{c:1}]}");
+
+        is_equals(r#"
+        {
+            p: [
+                {a: 30; t: ["a","b",
+                "c"]}
+            ]
+        }
+         "#, "{p:[{a:30,t:['a','b','c']}]}");
+    }
+
+    #[test]
     fn test_errors() {
         init_logger();
 
