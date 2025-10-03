@@ -51,7 +51,7 @@ fn missing_for_type(
             // Build empty object filled with missing values for each field
             let mut builder = ContextObjectBuilder::new();
             for name in obj.borrow().get_field_names() {
-                if let Ok(content) = obj.borrow().get(&name) {
+                if let Ok(content) = obj.borrow().get(name) {
                     match content {
                         EObjectContent::ExpressionRef(entry) => {
                             // Determine field type via placeholder if present
@@ -61,11 +61,11 @@ fn missing_for_type(
                             }
                             .unwrap_or(ValueType::UndefinedType);
                             let default_value = missing_for_type(&fty, ctx)?;
-                            builder.add_expression(&name, default_value.into())?;
+                            builder.add_expression(name, default_value.into())?;
                         }
                         EObjectContent::ObjectRef(o) => {
                             let inner = missing_for_type(&ValueType::ObjectType(o.clone()), ctx)?;
-                            builder.add_expression(&name, inner.into())?;
+                            builder.add_expression(name, inner.into())?;
                         }
                         _ => {}
                     }
@@ -132,7 +132,7 @@ fn cast_value_to_type(
 
             let mut builder = ContextObjectBuilder::new();
             for name in schema.borrow().get_field_names() {
-                if let Ok(content) = schema.borrow().get(&name) {
+                if let Ok(content) = schema.borrow().get(name) {
                     match content {
                         EObjectContent::ExpressionRef(entry) => {
                             // Attempt to resolve expected field type
@@ -149,7 +149,7 @@ fn cast_value_to_type(
                                     .unwrap_or(ValueType::UndefinedType);
                             }
                             // Get source field value and cast if possible
-                            let casted = match src_exec.borrow().get(&name) {
+                            let casted = match src_exec.borrow().get(name) {
                                 Ok(EObjectContent::ObjectRef(obj_exec)) => {
                                     // nested object; reuse reference
                                     cast_value_to_type(
@@ -169,12 +169,12 @@ fn cast_value_to_type(
                                 Ok(_) => missing_for_type(&expected_ty, &ctx)?,
                                 Err(_) => missing_for_type(&expected_ty, &ctx)?,
                             };
-                            builder.add_expression(&name, casted.into())?;
+                            builder.add_expression(name, casted.into())?;
                         }
                         EObjectContent::ObjectRef(obj) => {
                             // create empty shaped nested object
                             let val = missing_for_type(&ValueType::ObjectType(obj.clone()), &ctx)?;
-                            builder.add_expression(&name, val.into())?;
+                            builder.add_expression(name, val.into())?;
                         }
                         _ => {}
                     }

@@ -239,7 +239,6 @@ pub mod factory {
     use crate::typesystem::errors::ParseErrorEnum::{
         FunctionWrongNumberOfArguments, UnknownError, UnknownParseError,
     };
-    use crate::typesystem::types::ValueType;
     use log::trace;
     use std::collections::vec_deque::VecDeque;
 

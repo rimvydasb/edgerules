@@ -307,7 +307,7 @@ fn user_function_has_types() {
     "#;
 
     assert_eval_all(
-        &code,
+        code,
         &[
             "{",
             "all: {",

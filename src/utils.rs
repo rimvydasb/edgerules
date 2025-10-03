@@ -60,7 +60,7 @@ pub fn intern_field_name(name: &str) -> &'static str {
     let interner = FIELD_NAME_INTERNER.get_or_init(|| Mutex::new(HashSet::new()));
     let mut guard = interner.lock().expect("field name interner poisoned");
     if let Some(existing) = guard.get(name) {
-        return *existing;
+        return existing;
     }
 
     let leaked = Box::leak(name.to_string().into_boxed_str());

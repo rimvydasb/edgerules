@@ -466,7 +466,7 @@ fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
 fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
     source.skip_whitespace();
     let ident = source.get_alphanumeric_or(&['[', ']']);
-    parse_type(&*ident)
+    parse_type(ident.as_str())
 }
 
 fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option<ComplexTypeRef> {
@@ -499,7 +499,7 @@ pub fn parse_type(name: &str) -> ComplexTypeRef {
     let mut string = name;
     let mut layers = 0usize;
 
-    while string.as_bytes().len() >= 2 && &string.as_bytes()[string.len() - 2..] == b"[]" {
+    while string.len() >= 2 && string.ends_with("[]") {
         string = &string[..string.len() - 2];
         layers += 1;
     }

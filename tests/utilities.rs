@@ -91,12 +91,12 @@ fn wrap_in_object(lines: &str) -> String {
         return lines.trim().to_string();
     }
 
-    format!("{{{}}}", lines.trim().to_string())
+    format!("{{{}}}", lines.trim())
 }
 
 pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
     let model = wrap_in_object(lines);
-    let evaluated = eval_all(&*model);
+    let evaluated = eval_all(&model);
     assert_eq!(
         evaluated.lines().map(|l| l.trim()).collect::<Vec<_>>(),
         expected_lines.iter().map(|l| l.trim()).collect::<Vec<_>>()
@@ -108,7 +108,7 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let _ = service.load_source(code);
 
-    match (service.to_runtime().err().map(|e| e.to_string())) {
+    match service.to_runtime().err().map(|e| e.to_string()) {
         None => {
             panic!("expected link error, got none\ncode:\n{code}");
         }
@@ -129,7 +129,7 @@ pub fn parse_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let err = service.load_source(code);
 
-    match (err.err().map(|e| e.to_string())) {
+    match err.err().map(|e| e.to_string()) {
         None => {
             panic!("expected parse error, got none\ncode:\n{code}");
         }
