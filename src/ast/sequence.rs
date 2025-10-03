@@ -3,6 +3,7 @@ use crate::ast::expression::StaticLink;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
+use crate::link::linker;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::ValueType;
@@ -23,6 +24,9 @@ impl StaticLink for CollectionExpression {
         if !is_linked(&self.collection_item_type) {
             let mut first_type = ValueType::UndefinedType;
             for arg in self.elements.iter_mut() {
+                if let ExpressionEnum::StaticObject(obj) = arg {
+                    linker::link_parts(Rc::clone(obj))?;
+                }
                 first_type = arg.link(Rc::clone(&ctx))?;
             }
             self.collection_item_type = Ok(first_type);

@@ -2,24 +2,7 @@
 
 mod wasm_convert;
 
-use crate::ast::context::context_object_builder::ContextObjectBuilder;
-use crate::ast::context::context_object_type::EObjectContent;
-use crate::ast::token::ExpressionEnum;
-use crate::link::linker;
-use crate::link::node_data::ContentHolder;
-use crate::runtime::edge_rules::EdgeRulesModel;
-use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::RuntimeError;
-use crate::typesystem::types::number::NumberEnum;
-use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::values::{ValueEnum, ValueOrSv};
-use js_sys::{Array, Date as JsDate, Object, Reflect};
-use std::cell::RefCell;
-use std::convert::TryFrom;
-use std::rc::Rc;
-use time::Month;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 
 // Inline JS glue to leverage host RegExp for regexReplace/regexSplit on Web/Node
 // without pulling in the Rust regex crate (keeps WASM small).

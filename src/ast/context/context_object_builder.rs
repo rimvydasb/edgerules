@@ -222,8 +222,7 @@ impl ContextObjectBuilder {
             let child_map = ctx.borrow().node().get_childs();
             let borrowed = child_map.borrow();
             for (&name, child) in borrowed.iter() {
-                child.borrow_mut().node.node_type =
-                    NodeDataEnum::Child(name, Rc::downgrade(&ctx));
+                child.borrow_mut().node.node_type = NodeDataEnum::Child(name, Rc::downgrade(&ctx));
             }
         }
 

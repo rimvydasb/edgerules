@@ -121,7 +121,7 @@ if (
     throw new Error('evaluate_method failed: ' + JSON.stringify(decisionServiceResponse));
 }
 
-const complexEval = wasm.evaluate_expression(
+const complexEval = wasm.evaluate_field(
     `
     {
         type Person: { name: <string>; age: <number>; tags: <string[]> }
@@ -136,5 +136,9 @@ const complexEval = wasm.evaluate_expression(
         ]
         adults: getAdults(persons)
     }
-`)
+`, "adults")
 console.log('complexEval:', complexEval);
+
+if (JSON.stringify(complexEval) != `{"result":[{"name":"Alice","age":30,"tags":["engineer","manager"]},{"name":"Charlie","age":22,"tags":[]}]}`) {
+    throw new Error('complexEval failed: ' + JSON.stringify(complexEval));
+}
