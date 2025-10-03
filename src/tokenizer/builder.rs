@@ -623,12 +623,6 @@ pub mod factory {
             }
         }
 
-        if args.is_empty() {
-            return Err(UnknownError(
-                "Function definition is not allowed in sequence".to_string(),
-            ));
-        }
-
         Ok(Expression(Collection(CollectionExpression::build(args))))
     }
 
