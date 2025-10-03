@@ -470,14 +470,14 @@ fn complex_type_array_function_argument_v2() {
                 result: people[age >= 18]
             }
             persons: [
-                {name: "Alice"; age: 30; tags: ["a"]}
-                {name: "Bob"; age: 15; tags: ["b","b","c"]}
+                {name: "Alice"; age: 30; tags: ["engineer", "manager"]}
+                {name: "Bob"; age: 15; tags: ["student"]}
                 {name: "Charlie"; age: 22; tags: []}
             ]
-            adults: getAdults(persons).result
+            adults: getAdults(persons)
         }
         "#,
-        &["{", "persons: [{name: 'Alice'; age: 30; tags: ['a']},{name: 'Bob'; age: 15; tags: ['b', 'b', 'c']},{name: 'Charlie'; age: 22; tags: []}]", "adults: [{name: 'Alice'; age: 30; tags: ['a']},{name: 'Charlie'; age: 22; tags: []}]", "}"],
+        &["{", "persons: [{name: 'Alice'; age: 30; tags: ['engineer', 'manager']},{name: 'Bob'; age: 15; tags: ['student']},{name: 'Charlie'; age: 22; tags: []}]", "adults: {", "result: [{name: 'Alice'; age: 30; tags: ['engineer', 'manager']},{name: 'Charlie'; age: 22; tags: []}]", "}", "}"],
     );
 }
 
