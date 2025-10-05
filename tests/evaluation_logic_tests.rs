@@ -52,6 +52,23 @@ fn test_conditionals() {
 }
 
 #[test]
+fn test_boolean_literals_comparators() {
+    init_logger();
+
+    assert_value!("true = true","true");
+    assert_value!("true = false", "false");
+
+    assert_value!("true <> true", "false");
+    assert_value!("true <> false", "true");
+
+    //assert_value!("true > false", "true");
+    link_error_contains(r#"{
+    value: true < false
+    result: value
+    }"#, &["Not possible to compare"]);
+}
+
+#[test]
 fn test_boolean_literals_and_logic() {
     // OR
     assert_value!("true  or true", "true");
@@ -95,4 +112,6 @@ fn test_boolean_literals_and_logic() {
 }
 
 mod utilities;
+
+pub use edge_rules::utils::test::init_logger;
 pub use utilities::*;

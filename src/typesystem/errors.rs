@@ -5,8 +5,8 @@ use std::fmt::{Debug, Display, Formatter};
 use crate::ast::token::EToken;
 use crate::ast::Link;
 use crate::typesystem::errors::LinkingErrorEnum::{
-    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OtherLinkingError,
-    TypesNotCompatible,
+    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OperationNotSupported,
+    OtherLinkingError, TypesNotCompatible,
 };
 use crate::typesystem::errors::ParseErrorEnum::{
     FunctionWrongNumberOfArguments, InvalidType, MissingLiteral, UnexpectedLiteral,
@@ -274,6 +274,10 @@ pub enum LinkingErrorEnum {
     // object, field
     CyclicReference(String, String),
 
+    // operation, left type, right type
+    // e.g., "+" operation not supported for types Integer and String
+    OperationNotSupported(String, ValueType, ValueType),
+
     // @todo: remove this, it's not a linking error
     OtherLinkingError(String),
 
@@ -304,6 +308,10 @@ impl LinkingError {
 
     pub fn different_types(subject: Option<String>, type1: ValueType, type2: ValueType) -> Self {
         LinkingError::new(DifferentTypesDetected(subject, type1, type2))
+    }
+
+    pub fn operation_not_supported(operation: &str, left: ValueType, right: ValueType) -> Self {
+        LinkingError::new(OperationNotSupported(operation.to_string(), left, right))
     }
 
     pub fn types_not_compatible(
@@ -475,6 +483,13 @@ impl Display for LinkingErrorEnum {
             }
             OtherLinkingError(error) => f.write_str(error),
             NotLinkedYet => f.write_str("Not linked yet"),
+            OperationNotSupported(op, left, right) => {
+                write!(
+                    f,
+                    "Operation '{}' not supported for types '{}' and '{}'",
+                    op, left, right
+                )
+            }
         }
     }
 }

@@ -99,11 +99,58 @@ impl StaticLink for ComparatorOperator {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         trace!("Linking comparator operator: {:?}", self.data.left);
 
-        LinkingError::expect_same_types(
-            "Comparator",
-            self.data.left.link(Rc::clone(&ctx))?,
-            self.data.right.link(ctx)?,
-        )?;
+        let left_type = self.data.left.link(Rc::clone(&ctx))?;
+        let right_type = self.data.right.link(ctx)?;
+
+        let same_type = LinkingError::expect_same_types("Comparator", left_type, right_type)?;
+
+        match (&same_type, &self.data.operator) {
+            (ValueType::BooleanType, Equals) => {}
+            (ValueType::BooleanType, NotEquals) => {}
+            (ValueType::BooleanType, operator) => {
+                trace!("PANIC!!!!! Comparator operator {:?} not equals", operator);
+                LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type);
+            }
+
+            // if both are strings, only = and <> are allowed
+            (ValueType::StringType, Equals) => {}
+            (ValueType::StringType, NotEquals) => {}
+            (ValueType::StringType, operator) => {
+                LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type);
+            }
+
+            // if both are dates, only =, <>, <, <=, >, >= are allowed
+            (ValueType::DateType, Equals)
+            | (ValueType::DateType, NotEquals)
+            | (ValueType::DateType, Less)
+            | (ValueType::DateType, LessEquals)
+            | (ValueType::DateType, Greater)
+            | (ValueType::DateType, GreaterEquals) => {}
+
+            // if both are times, only =, <>, <, <=, >, >= are allowed
+            (ValueType::TimeType, Equals)
+            | (ValueType::TimeType, NotEquals)
+            | (ValueType::TimeType, Less)
+            | (ValueType::TimeType, LessEquals)
+            | (ValueType::TimeType, Greater)
+            | (ValueType::TimeType, GreaterEquals) => {}
+
+            // if both are datetimes, only =, <>, <, <=, >, >= are allowed
+            (ValueType::DateTimeType, Equals)
+            | (ValueType::DateTimeType, NotEquals)
+            | (ValueType::DateTimeType, Less)
+            | (ValueType::DateTimeType, LessEquals)
+            | (ValueType::DateTimeType, Greater)
+            | (ValueType::DateTimeType, GreaterEquals) => {}
+
+            // if both are numbers all comparators are allowed
+            (ValueType::NumberType, _) => {}
+
+            // other types are not supported
+            (other_type, operator) => {
+                LinkingError::operation_not_supported(operator.as_str(), other_type.clone(), other_type.clone());
+            }
+        }
 
         Ok(ValueType::BooleanType)
     }
@@ -211,7 +258,7 @@ impl ComparatorOperator {
             }
 
             (left, comparator, right) => RuntimeError::eval_error(format!(
-                "Not implemented {} {} {}",
+                "Not possible to compare {} {} {}",
                 left, comparator, right
             ))
             .into(),

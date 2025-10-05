@@ -250,11 +250,13 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             }
                             //result.push_back(Unparsed(ReturnLiteral)),
                             "true" => {
-                                ast_builder.push_element(Expression(ExpressionEnum::from(true)))
+                                ast_builder.push_element(Expression(ExpressionEnum::from(true)));
+                                after_colon = false;
                             }
 
                             "false" => {
-                                ast_builder.push_element(Expression(ExpressionEnum::from(false)))
+                                ast_builder.push_element(Expression(ExpressionEnum::from(false)));
+                                after_colon = false;
                             }
 
                             "not" => ast_builder.push_node(
@@ -427,6 +429,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 let literal = source.get_all_till(string_starter);
 
                 ast_builder.push_element(Expression(ExpressionEnum::from(literal)));
+                after_colon = false;
             }
             '@' => {
                 source.next();

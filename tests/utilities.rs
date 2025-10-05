@@ -1,3 +1,4 @@
+use std::sync::Once;
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 
 #[macro_export]
@@ -151,6 +152,7 @@ pub fn to_lines(text: &str) -> Vec<&str> {
         .filter(|line| !line.is_empty())
         .collect()
 }
+
 
 #[test]
 fn test_first() {

@@ -296,6 +296,11 @@ mod test {
     #[test]
     fn test_conditionals() {
         is_equals("p : 1 = a", "p : 1 = a");
+        is_equals("p : 'a' = 'b'", "p : 'a' = 'b'");
+        is_equals("p : a <> b", "p : a <> b");
+        is_equals("p : 'a' <> 'b'", "p : 'a' <> 'b'");
+        is_equals("p : 'a' >= 'b'", "p : 'a' >= 'b'");
+        is_equals("p : true <= 'b'", "p : true <= 'b'");
         is_equals("p : 2 >= a", "p : 2 >= a");
         is_equals("p : 3 <= a", "p : 3 <= a");
         is_equals("p : 4 <> a", "p : 4 <> a");
