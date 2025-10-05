@@ -26,14 +26,8 @@ fn test_string_functions() {
     assert_value!("replace('Abcd', 'ab', 'xx', 'i')", "'xxcd'");
     assert_value!("regexReplace('Abcd', '[a-z]', 'x', 'i')", "'xxxx'");
     assert_value!("regexReplace('2025-09-02', '\\d', '#')", "'####-##-##'");
-    assert_value!(
-        "replaceFirst('foo bar foo', 'foo', 'baz')",
-        "'baz bar foo'"
-    );
-    assert_value!(
-        "replaceLast('foo bar foo', 'foo', 'baz')",
-        "'foo bar baz'"
-    );
+    assert_value!("replaceFirst('foo bar foo', 'foo', 'baz')", "'baz bar foo'");
+    assert_value!("replaceLast('foo bar foo', 'foo', 'baz')", "'foo bar baz'");
     assert_value!("charAt('Abcd', 2)", "'c'");
     assert_value!("charCodeAt('Abcd', 2)", "99");
     assert_value!("indexOf('Abcd', 'b')", "1");
@@ -44,10 +38,7 @@ fn test_string_functions() {
     assert_value!("repeat('ab', 3)", "'ababab'");
     assert_value!("reverse('abc')", "'cba'");
     assert_value!("sanitizeFilename('a/b\\\\c:d*e?fg<h>ij')", "'abcdefghij'");
-    assert_value!(
-        "interpolate('Hi ${name}', { name : 'Ana' })",
-        "'Hi Ana'"
-    );
+    assert_value!("interpolate('Hi ${name}', { name : 'Ana' })", "'Hi Ana'");
 }
 
 #[test]
@@ -62,19 +53,30 @@ fn test_string_logic() {
     assert_value!("'a' = 'a'", "true");
     assert_value!("'a' <> 'b'", "true");
 
-    // parse_error_contains(r#"{
-    //     value: "'a' < 'b'"
-    // }"#, &["duplicate function 'calc'"]);
-    //
-    // assert_value!("'a' < 'b'", "true");
-    // assert_value!("'a' <= 'a'", "true");
-    // assert_value!("'b' > 'a'", "true");
-    // assert_value!("'b' >= 'b'", "true");
+    link_error_contains(
+        "value: 'a' < 'b'",
+        &["Operation '<' not supported for types 'string' and 'string'"],
+    );
+
+    link_error_contains(
+        "value: 'a' <= 'a'",
+        &["Operation '<=' not supported for types 'string' and 'string'"],
+    );
+
+    link_error_contains(
+        "value: 'b' > 'a'",
+        &["Operation '>' not supported for types 'string' and 'string'"],
+    );
+
+    link_error_contains(
+        "value: 'b' >= 'b'",
+        &["Operation '>=' not supported for types 'string' and 'string'"],
+    );
 }
 
 #[test]
 fn test_concat_left_side_must_be_string_error() {
-    crate::link_error_contains("{ a: 1; result: a + 'z' }", &["left side", "string", "+"]);
+    link_error_contains("{ a: 1; result: a + 'z' }", &["left side", "string", "+"]);
 }
 mod utilities;
 pub use utilities::*;

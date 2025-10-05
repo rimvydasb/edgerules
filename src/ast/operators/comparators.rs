@@ -108,15 +108,22 @@ impl StaticLink for ComparatorOperator {
             (ValueType::BooleanType, Equals) => {}
             (ValueType::BooleanType, NotEquals) => {}
             (ValueType::BooleanType, operator) => {
-                trace!("PANIC!!!!! Comparator operator {:?} not equals", operator);
-                LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type);
+                return Err(LinkingError::operation_not_supported(
+                    operator.as_str(),
+                    same_type.clone(),
+                    same_type,
+                ));
             }
 
             // if both are strings, only = and <> are allowed
             (ValueType::StringType, Equals) => {}
             (ValueType::StringType, NotEquals) => {}
             (ValueType::StringType, operator) => {
-                LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type);
+                return Err(LinkingError::operation_not_supported(
+                    operator.as_str(),
+                    same_type.clone(),
+                    same_type,
+                ));
             }
 
             // if both are dates, only =, <>, <, <=, >, >= are allowed
@@ -148,7 +155,11 @@ impl StaticLink for ComparatorOperator {
 
             // other types are not supported
             (other_type, operator) => {
-                LinkingError::operation_not_supported(operator.as_str(), other_type.clone(), other_type.clone());
+                return Err(LinkingError::operation_not_supported(
+                    operator.as_str(),
+                    other_type.clone(),
+                    other_type.clone(),
+                ));
             }
         }
 

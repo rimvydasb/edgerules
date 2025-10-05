@@ -55,17 +55,34 @@ fn test_conditionals() {
 fn test_boolean_literals_comparators() {
     init_logger();
 
-    assert_value!("true = true","true");
+    assert_value!("true = true", "true");
     assert_value!("true = false", "false");
 
     assert_value!("true <> true", "false");
     assert_value!("true <> false", "true");
 
-    //assert_value!("true > false", "true");
-    link_error_contains(r#"{
-    value: true < false
-    result: value
-    }"#, &["Not possible to compare"]);
+    link_error_contains(
+        "value: true < false",
+        &["operation '<' not supported for types 'boolean' and 'boolean'"],
+    );
+
+    link_error_contains(
+        "value: true <= false",
+        &["operation '<=' not supported for types 'boolean' and 'boolean'"],
+    );
+
+    link_error_contains(
+        "value: true > false",
+        &["operation '>' not supported for types 'boolean' and 'boolean'"],
+    );
+
+    link_error_contains(
+        "value: true >= false",
+        &["operation '>=' not supported for types 'boolean' and 'boolean'"],
+    );
+
+    assert_value!("value: true = (1 = 1)", "true");
+    assert_value!("value: false = (1 = 2)", "true");
 }
 
 #[test]
@@ -113,5 +130,4 @@ fn test_boolean_literals_and_logic() {
 
 mod utilities;
 
-pub use edge_rules::utils::test::init_logger;
 pub use utilities::*;

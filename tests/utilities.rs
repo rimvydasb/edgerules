@@ -1,5 +1,7 @@
 use std::sync::Once;
+
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use env_logger::Builder;
 
 #[macro_export]
 macro_rules! assert_value {
@@ -85,6 +87,14 @@ pub fn eval_field(code: &str, field: &str) -> String {
 
 pub fn eval_value(code: &str) -> String {
     eval_field(code, "value")
+}
+
+pub fn init_logger() {
+    static LOGGER: Once = Once::new();
+
+    LOGGER.call_once(|| {
+        let _ = Builder::from_default_env().is_test(true).try_init();
+    });
 }
 
 fn wrap_in_object(lines: &str) -> String {
