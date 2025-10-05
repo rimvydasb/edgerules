@@ -523,7 +523,7 @@ model : {
 | `regexSplit("a   b\c", "\\s+")` → `['a','b','c']`           | Splits string by regex.                      | `split(string, delimiter)`             | `"John Doe".split(/\s/)`                    |  
 | `split("a-b-c", "-")` → `['a','b','c']`                     | Simple substring split.                      | `split(string, delimiter)`             | `"a-b-c".split("-")`                        |
 | `trim("  hello  ")` → `"hello"`                             | Trim whitespace.                             | `trim(string)` *(Camunda)*             | `"  hello  ".trim()`                        |  
-| `uuid()` → `"7793aab1-..."`                                 | Generate UUID.                               | `uuid()` *(Camunda)*                   | `crypto.randomUUID()`                       |  
+| `uuid()` → `"7793aab1-..."`                                 | Generate UUID. (NOT YET IMPLEMENTED)         | `uuid()` *(Camunda)*                   | `crypto.randomUUID()`                       |  
 | `toBase64("FEEL")` → `"RkVFTA=="`                           | Encode to base64.                            | `to base64(value)` *(Camunda)*         | `btoa("FEEL")`                              |  
 | `regexReplace("abcd","ab,"xx")` → `"xxcd"`                  | Regex replace.                               | `replace(input, pattern, replacement)` | `"abcd".replace(/ab/,"xx")`                 |  
 | `regexReplace("Abcd","ab","xx","i")` → `"xxcd"`             | Regex replace with flags.                    | `replace(input, pattern, replacement)` | `"Abcd".replace(/ab/i,"xx")`                | 
