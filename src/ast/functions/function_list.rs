@@ -2,18 +2,15 @@ use crate::ast::functions::function_numeric::list_item_as_second_arg;
 use crate::ast::functions::function_string as strf;
 use crate::ast::token::into_valid;
 use crate::ast::Link;
-use crate::link::node_data::ContentHolder;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum::{Char as SChar, String as SString};
 use crate::typesystem::types::ValueType::{ListType, NumberType, StringType};
 use crate::typesystem::types::{Integer, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{
-    Array, BooleanValue, NumberValue, Reference, StringValue,
-};
+use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
+use log::trace;
 use std::cmp::Ordering;
-use std::rc::Rc;
 
 fn as_int(v: &ValueEnum) -> Option<i64> {
     match v {
@@ -598,72 +595,52 @@ pub fn eval_flatten(values: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
-pub fn eval_sort(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    let (items, t) = match left {
-        Array(v, t) => (into_valid(v)?, t),
-        _ => return RuntimeError::type_not_supported(left.get_type()).into(),
-    };
-    let mut arr = items;
-
-    // If right is a string: treat as field name for object sorting
-    if let StringValue(SString(field)) = right {
-        fn key_for(v: &ValueEnum, field: &str) -> ValueEnum {
-            match v {
-                Reference(ctx) => match ctx.borrow().get(field) {
-                    Ok(
-                        crate::ast::context::context_object_type::EObjectContent::ConstantValue(
-                            val,
-                        ),
-                    ) => val.clone(),
-                    Ok(
-                        crate::ast::context::context_object_type::EObjectContent::ExpressionRef(
-                            expr,
-                        ),
-                    ) => expr
-                        .borrow()
-                        .expression
-                        .eval(Rc::clone(ctx))
-                        .unwrap_or_else(|_| v.clone()),
-                    Ok(crate::ast::context::context_object_type::EObjectContent::ObjectRef(
-                        obj,
-                    )) => Reference(Rc::clone(&obj)),
-                    _ => v.clone(),
-                },
-                _ => v.clone(),
-            }
-        }
-        arr.sort_by(|a, b| {
-            let ka = key_for(a, &field);
-            let kb = key_for(b, &field);
-            match (&ka, &kb) {
-                (NumberValue(NumberEnum::Int(x)), NumberValue(NumberEnum::Int(y))) => x.cmp(y),
-                (NumberValue(NumberEnum::Real(x)), NumberValue(NumberEnum::Real(y))) => {
-                    x.partial_cmp(y).unwrap_or(Ordering::Equal)
-                }
-                (StringValue(sa), StringValue(sb)) => sa.to_string().cmp(&sb.to_string()),
-                _ => ka.to_string().cmp(&kb.to_string()),
-            }
-        });
-        return Ok(Array(arr.into_iter().map(Ok).collect(), t));
-    }
-
-    // default: numbers ascending, strings lexicographic, else by Display
-    arr.sort_by(|a, b| match (a, b) {
+fn value_ordering(left: &ValueEnum, right: &ValueEnum) -> Ordering {
+    match (left, right) {
         (NumberValue(NumberEnum::Int(x)), NumberValue(NumberEnum::Int(y))) => x.cmp(y),
         (NumberValue(NumberEnum::Real(x)), NumberValue(NumberEnum::Real(y))) => {
             x.partial_cmp(y).unwrap_or(Ordering::Equal)
         }
-        (StringValue(sa), StringValue(sb)) => sa.to_string().cmp(&sb.to_string()),
-        _ => a.to_string().cmp(&b.to_string()),
-    });
+        (StringValue(SString(a)), StringValue(SString(b))) => a.cmp(b),
+        (StringValue(SString(a)), StringValue(SChar(b))) => a.cmp(&b.to_string()),
+        (StringValue(SChar(a)), StringValue(SString(b))) => a.to_string().cmp(b),
+        (StringValue(SChar(a)), StringValue(SChar(b))) => a.cmp(b),
+        _ => left.to_string().cmp(&right.to_string()),
+    }
+}
+
+pub fn eval_sort(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    let (items, t) = match value {
+        Array(v, t) => (into_valid(v)?, t),
+        other => return RuntimeError::type_not_supported(other.get_type()).into(),
+    };
+
+    let mut arr = items;
+    trace!(
+        "eval_sort: sorting {} elements ascending (element type: {:?})",
+        arr.len(),
+        t
+    );
+    arr.sort_by(value_ordering);
+
     Ok(Array(arr.into_iter().map(Ok).collect(), t))
 }
 
-pub fn validate_binary_sort(left: ValueType, right: ValueType) -> Link<()> {
-    LinkingError::expect_array_type(None, left)?;
-    // accept any comparator placeholder for now; if string, treat as field name
-    let _ = right; // currently unused: accept any
-    Ok(())
+pub fn eval_sort_desc(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    let (items, t) = match value {
+        Array(v, t) => (into_valid(v)?, t),
+        other => return RuntimeError::type_not_supported(other.get_type()).into(),
+    };
+
+    let mut arr = items;
+    trace!(
+        "eval_sort_desc: sorting {} elements descending (element type: {:?})",
+        arr.len(),
+        t
+    );
+    arr.sort_by(|a, b| value_ordering(b, a));
+
+    Ok(Array(arr.into_iter().map(Ok).collect(), t))
 }
 
 pub fn validate_binary_partition(left: ValueType, right: ValueType) -> Link<()> {

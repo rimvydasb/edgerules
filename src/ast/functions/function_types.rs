@@ -81,6 +81,8 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "fromBase64" => UnaryFunctionDefinition { name: "fromBase64", function: eval_from_base64, validation: validate_unary_string, return_type: return_string_type_unary },
     // reverse for string or list
     "reverse" => UnaryFunctionDefinition { name: "reverse", function: eval_reverse_mixed, validation: validate_unary_reverse_mixed, return_type: return_same_list_type },
+    "sort" => UnaryFunctionDefinition { name: "sort", function: eval_sort, validation: validate_unary_list, return_type: return_same_list_type },
+    "sortDescending" => UnaryFunctionDefinition { name: "sortDescending", function: eval_sort_desc, validation: validate_unary_list, return_type: return_same_list_type },
     "sanitizeFilename" => UnaryFunctionDefinition { name: "sanitizeFilename", function: eval_sanitize_filename, validation: validate_unary_string, return_type: return_string_type_unary },
     // list helpers
     "distinctValues" => UnaryFunctionDefinition { name: "distinctValues", function: eval_distinct, validation: validate_unary_list, return_type: return_same_list_type },
@@ -109,7 +111,6 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
     "interpolate" => BinaryFunctionDefinition { name: "interpolate", function: eval_interpolate, validation: validate_binary_string_any, return_type: return_string_type_binary },
     // List-specific
     "remove" => BinaryFunctionDefinition { name: "remove", function: eval_remove, validation: validate_binary_list_number, return_type: |l, _| l },
-    "sort" => BinaryFunctionDefinition { name: "sort", function: eval_sort, validation: validate_binary_sort, return_type: |l, _| l },
     "partition" => BinaryFunctionDefinition { name: "partition", function: eval_partition, validation: validate_binary_partition, return_type: |l, r| super::function_list::return_partition_type(l, r) },
 };
 
@@ -172,7 +173,8 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "distinctValues" => EFunctionType::Unary,
     "duplicateValues" => EFunctionType::Unary,
     "flatten" => EFunctionType::Unary,
-    "sort" => EFunctionType::Binary,
+    "sort" => EFunctionType::Unary,
+    "sortDescending" => EFunctionType::Unary,
     "join" => EFunctionType::Multi,
     "isEmpty" => EFunctionType::Unary,
     "partition" => EFunctionType::Binary,

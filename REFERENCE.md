@@ -573,7 +573,8 @@ model : {
 | `distinctValues([1,2,3,2,1])` → `[1,2,3]`             | Removes duplicates.                      | `distinct values(list)`                                    | `[...new Set(list)]`                                        |
 | `duplicateValues([1,2,3,2,1])` → `[1,2]`              | Returns only the duplicates (unique).    | `duplicate values(list)` *(Camunda)*                       | N/A                                                         |
 | `flatten([[1,2], [[3]], 4])` → `[1,2,3,4]`            | Flattens nested lists.                   | `flatten(list)`                                            | `list.flat(Infinity)`                                       |
-| `sort([3,1,4,2], function(x,y) x<y)` → `[1,2,3,4]`    | Sorts list with comparator.              | `sort(list, precedes)`                                     | `[...list].sort((x,y)=>precedes(x,y)?-1:precedes(y,x)?1:0)` |
+| `sort([3,1,4,2])` → `[1,2,3,4]`                       | Sorts list ascending.                    | `sort(list)`                                               | `[...list].sort()`                                          |
+| `sortDescending([3,1,4,2])` → `[4,3,2,1]`             | Sorts list descending.                   | `sortDescending(list)`                                     | `[...list].sort().reverse()`                                |
 | `join(["a", null, "c"])` → `"ac"`                     | Joins strings, ignores nulls.            | `string join(list)`                                        | `string join(["a",null,"c"], "")`                           |
 | `join(["a","b","c"], ", ")` → `"a, b, c"`             | Joins strings with delimiter.            | `string join(list, delimiter)`                             | `list.filter(s=>s!=null).join(delimiter)`                   |
 | `join(["a","b","c"], ", ", "[", "]")` → `"[a, b, c]"` | Joins with delimiter and wraps result.   | `string join(list, delimiter, prefix, suffix)` *(Camunda)* | `prefix + list.filter(s=>s!=null).join(delimiter) + suffix` |
@@ -589,4 +590,3 @@ model : {
 | `before([start1,end1], [start2,end2])` → `true`   | Checks if the first interval occurs entirely before the second interval. |
 | `after([start1,end1], [start2,end2])` → `true`    | Checks if the first interval occurs entirely after the second interval.  |
 | `overlaps([start1,end1], [start2,end2])` → `true` | Checks if two intervals share at least one point in common.              |
-

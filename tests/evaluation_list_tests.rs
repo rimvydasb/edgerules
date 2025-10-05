@@ -48,19 +48,12 @@ fn list_order_and_indexing() {
     // indexOf returns 1-based positions (list)
     assert_value!("indexOf([1,2,3,2], 2)", "[2, 4]");
 
-    // sort default ascending (second argument ignored for now)
-    assert_eq!(
-        crate::eval_value("value : sort([3,1,4,2], 0)"),
-        "[1, 2, 3, 4]"
-    );
-    assert_eq!(
-        crate::eval_value("value : sort(['b','a','c'], 0)"),
-        "['a', 'b', 'c']"
-    );
+    // sort default ascending
+    assert_value!("sort([3,1,4,2])", "[1, 2, 3, 4]");
+    assert_value!("sort(['b','a','c'])", "['a', 'b', 'c']");
 
-    // sort objects by field
-    // Note: comparator function + field-based sort will be covered in a follow-up once
-    // inline comparator semantics land. Implementation supports field sort (right arg string).
+    assert_value!("sortDescending([3,1,4,2])", "[4, 3, 2, 1]");
+    assert_value!("sortDescending(['b','a','c'])", "['c', 'b', 'a']");
 }
 
 #[test]
