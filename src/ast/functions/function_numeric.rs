@@ -120,6 +120,18 @@ pub fn list_item_as_second_arg(left: ValueType, right: ValueType) -> Link<()> {
     Ok(())
 }
 
+pub fn number_range_or_any_list(value_type: ValueType) -> Link<()> {
+    match &value_type {
+        NumberType | RangeType | ListType(_) => Ok(()),
+        _ => LinkingError::types_not_compatible(
+            None,
+            value_type,
+            Some(vec![NumberType, RangeType, ListType(Box::new(NumberType))]),
+        )
+        .into(),
+    }
+}
+
 pub fn number_range_or_number_list(value_type: ValueType) -> Link<()> {
     if match &value_type {
         NumberType | RangeType => true,

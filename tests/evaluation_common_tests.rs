@@ -199,6 +199,9 @@ fn test_functions() {
         "14"
     );
     assert_value!("count([1,2,3]) + 1", "4");
+    assert_value!("count(['a','b','c'])", "3");
+    assert_value!("count(['a',5,date('2012-01-01'),1])", "4");
+
     assert_value!("max([1,2,3]) + 1", "4");
     assert_value!("find([1,2,3],1)", "0");
     assert_value!("find([1,2,888],888)", "2");
