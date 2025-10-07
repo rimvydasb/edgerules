@@ -33,7 +33,7 @@ classDiagram
   as `Missing`,
   but it cannot be assigned by the user. It is only assigned by the system in specific cases.
 - Special value trace will not be implemented as of now.
-- Casting to boolean from any special or non-boolean type yields `false`.
+- Casting to boolean from any non-boolean type yields `false`.
 - Warning mechanism is not implemented as of now, but planned in the future.
 
 ## Todo
@@ -53,7 +53,7 @@ All special values have the same basic treatment:
 5. All logical operations and comparisons with special values, will result to `false`, even special value field is
    compared to itself.
 
-> Booleans cannot be Special Values. If boolean field is absent or wrong type mapped, it will be `false`.
+> Special Values cannot be assigned to booleans. If boolean field is absent or any validation problem, it will be `false`.
 
 > Consider each built-in function documentation for details how special values are treated.
 
@@ -68,7 +68,7 @@ Missing is also assigned by the system if no data is provided to the function or
 
 In general, user should think about `Missing` as null, that propagates in all operations and yields `Missing` as result.
 
-1. In arithmetic and logical operations, it propagates `Missing`: `1 + Missing` → `Missing`, `1 * Missing` → `Missing`.
+1. In arithmetic operations, it propagates `Missing`: `1 + Missing` → `Missing`, `1 * Missing` → `Missing`.
 2. In string concatenation, it propagates `Missing`: `"a" + Missing` → `Missing`.
 3. If `Missing` appeared as an argument in any built-in function, the result is `Missing` depending on built-in implementation.
 For example all aggregation functions will result to `Missing`: `sum([1,2,Missing,4])` → `Missing`, 
@@ -97,7 +97,7 @@ and cannot be assigned by the user.
 
 > `NotFound` is treated same as `Missing` in all operations.
 
-### Occurrence
+### Occurrence (will not be implemented as of now)
 
 1. Array index is out of bounds: `[1,2,3,4][4]` → `NotFound`.
 2. `find` function does not find the value: `find([1,2,3], 4)` → `NotFound`.
@@ -138,7 +138,7 @@ It is treated same as `Missing` in all operations.
     // NotApplicable examples
     h: NotApplicable
     i: [1, 2, NotApplicable, 4]
-    j: for n in i return n + 1          // [2, 3, 5]
+    j: for n in i return n + 1          // [2, 3, NotApplicable, 5]
     k: sum(i)                           // 12 (NotApplicable treated as 0)
     l: count(i)                         // 4
     m: h = NotApplicable                // false
