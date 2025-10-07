@@ -1,9 +1,8 @@
 use crate::ast::context::context_object::ContextObject;
-use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::expression::StaticLink;
+use crate::ast::token::EToken;
 use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
-use crate::ast::token::{DefinitionEnum, EToken, ExpressionEnum};
 use crate::ast::user_function_call::UserFunctionCall;
 use crate::ast::utils::array_to_code_sep;
 use crate::link::linker;
@@ -16,6 +15,11 @@ use log::trace;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+
+pub use crate::ast::context::context_object_builder::ContextObjectBuilder;
+pub use crate::ast::metaphors::functions::FunctionDefinition;
+pub use crate::ast::token::{DefinitionEnum, ExpressionEnum};
+pub use crate::link::linker::link_parts;
 //--------------------------------------------------------------------------------------------------
 // Errors
 //--------------------------------------------------------------------------------------------------
@@ -352,13 +356,13 @@ pub mod test {
     use crate::runtime::edge_rules::expr;
     use crate::typesystem::types::number::NumberEnum::{self, Int};
 
+    use crate::typesystem::types::SpecialValueEnum::Missing;
     use crate::typesystem::values::ValueEnum;
     use crate::utils::test::init_logger;
     use crate::utils::to_display;
     use log::error;
     use std::fmt::Display;
     use std::mem::discriminant;
-    use crate::typesystem::types::SpecialValueEnum::Missing;
 
     pub fn test_code(code: &str) -> TestServiceBuilder {
         TestServiceBuilder::build(code)
@@ -610,7 +614,10 @@ pub mod test {
         assert_eq!(start.to_string(), "7");
 
         let end = runtime.evaluate_field("calendar.config.end")?;
-        assert_eq!(end.to_string(), ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string());
+        assert_eq!(
+            end.to_string(),
+            ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string()
+        );
 
         Ok(())
     }

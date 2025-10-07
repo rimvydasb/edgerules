@@ -251,7 +251,7 @@ impl Display for RuntimeErrorEnum {
                 object, field
             ),
             RuntimeFieldNotFound(object, field) => {
-                write!(f, "Field {} not found in {}", field, object)
+                write!(f, "Field '{}' not found in {}", field, object)
             }
             RuntimeErrorEnum::Unlinked => f.write_str("Unlinked"),
         }
@@ -472,7 +472,7 @@ impl Display for LinkingErrorEnum {
                 write!(f, "Function '{}' not found", name)
             }
             FieldNotFound(object, field) => {
-                write!(f, "Field {} not found in {}", field, object)
+                write!(f, "Field '{}' not found in {}", field, object)
             }
             CyclicReference(object, field) => {
                 write!(

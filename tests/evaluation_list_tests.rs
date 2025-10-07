@@ -102,6 +102,26 @@ fn list_numeric_aggregates() {
 }
 
 #[test]
+fn complex_objects_in_lists() {
+    // assert_value!(
+    //     r#"
+    //     list: [{a:1}, {a:2}, {a:3}]
+    //     value: for item in list return item.a
+    // "#,
+    //     "[1, 2, 3]"
+    // );
+
+    assert_value!(
+        r#"
+        config: 5
+        list: [{a:1 + config}, {a:2 + config}, {a:3 + config}]
+        value: for item in list return item.a
+    "#,
+        "[1, 2, 3]"
+    );
+}
+
+#[test]
 fn list_numeric_unhappy_paths() {
     // Using strings where numbers are expected
     link_error_contains("value : product(['a','b'])", &["unexpected", "number"]);

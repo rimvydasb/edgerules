@@ -60,7 +60,7 @@ impl From<MethodEntry> for Rc<RefCell<MethodEntry>> {
 /// - Context Object is a Type itself
 #[derive(Debug, Clone)]
 pub struct ContextObject {
-    /// fields can also referenced by variables in various places in AST. This is why it is Rc.
+    /// fields can also be referenced by variables in various places in AST. This is why it is Rc.
     pub expressions: HashMap<&'static str, Rc<RefCell<ExpressionEntry>>>,
     /// metaphors are reference counted because they are linked to UserFunctionCall
     pub metaphors: HashMap<&'static str, Rc<RefCell<MethodEntry>>>,
