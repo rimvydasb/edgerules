@@ -168,7 +168,14 @@ impl Display for ValueEnum {
                         }
                         Err(err) => {
                             all_objects = false;
-                            parts.push(format!("{}", err));
+                            if let crate::typesystem::errors::RuntimeErrorEnum::RuntimeFieldNotFound(
+                                _, field,
+                            ) = &err.error
+                            {
+                                parts.push(format!("Missing('{}')", field));
+                            } else {
+                                parts.push(format!("{}", err));
+                            }
                         }
                     }
                 }

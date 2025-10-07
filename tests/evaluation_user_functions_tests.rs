@@ -387,7 +387,7 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
 
     assert_string_contains!("name: 'Sara'", &evaluated);
     assert_string_contains!("birthdate: Missing", &evaluated);
-    assert_string_contains!("income: number.Missing", &evaluated);
+    assert_string_contains!("income: Missing", &evaluated);
 }
 
 #[test]

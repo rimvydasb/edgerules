@@ -118,7 +118,7 @@ impl ExpressionFilter {
                     token.clone()
                 } else {
                     // todo: should determine the type
-                    Ok(NumberValue(SV(SpecialValueEnum::Missing)))
+                    Ok(NumberValue(SV(SpecialValueEnum::missing_for(None))))
                 };
             }
 

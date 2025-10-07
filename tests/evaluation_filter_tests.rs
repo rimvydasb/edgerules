@@ -5,8 +5,8 @@ pub use utilities::*;
 fn test_indexing() {
     assert_value!("[1,2,3][1]", "2");
     assert_value!("[1,2,3][0]", "1");
-    assert_value!("[1,2,3][-1]", "number.Missing");
-    assert_value!("[1,2,3][3]", "number.Missing");
+    assert_value!("[1,2,3][-1]", "Missing('N/A')");
+    assert_value!("[1,2,3][3]", "Missing('N/A')");
 }
 
 #[test]

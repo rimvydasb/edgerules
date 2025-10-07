@@ -1,11 +1,11 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::expression::{missing_for_type, EvaluatableExpression, StaticLink};
 use crate::ast::token::{EToken, ExpressionEnum};
 use crate::ast::{is_linked, Link};
 use crate::link::linker::browse;
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::utils::intern_field_name;
@@ -112,10 +112,40 @@ impl EvaluatableExpression for VariableLink {
             }
         };
 
-        let result = browse(start_ctx, path_vec, find_root)?.on_incomplete(
+        let browse_result = match browse(start_ctx, path_vec, find_root) {
+            Ok(res) => res,
+            Err(link_err) => {
+                if let LinkingErrorEnum::FieldNotFound(_, field) = &link_err.error {
+                    let expected_type = match self.variable_type.clone() {
+                        Ok(value_type) => value_type,
+                        Err(_) => ValueType::UndefinedType,
+                    };
+                    let missing = missing_for_type(&expected_type, Some(field.as_str()), &context)?;
+                    return Ok(missing);
+                } else {
+                    return Err(link_err.into());
+                }
+            }
+        };
+
+        let result = browse_result.on_incomplete(
             |ctx, result, _remaining| match result.borrow().expression.eval(Rc::clone(&ctx)) {
                 Ok(intermediate) => Ok(intermediate.into()),
-                Err(err) => Err(LinkingError::other_error(err.to_string())),
+                Err(err) => {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                        let expected_type = match self.variable_type.clone() {
+                            Ok(value_type) => value_type,
+                            Err(_) => ValueType::UndefinedType,
+                        };
+                        let missing = missing_for_type(&expected_type, Some(field.as_str()), &ctx)
+                            .map_err(|runtime_err| {
+                                LinkingError::other_error(runtime_err.to_string())
+                            })?;
+                        Ok(EObjectContent::ConstantValue(missing))
+                    } else {
+                        Err(LinkingError::other_error(err.to_string()))
+                    }
+                }
             },
             |ctx, _result, _remaining| {
                 Err(LinkingError::other_error(format!(

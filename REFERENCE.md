@@ -195,8 +195,8 @@ indexing out of bounds or `find` when not found. These are not user literals, bu
 
 ```edgerules
 {
-    idx          : find([1,2], 3)    // number.Missing
-    oob          : [10][5]           // number.Missing
+    idx          : find([1,2], 3)    // Missing
+    oob          : [10][5]           // Missing
 }
 ```
 

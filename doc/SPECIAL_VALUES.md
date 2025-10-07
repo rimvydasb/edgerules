@@ -3,7 +3,7 @@
 EdgeRules fault-tolerant strategy provides special values for various unexpected situations.
 Each special value has a specific meaning and treatment.
 
-Special Value has this structure:
+Special Value (SV) has this structure:
 
 ```ebnf
 SpecialValue ::= "Missing" | "NotApplicable" | "Invalid" ("(" Origin , Trace ")")?
@@ -40,6 +40,8 @@ classDiagram
 
 - As of now, there are no literals for special values so technically user cannot assign special values in the model.
   This will be added in the future.
+- IN built-in functions Special Value does not have ability to know its origin, but SV is generated. Need to have
+an ability to override origin. Maybe SV Origin can stay as optional until variable assignment.
 
 ## Common Special Value Treatment
 

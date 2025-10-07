@@ -205,7 +205,7 @@ fn test_functions() {
     assert_value!("max([1,2,3]) + 1", "4");
     assert_value!("find([1,2,3],1)", "0");
     assert_value!("find([1,2,888],888)", "2");
-    assert_value!("find([1,2,888],999)", "number.Missing");
+    assert_value!("find([1,2,888],999)", "Missing('N/A')");
 }
 
 #[test]

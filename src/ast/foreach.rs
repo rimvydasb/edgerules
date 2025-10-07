@@ -2,6 +2,7 @@ use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::{FunctionContext, RETURN_EXPRESSION};
+use crate::ast::expression::missing_for_type;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::ExpressionEnum::Value;
@@ -10,7 +11,7 @@ use crate::link::linker::link_parts;
 use crate::link::node_data::{NodeData, NodeDataEnum};
 use crate::runtime::execution_context::*;
 use crate::tokenizer::utils::Either;
-use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::{Integer, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, RangeValue};
@@ -93,9 +94,32 @@ impl ForFunction {
     ) -> Result<ValueEnum, RuntimeError> {
         let mut result: Vec<Result<ValueEnum, RuntimeError>> = Vec::new();
 
+        let element_type = match self.return_type.clone()? {
+            ValueType::ListType(item_type) => item_type,
+            err => {
+                // @Todo: it should be linking error, not a runtime
+                return RuntimeError::eval_error(format!(
+                    "Cannot iterate through non list type `{}`",
+                    err
+                ))
+                .into()
+            }
+        };
+
+        let element_type_ref = element_type.as_ref();
+
         for value in values {
-            let ctx = self.create_in_loop_context(&parent, Value(value?))?;
-            //@Todo way too complex
+            let loop_value = match value {
+                Ok(v) => v,
+                Err(err) => {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                        missing_for_type(element_type_ref, Some(field.as_str()), &parent)?
+                    } else {
+                        return Err(err);
+                    }
+                }
+            };
+            let ctx = self.create_in_loop_context(&parent, Value(loop_value.clone()))?;
             let map_value = self
                 .return_expression
                 .borrow()
@@ -105,17 +129,22 @@ impl ForFunction {
                 .borrow()
                 .expression
                 .eval(ctx);
-            //@Todo return values only, not tokens
-            result.push(map_value);
-        }
 
-        match self.return_type.clone()? {
-            ValueType::ListType(item_type) => Ok(Array(result, *item_type)),
-            err => {
-                RuntimeError::eval_error(format!("Cannot iterate through non list type `{}`", err))
-                    .into()
+            match map_value {
+                Ok(val) => result.push(Ok(val)),
+                Err(err) => {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                        let missing =
+                            missing_for_type(element_type_ref, Some(field.as_str()), &parent)?;
+                        result.push(Ok(missing));
+                    } else {
+                        result.push(Err(err));
+                    }
+                }
             }
         }
+
+        Ok(Array(result, (*element_type).clone()))
     }
 
     fn iterate_range(

@@ -24,8 +24,9 @@ pub trait StaticLink: Display + Debug {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType>;
 }
 
-fn missing_for_type(
+pub(crate) fn missing_for_type(
     ty: &ValueType,
+    field_name: Option<&str>,
     ctx: &Rc<RefCell<ExecutionContext>>,
 ) -> Result<ValueEnum, RuntimeError> {
     use crate::typesystem::types::number::NumberEnum;
@@ -36,13 +37,13 @@ fn missing_for_type(
     use crate::typesystem::values::ValueEnum as V;
 
     match ty {
-        ValueType::NumberType => Ok(NumberValue(NumberEnum::SV(SV::Missing))),
-        ValueType::StringType => Ok(V::StringValue(StringEnum::SV(SV::Missing))),
-        ValueType::BooleanType => Ok(V::StringValue(StringEnum::SV(SV::Missing))),
-        ValueType::DateType => Ok(V::DateValue(Sv(SV::Missing))),
-        ValueType::TimeType => Ok(V::TimeValue(Sv(SV::Missing))),
-        ValueType::DateTimeType => Ok(V::DateTimeValue(Sv(SV::Missing))),
-        ValueType::DurationType => Ok(V::DurationValue(Sv(SV::Missing))),
+        ValueType::NumberType => Ok(NumberValue(NumberEnum::SV(SV::missing_for(field_name)))),
+        ValueType::StringType => Ok(V::StringValue(StringEnum::SV(SV::missing_for(field_name)))),
+        ValueType::BooleanType => Ok(V::StringValue(StringEnum::SV(SV::missing_for(field_name)))),
+        ValueType::DateType => Ok(V::DateValue(Sv(SV::missing_for(field_name)))),
+        ValueType::TimeType => Ok(V::TimeValue(Sv(SV::missing_for(field_name)))),
+        ValueType::DateTimeType => Ok(V::DateTimeValue(Sv(SV::missing_for(field_name)))),
+        ValueType::DurationType => Ok(V::DurationValue(Sv(SV::missing_for(field_name)))),
         ValueType::ListType(inner) => {
             let item_type = inner.as_ref().clone();
             Ok(V::Array(vec![], item_type))
@@ -60,11 +61,23 @@ fn missing_for_type(
                                 _ => None,
                             }
                             .unwrap_or(ValueType::UndefinedType);
-                            let default_value = missing_for_type(&fty, ctx)?;
+                            let child_origin_owned = field_name
+                                .filter(|parent| !parent.is_empty())
+                                .map(|parent| format!("{}.{}", parent, name));
+                            let child_origin = child_origin_owned.as_deref().or(Some(name));
+                            let default_value = missing_for_type(&fty, child_origin, ctx)?;
                             builder.add_expression(name, default_value.into())?;
                         }
                         EObjectContent::ObjectRef(o) => {
-                            let inner = missing_for_type(&ValueType::ObjectType(o.clone()), ctx)?;
+                            let child_origin_owned = field_name
+                                .filter(|parent| !parent.is_empty())
+                                .map(|parent| format!("{}.{}", parent, name));
+                            let child_origin = child_origin_owned.as_deref().or(Some(name));
+                            let inner = missing_for_type(
+                                &ValueType::ObjectType(o.clone()),
+                                child_origin,
+                                ctx,
+                            )?;
                             builder.add_expression(name, inner.into())?;
                         }
                         _ => {}
@@ -76,7 +89,7 @@ fn missing_for_type(
             Ok(Reference(exec))
         }
         ValueType::RangeType | ValueType::UndefinedType => {
-            Ok(V::StringValue(StringEnum::SV(SV::Missing)))
+            Ok(V::StringValue(StringEnum::SV(SV::missing_for(field_name))))
         }
     }
 }
@@ -126,7 +139,7 @@ fn cast_value_to_type(
                 Reference(r) => r,
                 _ => {
                     // cannot shape non-object to object; build missing object
-                    return missing_for_type(&ValueType::ObjectType(schema), &ctx);
+                    return missing_for_type(&ValueType::ObjectType(schema), None, &ctx);
                 }
             };
 
@@ -166,14 +179,18 @@ fn cast_value_to_type(
                                 Ok(EObjectContent::ConstantValue(v)) => {
                                     cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
                                 }
-                                Ok(_) => missing_for_type(&expected_ty, &ctx)?,
-                                Err(_) => missing_for_type(&expected_ty, &ctx)?,
+                                Ok(_) => missing_for_type(&expected_ty, Some(name), &ctx)?,
+                                Err(_) => missing_for_type(&expected_ty, Some(name), &ctx)?,
                             };
                             builder.add_expression(name, casted.into())?;
                         }
                         EObjectContent::ObjectRef(obj) => {
                             // create empty shaped nested object
-                            let val = missing_for_type(&ValueType::ObjectType(obj.clone()), &ctx)?;
+                            let val = missing_for_type(
+                                &ValueType::ObjectType(obj.clone()),
+                                Some(name),
+                                &ctx,
+                            )?;
                             builder.add_expression(name, val.into())?;
                         }
                         _ => {}
@@ -293,7 +310,7 @@ impl ExpressionEnum {
                 // BLOCKED: no external context hookup; always Missing as per spec
                 Ok(ValueEnum::StringValue(
                     crate::typesystem::types::string::StringEnum::from(
-                        crate::typesystem::types::SpecialValueEnum::Missing,
+                        typesystem::types::SpecialValueEnum::missing_for(None),
                     ),
                 ))
             }

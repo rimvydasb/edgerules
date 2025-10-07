@@ -358,6 +358,7 @@ pub mod test {
     use log::error;
     use std::fmt::Display;
     use std::mem::discriminant;
+    use crate::typesystem::types::SpecialValueEnum::Missing;
 
     pub fn test_code(code: &str) -> TestServiceBuilder {
         TestServiceBuilder::build(code)
@@ -608,8 +609,8 @@ pub mod test {
         let start = runtime.evaluate_field("calendar.config.start")?;
         assert_eq!(start.to_string(), "7");
 
-        let end = runtime.evaluate_field("calendar.config.end");
-        assert!(end.is_err());
+        let end = runtime.evaluate_field("calendar.config.end")?;
+        assert_eq!(end.to_string(), ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string());
 
         Ok(())
     }

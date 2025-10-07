@@ -163,7 +163,6 @@ pub fn to_lines(text: &str) -> Vec<&str> {
         .collect()
 }
 
-
 #[test]
 fn test_first() {
     // no-op: ensures test harness initializes cleanly

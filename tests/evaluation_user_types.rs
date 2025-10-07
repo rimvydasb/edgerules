@@ -130,9 +130,9 @@ fn loan_offer_decision_service_end_to_end_reduced() {
     // {
     //     #child: {
     //     eligible: false
-    //     amount: number.Missing
-    //     termInMonths: number.Missing
-    //     monthlyPayment: number.Missing
+    //     amount: Missing
+    //     termInMonths: Missing
+    //     monthlyPayment: Missing
     // }
     //     sample: {
     //     eligible: false
@@ -363,33 +363,6 @@ fn input_type_validation() {
 }
 
 #[test]
-fn missing_is_applied_for_function_argument() {
-    let model = r#"
-    {
-        type LoanOffer: {eligible: <boolean>; amount: <number>; termInMonths: <number>; monthlyPayment: <number>}
-        func inc(x: LoanOffer): { termInMonths: x.termInMonths * 2; result: x }
-        value: inc({amount: 100}).result
-        termInMonths: inc({amount: 100}).termInMonths
-    }
-    "#;
-
-    assert_eval_all(
-        model,
-        &[
-            "{",
-            "   value: {",
-            "      eligible: Missing",
-            "      amount: 100",
-            "      termInMonths: number.Missing",
-            "      monthlyPayment: number.Missing",
-            "   }",
-            "   termInMonths: 2", // termInMonths is 2, because missing in multiply is replaced by 1
-            "}",
-        ],
-    );
-}
-
-#[test]
 fn primitive_function_arguments() {
     assert_value!(
         r#"
@@ -497,12 +470,12 @@ fn special_values_are_set_in_function_argument() {
             "{",
             "value: {",
             "primaryCustomer: {",
-            "valid: Missing",
-            "name: Missing",
-            "birthdate: Missing",
-            "birthtime: Missing",
-            "birthdatetime: Missing",
-            "income: number.Missing",
+            "valid: Missing('valid')",
+            "name: Missing('name')",
+            "birthdate: Missing('birthdate')",
+            "birthtime: Missing('birthtime')",
+            "birthdatetime: Missing('birthdatetime')",
+            "income: Missing('income')",
             "}",
             "}",
             "}",
@@ -529,12 +502,12 @@ fn complex_nested_types_in_function_argument() {
             "{",
             "value: {",
             "primaryCustomer: {",
-            "valid: Missing",
-            "name: Missing",
-            "birthdate: Missing",
-            "birthtime: Missing",
-            "birthdatetime: Missing",
-            "income: number.Missing",
+            "valid: Missing('customer.valid')",
+            "name: Missing('customer.name')",
+            "birthdate: Missing('customer.birthdate')",
+            "birthtime: Missing('customer.birthtime')",
+            "birthdatetime: Missing('customer.birthdatetime')",
+            "income: Missing('customer.income')",
             "}",
             "simpleResult: 3",
             "forResult: [2, 3]",

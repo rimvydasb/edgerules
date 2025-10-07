@@ -7,10 +7,13 @@ fn list_membership_and_boolean_aggregates() {
     assert_value!("contains([1,2,3], 2)", "true");
     assert_value!("contains(['a','b','c'], 'd')", "false");
     assert_value!("contains(['ass','bss','css'], 'bss')", "true");
-    assert_value!(r#"
+    assert_value!(
+        r#"
         provided: ['ass','bss','css']
         value: contains(provided, 'bss')
-    "#, "true");
+    "#,
+        "true"
+    );
     assert_value!("contains([true,false], true)", "true");
     assert_value!(
         "contains([date('2017-05-03'), date('2017-05-04')], date('2017-05-04'))",

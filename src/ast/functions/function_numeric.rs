@@ -32,7 +32,7 @@ pub fn eval_max_all(
     if let Some(max) = maximum {
         Ok(NumberValue(max))
     } else {
-        Ok(NumberValue(SV(SpecialValueEnum::Missing)))
+        Ok(NumberValue(SV(SpecialValueEnum::missing_for(None))))
     }
 }
 
@@ -106,8 +106,8 @@ pub fn eval_find(maybe_array: ValueEnum, search: ValueEnum) -> Result<ValueEnum,
         match maybe_index {
             Some(index) => Ok(ValueEnum::from(index as Integer)),
 
-            // todo: should determine the type
-            None => Ok(NumberValue(SV(SpecialValueEnum::Missing))),
+            // Todo: should determine the type
+            None => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
         }
     } else {
         RuntimeError::type_not_supported(maybe_array.get_type()).into()
