@@ -11,7 +11,7 @@ use crate::link::linker::link_parts;
 use crate::link::node_data::{NodeData, NodeDataEnum};
 use crate::runtime::execution_context::*;
 use crate::tokenizer::utils::Either;
-use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::{Integer, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, RangeValue};
@@ -21,7 +21,6 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
 use std::rc::Rc;
-use log::trace;
 
 /// for in_loop_variable in in_expression return return_expression
 /// in_expression.map(in_loop_variable -> return_expression)
@@ -103,7 +102,7 @@ impl ForFunction {
                     "Cannot iterate through non list type `{}`",
                     err
                 ))
-                .into()
+                .into();
             }
         };
 

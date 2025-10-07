@@ -1,4 +1,5 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::expression::StaticLink;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::utils::array_to_code_sep;
@@ -27,7 +28,7 @@ pub struct CollectionExpression {
 impl StaticLink for CollectionExpression {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         if !is_linked(&self.collection_item_type) {
-            let mut first_type = ValueType::UndefinedType;
+            let mut aggregated_type: Option<ValueType> = None;
             for arg in self.elements.iter_mut() {
                 if let ExpressionEnum::StaticObject(obj) = arg {
                     {
@@ -36,15 +37,55 @@ impl StaticLink for CollectionExpression {
                     }
                     linker::link_parts(Rc::clone(obj))?;
                 }
-                first_type = arg.link(Rc::clone(&ctx))?;
+                let element_type = arg.link(Rc::clone(&ctx))?;
+                aggregated_type = Some(match aggregated_type {
+                    None => element_type,
+                    Some(existing) => merge_collection_types(existing, element_type)?,
+                });
             }
-            self.collection_item_type = Ok(first_type);
+            self.collection_item_type = Ok(aggregated_type.unwrap_or(ValueType::UndefinedType));
         }
 
         // @Todo: different type must be assigned if collection is multityped
         //args.iter().any(|arg| arg.get_type() != type_of_sequence)
 
         self.collection_item_type.clone()
+    }
+}
+
+fn merge_collection_types(existing: ValueType, new_type: ValueType) -> Link<ValueType> {
+    use ValueType::*;
+
+    match (&existing, &new_type) {
+        (UndefinedType, _) => return Ok(new_type),
+        (_, UndefinedType) => return Ok(existing),
+        _ => {}
+    }
+
+    if existing == new_type {
+        return Ok(existing);
+    }
+
+    match (existing, new_type) {
+        (ObjectType(base), ObjectType(extra)) => {
+            let mut builder = ContextObjectBuilder::new();
+            builder
+                .append(Rc::clone(&base))
+                .map_err(|err| LinkingError::other_error(err.to_string()))?;
+            builder
+                .append_if_missing(Rc::clone(&extra))
+                .map_err(|err| LinkingError::other_error(err.to_string()))?;
+            Ok(ObjectType(builder.build()))
+        }
+        (ListType(base), ListType(extra)) => {
+            let merged_inner = merge_collection_types(*base, *extra)?;
+            Ok(ListType(Box::new(merged_inner)))
+        }
+        (left, right) => LinkingError::other_error(format!(
+            "Cannot mix collection element types `{}` and `{}`",
+            left, right
+        ))
+        .into(),
     }
 }
 
