@@ -4,6 +4,7 @@ use crate::ast::token::ExpressionEnum;
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
 use crate::link::linker;
+use crate::link::node_data::NodeDataEnum;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::ValueType;
@@ -16,6 +17,10 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct CollectionExpression {
     pub elements: Vec<ExpressionEnum>,
+
+    /// @Todo: do not allow non-homogeneous collections: throw linking error if any following element has different type
+    /// @Todo: collection still can contain multiple objects with very different structure - that is fine, however
+    /// to support multi-typed objects, need to aggregate all elements to one super-type of ObjectType(Rc<RefCell<ContextObject>>)
     pub collection_item_type: Link<ValueType>,
 }
 
@@ -25,6 +30,10 @@ impl StaticLink for CollectionExpression {
             let mut first_type = ValueType::UndefinedType;
             for arg in self.elements.iter_mut() {
                 if let ExpressionEnum::StaticObject(obj) = arg {
+                    {
+                        let mut object = obj.borrow_mut();
+                        object.node.node_type = NodeDataEnum::Internal(Rc::downgrade(&ctx));
+                    }
                     linker::link_parts(Rc::clone(obj))?;
                 }
                 first_type = arg.link(Rc::clone(&ctx))?;

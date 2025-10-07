@@ -103,13 +103,13 @@ fn list_numeric_aggregates() {
 
 #[test]
 fn complex_objects_in_lists() {
-    // assert_value!(
-    //     r#"
-    //     list: [{a:1}, {a:2}, {a:3}]
-    //     value: for item in list return item.a
-    // "#,
-    //     "[1, 2, 3]"
-    // );
+    assert_value!(
+        r#"
+        list: [{a:1}, {a:2}, {a:3}]
+        value: for item in list return item.a
+    "#,
+        "[1, 2, 3]"
+    );
 
     assert_value!(
         r#"
@@ -117,7 +117,7 @@ fn complex_objects_in_lists() {
         list: [{a:1 + config}, {a:2 + config}, {a:3 + config}]
         value: for item in list return item.a
     "#,
-        "[1, 2, 3]"
+        "[6, 7, 8]"
     );
 }
 

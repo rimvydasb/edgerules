@@ -11,7 +11,7 @@ use crate::link::linker::link_parts;
 use crate::link::node_data::{NodeData, NodeDataEnum};
 use crate::runtime::execution_context::*;
 use crate::tokenizer::utils::Either;
-use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
+use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::{Integer, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, RangeValue};
@@ -21,6 +21,7 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
 use std::rc::Rc;
+use log::trace;
 
 /// for in_loop_variable in in_expression return return_expression
 /// in_expression.map(in_loop_variable -> return_expression)
@@ -192,6 +193,8 @@ impl StaticLink for ForFunction {
             let list_type = self.in_expression.link(Rc::clone(&ctx))?;
 
             let item_type = match list_type {
+                // @Todo: list_item_type must be preserved for return_expression if it uses object,
+                // such as return item.a, then list_item_type representing item should be ObjectType
                 ValueType::ListType(list_item_type) => *list_item_type,
                 ValueType::RangeType => ValueType::NumberType,
                 _ => {
@@ -212,6 +215,9 @@ impl StaticLink for ForFunction {
             self.return_expression.borrow_mut().node =
                 NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&ctx)));
 
+            // @Todo: link_parts will fail with unknown field if return_expression refers list item field, for example:
+            // for item in [{a:1},{}] return item.a
+            // technically, then field_type must be of a type "a", but item.a can be accessed only if list_item_type is object
             link_parts(Rc::clone(&self.return_expression))?;
 
             let field_type = self
