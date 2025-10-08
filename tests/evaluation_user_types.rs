@@ -450,7 +450,34 @@ fn complex_type_array_function_argument_v2() {
             adults: getAdults(persons)
         }
         "#,
-        &["{", "persons: [{name: 'Alice'; age: 30; tags: ['engineer', 'manager']},{name: 'Bob'; age: 15; tags: ['student']},{name: 'Charlie'; age: 22; tags: []}]", "adults: {", "result: [{name: 'Alice'; age: 30; tags: ['engineer', 'manager']},{name: 'Charlie'; age: 22; tags: []}]", "}", "}"],
+        &[
+            "{",
+            "persons: [{",
+            "name: 'Alice'",
+            "age: 30",
+            "tags: ['engineer', 'manager']",
+            "},{",
+            "name: 'Bob'",
+            "age: 15",
+            "tags: ['student']",
+            "},{",
+            "name: 'Charlie'",
+            "age: 22",
+            "tags: []",
+            "}]",
+            "adults: {",
+            "result: [{",
+            "name: 'Alice'",
+            "age: 30",
+            "tags: ['engineer', 'manager']",
+            "},{",
+            "name: 'Charlie'",
+            "age: 22",
+            "tags: []",
+            "}]",
+            "}",
+            "}",
+        ],
     );
 }
 

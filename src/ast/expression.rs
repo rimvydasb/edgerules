@@ -98,6 +98,7 @@ fn cast_value_to_type(
     value: ValueEnum,
     target: ValueType,
     ctx: Rc<RefCell<ExecutionContext>>, // used for building child contexts
+    origin: Option<&str>,
 ) -> Result<ValueEnum, RuntimeError> {
     use crate::typesystem::values::ValueEnum as V;
     match target {
@@ -118,8 +119,12 @@ fn cast_value_to_type(
                     for item in items {
                         match item {
                             Ok(v) => {
-                                let mapped =
-                                    cast_value_to_type(v, item_type.clone(), Rc::clone(&ctx))?;
+                                let mapped = cast_value_to_type(
+                                    v,
+                                    item_type.clone(),
+                                    Rc::clone(&ctx),
+                                    origin,
+                                )?;
                                 casted_items.push(Ok(mapped));
                             }
                             Err(err) => casted_items.push(Err(err)),
@@ -128,7 +133,8 @@ fn cast_value_to_type(
                     Ok(V::Array(casted_items, item_type))
                 }
                 other => {
-                    let mapped = cast_value_to_type(other, item_type.clone(), Rc::clone(&ctx))?;
+                    let mapped =
+                        cast_value_to_type(other, item_type.clone(), Rc::clone(&ctx), origin)?;
                     Ok(V::Array(vec![Ok(mapped)], item_type))
                 }
             }
@@ -145,6 +151,15 @@ fn cast_value_to_type(
 
             let mut builder = ContextObjectBuilder::new();
             for name in schema.borrow().get_field_names() {
+                let field_origin_owned = origin.map(|parent| {
+                    if parent.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}.{}", parent, name)
+                    }
+                });
+                let field_origin = field_origin_owned.as_deref().or(Some(name));
+
                 if let Ok(content) = schema.borrow().get(name) {
                     match content {
                         EObjectContent::ExpressionRef(entry) => {
@@ -169,18 +184,27 @@ fn cast_value_to_type(
                                         V::Reference(obj_exec),
                                         expected_ty.clone(),
                                         Rc::clone(&ctx),
+                                        field_origin,
                                     )?
                                 }
                                 Ok(EObjectContent::ExpressionRef(src_entry)) => {
                                     let v =
                                         src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
-                                    cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
+                                    cast_value_to_type(
+                                        v,
+                                        expected_ty.clone(),
+                                        Rc::clone(&ctx),
+                                        field_origin,
+                                    )?
                                 }
-                                Ok(EObjectContent::ConstantValue(v)) => {
-                                    cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
-                                }
-                                Ok(_) => missing_for_type(&expected_ty, Some(name), &ctx)?,
-                                Err(_) => missing_for_type(&expected_ty, Some(name), &ctx)?,
+                                Ok(EObjectContent::ConstantValue(v)) => cast_value_to_type(
+                                    v,
+                                    expected_ty.clone(),
+                                    Rc::clone(&ctx),
+                                    field_origin,
+                                )?,
+                                Ok(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
+                                Err(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
                             };
                             builder.add_expression(name, casted.into())?;
                         }
@@ -188,7 +212,7 @@ fn cast_value_to_type(
                             // create empty shaped nested object
                             let val = missing_for_type(
                                 &ValueType::ObjectType(obj.clone()),
-                                Some(name),
+                                field_origin,
                                 &ctx,
                             )?;
                             builder.add_expression(name, val.into())?;
@@ -253,7 +277,7 @@ impl EvaluatableExpression for CastCall {
         };
 
         let value = self.expression.eval(Rc::clone(&context))?;
-        cast_value_to_type(value, target_type, context)
+        cast_value_to_type(value, target_type, context, None)
     }
 }
 

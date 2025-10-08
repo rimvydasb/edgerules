@@ -211,6 +211,7 @@ impl ASTBuilder {
 
 pub mod factory {
     use crate::ast::annotations::AnnotationEnum;
+    use crate::ast::context::context_object::ExpressionEntry;
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::context::context_object_type::FormalParameter;
     use crate::ast::foreach::ForFunction;
@@ -240,7 +241,9 @@ pub mod factory {
         FunctionWrongNumberOfArguments, UnknownError, UnknownParseError,
     };
     use log::trace;
+    use std::cell::RefCell;
     use std::collections::vec_deque::VecDeque;
+    use std::rc::Rc;
 
     fn pop_back_as_expected(deque: &mut VecDeque<EToken>, expected: &str) -> bool {
         if let Some(Unparsed(Literal(maybe))) = deque.pop_back() {
@@ -288,25 +291,35 @@ pub mod factory {
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
                 let _ = left.pop_left_as_expected("type");
 
-                // Enforce: no functions or typed placeholders inside type definitions; only nested type objects
-                {
+                // Enforce: no functions or executable expressions inside type definitions.
+                let field_entries: Vec<(&'static str, Rc<RefCell<ExpressionEntry>>)> = {
                     let obj_ref = object.borrow();
                     if !obj_ref.metaphors.is_empty() {
                         return Err(UnknownError(
                             "Type definition cannot contain function definitions".to_string(),
                         ));
                     }
-                    for (fname, entry) in obj_ref.expressions.iter() {
-                        let expr = &entry.borrow().expression;
-                        match expr {
-                            StaticObject(_) => { /* ok: nested type object */ }
-                            TypePlaceholder(_) => { /* ok: typed field in type body */ }
-                            _ => {
-                                return Err(UnknownError(format!(
-                                    "Type definition contains non-type field '{}'",
-                                    fname
-                                )));
-                            }
+                    obj_ref
+                        .expressions
+                        .iter()
+                        .map(|(&name, entry)| (name, Rc::clone(entry)))
+                        .collect()
+                };
+
+                for (fname, entry_rc) in field_entries {
+                    let mut entry = entry_rc.borrow_mut();
+                    match &entry.expression {
+                        StaticObject(_) => { /* ok: nested type object */ }
+                        TypePlaceholder(_) => { /* ok: typed field in type body */ }
+                        Variable(alias_link) => {
+                            entry.expression =
+                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name()));
+                        }
+                        _ => {
+                            return Err(UnknownError(format!(
+                                "Type definition contains non-type field '{}'",
+                                fname
+                            )));
                         }
                     }
                 }
@@ -317,7 +330,18 @@ pub mod factory {
                 })))
             }
             (Expression(Variable(link)), Expression(right)) => {
-                Ok(Expression(ObjectField(link.get_name(), Box::new(right))))
+                let field_name = link.get_name();
+                if is_type_stmt {
+                    if let Variable(alias_link) = right {
+                        let type_ref = ComplexTypeRef::Alias(alias_link.get_name());
+                        return Ok(Expression(ObjectField(
+                            field_name,
+                            Box::new(TypePlaceholder(type_ref)),
+                        )));
+                    }
+                }
+
+                Ok(Expression(ObjectField(field_name, Box::new(right))))
             }
             (
                 Unparsed(FunctionDefinitionLiteral(annotations, function_name, arguments)),

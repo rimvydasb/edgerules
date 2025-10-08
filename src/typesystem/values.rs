@@ -185,7 +185,14 @@ impl Display for ValueEnum {
             }
             NumberValue(number) => write!(f, "{}", number),
             StringValue(str) => write!(f, "{}", str),
-            Reference(reference) => write!(f, "{}", reference.borrow()),
+            Reference(reference) => {
+                let mut code = reference.borrow().to_code();
+                if let Some(stripped) = code.strip_prefix("#child: ") {
+                    code = stripped.to_string();
+                }
+                code = code.trim_end().to_string();
+                write!(f, "{}", code)
+            }
             BooleanValue(value) => {
                 if *value {
                     f.write_str("true")
