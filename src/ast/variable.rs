@@ -223,6 +223,8 @@ impl StaticLink for VariableLink {
                         crate::link::node_data::NodeDataEnum::Root()
                             | crate::link::node_data::NodeDataEnum::Isolated()
                     );
+
+                    // @Todo: must return LinkingErrorEnum::FieldNotFound or the other even better linking error
                     if self.path.len() > 1 && is_unattached_root {
                         self.variable_type = LinkingError::not_linked().into();
                         return Ok(ValueType::UndefinedType);

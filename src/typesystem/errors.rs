@@ -234,9 +234,13 @@ pub enum RuntimeErrorEnum {
     // object, field
     RuntimeFieldNotFound(String, String),
 
-    // Todo: update this: (existing type, expected type, method name)
+    /// @Todo: update this: (existing type, expected type, method name)
+    /// @Todo: this is absolutely unclear how it happens in runtime, because linking solves types.
+    /// Add [unexpected] prefix to the error message for me to indicate that this is a linking/runtime mismatch
+    /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
     TypeNotSupported(ValueType),
 
+    // @Todo: remove this, it's not a runtime error (remove RuntimeError::into_runtime as well)
     Unlinked,
 }
 

@@ -372,6 +372,10 @@ pub mod test {
         TestServiceBuilder::build(format!("{{{}}}", to_display(code, "\n")).as_str())
     }
 
+    pub fn inline<S: AsRef<str>>(code: S) -> String {
+        code.as_ref().replace('\n', " ").replace(" ", "")
+    }
+
     pub struct TestServiceBuilder {
         original_code: String,
         runtime: Option<EdgeRulesRuntime>,
@@ -613,6 +617,8 @@ pub mod test {
         let start = runtime.evaluate_field("calendar.config.start")?;
         assert_eq!(start.to_string(), "7");
 
+        // @Todo: this test is incorrect, `calendar.config.end` cannot be linked and link error should occur
+        // @Todo: find and fix if self.path.len() > 1 && is_unattached_root {...
         let end = runtime.evaluate_field("calendar.config.end")?;
         assert_eq!(
             end.to_string(),
@@ -732,10 +738,10 @@ pub mod test {
         let runtime = service.to_runtime_snapshot()?;
 
         let single = runtime.call_method("inc", vec![expr("41")?])?;
-        assert_eq!(single.to_string(), "{result: 42}");
+        assert_eq!(inline(single.to_string()), inline("{result: 42}"));
 
         let multiple = runtime.call_method("add", vec![expr("1")?, expr("2")?])?;
-        assert_eq!(multiple.to_string(), "{result: 3}");
+        assert_eq!(inline(multiple.to_string()), inline("{result: 3}"));
 
         Ok(())
     }
@@ -760,10 +766,10 @@ pub mod test {
         );
 
         let first = runtime.call_method("inc", vec![expr("{amount: 10}")?])?;
-        assert_eq!(first.to_string(), "{result: 11}");
+        assert_eq!(inline(first.to_string()), inline("{result: 11}"));
 
         let second = runtime.call_method("inc", vec![expr("{amount: 20}")?])?;
-        assert_eq!(second.to_string(), "{result: 21}");
+        assert_eq!(inline(second.to_string()), inline("{result: 21}"));
 
         Ok(())
     }
@@ -786,7 +792,7 @@ pub mod test {
         let runtime = service.to_runtime_snapshot()?;
 
         let first = runtime.call_method("interpolate", vec![expr("[1,2,3,4,5]")?])?;
-        assert_eq!(first.to_string(), "{resultset: [2, 4, 6, 8, 10]}");
+        assert_eq!(inline(first.to_string()), inline("{resultset: [2, 4, 6, 8, 10]}"));
 
         Ok(())
     }

@@ -84,11 +84,33 @@ fn test_string_filters() {
     }
     "#;
 
-    assert_eval_all(model, &["{", 
-        "creditLines: [{lineType: 'Standard'; limit: 1000},{lineType: 'Premium'; limit: 5000},{lineType: 'Standard Plus'; limit: 2000}]", 
-        "standardLines: [{lineType: 'Standard'; limit: 1000}]",
-        "bigStandardLines: [{lineType: 'Standard Plus'; limit: 2000}]",
-        "multiFilter: [{lineType: 'Standard Plus'; limit: 2000}]",
-        "}"]
+    assert_eval_all(
+        model,
+        &[
+            "{",
+            "creditLines: [{",
+            "lineType: 'Standard'",
+            "limit: 1000",
+            "},{",
+            "lineType: 'Premium'",
+            "limit: 5000",
+            "},{",
+            "lineType: 'Standard Plus'",
+            "limit: 2000",
+            "}]",
+            "standardLines: [{",
+            "lineType: 'Standard'",
+            "limit: 1000",
+            "}]",
+            "bigStandardLines: [{",
+            "lineType: 'Standard Plus'",
+            "limit: 2000",
+            "}]",
+            "multiFilter: [{",
+            "lineType: 'Standard Plus'",
+            "limit: 2000",
+            "}]",
+            "}",
+        ],
     );
 }

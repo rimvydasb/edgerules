@@ -60,6 +60,7 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "stddev" => UnaryFunctionDefinition { name : "stddev", function: eval_stddev, validation: validate_unary_list_numbers, return_type: return_uni_number },
     "mode" => UnaryFunctionDefinition { name : "mode", function: eval_mode, validation: validate_unary_list, return_type: |_| ValueType::ListType(Box::new(ValueType::NumberType)) },
     // Booleans
+    // @Todo: extract validation to the separate function
     "all" => UnaryFunctionDefinition { name : "all", function: eval_all, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
     "any" => UnaryFunctionDefinition { name : "any", function: eval_any, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
     // Date/Time/Duration parsing

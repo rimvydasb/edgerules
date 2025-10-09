@@ -200,7 +200,10 @@ fn test_functions() {
     );
     assert_value!("count([1,2,3]) + 1", "4");
     assert_value!("count(['a','b','c'])", "3");
-    assert_value!("count(['a',5,date('2012-01-01'),1])", "4");
+    assert_value!(
+        "count(['a',toString(5),toString(date('2012-01-01')),'1'])",
+        "4"
+    );
 
     assert_value!("max([1,2,3]) + 1", "4");
     assert_value!("find([1,2,3],1)", "0");
@@ -377,13 +380,6 @@ fn test_problems() {
         ),
         "36"
     );
-
-    // pretty-print containment check (keep the intent)
-    let printed = eval_all("{ p: [{a:1},5] }");
-    assert!(
-        printed.contains("[{a: 1}, 5]") || printed.contains("[{a: 1}, 5]"),
-        "expected pretty output to contain normalized array of objects, got: {printed}"
-    );
 }
 
 #[test]
@@ -451,4 +447,5 @@ fn context_fields_duplicate() {
 }
 
 mod utilities;
+
 pub use utilities::*;

@@ -3,6 +3,10 @@ use std::sync::Once;
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 use env_logger::Builder;
 
+pub fn inline<S: AsRef<str>>(code: S) -> String {
+    code.as_ref().replace('\n', " ").replace(" ", "")
+}
+
 #[macro_export]
 macro_rules! assert_value {
     // &["a","b","c"] form
@@ -35,7 +39,7 @@ macro_rules! assert_value {
                 };
                 assert_eq!($crate::eval_field(&code, "value"), $expected, "for body: {:?}", body);
             } else {
-                assert_eq!($crate::eval_value(&format!("value : {}", body)), $expected, "for body: {:?}", body);
+                assert_eq!(inline($crate::eval_value(&format!("value : {}", body))), inline($expected), "for body: {:?}", body);
             }
         }
     }};

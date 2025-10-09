@@ -82,7 +82,7 @@ fn merge_collection_types(existing: ValueType, new_type: ValueType) -> Link<Valu
             Ok(ListType(Box::new(merged_inner)))
         }
         (left, right) => LinkingError::other_error(format!(
-            "Cannot mix collection element types `{}` and `{}`",
+            "Only homogeneous arrays are supported. Found`{}` and `{}`",
             left, right
         ))
         .into(),

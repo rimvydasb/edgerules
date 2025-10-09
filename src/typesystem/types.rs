@@ -49,8 +49,6 @@ pub enum ValueType {
     ObjectType(Rc<RefCell<ContextObject>>),
 
     UndefinedType,
-    // Todo: remove it and update
-    //AnyType,
 }
 
 impl ValueType {
