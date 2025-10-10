@@ -122,6 +122,7 @@ impl StaticLink for UserFunctionCall {
                 }
 
                 if let Some(tref) = parameter.declared_type() {
+                    // Step 4: resolve the parameter's declared type (including aliases) and coerce when safe.
                     let expected_type =
                         resolve_declared_type(tref, function_body_ctx.as_ref(), &ctx)?;
 
@@ -152,6 +153,7 @@ impl StaticLink for UserFunctionCall {
                 }
             }
 
+            // Step 5: build and cache the callable function context with all resolved parameter types.
             self.definition = Ok(definition.borrow().metaphor.create_context(parameters)?);
         }
 
