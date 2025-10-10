@@ -1,4 +1,3 @@
-use log::trace;
 use crate::ast::token::into_valid;
 use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
@@ -63,6 +62,65 @@ pub fn eval_max(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             )
             .into(),
             Some(max) => Ok(NumberValue(NumberEnum::from(max))),
+        },
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_min_all(
+    values: Vec<ValueEnum>,
+    list_type: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let mut minimum: Option<NumberEnum> = None;
+
+    for value in values {
+        match value {
+            NumberValue(ref number) => {
+                if let Some(ref current) = minimum {
+                    if number < current {
+                        minimum = Some(number.clone());
+                    }
+                } else {
+                    minimum = Some(number.clone());
+                }
+            }
+            _ => return RuntimeError::type_not_supported(list_type.clone()).into(),
+        }
+    }
+
+    if let Some(min) = minimum {
+        Ok(NumberValue(min))
+    } else {
+        Ok(NumberValue(SV(SpecialValueEnum::missing_for(None))))
+    }
+}
+
+pub fn eval_min_multi(
+    values: Vec<Result<ValueEnum, RuntimeError>>,
+    list_type: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let resolved = into_valid(values)?;
+    eval_min_all(resolved, list_type)
+}
+
+pub fn eval_min(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(_) => Ok(value),
+        Array(ArrayValue::ObjectsArray {
+            values: _,
+            object_type,
+        }) => {
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
+                .into()
+        }
+        Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
+        Array(ArrayValue::PrimitivesArray { values, item_type }) => eval_min_all(values, item_type),
+        RangeValue(range) => match range.min() {
+            None => RuntimeError::eval_error(
+                "Min is not implemented for this particular range".to_string(),
+            )
+            .into(),
+            Some(min) => Ok(NumberValue(NumberEnum::from(min))),
         },
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }

@@ -193,40 +193,6 @@ pub fn eval_contains_mixed(left: ValueEnum, right: ValueEnum) -> Result<ValueEnu
     }
 }
 
-pub fn eval_min(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    match value {
-        ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(NumberEnum::SV(
-            SpecialValueEnum::missing_for(None),
-        ))),
-        ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
-        }
-        ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
-            let mut best: Option<NumberEnum> = None;
-            for v in values {
-                if let NumberValue(n) = v {
-                    best = Some(match best {
-                        Some(b) if n < b => n,
-                        Some(b) => b,
-                        None => n,
-                    });
-                } else {
-                    return RuntimeError::type_not_supported(v.get_type()).into();
-                }
-            }
-            match best {
-                Some(number) => Ok(NumberValue(number)),
-                None => Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(
-                    None,
-                )))),
-            }
-        }
-        NumberValue(_) => Ok(value),
-        other => RuntimeError::type_not_supported(other.get_type()).into(),
-    }
-}
-
 pub fn eval_product(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(NumberEnum::SV(

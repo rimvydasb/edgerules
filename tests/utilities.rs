@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, EdgeRulesRuntime};
 use env_logger::Builder;
 
 pub fn inline<S: AsRef<str>>(code: S) -> String {
@@ -123,12 +123,14 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let _ = service.load_source(code);
 
-    match service.to_runtime().err().map(|e| e.to_string()) {
-        None => {
+    match service.to_runtime() {
+        Ok(ok_but_unexpected) => {
+            let static_tree = ok_but_unexpected.static_tree.borrow().to_string();
+            println!("static_tree:\n{}\n", static_tree);
             panic!("expected link error, got none\ncode:\n{code}");
         }
-        Some(err) => {
-            let lower = err.to_lowercase();
+        Err(err) => {
+            let lower = err.to_string().to_lowercase();
             for n in needles {
                 assert!(
                     lower.contains(&n.to_lowercase()),

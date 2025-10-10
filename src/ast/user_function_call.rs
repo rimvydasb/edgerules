@@ -65,13 +65,13 @@ impl EvaluatableExpression for UserFunctionCall {
 
 impl StaticLink for UserFunctionCall {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
-        // so the next time it is called, it will not be linked, but for each user function call link will happen. For example:
-        // process(a) + process(b) - linking will happen. This may be good, because different types could be used theoretically - need to test it
+        // The call site is linked lazily: each UserFunctionCall instance links only once and caches the resolved definition.
+        // This lets different call sites type-check against the same function independently.
         if !is_linked(&self.definition) {
-            // 1. Make sure definition is acquired before doing anything else
+            // Step 1: resolve the function definition in the current scope.
             let definition = linker::find_implementation(Rc::clone(&ctx), self.name.clone())?;
 
-            // 2. Next step is to check if all used arguments are valid
+            // Step 2: validate that we have the correct number of arguments.
             if self.args.len() != definition.borrow().metaphor.get_parameters().len() {
                 return LinkingError::other_error(format!(
                     "Function {} expects {} arguments, but {} were provided",
@@ -82,7 +82,7 @@ impl StaticLink for UserFunctionCall {
                 .into();
             }
 
-            // 3. Creating a mid context where all parameter values are set
+            // Step 3: link each argument expression and ensure it matches the declared parameter type.
             let ctx_name = ctx.borrow().node.node_type.to_code();
             let function_name = self.name.clone();
 
@@ -100,6 +100,8 @@ impl StaticLink for UserFunctionCall {
 
             for (parameter, input_argument) in declared_parameters.iter().zip(self.args.iter_mut())
             {
+                // Link the argument within the current call context. Passing the function's own context is disallowed to
+                // prevent accidental self-references before the function body is evaluated.
                 let arg_type = if let ExpressionEnum::Variable(var) = input_argument {
                     if var.path.len() == 1 && var.path[0] == ctx_name {
                         LinkingError::other_error(format!(
@@ -120,10 +122,13 @@ impl StaticLink for UserFunctionCall {
                 }
 
                 if let Some(tref) = parameter.declared_type() {
-                    let expected = resolve_declared_type(tref, function_body_ctx.as_ref(), &ctx)?;
-                    if resolved_type != expected
+                    let expected_type =
+                        resolve_declared_type(tref, function_body_ctx.as_ref(), &ctx)?;
+
+                    // Alias parameters may need an explicit cast to resolve the correct runtime type.
+                    if resolved_type != expected_type
                         && complex_type_ref_contains_alias(tref)
-                        && can_cast_alias(&resolved_type, &expected)
+                        && can_cast_alias(&resolved_type, &expected_type)
                     {
                         let original = std::mem::replace(
                             input_argument,
@@ -133,19 +138,13 @@ impl StaticLink for UserFunctionCall {
                             ExpressionEnum::from(CastCall::new(original, tref.clone()));
                         resolved_type = input_argument.link(Rc::clone(&ctx))?;
                     }
-                    let actual_depth = list_depth(&resolved_type);
-                    let expected_depth = list_depth(&expected);
-                    if actual_depth > expected_depth {
-                        resolved_type =
-                            reduce_list_depth(resolved_type.clone(), actual_depth - expected_depth);
-                    }
                     let validated = LinkingError::expect_single_type(
                         &format!(
                             "Argument `{}` of function `{}`",
                             parameter.name, function_name
                         ),
                         resolved_type.clone(),
-                        &expected,
+                        &expected_type,
                     )?;
                     parameters.push(parameter.with_runtime_type(validated));
                 } else {
@@ -161,30 +160,6 @@ impl StaticLink for UserFunctionCall {
             Err(err) => Err(err.clone()),
         }
     }
-}
-fn list_depth(value_type: &ValueType) -> usize {
-    match value_type {
-        ValueType::ListType(Some(inner)) => 1 + list_depth(inner),
-        ValueType::ListType(None) => 1,
-        _ => 0,
-    }
-}
-
-fn reduce_list_depth(mut value_type: ValueType, mut levels: usize) -> ValueType {
-    while levels > 0 {
-        match value_type {
-            ValueType::ListType(Some(inner)) => {
-                value_type = *inner;
-                levels -= 1;
-            }
-            ValueType::ListType(None) => {
-                value_type = ValueType::UndefinedType;
-                break;
-            }
-            _ => break,
-        }
-    }
-    value_type
 }
 
 fn resolve_declared_type(

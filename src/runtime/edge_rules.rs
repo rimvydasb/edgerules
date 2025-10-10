@@ -250,7 +250,7 @@ impl EdgeRulesModel {
 
     pub fn to_runtime(self) -> Result<EdgeRulesRuntime, LinkingError> {
         let static_context = self.ast_root.build();
-        linker::link_parts(Rc::clone(&static_context))?;
+        link_parts(Rc::clone(&static_context))?;
         Ok(EdgeRulesRuntime::new(static_context))
     }
 
