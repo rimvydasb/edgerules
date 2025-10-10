@@ -28,6 +28,10 @@ pub struct CollectionExpression {
 impl StaticLink for CollectionExpression {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         if !is_linked(&self.collection_item_type) {
+            if (self.elements.len() == 0) {
+                // @Todo: return EmptyUntyped
+            }
+
             let mut aggregated_type: Option<ValueType> = None;
             for arg in self.elements.iter_mut() {
                 if let ExpressionEnum::StaticObject(obj) = arg {
@@ -43,11 +47,21 @@ impl StaticLink for CollectionExpression {
                     Some(existing) => merge_collection_types(existing, element_type)?,
                 });
             }
+            match aggregated_type {
+                None => {
+                    // @Todo: this must not happen at all, because we check for empty above
+                }
+                Some(ValueType::ObjectType(aggregated_object_type)) => {
+                    // @Todo: ObjectsArray
+                }
+                Some(other_aggregated_type) => {
+                    // @Todo: PrimitivesArray
+                }
+            }
+
+
             self.collection_item_type = Ok(aggregated_type.unwrap_or(ValueType::UndefinedType));
         }
-
-        // @Todo: different type must be assigned if collection is multityped
-        //args.iter().any(|arg| arg.get_type() != type_of_sequence)
 
         self.collection_item_type.clone()
     }

@@ -26,21 +26,48 @@ pub enum ValueOrSv<OkValue, SpecialValue> {
 #[allow(non_snake_case)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum ValueEnum {
+
+    /// Primitive values
+    /// @Todo: move to PrimitiveValue {...} and have Primitive(PrimitiveValue) inside ValueEnum
+
+    // @Todo: must be ValueOrSv<NumberEnum, SpecialValueEnum>, remove NumberEnum::SV
     NumberValue(NumberEnum),
     BooleanValue(bool),
     StringValue(StringEnum),
-    Array(Vec<Result<ValueEnum, RuntimeError>>, ValueType),
-    // @Todo: inclusive or exclusive range
-    // @Todo: infinity or static
-    // @Todo: range is not a value, it one of filter methods
-    RangeValue(Range<Integer>),
-    /// If reference is provided, it is possible to update it if additional calculation is done. All context is still immutable, but for performance reasons, calculations will not be recalculated.
-    Reference(Rc<RefCell<ExecutionContext>>),
     DateValue(ValueOrSv<Date, SpecialValueEnum>),
     TimeValue(ValueOrSv<Time, SpecialValueEnum>),
     DateTimeValue(ValueOrSv<PrimitiveDateTime, SpecialValueEnum>),
     DurationValue(ValueOrSv<DurationValue, SpecialValueEnum>),
+
+    /// Non-primitive values
+
+    Array(ArrayValue),
+
+    /// If reference is provided, it is possible to update it if additional calculation is done.
+    /// All context is still immutable, but for performance reasons, calculations will not be recalculated.
+    Reference(Rc<RefCell<ExecutionContext>>),
+
+    // @Todo: inclusive or exclusive range
+    // @Todo: infinity or static
+    // @Todo: range is not a value, it one of filter methods
+    RangeValue(Range<Integer>),
+
+    // @Todo: the type is provided using this value, but this is kind of not a value - need to rethink this
     TypeValue(ValueType),
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum ArrayValue {
+    EmptyUntyped,
+
+    // @Todo: later use PrimitiveValue when implemented
+    PrimitivesArray(Vec<ValueEnum>, ValueType),
+
+    // list of objects or corresponding propagated errors, representative aggregated type of all objects
+    ObjectsArray(Vec<Result<Rc<RefCell<ExecutionContext>>, RuntimeError>>, Rc<RefCell<ContextObject>>),
+
+    // @Todo: support array in array - currently not supported
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -112,24 +139,6 @@ impl From<ValueType> for EObjectContent<ContextObject> {
         EObjectContent::Definition(value)
     }
 }
-
-// impl ValueEnum {
-//     pub fn unwrap_array(value: ValueEnum) -> ValueEnum {
-//         if let Array(mut array, existing_type) = value {
-//             if array.len() == 1 {
-//                 if let Ok(Array(_, _)) = array.get(0).unwrap() {
-//                     array.pop().unwrap().unwrap()
-//                 } else {
-//                     Array(array, existing_type)
-//                 }
-//             } else {
-//                 Array(array, existing_type)
-//             }
-//         } else {
-//             value
-//         }
-//     }
-// }
 
 impl TypedValue for ValueEnum {
     fn get_type(&self) -> ValueType {
@@ -264,22 +273,9 @@ impl Display for ValueEnum {
     }
 }
 
-// Todo: eliminate assignet_to_field
-// impl From<ContextObject> for ValueEnum {
-//     fn from(object: ContextObject) -> Self {
-//         Reference(Rc::new(RefCell::new(ExecutionContext::create_for(Rc::new( RefCell::new(object)), "#root".to_string()))))
-//     }
-// }
-
 impl From<Float> for ValueEnum {
     fn from(value: Float) -> Self {
         NumberValue(NumberEnum::from(value))
-    }
-}
-
-impl From<Rc<RefCell<ExecutionContext>>> for ValueEnum {
-    fn from(value: Rc<RefCell<ExecutionContext>>) -> Self {
-        Reference(value)
     }
 }
 
@@ -306,45 +302,3 @@ impl From<Month> for ValueEnum {
         NumberValue(NumberEnum::from(value as i64))
     }
 }
-
-impl From<&str> for ValueEnum {
-    fn from(value: &str) -> Self {
-        StringValue(String(value.to_string()))
-    }
-}
-
-impl<T> From<Vec<T>> for ValueEnum
-where
-    T: Into<ValueEnum>,
-{
-    fn from(values: Vec<T>) -> Self {
-        if values.is_empty() {
-            Array(Vec::new(), ValueType::UndefinedType)
-        } else {
-            let values_enum = values
-                .into_iter()
-                .map(|value| Ok(value.into()))
-                .collect::<Vec<Result<ValueEnum, RuntimeError>>>();
-
-            let first_value = values_enum.first().unwrap();
-            let init_type = first_value.as_ref().unwrap().get_type().clone();
-
-            Array(values_enum, init_type)
-        }
-    }
-}
-
-// impl From<Vec<Result<ValueEnum, RuntimeError>>> for ValueEnum {
-//     fn from(values: Vec<Result<ValueEnum, RuntimeError>>) -> Self {
-//
-//         match values.get(0) {
-//             None => Array(values, ValueType::AnyType),
-//             Some(value) => {
-//                 match value {
-//                     Ok(value) => Array(values, value.get_type()),
-//                     Err(_) => Array(values, ValueType::AnyType)
-//                 }
-//             }
-//         }
-//     }
-// }

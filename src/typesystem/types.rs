@@ -34,7 +34,7 @@ pub enum ValueType {
     // Range is not a type, it is a filter method
     RangeType,
 
-    // Only homogenous lists are supported now
+    // This is the type of the list, for example number[], Only homogenous lists are supported now
     ListType(Box<ValueType>),
 
     // Represents Years-months-duration and Days-time-duration
@@ -48,6 +48,7 @@ pub enum ValueType {
     /// - @Todo: it is a question if RefCell is necessary - context object must be immutable btw
     ObjectType(Rc<RefCell<ContextObject>>),
 
+    // @Todo: this must not exists in runtime - if it exists, runtime must not start
     UndefinedType,
 }
 
@@ -107,26 +108,6 @@ impl TryFrom<&str> for ValueType {
         }
     }
 }
-
-// impl TryFrom<ValueType> for ValueEnum {
-//     type Error = ();
-//
-//     fn try_from(value: ValueType) -> Result<Self, Self::Error> {
-//         match value {
-//             ValueType::NumberType => Ok(ValueEnum::NumberValue(NumberEnum::SV(SpecialValueEnum::Missing))),
-//             ValueType::StringType => Ok(ValueEnum::StringValue(StringEnum::SV(SpecialValueEnum::Missing))),
-//             ValueType::BooleanType => Ok(ValueEnum::BooleanValue(false)),
-//             ValueType::DateType => Ok(DateValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::TimeType => Ok(TimeValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::DateTimeType => Ok(ValueEnum::DateTimeValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::ListType(value) => Ok(ValueEnum::Array(vec![], *value)),
-//             ValueType::DurationType => Ok(ValueEnum::DurationValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::ObjectType(_) => Err(()),
-//             ValueType::AnyType => Err(()),
-//             ValueType::RangeType => Err(())
-//         }
-//     }
-// }
 
 //--------------------------------------------------------------------------------------------------
 // SpecialValueEnum
