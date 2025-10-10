@@ -35,7 +35,7 @@ pub enum ValueType {
     RangeType,
 
     // This is the type of the list, for example number[], Only homogenous lists are supported now
-    ListType(Box<ValueType>),
+    ListType(Option<Box<ValueType>>),
 
     // Represents Years-months-duration and Days-time-duration
     DurationType,
@@ -55,7 +55,7 @@ pub enum ValueType {
 impl ValueType {
     pub fn get_list_type(&self) -> Option<ValueType> {
         match self {
-            ValueType::ListType(list_type) => Some(*list_type.clone()),
+            ValueType::ListType(Some(list_type)) => Some(*list_type.clone()),
             _ => None,
         }
     }
@@ -70,7 +70,10 @@ impl Display for ValueType {
             ValueType::DateType => f.write_str("date"),
             ValueType::TimeType => f.write_str("time"),
             ValueType::DateTimeType => f.write_str("datetime"),
-            ValueType::ListType(value) => write!(f, "list of {}", value),
+            ValueType::ListType(maybe_type) => match maybe_type {
+                Some(boxed_type) => write!(f, "{}[]", boxed_type),
+                None => f.write_str("[]"),
+            },
             ValueType::DurationType => f.write_str("duration"),
             ValueType::ObjectType(value) => write!(f, "{}", value.borrow().to_type_string()),
 
@@ -80,31 +83,6 @@ impl Display for ValueType {
             // Todo: remove it
             //ValueType::AnyType => f.write_str("any"),
             ValueType::UndefinedType => f.write_str("undefined"),
-        }
-    }
-}
-
-// todo: support objects
-impl TryFrom<&str> for ValueType {
-    type Error = ParseErrorEnum;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.starts_with("list of ") {
-            let value = value.replace("list of ", "");
-            return Ok(ValueType::ListType(Box::new(ValueType::try_from(
-                value.as_str(),
-            )?)));
-        }
-
-        match value {
-            "number" => Ok(ValueType::NumberType),
-            "string" => Ok(ValueType::StringType),
-            "boolean" => Ok(ValueType::BooleanType),
-            "date" => Ok(ValueType::DateType),
-            "time" => Ok(ValueType::TimeType),
-            "datetime" => Ok(ValueType::DateTimeType),
-            "duration" => Ok(ValueType::DurationType),
-            _ => Err(ParseErrorEnum::UnknownType(value.to_string())),
         }
     }
 }
