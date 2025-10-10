@@ -188,8 +188,7 @@ fn test_common() {
 }
 
 #[test]
-fn test_functions() {
-    assert_value!("2 * 2", "4");
+fn test_functions_sum_variants() {
     assert_value!("sum(1,2,3) + (2 * 2)", "10");
     assert_eq!(
         eval_field(
@@ -198,14 +197,58 @@ fn test_functions() {
         ),
         "14"
     );
+    assert_value!("sum([1,2,3]) + 1", "7");
+    assert_value!("sum([1.0,2.0,3.0]) + 1", "7");
+    assert_value!("sum([1,2.1,3]) + 1", "7.1");
+    assert_value!("sum([duration('PT6H'),duration('PT12H')])", "PT18H");
+}
+
+#[test]
+fn test_functions_count() {
     assert_value!("count([1,2,3]) + 1", "4");
     assert_value!("count(['a','b','c'])", "3");
     assert_value!(
         "count(['a',toString(5),toString(date('2012-01-01')),'1'])",
         "4"
     );
+}
 
+#[test]
+fn test_functions_max_temporal() {
     assert_value!("max([1,2,3]) + 1", "4");
+    assert_value!(
+        "max([date('2012-01-01'),date('2011-01-01'),date('2012-01-02')])",
+        "2012-01-02"
+    );
+    assert_value!(
+        "max([time('10:00:00'),time('23:15:00'),time('05:00:00')])",
+        "23:15:00.0"
+    );
+    assert_value!(
+        "max([datetime('2012-01-01T10:00:00'),datetime('2012-01-01T23:15:00'),datetime('2011-12-31T23:59:59')])",
+        "2012-01-0123:15:00.0"
+    );
+}
+
+#[test]
+fn test_functions_min_temporal() {
+    assert_value!("min([1,2,3])", "1");
+    assert_value!(
+        "min([date('2012-01-01'),date('2011-01-01'),date('2012-01-02')])",
+        "2011-01-01"
+    );
+    assert_value!(
+        "min([time('10:00:00'),time('23:15:00'),time('05:00:00')])",
+        "5:00:00.0"
+    );
+    assert_value!(
+        "min([datetime('2012-01-01T10:00:00'),datetime('2012-01-01T23:15:00'),datetime('2011-12-31T23:59:59')])",
+        "2011-12-3123:59:59.0"
+    );
+}
+
+#[test]
+fn test_functions_find() {
     assert_value!("find([1,2,3],1)", "0");
     assert_value!("find([1,2,888],888)", "2");
     assert_value!("find([1,2,888],999)", "Missing('N/A')");

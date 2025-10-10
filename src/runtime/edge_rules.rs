@@ -792,7 +792,10 @@ pub mod test {
         let runtime = service.to_runtime_snapshot()?;
 
         let first = runtime.call_method("interpolate", vec![expr("[1,2,3,4,5]")?])?;
-        assert_eq!(inline(first.to_string()), inline("{resultset: [2, 4, 6, 8, 10]}"));
+        assert_eq!(
+            inline(first.to_string()),
+            inline("{resultset: [2, 4, 6, 8, 10]}")
+        );
 
         Ok(())
     }
