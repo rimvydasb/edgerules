@@ -247,17 +247,19 @@ pub enum RuntimeErrorEnum {
 impl Display for RuntimeErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            EvalError(message) => f.write_str(message),
-            TypeNotSupported(value_type) => write!(f, "Type '{}' is not supported", value_type),
+            EvalError(message) => write!(f, "[runtime] {}", message),
+            TypeNotSupported(value_type) => {
+                write!(f, "[runtime] Type '{}' is not supported", value_type)
+            }
             RuntimeCyclicReference(object, field) => write!(
                 f,
-                "Field {}.{} appears in a cyclic reference loop",
+                "[runtime] Field {}.{} appears in a cyclic reference loop",
                 object, field
             ),
             RuntimeFieldNotFound(object, field) => {
-                write!(f, "Field '{}' not found in {}", field, object)
+                write!(f, "[runtime] Field '{}' not found in {}", field, object)
             }
-            RuntimeErrorEnum::Unlinked => f.write_str("Unlinked"),
+            RuntimeErrorEnum::Unlinked => f.write_str("[runtime] Unlinked"),
         }
     }
 }
@@ -343,13 +345,12 @@ impl LinkingError {
         expression_type: ValueType,
     ) -> Link<ValueType> {
         match expression_type {
-            ValueType::ListType(list_type) => Ok(*list_type),
+            ValueType::ListType(Some(list_type)) => Ok(*list_type),
+            ValueType::ListType(None) => Ok(ValueType::UndefinedType),
             other => LinkingError::types_not_compatible(
                 subject,
                 other,
-                Some(vec![ValueType::ListType(Box::new(
-                    ValueType::UndefinedType,
-                ))]),
+                Some(vec![ValueType::ListType(None)]),
             )
             .into(),
         }
@@ -455,7 +456,7 @@ impl Display for LinkingErrorEnum {
                         .join(" or ");
                     write!(
                         f,
-                        "{} type '{}', expected '{}'",
+                        "[link] {} type '{}', expected '{}'",
                         clean_subject, unexpected, expected_str
                     )
                 } else {
@@ -464,33 +465,37 @@ impl Display for LinkingErrorEnum {
             }
             DifferentTypesDetected(subject, left, right) => match subject {
                 Some(subject) => {
-                    write!(f, "{} types `{}` and `{}` must match", subject, left, right)
+                    write!(
+                        f,
+                        "[link] {} types `{}` and `{}` must match",
+                        subject, left, right
+                    )
                 }
                 None => write!(
                     f,
-                    "Operation is not supported for different types: {} and {}",
+                    "[link] Operation is not supported for different types: {} and {}",
                     left, right
                 ),
             },
             LinkingErrorEnum::FunctionNotFound(name) => {
-                write!(f, "Function '{}' not found", name)
+                write!(f, "[link] Function '{}' not found", name)
             }
             FieldNotFound(object, field) => {
-                write!(f, "Field '{}' not found in {}", field, object)
+                write!(f, "[link] Field '{}' not found in {}", field, object)
             }
             CyclicReference(object, field) => {
                 write!(
                     f,
-                    "Field {}.{} appears in a cyclic reference loop",
+                    "[link] Field {}.{} appears in a cyclic reference loop",
                     object, field
                 )
             }
-            OtherLinkingError(error) => f.write_str(error),
-            NotLinkedYet => f.write_str("Not linked yet"),
+            OtherLinkingError(error) => write!(f, "[link] {}", error),
+            NotLinkedYet => f.write_str("[link] Not linked yet"),
             OperationNotSupported(op, left, right) => {
                 write!(
                     f,
-                    "Operation '{}' not supported for types '{}' and '{}'",
+                    "[link] Operation '{}' not supported for types '{}' and '{}'",
                     op, left, right
                 )
             }

@@ -1,3 +1,4 @@
+use log::trace;
 use crate::ast::token::into_valid;
 use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
@@ -5,17 +6,17 @@ use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::number::NumberEnum::SV;
 use crate::typesystem::types::ValueType::{ListType, NumberType, RangeType};
 use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
-use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{Array, NumberValue, RangeValue};
+use crate::typesystem::values::{ArrayValue, ValueEnum};
 
 pub fn eval_max_all(
-    values: Vec<Result<ValueEnum, RuntimeError>>,
+    values: Vec<ValueEnum>,
     list_type: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let mut maximum: Option<NumberEnum> = None;
 
     for value in values {
-        match value? {
+        match value {
             NumberValue(ref number) => {
                 if let Some(ref check) = maximum {
                     if check < number {
@@ -36,10 +37,26 @@ pub fn eval_max_all(
     }
 }
 
+pub fn eval_max_multi(
+    values: Vec<Result<ValueEnum, RuntimeError>>,
+    list_type: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let resolved = into_valid(values)?;
+    eval_max_all(resolved, list_type)
+}
+
 pub fn eval_max(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(_) => Ok(value),
-        Array(values, list_type) => eval_max_all(values, list_type),
+        Array(ArrayValue::ObjectsArray {
+            values: _,
+            object_type,
+        }) => {
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
+                .into()
+        }
+        Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
+        Array(ArrayValue::PrimitivesArray { values, item_type }) => eval_max_all(values, item_type),
         RangeValue(range) => match range.max() {
             None => RuntimeError::eval_error(
                 "Max is not implemented for this particular range".to_string(),
@@ -52,34 +69,47 @@ pub fn eval_max(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 }
 
 pub fn eval_sum_all(
-    values: Vec<Result<ValueEnum, RuntimeError>>,
+    values: Vec<ValueEnum>,
     list_type: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
-    if values.is_empty() {
-        return Ok(ValueEnum::from(0));
-    }
-
-    let mut acc: NumberEnum = match values.first().unwrap() {
-        Ok(NumberValue(NumberEnum::Real(_))) => NumberEnum::Real(0.0),
-        Ok(NumberValue(NumberEnum::Int(_))) => NumberEnum::Int(0),
-        _ => return RuntimeError::type_not_supported(list_type).into(),
-    };
+    let mut acc: Option<NumberEnum> = None;
 
     for token in values {
-        if let NumberValue(number) = token? {
-            acc = acc + number;
+        if let NumberValue(number) = token {
+            acc = Some(match acc {
+                Some(existing) => existing + number,
+                None => number,
+            });
         } else {
-            return RuntimeError::type_not_supported(list_type).into();
+            return RuntimeError::type_not_supported(list_type.clone()).into();
         }
     }
 
-    Ok(NumberValue(acc))
+    match acc {
+        Some(total) => Ok(NumberValue(total)),
+        None => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
+    }
+}
+
+pub fn eval_sum_multi(
+    values: Vec<Result<ValueEnum, RuntimeError>>,
+    list_type: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
+    let resolved = into_valid(values)?;
+    eval_sum_all(resolved, list_type)
 }
 
 pub fn eval_sum(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(number) => Ok(NumberValue(number)),
-        Array(items, list_type) => eval_sum_all(items, list_type),
+        Array(array) => match array {
+            ArrayValue::EmptyUntyped => Ok(NumberValue(0.into())),
+            ArrayValue::ObjectsArray { object_type, .. } => RuntimeError::type_not_supported(
+                ValueType::list_of(ValueType::ObjectType(object_type)),
+            )
+            .into(),
+            ArrayValue::PrimitivesArray { values, item_type } => eval_sum_all(values, item_type),
+        },
         RangeValue(range) => Ok(ValueEnum::from(range.sum::<Integer>())),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -88,8 +118,8 @@ pub fn eval_sum(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_count(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(_) => Ok(NumberValue(NumberEnum::Int(1))),
-        Array(items, _) => {
-            let count = items.len();
+        ValueEnum::Array(array) => {
+            let count = array.len();
             Ok(NumberValue(NumberEnum::Int(count as Integer)))
         }
         RangeValue(range) => Ok(ValueEnum::from(range.count() as Integer)),
@@ -98,16 +128,20 @@ pub fn eval_count(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 }
 
 pub fn eval_find(maybe_array: ValueEnum, search: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    if let Array(values, _) = maybe_array {
-        let valid = into_valid(values)?;
-
-        let maybe_index = valid.iter().position(|value| value.eq(&search));
-
-        match maybe_index {
-            Some(index) => Ok(ValueEnum::from(index as Integer)),
-
-            // Todo: should determine the type
-            None => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
+    if let ValueEnum::Array(array) = maybe_array {
+        match array {
+            ArrayValue::EmptyUntyped => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
+            ArrayValue::ObjectsArray { object_type, .. } => RuntimeError::type_not_supported(
+                ValueType::list_of(ValueType::ObjectType(object_type)),
+            )
+            .into(),
+            ArrayValue::PrimitivesArray { values, .. } => {
+                let maybe_index = values.iter().position(|value| value.eq(&search));
+                match maybe_index {
+                    Some(index) => Ok(ValueEnum::from(index as Integer)),
+                    None => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
+                }
+            }
         }
     } else {
         RuntimeError::type_not_supported(maybe_array.get_type()).into()
@@ -115,8 +149,10 @@ pub fn eval_find(maybe_array: ValueEnum, search: ValueEnum) -> Result<ValueEnum,
 }
 
 pub fn list_item_as_second_arg(left: ValueType, right: ValueType) -> Link<()> {
-    let list_type = LinkingError::expect_array_type(Some("function arguments".to_string()), left)?;
-    LinkingError::expect_same_types("function arguments", list_type, right)?;
+    let item_type = LinkingError::expect_array_type(Some("function arguments".to_string()), left)?;
+    if !matches!(item_type, ValueType::UndefinedType) {
+        LinkingError::expect_same_types("function arguments", item_type, right)?;
+    }
     Ok(())
 }
 
@@ -126,7 +162,11 @@ pub fn number_range_or_any_list(value_type: ValueType) -> Link<()> {
         _ => LinkingError::types_not_compatible(
             None,
             value_type,
-            Some(vec![NumberType, RangeType, ListType(Box::new(NumberType))]),
+            Some(vec![
+                NumberType,
+                RangeType,
+                ListType(Some(Box::new(NumberType))),
+            ]),
         )
         .into(),
     }
@@ -135,15 +175,21 @@ pub fn number_range_or_any_list(value_type: ValueType) -> Link<()> {
 pub fn number_range_or_number_list(value_type: ValueType) -> Link<()> {
     if match &value_type {
         NumberType | RangeType => true,
-        ListType(list_type) => matches!(*list_type.clone(), NumberType),
+        ListType(Some(list_type)) => matches!(**list_type, NumberType),
+        ListType(None) => true,
         _ => false,
     } {
         Ok(())
     } else {
+        //println!("Type not compatible: {:?}", value_type);
         LinkingError::types_not_compatible(
             None,
             value_type,
-            Some(vec![NumberType, RangeType, ListType(Box::new(NumberType))]),
+            Some(vec![
+                NumberType,
+                RangeType,
+                ListType(Some(Box::new(NumberType))),
+            ]),
         )
         .into()
     }

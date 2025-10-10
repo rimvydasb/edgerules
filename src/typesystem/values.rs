@@ -1,6 +1,5 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
-use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
@@ -9,10 +8,10 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use std::rc::Rc;
+use std::string::String;
 use time::{Date, Month, PrimitiveDateTime, Time};
 
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::types::string::StringEnum::String;
 use crate::typesystem::values::ValueEnum::{
     Array, BooleanValue, NumberValue, RangeValue, Reference, StringValue,
 };
@@ -26,10 +25,8 @@ pub enum ValueOrSv<OkValue, SpecialValue> {
 #[allow(non_snake_case)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum ValueEnum {
-
     /// Primitive values
     /// @Todo: move to PrimitiveValue {...} and have Primitive(PrimitiveValue) inside ValueEnum
-
     // @Todo: must be ValueOrSv<NumberEnum, SpecialValueEnum>, remove NumberEnum::SV
     NumberValue(NumberEnum),
     BooleanValue(bool),
@@ -40,7 +37,6 @@ pub enum ValueEnum {
     DurationValue(ValueOrSv<DurationValue, SpecialValueEnum>),
 
     /// Non-primitive values
-
     Array(ArrayValue),
 
     /// If reference is provided, it is possible to update it if additional calculation is done.
@@ -61,13 +57,130 @@ pub enum ValueEnum {
 pub enum ArrayValue {
     EmptyUntyped,
 
-    // @Todo: later use PrimitiveValue when implemented
-    PrimitivesArray(Vec<ValueEnum>, ValueType),
+    // Primitive values with homogeneous type
+    PrimitivesArray {
+        values: Vec<ValueEnum>,
+        item_type: ValueType,
+    },
 
-    // list of objects or corresponding propagated errors, representative aggregated type of all objects
-    ObjectsArray(Vec<Result<Rc<RefCell<ExecutionContext>>, RuntimeError>>, Rc<RefCell<ContextObject>>),
-
+    // List of object references, representative aggregated type of all objects
+    ObjectsArray {
+        values: Vec<Rc<RefCell<ExecutionContext>>>,
+        object_type: Rc<RefCell<ContextObject>>,
+    },
     // @Todo: support array in array - currently not supported
+}
+
+type ObjectArrayParts = (
+    Vec<Rc<RefCell<ExecutionContext>>>,
+    Rc<RefCell<ContextObject>>,
+);
+
+impl ArrayValue {
+    pub fn is_empty_untyped(&self) -> bool {
+        matches!(self, ArrayValue::EmptyUntyped)
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            ArrayValue::EmptyUntyped => 0,
+            ArrayValue::PrimitivesArray { values, .. } => values.len(),
+            ArrayValue::ObjectsArray { values, .. } => values.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn list_type(&self) -> ValueType {
+        match self {
+            ArrayValue::EmptyUntyped => ValueType::ListType(None),
+            ArrayValue::PrimitivesArray { item_type, .. } => {
+                ValueType::ListType(Some(Box::new(item_type.clone())))
+            }
+            ArrayValue::ObjectsArray { object_type, .. } => ValueType::ListType(Some(Box::new(
+                ValueType::ObjectType(Rc::clone(object_type)),
+            ))),
+        }
+    }
+
+    pub fn item_type(&self) -> Option<ValueType> {
+        match self {
+            ArrayValue::EmptyUntyped => None,
+            ArrayValue::PrimitivesArray { item_type, .. } => Some(item_type.clone()),
+            ArrayValue::ObjectsArray { object_type, .. } => {
+                Some(ValueType::ObjectType(Rc::clone(object_type)))
+            }
+        }
+    }
+
+    pub fn primitive_values(&self) -> Option<&Vec<ValueEnum>> {
+        match self {
+            ArrayValue::PrimitivesArray { values, .. } => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn primitive_values_mut(&mut self) -> Option<&mut Vec<ValueEnum>> {
+        match self {
+            ArrayValue::PrimitivesArray { values, .. } => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn clone_primitive_values(&self) -> Option<Vec<ValueEnum>> {
+        match self {
+            ArrayValue::PrimitivesArray { values, .. } => Some(values.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn object_values(&self) -> Option<&Vec<Rc<RefCell<ExecutionContext>>>> {
+        match self {
+            ArrayValue::ObjectsArray { values, .. } => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn object_values_mut(&mut self) -> Option<&mut Vec<Rc<RefCell<ExecutionContext>>>> {
+        match self {
+            ArrayValue::ObjectsArray { values, .. } => Some(values),
+            _ => None,
+        }
+    }
+
+    pub fn clone_object_values(&self) -> Option<Vec<Rc<RefCell<ExecutionContext>>>> {
+        match self {
+            ArrayValue::ObjectsArray { values, .. } => Some(values.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn into_primitives(self) -> Option<(Vec<ValueEnum>, ValueType)> {
+        match self {
+            ArrayValue::PrimitivesArray { values, item_type } => Some((values, item_type)),
+            _ => None,
+        }
+    }
+
+    pub fn into_objects(self) -> Option<ObjectArrayParts> {
+        match self {
+            ArrayValue::ObjectsArray {
+                values,
+                object_type,
+            } => Some((values, object_type)),
+            _ => None,
+        }
+    }
+
+    pub fn is_primitives(&self) -> bool {
+        matches!(self, ArrayValue::PrimitivesArray { .. })
+    }
+
+    pub fn is_objects(&self) -> bool {
+        matches!(self, ArrayValue::ObjectsArray { .. })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -146,7 +259,7 @@ impl TypedValue for ValueEnum {
             ValueEnum::NumberValue(_) => ValueType::NumberType,
             ValueEnum::BooleanValue(_) => ValueType::BooleanType,
             ValueEnum::StringValue(_) => ValueType::StringType,
-            ValueEnum::Array(_, value_type) => ValueType::ListType(Box::new(value_type.clone())),
+            ValueEnum::Array(array) => array.list_type(),
             ValueEnum::Reference(obj) => obj.borrow().get_type(),
             ValueEnum::DateValue(_) => ValueType::DateType,
             ValueEnum::TimeValue(_) => ValueType::TimeType,
@@ -163,35 +276,20 @@ impl TypedValue for ValueEnum {
 impl Display for ValueEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Array(args, _) => {
-                let mut parts: Vec<std::string::String> = Vec::with_capacity(args.len());
-                let mut all_objects = !args.is_empty();
-
-                for result in args {
-                    match result {
-                        Ok(value) => {
-                            if !matches!(value, Reference(_)) {
-                                all_objects = false;
-                            }
-                            parts.push(format!("{}", value));
-                        }
-                        Err(err) => {
-                            all_objects = false;
-                            if let crate::typesystem::errors::RuntimeErrorEnum::RuntimeFieldNotFound(
-                                _, field,
-                            ) = &err.error
-                            {
-                                parts.push(format!("Missing('{}')", field));
-                            } else {
-                                parts.push(format!("{}", err));
-                            }
-                        }
-                    }
+            Array(array) => match array {
+                ArrayValue::EmptyUntyped => write!(f, "[]"),
+                ArrayValue::PrimitivesArray { values, .. } => {
+                    let parts: Vec<String> = values.iter().map(|v| format!("{}", v)).collect();
+                    write!(f, "[{}]", parts.join(", "))
                 }
-
-                let separator = if all_objects { "," } else { ", " };
-                write!(f, "[{}]", parts.join(separator))
-            }
+                ArrayValue::ObjectsArray { values, .. } => {
+                    let parts: Vec<String> = values
+                        .iter()
+                        .map(|ctx| format!("{}", ValueEnum::Reference(Rc::clone(ctx))))
+                        .collect();
+                    write!(f, "[{}]", parts.join(", "))
+                }
+            },
             NumberValue(number) => write!(f, "{}", number),
             StringValue(str) => write!(f, "{}", str),
             Reference(reference) => {

@@ -219,7 +219,7 @@ fn cast_list_to_alias_of_number_list() {
         .unwrap();
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_type_string();
-    assert!(ty.contains("vals: list of number"), "got `{}`", ty);
+    assert!(ty.contains("vals: number[]"), "got `{}`", ty);
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn input_type_validation() {
         "#,
         &[
             "Argument `xs` of function `double`",
-            "type 'list of number'",
+            "type 'number[]'",
             "expected 'number'",
         ],
     );

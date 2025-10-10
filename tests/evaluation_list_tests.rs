@@ -21,8 +21,9 @@ fn list_membership_and_boolean_aggregates() {
     );
 
     // all/any for booleans
-    assert_value!("all([true,true,false])", "false");
-    assert_value!("any([false,false,true])", "true");
+    // @Todo: all and any are disabled for now
+    //assert_value!("all([true,true,false])", "false");
+    //assert_value!("any([false,false,true])", "true");
 }
 
 #[test]

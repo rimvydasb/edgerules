@@ -9,7 +9,8 @@ use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
-use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::types::number::NumberEnum;
+use crate::typesystem::types::{SpecialValueEnum, ValueType};
 use crate::typesystem::values::ValueEnum;
 use log::error;
 use std::cell::RefCell;
@@ -58,11 +59,11 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
     "mean" => UnaryFunctionDefinition { name : "mean", function: eval_mean, validation: validate_unary_list_numbers, return_type: return_uni_number },
     "median" => UnaryFunctionDefinition { name : "median", function: eval_median, validation: validate_unary_list_numbers, return_type: return_uni_number },
     "stddev" => UnaryFunctionDefinition { name : "stddev", function: eval_stddev, validation: validate_unary_list_numbers, return_type: return_uni_number },
-    "mode" => UnaryFunctionDefinition { name : "mode", function: eval_mode, validation: validate_unary_list, return_type: |_| ValueType::ListType(Box::new(ValueType::NumberType)) },
+    "mode" => UnaryFunctionDefinition { name : "mode", function: eval_mode, validation: validate_unary_list, return_type: |_| ValueType::ListType(Some(Box::new(ValueType::NumberType))) },
     // Booleans
     // @Todo: extract validation to the separate function
-    "all" => UnaryFunctionDefinition { name : "all", function: eval_all, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
-    "any" => UnaryFunctionDefinition { name : "any", function: eval_any, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
+    //"all" => UnaryFunctionDefinition { name : "all", function: eval_all, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
+    //"any" => UnaryFunctionDefinition { name : "any", function: eval_any, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
     // Date/Time/Duration parsing
     "date" => UnaryFunctionDefinition { name : "date", function: eval_date, validation: expect_string_arg, return_type: |_| ValueType::DateType },
     "time" => UnaryFunctionDefinition { name : "time", function: eval_time, validation: expect_string_arg, return_type: |_| ValueType::TimeType },
@@ -116,12 +117,26 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
 };
 
 pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinition> = phf_map! {
-    "max" => MultiFunctionDefinition { name : "max", function: eval_max_all, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
-    "sum" => MultiFunctionDefinition { name : "sum", function: eval_sum_all, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
-    "min" => MultiFunctionDefinition { name : "min", function: |vals, _| {
+    "max" => MultiFunctionDefinition { name : "max", function: eval_max_multi, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
+    "sum" => MultiFunctionDefinition { name : "sum", function: eval_sum_multi, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
+    "min" => MultiFunctionDefinition { name : "min", function: |vals, list_type| {
+        let resolved = crate::ast::token::into_valid(vals)?;
         let mut best: Option<crate::typesystem::types::number::NumberEnum> = None;
-        for r in vals { let val = r?; if let ValueEnum::NumberValue(n) = val { best = Some(match best { Some(b) if n < b => n, Some(b) => b, None => n }); } else { return RuntimeError::type_not_supported(val.get_type()).into(); } }
-        Ok(ValueEnum::NumberValue(best.unwrap_or(crate::typesystem::types::number::NumberEnum::from(0))))
+        for val in resolved {
+            if let ValueEnum::NumberValue(n) = val {
+                best = Some(match best {
+                    Some(b) if n < b => n,
+                    Some(b) => b,
+                    None => n,
+                });
+            } else {
+                return RuntimeError::type_not_supported(list_type.clone()).into();
+            }
+        }
+        match best {
+            Some(number) => Ok(ValueEnum::NumberValue(number)),
+            None => Ok(ValueEnum::NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None)))),
+        }
     }, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
     // List multi-arity
     "sublist" => MultiFunctionDefinition { name: "sublist", function: eval_sublist, validation: validate_multi_sublist, return_type: return_list_undefined },

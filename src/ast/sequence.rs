@@ -8,9 +8,9 @@ use crate::link::linker;
 use crate::link::node_data::NodeDataEnum;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
-use crate::typesystem::types::ValueType;
-use crate::typesystem::values::ValueEnum;
+use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::Array;
+use crate::typesystem::values::{ArrayValue, ValueEnum};
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -22,59 +22,43 @@ pub struct CollectionExpression {
     /// @Todo: do not allow non-homogeneous collections: throw linking error if any following element has different type
     /// @Todo: collection still can contain multiple objects with very different structure - that is fine, however
     /// to support multi-typed objects, need to aggregate all elements to one super-type of ObjectType(Rc<RefCell<ContextObject>>)
-    pub collection_item_type: Link<ValueType>,
+    pub list_type: Link<ValueType>,
 }
 
 impl StaticLink for CollectionExpression {
+    /// Returns ListType or LinkingErrorEnum
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
-        if !is_linked(&self.collection_item_type) {
-            if (self.elements.len() == 0) {
-                // @Todo: return EmptyUntyped
-            }
-
-            let mut aggregated_type: Option<ValueType> = None;
-            for arg in self.elements.iter_mut() {
-                if let ExpressionEnum::StaticObject(obj) = arg {
-                    {
-                        let mut object = obj.borrow_mut();
-                        object.node.node_type = NodeDataEnum::Internal(Rc::downgrade(&ctx));
+        if !is_linked(&self.list_type) {
+            if self.elements.is_empty() {
+                self.list_type = Ok(ValueType::ListType(None));
+            } else {
+                let mut aggregated_type: Option<ValueType> = None;
+                for arg in self.elements.iter_mut() {
+                    if let ExpressionEnum::StaticObject(obj) = arg {
+                        {
+                            let mut object = obj.borrow_mut();
+                            object.node.node_type = NodeDataEnum::Internal(Rc::downgrade(&ctx));
+                        }
+                        linker::link_parts(Rc::clone(obj))?;
                     }
-                    linker::link_parts(Rc::clone(obj))?;
+                    let element_type = arg.link(Rc::clone(&ctx))?;
+                    aggregated_type = Some(match aggregated_type {
+                        None => element_type,
+                        Some(existing) => merge_collection_types(existing, element_type)?,
+                    });
                 }
-                let element_type = arg.link(Rc::clone(&ctx))?;
-                aggregated_type = Some(match aggregated_type {
-                    None => element_type,
-                    Some(existing) => merge_collection_types(existing, element_type)?,
-                });
-            }
-            match aggregated_type {
-                None => {
-                    // @Todo: this must not happen at all, because we check for empty above
-                }
-                Some(ValueType::ObjectType(aggregated_object_type)) => {
-                    // @Todo: ObjectsArray
-                }
-                Some(other_aggregated_type) => {
-                    // @Todo: PrimitivesArray
-                }
-            }
 
-
-            self.collection_item_type = Ok(aggregated_type.unwrap_or(ValueType::UndefinedType));
+                let inner = aggregated_type.map(Box::new);
+                self.list_type = Ok(ValueType::ListType(inner));
+            }
         }
 
-        self.collection_item_type.clone()
+        self.list_type.clone()
     }
 }
 
 fn merge_collection_types(existing: ValueType, new_type: ValueType) -> Link<ValueType> {
     use ValueType::*;
-
-    match (&existing, &new_type) {
-        (UndefinedType, _) => return Ok(new_type),
-        (_, UndefinedType) => return Ok(existing),
-        _ => {}
-    }
 
     if existing == new_type {
         return Ok(existing);
@@ -91,10 +75,14 @@ fn merge_collection_types(existing: ValueType, new_type: ValueType) -> Link<Valu
                 .map_err(|err| LinkingError::other_error(err.to_string()))?;
             Ok(ObjectType(builder.build()))
         }
-        (ListType(base), ListType(extra)) => {
+        (ListType(Some(base)), ListType(Some(extra))) => {
             let merged_inner = merge_collection_types(*base, *extra)?;
-            Ok(ListType(Box::new(merged_inner)))
+            Ok(ListType(Some(Box::new(merged_inner))))
         }
+        (ListType(None), ListType(Some(inner))) | (ListType(Some(inner)), ListType(None)) => {
+            Ok(ListType(Some(inner)))
+        }
+        (ListType(None), ListType(None)) => Ok(ListType(None)),
         (left, right) => LinkingError::other_error(format!(
             "Only homogeneous arrays are supported. Found`{}` and `{}`",
             left, right
@@ -107,17 +95,66 @@ impl CollectionExpression {
     pub fn build(elements: Vec<ExpressionEnum>) -> Self {
         CollectionExpression {
             elements,
-            collection_item_type: LinkingError::not_linked().into(),
+            list_type: LinkingError::not_linked().into(),
         }
     }
 
     pub fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
-        let results = self
-            .elements
-            .iter()
-            .map(|expr| expr.eval(Rc::clone(&context)))
-            .collect();
-        Ok(Array(results, self.collection_item_type.clone()?))
+        let list_type = self.list_type.clone()?;
+
+        if self.elements.is_empty() {
+            return Ok(Array(ArrayValue::EmptyUntyped));
+        }
+
+        match list_type {
+            ValueType::ListType(Some(inner_type)) => match *inner_type {
+                ValueType::ObjectType(object_type) => {
+                    let mut results: Vec<Rc<RefCell<ExecutionContext>>> =
+                        Vec::with_capacity(self.elements.len());
+
+                    for expr in self.elements.iter() {
+                        match expr.eval(Rc::clone(&context))? {
+                            ValueEnum::Reference(reference) => {
+                                results.push(reference);
+                            }
+                            other => {
+                                return RuntimeError::type_not_supported(other.get_type()).into();
+                            }
+                        }
+                    }
+
+                    Ok(Array(ArrayValue::ObjectsArray {
+                        values: results,
+                        object_type,
+                    }))
+                }
+                other_type => {
+                    let mut results: Vec<ValueEnum> = Vec::with_capacity(self.elements.len());
+
+                    for expr in self.elements.iter() {
+                        results.push(expr.eval(Rc::clone(&context))?);
+                    }
+
+                    Ok(Array(ArrayValue::PrimitivesArray {
+                        values: results,
+                        item_type: other_type,
+                    }))
+                }
+            },
+            ValueType::ListType(None) => {
+                let mut results: Vec<ValueEnum> = Vec::with_capacity(self.elements.len());
+
+                for expr in self.elements.iter() {
+                    results.push(expr.eval(Rc::clone(&context))?);
+                }
+
+                Ok(Array(ArrayValue::PrimitivesArray {
+                    values: results,
+                    item_type: ValueType::UndefinedType,
+                }))
+            }
+            other => RuntimeError::type_not_supported(other).into(),
+        }
     }
 }
 

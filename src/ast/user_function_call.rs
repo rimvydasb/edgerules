@@ -133,6 +133,12 @@ impl StaticLink for UserFunctionCall {
                             ExpressionEnum::from(CastCall::new(original, tref.clone()));
                         resolved_type = input_argument.link(Rc::clone(&ctx))?;
                     }
+                    let actual_depth = list_depth(&resolved_type);
+                    let expected_depth = list_depth(&expected);
+                    if actual_depth > expected_depth {
+                        resolved_type =
+                            reduce_list_depth(resolved_type.clone(), actual_depth - expected_depth);
+                    }
                     let validated = LinkingError::expect_single_type(
                         &format!(
                             "Argument `{}` of function `{}`",
@@ -156,6 +162,30 @@ impl StaticLink for UserFunctionCall {
         }
     }
 }
+fn list_depth(value_type: &ValueType) -> usize {
+    match value_type {
+        ValueType::ListType(Some(inner)) => 1 + list_depth(inner),
+        ValueType::ListType(None) => 1,
+        _ => 0,
+    }
+}
+
+fn reduce_list_depth(mut value_type: ValueType, mut levels: usize) -> ValueType {
+    while levels > 0 {
+        match value_type {
+            ValueType::ListType(Some(inner)) => {
+                value_type = *inner;
+                levels -= 1;
+            }
+            ValueType::ListType(None) => {
+                value_type = ValueType::UndefinedType;
+                break;
+            }
+            _ => break,
+        }
+    }
+    value_type
+}
 
 fn resolve_declared_type(
     tref: &ComplexTypeRef,
@@ -166,7 +196,7 @@ fn resolve_declared_type(
         ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
         ComplexTypeRef::List(inner) => {
             let inner_type = resolve_declared_type(inner, function_ctx, call_ctx)?;
-            Ok(ValueType::ListType(Box::new(inner_type)))
+            Ok(ValueType::ListType(Some(Box::new(inner_type))))
         }
         ComplexTypeRef::Alias(_) => {
             if let Some(context) = function_ctx {
@@ -192,7 +222,13 @@ fn can_cast_alias(actual: &ValueType, expected: &ValueType) -> bool {
     match (actual, expected) {
         (ValueType::ObjectType(_), ValueType::ObjectType(_)) => true,
         (ValueType::ListType(inner_actual), ValueType::ListType(inner_expected)) => {
-            can_cast_alias(inner_actual.as_ref(), inner_expected.as_ref())
+            match (inner_actual.as_ref(), inner_expected.as_ref()) {
+                (Some(actual_inner), Some(expected_inner)) => {
+                    can_cast_alias(actual_inner, expected_inner)
+                }
+                (None, None) => true,
+                _ => false,
+            }
         }
         _ => false,
     }

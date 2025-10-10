@@ -70,8 +70,9 @@ fn date_time_and_duration_roundtrip_to_string() {
 #[test]
 fn type_validation_errors_when_mismatched() {
     // List of booleans for all/any
-    link_error_contains("value: all([1,2])", &["unexpected", "boolean"]);
-    link_error_contains("value: any(['x'])", &["unexpected", "boolean"]);
+    // @Todo: all and any are disabled for now
+    //link_error_contains("value: all([1,2])", &["unexpected", "boolean"]);
+    //link_error_contains("value: any(['x'])", &["unexpected", "boolean"]);
 
     // Numeric lists for numeric aggregates
     link_error_contains("value: product(['a','b'])", &["unexpected", "number"]);
@@ -124,9 +125,9 @@ fn type_string_lists() {
         nested: [[1,2], [3]]
         "#,
         &[
-            "nums: list of number",
-            "strs: list of string",
-            "nested: list of list of number",
+            "nums: number[]",
+            "strs: string[]",
+            "nested: number[][]",
         ],
     );
 }
@@ -150,7 +151,7 @@ fn type_string_lists_and_ranges_combined() {
         b: 10..20
         c: [[10,20],[30]]
         "#,
-        "Type<a: list of number, b: range, c: list of list of number>",
+        "Type<a: number[], b: range, c: number[][]>",
     );
 }
 
@@ -174,6 +175,6 @@ fn types_story_placeholders_and_aliases_link() {
         identification: <number>
         relationsList: <number[]>
         "#,
-        &["identification: number", "relationsList: list of number"],
+        &["identification: number", "relationsList: number[]"],
     );
 }

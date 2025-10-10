@@ -25,7 +25,9 @@ fn sum_propagates_missing_origin() {
 
 #[test]
 fn max_empty_list_uses_default_origin() {
+    assert_value!("sum([])", "0");
     assert_value!("max([])", "Missing('N/A')");
+    assert_value!("min([])", "Missing('N/A')");
 }
 
 #[test]

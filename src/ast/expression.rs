@@ -9,9 +9,9 @@ use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{ErrorStack, LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum::Int;
-use crate::typesystem::types::ValueType;
-use crate::typesystem::values::ValueEnum;
+use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{NumberValue, RangeValue, Reference};
+use crate::typesystem::values::{ArrayValue, ValueEnum};
 use crate::utils::intern_field_name;
 use crate::*;
 use log::{error, trace};
@@ -44,10 +44,13 @@ pub(crate) fn missing_for_type(
         ValueType::TimeType => Ok(V::TimeValue(Sv(SV::missing_for(field_name)))),
         ValueType::DateTimeType => Ok(V::DateTimeValue(Sv(SV::missing_for(field_name)))),
         ValueType::DurationType => Ok(V::DurationValue(Sv(SV::missing_for(field_name)))),
-        ValueType::ListType(inner) => {
-            let item_type = inner.as_ref().clone();
-            Ok(V::Array(vec![], item_type))
-        }
+        ValueType::ListType(inner) => match inner.as_ref() {
+            Some(item_type) => Ok(V::Array(ArrayValue::PrimitivesArray {
+                values: Vec::new(),
+                item_type: (**item_type).clone(),
+            })),
+            None => Ok(V::Array(ArrayValue::EmptyUntyped)),
+        },
         ValueType::ObjectType(obj) => {
             // Build empty object filled with missing values for each field
             let mut builder = ContextObjectBuilder::new();
@@ -112,30 +115,109 @@ fn cast_value_to_type(
         | ValueType::RangeType
         | ValueType::UndefinedType => Ok(value),
         ValueType::ListType(inner) => {
-            let item_type = *inner;
+            let desired_item_type = inner.as_ref().map(|boxed| (**boxed).clone());
             match value {
-                V::Array(items, _) => {
-                    let mut casted_items = Vec::with_capacity(items.len());
-                    for item in items {
-                        match item {
-                            Ok(v) => {
-                                let mapped = cast_value_to_type(
-                                    v,
-                                    item_type.clone(),
+                V::Array(array) => match array {
+                    ArrayValue::EmptyUntyped => {
+                        if let Some(item_type) = desired_item_type {
+                            Ok(V::Array(ArrayValue::PrimitivesArray {
+                                values: Vec::new(),
+                                item_type,
+                            }))
+                        } else {
+                            Ok(V::Array(ArrayValue::EmptyUntyped))
+                        }
+                    }
+                    ArrayValue::PrimitivesArray { values, item_type } => {
+                        let target_item_type =
+                            desired_item_type.clone().unwrap_or(item_type.clone());
+                        let mut casted = Vec::with_capacity(values.len());
+                        for v in values {
+                            let mapped = cast_value_to_type(
+                                v,
+                                target_item_type.clone(),
+                                Rc::clone(&ctx),
+                                origin,
+                            )?;
+                            casted.push(mapped);
+                        }
+                        Ok(V::Array(ArrayValue::PrimitivesArray {
+                            values: casted,
+                            item_type: target_item_type,
+                        }))
+                    }
+                    ArrayValue::ObjectsArray {
+                        values,
+                        object_type,
+                    } => match desired_item_type.clone() {
+                        Some(ValueType::ObjectType(target_object_type)) => {
+                            let mut casted: Vec<Rc<RefCell<ExecutionContext>>> =
+                                Vec::with_capacity(values.len());
+                            for reference in values {
+                                let casted_value = cast_value_to_type(
+                                    V::Reference(Rc::clone(&reference)),
+                                    ValueType::ObjectType(Rc::clone(&target_object_type)),
                                     Rc::clone(&ctx),
                                     origin,
                                 )?;
-                                casted_items.push(Ok(mapped));
+                                if let V::Reference(obj_ref) = casted_value {
+                                    casted.push(obj_ref);
+                                } else {
+                                    return RuntimeError::type_not_supported(
+                                        casted_value.get_type(),
+                                    )
+                                    .into();
+                                }
                             }
-                            Err(err) => casted_items.push(Err(err)),
+                            Ok(V::Array(ArrayValue::ObjectsArray {
+                                values: casted,
+                                object_type: target_object_type,
+                            }))
                         }
-                    }
-                    Ok(V::Array(casted_items, item_type))
-                }
+                        Some(other_item_type) => {
+                            let mut casted_values = Vec::with_capacity(values.len());
+                            for reference in values {
+                                let mapped = cast_value_to_type(
+                                    V::Reference(reference),
+                                    other_item_type.clone(),
+                                    Rc::clone(&ctx),
+                                    origin,
+                                )?;
+                                casted_values.push(mapped);
+                            }
+                            let final_item_type =
+                                if matches!(other_item_type, ValueType::UndefinedType)
+                                    && !casted_values.is_empty()
+                                {
+                                    casted_values[0].get_type()
+                                } else {
+                                    other_item_type
+                                };
+                            Ok(V::Array(ArrayValue::PrimitivesArray {
+                                values: casted_values,
+                                item_type: final_item_type,
+                            }))
+                        }
+                        None => Ok(V::Array(ArrayValue::ObjectsArray {
+                            values,
+                            object_type,
+                        })),
+                    },
+                },
                 other => {
-                    let mapped =
-                        cast_value_to_type(other, item_type.clone(), Rc::clone(&ctx), origin)?;
-                    Ok(V::Array(vec![Ok(mapped)], item_type))
+                    let target_item_type = desired_item_type
+                        .clone()
+                        .unwrap_or_else(|| other.get_type());
+                    let mapped = cast_value_to_type(
+                        other,
+                        target_item_type.clone(),
+                        Rc::clone(&ctx),
+                        origin,
+                    )?;
+                    Ok(V::Array(ArrayValue::PrimitivesArray {
+                        values: vec![mapped],
+                        item_type: target_item_type,
+                    }))
                 }
             }
         }

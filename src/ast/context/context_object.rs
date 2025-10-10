@@ -183,9 +183,9 @@ impl ContextObject {
 
                 LinkingError::other_error(format!("Unknown type '{}'", name)).into()
             }
-            ComplexTypeRef::List(inner) => {
-                Ok(ValueType::ListType(Box::new(self.resolve_type_ref(inner)?)))
-            }
+            ComplexTypeRef::List(inner) => Ok(ValueType::ListType(Some(Box::new(
+                self.resolve_type_ref(inner)?,
+            )))),
         }
     }
 

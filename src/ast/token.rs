@@ -28,7 +28,6 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-
 //--------------------------------------------------------------------------------------------------
 
 /// 1 - do as a last priority
@@ -111,15 +110,11 @@ impl Display for ComplexTypeRef {
     }
 }
 
-pub fn into_valid(
-    values: Vec<Result<ValueEnum, RuntimeError>>,
-) -> Result<Vec<ValueEnum>, RuntimeError> {
-    let mut clean = Vec::new();
-
+pub fn into_valid<T>(values: Vec<Result<T, RuntimeError>>) -> Result<Vec<T>, RuntimeError> {
+    let mut clean = Vec::with_capacity(values.len());
     for value in values {
         clean.push(value?);
     }
-
     Ok(clean)
 }
 
@@ -237,10 +232,7 @@ impl StaticLink for ExpressionEnum {
             Operator(operator) => operator.link(ctx),
             Filter(filter) => filter.link(ctx),
             Selection(selection) => selection.link(ctx),
-            Collection(collection) => match collection.link(ctx) {
-                Ok(list_item_type) => Ok(ValueType::ListType(Box::new(list_item_type))),
-                err => err,
-            },
+            Collection(collection) => collection.link(ctx),
             ObjectField(_name, field) => field.link(ctx),
             Value(value) => Ok(value.get_type()),
             ContextVariable => match &ctx.borrow().context_type {

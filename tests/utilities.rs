@@ -113,8 +113,8 @@ pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
     let model = wrap_in_object(lines);
     let evaluated = eval_all(&model);
     assert_eq!(
-        evaluated.lines().map(|l| l.trim()).collect::<Vec<_>>(),
-        expected_lines.iter().map(|l| l.trim()).collect::<Vec<_>>()
+        evaluated.lines().map(|l| inline(l.trim())).collect::<Vec<_>>(),
+        expected_lines.iter().map(|l| inline(l.trim())).collect::<Vec<_>>()
     );
 }
 

@@ -245,6 +245,8 @@ fn application_record_example_extended_with_lists() {
 
 #[test]
 fn user_function_body_is_fully_evaluated() {
+    init_logger();
+
     let code = r#"
     func testFunction(a,b,c): {
         sumAll: sum([a,b,c])
@@ -368,7 +370,7 @@ fn user_function_list_argument_type_mismatch_errors() {
     }
     "#;
 
-    link_error_contains(model, &["Argument `values`", "list of number", "string"]);
+    link_error_contains(model, &["Argument `values`", "number[]", "string"]);
 }
 
 #[test]
