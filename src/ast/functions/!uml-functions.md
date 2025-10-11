@@ -25,6 +25,7 @@ classDiagram
     class UnaryFunction {
         -arg: ExpressionEnum
         -return_type: Link<ValueType>
+        -definition: UnaryFunctionDefinition
         +link(ctx) Link<ValueType>
     }
 
@@ -32,12 +33,14 @@ classDiagram
         -left: ExpressionEnum
         -right: ExpressionEnum
         -return_type: Link<ValueType>
+        -definition: BinaryFunctionDefinition
         +link(ctx) Link<ValueType>
     }
 
     class MultiFunction {
         -args: Vec<ExpressionEnum>
         -return_type: Link<ValueType>
+        -definition: MultiFunctionDefinition
         +link(ctx) Link<ValueType>
     }
 
@@ -64,12 +67,15 @@ classDiagram
     %% Associations / Aggregations / Compositions
     PredefinedFunctions *-- "n" UnaryFunctionDefinition : definition
     UnaryFunction o-- "1" UnaryFunctionDefinition : definition
+    UnaryFunction o-- "1" ValueType : return_type
 
     PredefinedFunctions *-- "n" MultiFunctionDefinition : definition
     MultiFunction o-- "1" MultiFunctionDefinition : definition
+    MultiFunction o-- "1" ValueType : return_type
 
     PredefinedFunctions *-- "n" BinaryFunctionDefinition : definition
     BinaryFunction o-- "1" BinaryFunctionDefinition : definition
+    BinaryFunction o-- "1" ValueType : return_type
 
     %% Notes
     note for UserFunctionCall "a = insurance(1000, 0.1, 10)"
@@ -77,3 +83,5 @@ classDiagram
     note for BinaryFunction "a = find([1,2,3], 2)"
     note for MultiFunction "a = sum(1,2,5)"
 ```
+
+---

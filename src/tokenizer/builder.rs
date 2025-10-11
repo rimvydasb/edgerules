@@ -435,19 +435,19 @@ pub mod factory {
     ) -> Result<EToken, ParseErrorEnum> {
         let name_result = function_name.into_string_or_literal()?;
         let name = name_result.as_str();
-        let mut expressions = right.drain_expressions()?;
+        let mut arguments = right.drain_expressions()?;
 
-        if expressions.len() == 1 {
+        if arguments.len() == 1 {
             if let Some(function) = UNARY_BUILT_IN_FUNCTIONS.get(name) {
-                let expression = expressions.pop().unwrap();
+                let expression = arguments.pop().unwrap();
                 return Ok(Expression(
                     UnaryFunction::build(function.clone(), expression).into(),
                 ));
             }
-        } else if expressions.len() == 2 {
+        } else if arguments.len() == 2 {
             if let Some(function) = BINARY_BUILT_IN_FUNCTIONS.get(name) {
-                let right_expression = expressions.pop().unwrap();
-                let left_expression = expressions.pop().unwrap();
+                let right_expression = arguments.pop().unwrap();
+                let left_expression = arguments.pop().unwrap();
                 return Ok(Expression(
                     BinaryFunction::build(function.clone(), left_expression, right_expression)
                         .into(),
@@ -455,20 +455,20 @@ pub mod factory {
             }
         }
 
-        if !expressions.is_empty() {
+        if !arguments.is_empty() {
             if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
                 return Ok(Expression(
-                    MultiFunction::build(function.clone(), expressions).into(),
+                    MultiFunction::build(function.clone(), arguments).into(),
                 ));
             }
         }
 
         match BUILT_IN_ALL_FUNCTIONS.get(name) {
             None => {
-                if !expressions.is_empty() {
+                if !arguments.is_empty() {
                     Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
                         name.to_string(),
-                        expressions,
+                        arguments,
                     )))))
                 } else {
                     Err(UnknownError(format!(
@@ -480,7 +480,7 @@ pub mod factory {
             Some(finding) => Err(FunctionWrongNumberOfArguments(
                 name.to_string(),
                 finding.clone(),
-                expressions.len(),
+                arguments.len(),
             )),
         }
     }
