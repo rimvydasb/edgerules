@@ -306,46 +306,59 @@ pub const U_IS_EMPTY: UnaryFunctionDefinition = UnaryFunctionDefinition {
     return_type: return_uni_boolean,
 };
 
-pub static UNARY_BUILT_IN_FUNCTIONS: &[(&str, &UnaryFunctionDefinition)] = &[
-    ("count", &U_COUNT),
-    ("date", &U_DATE),
-    ("datetime", &U_DATETIME),
-    ("dayOfWeek", &U_DAY_OF_WEEK),
-    ("distinctValues", &U_DISTINCT_VALUES),
-    ("duplicateValues", &U_DUPLICATE_VALUES),
-    ("duration", &U_DURATION),
-    ("flatten", &U_FLATTEN),
-    ("fromBase64", &U_FROM_BASE64),
-    ("isEmpty", &U_IS_EMPTY),
-    ("lastDayOfMonth", &U_LAST_DAY_OF_MONTH),
-    ("length", &U_LENGTH),
-    ("max", &U_MAX),
-    ("mean", &U_MEAN),
-    ("median", &U_MEDIAN),
-    ("min", &U_MIN),
-    ("mode", &U_MODE),
-    ("monthOfYear", &U_MONTH_OF_YEAR),
-    ("product", &U_PRODUCT),
-    ("reverse", &U_REVERSE),
-    ("sanitizeFilename", &U_SANITIZE_FILENAME),
-    ("sort", &U_SORT),
-    ("sortDescending", &U_SORT_DESCENDING),
-    ("stddev", &U_STDDEV),
-    ("sum", &U_SUM),
-    ("time", &U_TIME),
-    ("toBase64", &U_TO_BASE64),
-    ("toLowerCase", &U_TO_LOWER_CASE),
-    ("toString", &U_TO_STRING),
-    ("toUpperCase", &U_TO_UPPER_CASE),
-    ("trim", &U_TRIM),
+// Build a sorted-by-name table of unary function metas.
+pub static UNARY_FUNCS: &[&UnaryFunctionDefinition] = &[
+    &U_COUNT,
+    &U_DATE,
+    &U_DATETIME,
+    &U_DAY_OF_WEEK,
+    &U_DISTINCT_VALUES,
+    &U_DUPLICATE_VALUES,
+    &U_DURATION,
+    &U_FLATTEN,
+    &U_FROM_BASE64,
+    &U_IS_EMPTY,
+    &U_LAST_DAY_OF_MONTH,
+    &U_LENGTH,
+    &U_MAX,
+    &U_MEAN,
+    &U_MEDIAN,
+    &U_MIN,
+    &U_MODE,
+    &U_MONTH_OF_YEAR,
+    &U_PRODUCT,
+    &U_REVERSE,
+    &U_SANITIZE_FILENAME,
+    &U_SORT,
+    &U_SORT_DESCENDING,
+    &U_STDDEV,
+    &U_SUM,
+    &U_TIME,
+    &U_TO_BASE64,
+    &U_TO_LOWER_CASE,
+    &U_TO_STRING,
+    &U_TO_UPPER_CASE,
+    &U_TRIM,
 ];
+
+#[inline(never)]
+fn binary_search_by_name<'a, T>(table: &'a [&'a T], needle: &str, name_of: fn(&T) -> &str) -> Option<&'a T> {
+    let (mut lo, mut hi) = (0usize, table.len());
+    while lo < hi {
+        let mid = (lo + hi) / 2;
+        let mid_name = name_of(table[mid]);
+        match mid_name.cmp(needle) {
+            core::cmp::Ordering::Less => lo = mid + 1,
+            core::cmp::Ordering::Greater => hi = mid,
+            core::cmp::Ordering::Equal => return Some(table[mid]),
+        }
+    }
+    None
+}
 
 #[inline]
 pub fn lookup_unary(name: &str) -> Option<&'static UnaryFunctionDefinition> {
-    UNARY_BUILT_IN_FUNCTIONS
-        .binary_search_by_key(&name, |(key, _)| *key)
-        .ok()
-        .map(|index| UNARY_BUILT_IN_FUNCTIONS[index].1)
+    binary_search_by_name(UNARY_FUNCS, name, |m| m.name)
 }
 
 pub const B_FIND: BinaryFunctionDefinition = BinaryFunctionDefinition {
@@ -460,31 +473,29 @@ pub const B_PARTITION: BinaryFunctionDefinition = BinaryFunctionDefinition {
     return_type: super::function_list::return_partition_type,
 };
 
-pub static BINARY_BUILT_IN_FUNCTIONS: &[(&str, &BinaryFunctionDefinition)] = &[
-    ("charAt", &B_CHAR_AT),
-    ("charCodeAt", &B_CHAR_CODE_AT),
-    ("contains", &B_CONTAINS),
-    ("endsWith", &B_ENDS_WITH),
-    ("find", &B_FIND),
-    ("indexOf", &B_INDEX_OF),
-    ("interpolate", &B_INTERPOLATE),
-    ("lastIndexOf", &B_LAST_INDEX_OF),
-    ("partition", &B_PARTITION),
-    ("regexSplit", &B_REGEX_SPLIT),
-    ("remove", &B_REMOVE),
-    ("repeat", &B_REPEAT),
-    ("split", &B_SPLIT),
-    ("startsWith", &B_STARTS_WITH),
-    ("substringAfter", &B_SUBSTRING_AFTER),
-    ("substringBefore", &B_SUBSTRING_BEFORE),
+// Sorted-by-name table of binary function metas
+pub static BINARY_FUNCS: &[&BinaryFunctionDefinition] = &[
+    &B_CHAR_AT,
+    &B_CHAR_CODE_AT,
+    &B_CONTAINS,
+    &B_ENDS_WITH,
+    &B_FIND,
+    &B_INDEX_OF,
+    &B_INTERPOLATE,
+    &B_LAST_INDEX_OF,
+    &B_PARTITION,
+    &B_REGEX_SPLIT,
+    &B_REMOVE,
+    &B_REPEAT,
+    &B_SPLIT,
+    &B_STARTS_WITH,
+    &B_SUBSTRING_AFTER,
+    &B_SUBSTRING_BEFORE,
 ];
 
 #[inline]
 pub fn lookup_binary(name: &str) -> Option<&'static BinaryFunctionDefinition> {
-    BINARY_BUILT_IN_FUNCTIONS
-        .binary_search_by_key(&name, |(key, _)| *key)
-        .ok()
-        .map(|index| BINARY_BUILT_IN_FUNCTIONS[index].1)
+    binary_search_by_name(BINARY_FUNCS, name, |m| m.name)
 }
 
 pub const M_MAX: MultiFunctionDefinition = MultiFunctionDefinition {
@@ -606,35 +617,33 @@ pub const M_PAD_END: MultiFunctionDefinition = MultiFunctionDefinition {
     return_type: return_string_type_multi,
 };
 
-pub static MULTI_BUILT_IN_FUNCTIONS: &[(&str, &MultiFunctionDefinition)] = &[
-    ("append", &M_APPEND),
-    ("concatenate", &M_CONCATENATE),
-    ("fromCharCode", &M_FROM_CHAR_CODE),
-    ("insertBefore", &M_INSERT_BEFORE),
-    ("join", &M_JOIN),
-    ("max", &M_MAX),
-    ("min", &M_MIN),
-    ("padEnd", &M_PAD_END),
-    ("padStart", &M_PAD_START),
-    ("regexReplace", &M_REGEX_REPLACE),
-    ("replace", &M_REPLACE),
-    ("replaceFirst", &M_REPLACE_FIRST),
-    ("replaceLast", &M_REPLACE_LAST),
-    ("sublist", &M_SUBLIST),
-    ("substring", &M_SUBSTRING),
-    ("sum", &M_SUM),
-    ("union", &M_UNION),
+// Sorted-by-name table of multi-arg function metas
+pub static MULTI_FUNCS: &[&MultiFunctionDefinition] = &[
+    &M_APPEND,
+    &M_CONCATENATE,
+    &M_FROM_CHAR_CODE,
+    &M_INSERT_BEFORE,
+    &M_JOIN,
+    &M_MAX,
+    &M_MIN,
+    &M_PAD_END,
+    &M_PAD_START,
+    &M_REGEX_REPLACE,
+    &M_REPLACE,
+    &M_REPLACE_FIRST,
+    &M_REPLACE_LAST,
+    &M_SUBLIST,
+    &M_SUBSTRING,
+    &M_SUM,
+    &M_UNION,
 ];
 
 #[inline]
 pub fn lookup_multi(name: &str) -> Option<&'static MultiFunctionDefinition> {
-    MULTI_BUILT_IN_FUNCTIONS
-        .binary_search_by_key(&name, |(key, _)| *key)
-        .ok()
-        .map(|index| MULTI_BUILT_IN_FUNCTIONS[index].1)
+    binary_search_by_name(MULTI_FUNCS, name, |m| m.name)
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum EFunctionType {
     Unary,
     Binary,
@@ -642,78 +651,26 @@ pub enum EFunctionType {
     Custom(u8),
 }
 
-pub static BUILT_IN_ALL_FUNCTIONS: &[(&str, EFunctionType)] = &[
-    ("all", EFunctionType::Unary),
-    ("any", EFunctionType::Unary),
-    ("append", EFunctionType::Multi),
-    ("charAt", EFunctionType::Binary),
-    ("charCodeAt", EFunctionType::Binary),
-    ("concatenate", EFunctionType::Multi),
-    ("count", EFunctionType::Unary),
-    ("date", EFunctionType::Unary),
-    ("datetime", EFunctionType::Unary),
-    ("dayOfWeek", EFunctionType::Unary),
-    ("distinctValues", EFunctionType::Unary),
-    ("duplicateValues", EFunctionType::Unary),
-    ("duration", EFunctionType::Unary),
-    ("endsWith", EFunctionType::Binary),
-    ("find", EFunctionType::Binary),
-    ("flatten", EFunctionType::Unary),
-    ("fromBase64", EFunctionType::Unary),
-    ("fromCharCode", EFunctionType::Multi),
-    ("indexOf", EFunctionType::Binary),
-    ("insertBefore", EFunctionType::Multi),
-    ("interpolate", EFunctionType::Binary),
-    ("isEmpty", EFunctionType::Unary),
-    ("join", EFunctionType::Multi),
-    ("lastDayOfMonth", EFunctionType::Unary),
-    ("lastIndexOf", EFunctionType::Binary),
-    ("length", EFunctionType::Unary),
-    ("max", EFunctionType::Multi),
-    ("mean", EFunctionType::Unary),
-    ("median", EFunctionType::Unary),
-    ("min", EFunctionType::Multi),
-    ("mode", EFunctionType::Unary),
-    ("monthOfYear", EFunctionType::Unary),
-    ("padEnd", EFunctionType::Multi),
-    ("padStart", EFunctionType::Multi),
-    ("partition", EFunctionType::Binary),
-    ("product", EFunctionType::Unary),
-    ("regexReplace", EFunctionType::Multi),
-    ("regexSplit", EFunctionType::Binary),
-    ("remove", EFunctionType::Binary),
-    ("repeat", EFunctionType::Binary),
-    ("replace", EFunctionType::Multi),
-    ("replaceFirst", EFunctionType::Multi),
-    ("replaceLast", EFunctionType::Multi),
-    ("reverse", EFunctionType::Unary),
-    ("sanitizeFilename", EFunctionType::Unary),
-    ("sort", EFunctionType::Unary),
-    ("sortDescending", EFunctionType::Unary),
-    ("split", EFunctionType::Binary),
-    ("startsWith", EFunctionType::Binary),
-    ("stddev", EFunctionType::Unary),
-    ("sublist", EFunctionType::Multi),
-    ("substring", EFunctionType::Multi),
-    ("substringAfter", EFunctionType::Binary),
-    ("substringBefore", EFunctionType::Binary),
-    ("sum", EFunctionType::Multi),
-    ("time", EFunctionType::Unary),
-    ("toBase64", EFunctionType::Unary),
-    ("toLowerCase", EFunctionType::Unary),
-    ("toString", EFunctionType::Unary),
-    ("toUpperCase", EFunctionType::Unary),
-    ("trim", EFunctionType::Unary),
-    ("union", EFunctionType::Multi),
-];
-
 #[inline]
 pub fn lookup_built_in_function(name: &str) -> Option<EFunctionType> {
-    BUILT_IN_ALL_FUNCTIONS
-        .binary_search_by_key(&name, |(key, _)| *key)
-        .ok()
-        .map(|index| BUILT_IN_ALL_FUNCTIONS[index].1.clone())
+    if binary_search_by_name(UNARY_FUNCS, name, |m| m.name).is_some() {
+        return Some(EFunctionType::Unary);
+    }
+    if binary_search_by_name(BINARY_FUNCS, name, |m| m.name).is_some() {
+        return Some(EFunctionType::Binary);
+    }
+    if binary_search_by_name(MULTI_FUNCS, name, |m| m.name).is_some() {
+        return Some(EFunctionType::Multi);
+    }
+
+    // Special reserved names that are not regular metas but should report as built-ins
+    match name {
+        "all" | "any" => Some(EFunctionType::Unary),
+        _ => None,
+    }
 }
+
+//--------------------------------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub struct BinaryFunction {
@@ -879,29 +836,22 @@ mod tests {
 
     #[test]
     fn unary_index_is_sorted() {
-        assert!(UNARY_BUILT_IN_FUNCTIONS
+        assert!(UNARY_FUNCS
             .windows(2)
-            .all(|window| window[0].0 <= window[1].0));
+            .all(|w| w[0].name <= w[1].name));
     }
 
     #[test]
     fn binary_index_is_sorted() {
-        assert!(BINARY_BUILT_IN_FUNCTIONS
+        assert!(BINARY_FUNCS
             .windows(2)
-            .all(|window| window[0].0 <= window[1].0));
+            .all(|w| w[0].name <= w[1].name));
     }
 
     #[test]
     fn multi_index_is_sorted() {
-        assert!(MULTI_BUILT_IN_FUNCTIONS
+        assert!(MULTI_FUNCS
             .windows(2)
-            .all(|window| window[0].0 <= window[1].0));
-    }
-
-    #[test]
-    fn builtin_type_index_is_sorted() {
-        assert!(BUILT_IN_ALL_FUNCTIONS
-            .windows(2)
-            .all(|window| window[0].0 <= window[1].0));
+            .all(|w| w[0].name <= w[1].name));
     }
 }
