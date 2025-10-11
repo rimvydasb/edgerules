@@ -17,7 +17,7 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub struct FunctionHolder<T, V, R> {
     pub name: &'static str,
     pub function: T,

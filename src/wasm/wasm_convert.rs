@@ -141,13 +141,13 @@ fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
                 &JsValue::from_str("start"),
                 &JsValue::from_f64(range.start as f64),
             )
-            .map_err(|_| RuntimeError::eval_error("Failed to export range.start".to_string()))?;
+                .map_err(|_| RuntimeError::eval_error("Failed to export range.start".to_string()))?;
             Reflect::set(
                 &js_range,
                 &JsValue::from_str("endExclusive"),
                 &JsValue::from_f64(range.end as f64),
             )
-            .map_err(|_| RuntimeError::eval_error("Failed to export range.end".to_string()))?;
+                .map_err(|_| RuntimeError::eval_error("Failed to export range.end".to_string()))?;
             Ok(JsValue::from(js_range))
         }
         ValueEnum::DateValue(inner) => match inner {
