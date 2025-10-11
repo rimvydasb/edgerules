@@ -4,6 +4,7 @@ use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
@@ -234,6 +235,59 @@ impl DurationValue {
             DurationKind::DaysTime => {
                 self.days == 0 && self.hours == 0 && self.minutes == 0 && self.seconds == 0
             }
+        }
+    }
+
+    pub(crate) fn signed_months(&self) -> i128 {
+        let total_months = (self.years as i128) * 12 + self.months as i128;
+        if self.negative {
+            -total_months
+        } else {
+            total_months
+        }
+    }
+
+    pub(crate) fn signed_seconds(&self) -> i128 {
+        let total_seconds =
+            ((((self.days as i128 * 24) + self.hours as i128) * 60 + self.minutes as i128) * 60)
+                + self.seconds as i128;
+        if self.negative {
+            -total_seconds
+        } else {
+            total_seconds
+        }
+    }
+
+    pub(crate) fn from_total_months(total: i128) -> Self {
+        let negative = total < 0;
+        let abs_total = total.abs();
+        let years = (abs_total / 12) as i32;
+        let months = (abs_total % 12) as i32;
+        DurationValue::ym(years, months, negative)
+    }
+
+    pub(crate) fn from_total_seconds(total: i128) -> Self {
+        let negative = total < 0;
+        let abs_total = total.abs();
+        let days = (abs_total / 86_400) as i64;
+        let mut remainder = abs_total % 86_400;
+        let hours = (remainder / 3_600) as i64;
+        remainder %= 3_600;
+        let minutes = (remainder / 60) as i64;
+        let seconds = (remainder % 60) as i64;
+        DurationValue::dt(days, hours, minutes, seconds, negative)
+    }
+}
+
+impl PartialOrd for DurationValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.kind != other.kind {
+            return None;
+        }
+
+        match self.kind {
+            DurationKind::YearsMonths => Some(self.signed_months().cmp(&other.signed_months())),
+            DurationKind::DaysTime => Some(self.signed_seconds().cmp(&other.signed_seconds())),
         }
     }
 }

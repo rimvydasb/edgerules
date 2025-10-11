@@ -97,7 +97,7 @@ pub fn return_boolean_type_binary(_: ValueType, _: ValueType) -> ValueType {
 pub fn return_string_type_binary(_: ValueType, _: ValueType) -> ValueType {
     StringType
 }
-pub fn return_string_type_multi() -> ValueType {
+pub fn return_string_type_multi(_args: &[ValueType]) -> ValueType {
     StringType
 }
 pub fn return_string_list_type_binary(_: ValueType, _: ValueType) -> ValueType {

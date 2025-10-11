@@ -21,9 +21,23 @@ fn list_membership_and_boolean_aggregates() {
     );
 
     // all/any for booleans
-    // @Todo: all and any are disabled for now
-    //assert_value!("all([true,true,false])", "false");
-    //assert_value!("any([false,false,true])", "true");
+    assert_value!("all([true,true,false])", "false");
+    assert_value!("any([false,false,true])", "true");
+    assert_value!(
+        r#"
+        numbers: [1, 2, 3]
+        value: all(for n in numbers return n < 4)
+    "#,
+        "true"
+    );
+    assert_value!(
+        r#"
+        numbers: [1, 2, 3]
+        threshold: 2
+        value: any(for n in numbers return n > threshold)
+    "#,
+        "true"
+    );
 }
 
 #[test]
@@ -101,6 +115,23 @@ fn list_numeric_aggregates() {
     assert_value!("median([1,2,3])", "2");
     assert_value!("stddev([2,4])", "1");
     assert_value!("mode([1,2,2,3])", "[2]");
+}
+
+#[test]
+fn list_extrema_temporal_values() {
+    assert_value!(
+        "max([date('2020-01-01'), date('2020-05-01')])",
+        "2020-05-01"
+    );
+    assert_value!("min([time('10:00:00'), time('08:00:00')])", "8:00:00.0");
+    assert_value!(
+        "max([datetime('2020-01-01T00:00:00'), datetime('2020-01-02T03:00:00')])",
+        "2020-01-023:00:00.0"
+    );
+    assert_value!("min([duration('P1D'), duration('P2D')])", "P1D");
+    assert_value!("max([duration('P1M'), duration('P2M')])", "P2M");
+    assert_value!("max(date('2020-01-01'), date('2020-05-01'))", "2020-05-01");
+    assert_value!("min(duration('P1D'), duration('P2D'))", "P1D");
 }
 
 #[test]

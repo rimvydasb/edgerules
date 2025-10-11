@@ -43,98 +43,427 @@ pub type BinaryFunctionDefinition = FunctionHolder<
 pub type MultiFunctionDefinition = FunctionHolder<
     fn(Vec<Result<ValueEnum, RuntimeError>>, ValueType) -> Result<ValueEnum, RuntimeError>,
     fn(Vec<ValueType>) -> Link<()>,
-    fn() -> ValueType,
+    fn(&[ValueType]) -> ValueType,
 >;
 
 pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinition> = phf_map! {
     // Generic stringification
-    "toString" => UnaryFunctionDefinition { name : "toString", function: eval_to_string, validation: |_| Ok(()), return_type: |_| ValueType::StringType },
-    "count" => UnaryFunctionDefinition { name : "count", function: eval_count, validation: number_range_or_any_list, return_type: return_uni_number },
-    "max" => UnaryFunctionDefinition { name : "max", function: eval_max, validation: number_range_or_number_list, return_type: return_uni_number },
-    "sum" => UnaryFunctionDefinition { name : "sum", function: eval_sum, validation: number_range_or_number_list, return_type: return_uni_number },
+    "toString" => UnaryFunctionDefinition {
+        name: "toString",
+        function: eval_to_string,
+        validation: |_| Ok(()),
+        return_type: |_| ValueType::StringType,
+    },
+    "count" => UnaryFunctionDefinition {
+        name: "count",
+        function: eval_count,
+        validation: number_range_or_any_list,
+        return_type: return_uni_number,
+    },
+    "max" => UnaryFunctionDefinition {
+        name: "max",
+        function: eval_max,
+        validation: validate_extrema_input,
+        return_type: return_uni_extrema,
+    },
+    "sum" => UnaryFunctionDefinition {
+        name: "sum",
+        function: eval_sum,
+        validation: validate_sum_input,
+        return_type: return_uni_extrema,
+    },
     // List numerics
-    "min" => UnaryFunctionDefinition { name : "min", function: eval_min, validation: number_range_or_number_list, return_type: return_uni_number },
-    "product" => UnaryFunctionDefinition { name : "product", function: eval_product, validation: validate_unary_list_numbers, return_type: return_uni_number },
-    "mean" => UnaryFunctionDefinition { name : "mean", function: eval_mean, validation: validate_unary_list_numbers, return_type: return_uni_number },
-    "median" => UnaryFunctionDefinition { name : "median", function: eval_median, validation: validate_unary_list_numbers, return_type: return_uni_number },
-    "stddev" => UnaryFunctionDefinition { name : "stddev", function: eval_stddev, validation: validate_unary_list_numbers, return_type: return_uni_number },
-    "mode" => UnaryFunctionDefinition { name : "mode", function: eval_mode, validation: validate_unary_list, return_type: |_| ValueType::ListType(Some(Box::new(ValueType::NumberType))) },
+    "min" => UnaryFunctionDefinition {
+        name: "min",
+        function: eval_min,
+        validation: validate_extrema_input,
+        return_type: return_uni_extrema,
+    },
+    "product" => UnaryFunctionDefinition {
+        name: "product",
+        function: eval_product,
+        validation: validate_unary_list_numbers,
+        return_type: return_uni_number,
+    },
+    "mean" => UnaryFunctionDefinition {
+        name: "mean",
+        function: eval_mean,
+        validation: validate_unary_list_numbers,
+        return_type: return_uni_number,
+    },
+    "median" => UnaryFunctionDefinition {
+        name: "median",
+        function: eval_median,
+        validation: validate_unary_list_numbers,
+        return_type: return_uni_number,
+    },
+    "stddev" => UnaryFunctionDefinition {
+        name: "stddev",
+        function: eval_stddev,
+        validation: validate_unary_list_numbers,
+        return_type: return_uni_number,
+    },
+    "mode" => UnaryFunctionDefinition {
+        name: "mode",
+        function: eval_mode,
+        validation: validate_unary_list,
+        return_type: |_| ValueType::ListType(Some(Box::new(ValueType::NumberType))),
+    },
     // Booleans
-    // @Todo: extract validation to the separate function
-    //"all" => UnaryFunctionDefinition { name : "all", function: eval_all, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
-    //"any" => UnaryFunctionDefinition { name : "any", function: eval_any, validation: |v| { if let ValueType::ListType(inner) = v { LinkingError::expect_type(None, *inner, &[ValueType::BooleanType]).map(|_| ()) } else { LinkingError::expect_type(None, v, &[ValueType::ListType(Box::new(ValueType::BooleanType))]).map(|_| ()) } }, return_type: |_| ValueType::BooleanType },
+    "all" => UnaryFunctionDefinition {
+        name: "all",
+        function: eval_all,
+        validation: validate_unary_boolean_list,
+        return_type: |_| ValueType::BooleanType,
+    },
+    "any" => UnaryFunctionDefinition {
+        name: "any",
+        function: eval_any,
+        validation: validate_unary_boolean_list,
+        return_type: |_| ValueType::BooleanType,
+    },
     // Date/Time/Duration parsing
-    "date" => UnaryFunctionDefinition { name : "date", function: eval_date, validation: expect_string_arg, return_type: |_| ValueType::DateType },
-    "time" => UnaryFunctionDefinition { name : "time", function: eval_time, validation: expect_string_arg, return_type: |_| ValueType::TimeType },
-    "datetime" => UnaryFunctionDefinition { name : "datetime", function: eval_datetime, validation: expect_string_arg, return_type: |_| ValueType::DateTimeType },
-    "duration" => UnaryFunctionDefinition { name : "duration", function: eval_duration, validation: expect_string_arg, return_type: |_| ValueType::DurationType },
+    "date" => UnaryFunctionDefinition {
+        name: "date",
+        function: eval_date,
+        validation: expect_string_arg,
+        return_type: |_| ValueType::DateType,
+    },
+    "time" => UnaryFunctionDefinition {
+        name: "time",
+        function: eval_time,
+        validation: expect_string_arg,
+        return_type: |_| ValueType::TimeType,
+    },
+    "datetime" => UnaryFunctionDefinition {
+        name: "datetime",
+        function: eval_datetime,
+        validation: expect_string_arg,
+        return_type: |_| ValueType::DateTimeType,
+    },
+    "duration" => UnaryFunctionDefinition {
+        name: "duration",
+        function: eval_duration,
+        validation: expect_string_arg,
+        return_type: |_| ValueType::DurationType,
+    },
     // Additional helpers
-    "dayOfWeek" => UnaryFunctionDefinition { name : "dayOfWeek", function: eval_day_of_week, validation: expect_date_arg, return_type: |_| ValueType::StringType },
-    "monthOfYear" => UnaryFunctionDefinition { name : "monthOfYear", function: eval_month_of_year, validation: expect_date_arg, return_type: |_| ValueType::StringType },
-    "lastDayOfMonth" => UnaryFunctionDefinition { name : "lastDayOfMonth", function: eval_last_day_of_month, validation: expect_date_arg, return_type: |_| ValueType::NumberType },
+    "dayOfWeek" => UnaryFunctionDefinition {
+        name: "dayOfWeek",
+        function: eval_day_of_week,
+        validation: expect_date_arg,
+        return_type: |_| ValueType::StringType,
+    },
+    "monthOfYear" => UnaryFunctionDefinition {
+        name: "monthOfYear",
+        function: eval_month_of_year,
+        validation: expect_date_arg,
+        return_type: |_| ValueType::StringType,
+    },
+    "lastDayOfMonth" => UnaryFunctionDefinition {
+        name: "lastDayOfMonth",
+        function: eval_last_day_of_month,
+        validation: expect_date_arg,
+        return_type: |_| ValueType::NumberType,
+    },
     // String unary
-    "length" => UnaryFunctionDefinition { name: "length", function: eval_length, validation: validate_unary_string, return_type: return_uni_number },
-    "toUpperCase" => UnaryFunctionDefinition { name: "toUpperCase", function: eval_to_upper, validation: validate_unary_string, return_type: return_string_type_unary },
-    "toLowerCase" => UnaryFunctionDefinition { name: "toLowerCase", function: eval_to_lower, validation: validate_unary_string, return_type: return_string_type_unary },
-    "trim" => UnaryFunctionDefinition { name: "trim", function: eval_trim, validation: validate_unary_string, return_type: return_string_type_unary },
+    "length" => UnaryFunctionDefinition {
+        name: "length",
+        function: eval_length,
+        validation: validate_unary_string,
+        return_type: return_uni_number,
+    },
+    "toUpperCase" => UnaryFunctionDefinition {
+        name: "toUpperCase",
+        function: eval_to_upper,
+        validation: validate_unary_string,
+        return_type: return_string_type_unary,
+    },
+    "toLowerCase" => UnaryFunctionDefinition {
+        name: "toLowerCase",
+        function: eval_to_lower,
+        validation: validate_unary_string,
+        return_type: return_string_type_unary,
+    },
+    "trim" => UnaryFunctionDefinition {
+        name: "trim",
+        function: eval_trim,
+        validation: validate_unary_string,
+        return_type: return_string_type_unary,
+    },
     // base64 group (available; implementation depends on features/target)
-    "toBase64" => UnaryFunctionDefinition { name: "toBase64", function: eval_to_base64, validation: validate_unary_string, return_type: return_string_type_unary },
-    "fromBase64" => UnaryFunctionDefinition { name: "fromBase64", function: eval_from_base64, validation: validate_unary_string, return_type: return_string_type_unary },
+    "toBase64" => UnaryFunctionDefinition {
+        name: "toBase64",
+        function: eval_to_base64,
+        validation: validate_unary_string,
+        return_type: return_string_type_unary,
+    },
+    "fromBase64" => UnaryFunctionDefinition {
+        name: "fromBase64",
+        function: eval_from_base64,
+        validation: validate_unary_string,
+        return_type: return_string_type_unary,
+    },
     // reverse for string or list
-    "reverse" => UnaryFunctionDefinition { name: "reverse", function: eval_reverse_mixed, validation: validate_unary_reverse_mixed, return_type: return_same_list_type },
-    "sort" => UnaryFunctionDefinition { name: "sort", function: eval_sort, validation: validate_unary_list, return_type: return_same_list_type },
-    "sortDescending" => UnaryFunctionDefinition { name: "sortDescending", function: eval_sort_desc, validation: validate_unary_list, return_type: return_same_list_type },
-    "sanitizeFilename" => UnaryFunctionDefinition { name: "sanitizeFilename", function: eval_sanitize_filename, validation: validate_unary_string, return_type: return_string_type_unary },
+    "reverse" => UnaryFunctionDefinition {
+        name: "reverse",
+        function: eval_reverse_mixed,
+        validation: validate_unary_reverse_mixed,
+        return_type: return_same_list_type,
+    },
+    "sort" => UnaryFunctionDefinition {
+        name: "sort",
+        function: eval_sort,
+        validation: validate_unary_list,
+        return_type: return_same_list_type,
+    },
+    "sortDescending" => UnaryFunctionDefinition {
+        name: "sortDescending",
+        function: eval_sort_desc,
+        validation: validate_unary_list,
+        return_type: return_same_list_type,
+    },
+    "sanitizeFilename" => UnaryFunctionDefinition {
+        name: "sanitizeFilename",
+        function: eval_sanitize_filename,
+        validation: validate_unary_string,
+        return_type: return_string_type_unary,
+    },
     // list helpers
-    "distinctValues" => UnaryFunctionDefinition { name: "distinctValues", function: eval_distinct, validation: validate_unary_list, return_type: return_same_list_type },
-    "duplicateValues" => UnaryFunctionDefinition { name: "duplicateValues", function: eval_duplicates, validation: validate_unary_list, return_type: return_same_list_type },
-    "flatten" => UnaryFunctionDefinition { name: "flatten", function: eval_flatten, validation: validate_unary_list, return_type: return_flatten_type },
-    "isEmpty" => UnaryFunctionDefinition { name: "isEmpty", function: eval_is_empty, validation: validate_unary_list, return_type: |_| ValueType::BooleanType },
+    "distinctValues" => UnaryFunctionDefinition {
+        name: "distinctValues",
+        function: eval_distinct,
+        validation: validate_unary_list,
+        return_type: return_same_list_type,
+    },
+    "duplicateValues" => UnaryFunctionDefinition {
+        name: "duplicateValues",
+        function: eval_duplicates,
+        validation: validate_unary_list,
+        return_type: return_same_list_type,
+    },
+    "flatten" => UnaryFunctionDefinition {
+        name: "flatten",
+        function: eval_flatten,
+        validation: validate_unary_list,
+        return_type: return_flatten_type,
+    },
+    "isEmpty" => UnaryFunctionDefinition {
+        name: "isEmpty",
+        function: eval_is_empty,
+        validation: validate_unary_list,
+        return_type: |_| ValueType::BooleanType,
+    },
 };
 
 pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefinition> = phf_map! {
-    "find" => BinaryFunctionDefinition { name : "find", function: eval_find, validation: list_item_as_second_arg, return_type: return_binary_same_as_right_arg },
+    "find" => BinaryFunctionDefinition {
+        name: "find",
+        function: eval_find,
+        validation: list_item_as_second_arg,
+        return_type: return_binary_same_as_right_arg,
+    },
     // List or String
-    "contains" => BinaryFunctionDefinition { name: "contains", function: eval_contains_mixed, validation: validate_binary_contains_mixed, return_type: return_boolean_type_binary },
-    "startsWith" => BinaryFunctionDefinition { name: "startsWith", function: eval_starts_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
-    "endsWith" => BinaryFunctionDefinition { name: "endsWith", function: eval_ends_with, validation: validate_binary_string_string, return_type: return_boolean_type_binary },
+    "contains" => BinaryFunctionDefinition {
+        name: "contains",
+        function: eval_contains_mixed,
+        validation: validate_binary_contains_mixed,
+        return_type: return_boolean_type_binary,
+    },
+    "startsWith" => BinaryFunctionDefinition {
+        name: "startsWith",
+        function: eval_starts_with,
+        validation: validate_binary_string_string,
+        return_type: return_boolean_type_binary,
+    },
+    "endsWith" => BinaryFunctionDefinition {
+        name: "endsWith",
+        function: eval_ends_with,
+        validation: validate_binary_string_string,
+        return_type: return_boolean_type_binary,
+    },
     // split: regex when enabled, otherwise simple substring split
-    "split" => BinaryFunctionDefinition { name: "split", function: eval_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
-    "regexSplit" => BinaryFunctionDefinition { name: "regexSplit", function: eval_regex_split, validation: validate_binary_string_string, return_type: return_string_list_type_binary },
-    "substringBefore" => BinaryFunctionDefinition { name: "substringBefore", function: eval_substring_before, validation: validate_binary_string_string, return_type: return_string_type_binary },
-    "substringAfter" => BinaryFunctionDefinition { name: "substringAfter", function: eval_substring_after, validation: validate_binary_string_string, return_type: return_string_type_binary },
-    "charAt" => BinaryFunctionDefinition { name: "charAt", function: eval_char_at, validation: validate_binary_string_number, return_type: return_string_type_binary },
-    "charCodeAt" => BinaryFunctionDefinition { name: "charCodeAt", function: eval_char_code_at, validation: validate_binary_string_number, return_type: return_number_type_binary },
+    "split" => BinaryFunctionDefinition {
+        name: "split",
+        function: eval_split,
+        validation: validate_binary_string_string,
+        return_type: return_string_list_type_binary,
+    },
+    "regexSplit" => BinaryFunctionDefinition {
+        name: "regexSplit",
+        function: eval_regex_split,
+        validation: validate_binary_string_string,
+        return_type: return_string_list_type_binary,
+    },
+    "substringBefore" => BinaryFunctionDefinition {
+        name: "substringBefore",
+        function: eval_substring_before,
+        validation: validate_binary_string_string,
+        return_type: return_string_type_binary,
+    },
+    "substringAfter" => BinaryFunctionDefinition {
+        name: "substringAfter",
+        function: eval_substring_after,
+        validation: validate_binary_string_string,
+        return_type: return_string_type_binary,
+    },
+    "charAt" => BinaryFunctionDefinition {
+        name: "charAt",
+        function: eval_char_at,
+        validation: validate_binary_string_number,
+        return_type: return_string_type_binary,
+    },
+    "charCodeAt" => BinaryFunctionDefinition {
+        name: "charCodeAt",
+        function: eval_char_code_at,
+        validation: validate_binary_string_number,
+        return_type: return_number_type_binary,
+    },
     // Mix: string or list
-    "indexOf" => BinaryFunctionDefinition { name: "indexOf", function: eval_index_of_mixed, validation: validate_binary_index_of_mixed, return_type: return_index_of_type },
-    "lastIndexOf" => BinaryFunctionDefinition { name: "lastIndexOf", function: eval_last_index_of, validation: validate_binary_string_string, return_type: return_number_type_binary },
-    "repeat" => BinaryFunctionDefinition { name: "repeat", function: eval_repeat, validation: validate_binary_string_number, return_type: return_string_type_binary },
-    "interpolate" => BinaryFunctionDefinition { name: "interpolate", function: eval_interpolate, validation: validate_binary_string_any, return_type: return_string_type_binary },
+    "indexOf" => BinaryFunctionDefinition {
+        name: "indexOf",
+        function: eval_index_of_mixed,
+        validation: validate_binary_index_of_mixed,
+        return_type: return_index_of_type,
+    },
+    "lastIndexOf" => BinaryFunctionDefinition {
+        name: "lastIndexOf",
+        function: eval_last_index_of,
+        validation: validate_binary_string_string,
+        return_type: return_number_type_binary,
+    },
+    "repeat" => BinaryFunctionDefinition {
+        name: "repeat",
+        function: eval_repeat,
+        validation: validate_binary_string_number,
+        return_type: return_string_type_binary,
+    },
+    "interpolate" => BinaryFunctionDefinition {
+        name: "interpolate",
+        function: eval_interpolate,
+        validation: validate_binary_string_any,
+        return_type: return_string_type_binary,
+    },
     // List-specific
-    "remove" => BinaryFunctionDefinition { name: "remove", function: eval_remove, validation: validate_binary_list_number, return_type: |l, _| l },
-    "partition" => BinaryFunctionDefinition { name: "partition", function: eval_partition, validation: validate_binary_partition, return_type: |l, r| super::function_list::return_partition_type(l, r) },
+    "remove" => BinaryFunctionDefinition {
+        name: "remove",
+        function: eval_remove,
+        validation: validate_binary_list_number,
+        return_type: return_binary_same_as_left_arg,
+    },
+    "partition" => BinaryFunctionDefinition {
+        name: "partition",
+        function: eval_partition,
+        validation: validate_binary_partition,
+        return_type: return_partition_type,
+    },
 };
 
 pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinition> = phf_map! {
-    "max" => MultiFunctionDefinition { name : "max", function: eval_max_multi, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
-    "sum" => MultiFunctionDefinition { name : "sum", function: eval_sum_multi, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
-    "min" => MultiFunctionDefinition { name : "min", function: eval_min_multi, validation: validate_multi_all_args_numbers, return_type: return_multi_number },
+    "max" => MultiFunctionDefinition {
+        name: "max",
+        function: eval_max_multi,
+        validation: validate_multi_extrema_args,
+        return_type: return_multi_extrema,
+    },
+    "sum" => MultiFunctionDefinition {
+        name: "sum",
+        function: eval_sum_multi,
+        validation: validate_multi_sum_args,
+        return_type: return_multi_extrema,
+    },
+    "min" => MultiFunctionDefinition {
+        name: "min",
+        function: eval_min_multi,
+        validation: validate_multi_extrema_args,
+        return_type: return_multi_extrema,
+    },
     // List multi-arity
-    "sublist" => MultiFunctionDefinition { name: "sublist", function: eval_sublist, validation: validate_multi_sublist, return_type: return_list_undefined },
-    "append" => MultiFunctionDefinition { name: "append", function: eval_append, validation: validate_multi_append, return_type: return_list_undefined },
-    "concatenate" => MultiFunctionDefinition { name: "concatenate", function: eval_concatenate, validation: validate_multi_concatenate, return_type: return_list_undefined },
-    "insertBefore" => MultiFunctionDefinition { name: "insertBefore", function: eval_insert_before, validation: validate_multi_insert_before, return_type: return_list_undefined },
-    "union" => MultiFunctionDefinition { name: "union", function: eval_union, validation: validate_multi_union, return_type: return_list_undefined },
+    "sublist" => MultiFunctionDefinition {
+        name: "sublist",
+        function: eval_sublist,
+        validation: validate_multi_sublist,
+        return_type: return_list_undefined,
+    },
+    "append" => MultiFunctionDefinition {
+        name: "append",
+        function: eval_append,
+        validation: validate_multi_append,
+        return_type: return_list_undefined,
+    },
+    "concatenate" => MultiFunctionDefinition {
+        name: "concatenate",
+        function: eval_concatenate,
+        validation: validate_multi_concatenate,
+        return_type: return_list_undefined,
+    },
+    "insertBefore" => MultiFunctionDefinition {
+        name: "insertBefore",
+        function: eval_insert_before,
+        validation: validate_multi_insert_before,
+        return_type: return_list_undefined,
+    },
+    "union" => MultiFunctionDefinition {
+        name: "union",
+        function: eval_union,
+        validation: validate_multi_union,
+        return_type: return_list_undefined,
+    },
     // String multi-arity
-    "join" => MultiFunctionDefinition { name: "join", function: eval_join, validation: validate_multi_join, return_type: return_string_type_multi },
-    "substring" => MultiFunctionDefinition { name: "substring", function: eval_substring, validation: validate_multi_substring, return_type: return_string_type_multi },
-    "replace" => MultiFunctionDefinition { name: "replace", function: eval_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
-    "regexReplace" => MultiFunctionDefinition { name: "regexReplace", function: eval_regex_replace, validation: validate_multi_replace, return_type: return_string_type_multi },
-    "replaceFirst" => MultiFunctionDefinition { name: "replaceFirst", function: eval_replace_first, validation: validate_multi_replace, return_type: return_string_type_multi },
-    "replaceLast" => MultiFunctionDefinition { name: "replaceLast", function: eval_replace_last, validation: validate_multi_replace, return_type: return_string_type_multi },
-    "fromCharCode" => MultiFunctionDefinition { name: "fromCharCode", function: eval_from_char_code, validation: validate_multi_from_char_code, return_type: return_string_type_multi },
-    "padStart" => MultiFunctionDefinition { name: "padStart", function: eval_pad_start, validation: validate_multi_pad, return_type: return_string_type_multi },
-    "padEnd" => MultiFunctionDefinition { name: "padEnd", function: eval_pad_end, validation: validate_multi_pad, return_type: return_string_type_multi },
+    "join" => MultiFunctionDefinition {
+        name: "join",
+        function: eval_join,
+        validation: validate_multi_join,
+        return_type: return_string_type_multi,
+    },
+    "substring" => MultiFunctionDefinition {
+        name: "substring",
+        function: eval_substring,
+        validation: validate_multi_substring,
+        return_type: return_string_type_multi,
+    },
+    "replace" => MultiFunctionDefinition {
+        name: "replace",
+        function: eval_replace,
+        validation: validate_multi_replace,
+        return_type: return_string_type_multi,
+    },
+    "regexReplace" => MultiFunctionDefinition {
+        name: "regexReplace",
+        function: eval_regex_replace,
+        validation: validate_multi_replace,
+        return_type: return_string_type_multi,
+    },
+    "replaceFirst" => MultiFunctionDefinition {
+        name: "replaceFirst",
+        function: eval_replace_first,
+        validation: validate_multi_replace,
+        return_type: return_string_type_multi,
+    },
+    "replaceLast" => MultiFunctionDefinition {
+        name: "replaceLast",
+        function: eval_replace_last,
+        validation: validate_multi_replace,
+        return_type: return_string_type_multi,
+    },
+    "fromCharCode" => MultiFunctionDefinition {
+        name: "fromCharCode",
+        function: eval_from_char_code,
+        validation: validate_multi_from_char_code,
+        return_type: return_string_type_multi,
+    },
+    "padStart" => MultiFunctionDefinition {
+        name: "padStart",
+        function: eval_pad_start,
+        validation: validate_multi_pad,
+        return_type: return_string_type_multi,
+    },
+    "padEnd" => MultiFunctionDefinition {
+        name: "padEnd",
+        function: eval_pad_end,
+        validation: validate_multi_pad,
+        return_type: return_string_type_multi,
+    },
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -354,9 +683,9 @@ impl StaticLink for MultiFunction {
                 arg_types.push(arg.link(Rc::clone(&ctx))?);
             }
 
-            (self.definition.validation)(arg_types)?;
+            (self.definition.validation)(arg_types.clone())?;
 
-            self.return_type = Ok((self.definition.return_type)());
+            self.return_type = Ok((self.definition.return_type)(&arg_types));
         }
 
         self.return_type.clone()

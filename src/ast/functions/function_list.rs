@@ -6,7 +6,7 @@ use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum::{Char as SChar, String as SString};
-use crate::typesystem::types::ValueType::{ListType, NumberType, StringType};
+use crate::typesystem::types::ValueType::{BooleanType, ListType, NumberType, StringType};
 use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
@@ -113,10 +113,26 @@ pub fn validate_unary_list_numbers(arg: ValueType) -> Link<()> {
     }
 }
 
+pub fn validate_unary_boolean_list(arg: ValueType) -> Link<()> {
+    match arg {
+        ListType(Some(inner)) => {
+            LinkingError::expect_type(None, *inner, &[BooleanType]).map(|_| ())
+        }
+        ListType(None) => LinkingError::types_not_compatible(
+            None,
+            ValueType::ListType(None),
+            Some(vec![ListType(Some(Box::new(BooleanType)))]),
+        )
+        .into(),
+        other => LinkingError::expect_type(None, other, &[ListType(Some(Box::new(BooleanType)))])
+            .map(|_| ()),
+    }
+}
+
 pub fn return_same_list_type(arg: ValueType) -> ValueType {
     arg
 }
-pub fn return_list_undefined() -> ValueType {
+pub fn return_list_undefined(_args: &[ValueType]) -> ValueType {
     ListType(None)
 }
 
