@@ -8,7 +8,7 @@ use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::values::{ValueEnum, ValueOrSv};
+use crate::typesystem::values::{ValueEnum, ValueOrSv, ArrayValue};
 use js_sys::{Array, Date as JsDate, Object, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -104,14 +104,6 @@ fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
         ValueEnum::NumberValue(number) => match number {
             NumberEnum::Real(v) => Ok(JsValue::from_f64(*v)),
             NumberEnum::Int(v) => Ok(JsValue::from_f64(*v as f64)),
-            NumberEnum::Fraction(numerator, denominator) => {
-                if *denominator == 0 {
-                    return Err(RuntimeError::eval_error(
-                        "Cannot convert fraction with zero denominator".to_string(),
-                    ));
-                }
-                Ok(JsValue::from_f64(*numerator as f64 / *denominator as f64))
-            }
             NumberEnum::SV(sv) => Ok(JsValue::from_str(&sv.to_string())),
         },
         ValueEnum::StringValue(inner) => {
@@ -122,14 +114,22 @@ fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
             };
             Ok(JsValue::from_str(&text))
         }
-        ValueEnum::Array(items, _) => {
+        ValueEnum::Array(array) => {
             let js_array = Array::new();
-            for item in items {
-                let js_item = match item {
-                    Ok(inner) => value_to_js(inner)?,
-                    Err(err) => return Err(err.clone()),
-                };
-                js_array.push(&js_item);
+            match array {
+                ArrayValue::PrimitivesArray { values, .. } => {
+                    for item in values {
+                        let js_item = value_to_js(item)?;
+                        js_array.push(&js_item);
+                    }
+                }
+                ArrayValue::ObjectsArray { values, .. } => {
+                    for item in values {
+                        let js_item = execution_context_to_js(Rc::clone(item))?;
+                        js_array.push(&js_item);
+                    }
+                }
+                ArrayValue::EmptyUntyped => {}
             }
             Ok(JsValue::from(js_array))
         }
@@ -218,7 +218,8 @@ fn js_to_value(js_value: &JsValue) -> Result<ValueEnum, String> {
         for item in array.iter() {
             elements.push(js_to_value(&item)?);
         }
-        return Ok(ValueEnum::from(elements));
+        // Construct ArrayValue manually
+        return Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: elements, item_type: crate::typesystem::types::ValueType::ListType(None) }));
     }
 
     if js_value.is_instance_of::<JsDate>() {
