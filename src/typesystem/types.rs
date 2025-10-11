@@ -47,7 +47,7 @@ pub enum ValueType {
     /// - ExecutionContext type is a ContextObject
     /// - ContextObject instance is ExecutionContext
     /// - @Todo: it is a question if RefCell is necessary - context object must be immutable btw
-    ObjectType(Rc<RefCell<ContextObject>>),
+    ObjectType(Rc<ContextObject>),
 
     // @Todo: this must not exists in runtime - if it exists, runtime must not start
     UndefinedType,

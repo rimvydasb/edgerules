@@ -88,9 +88,6 @@ pub fn validate_multi_pad(args: Vec<ValueType>) -> Link<()> {
     LinkingError::expect_type(None, args[2].clone(), &[StringType])?;
     Ok(())
 }
-pub fn return_string_type_unary(_: ValueType) -> ValueType {
-    StringType
-}
 pub fn return_boolean_type_binary(_: ValueType, _: ValueType) -> ValueType {
     BooleanType
 }

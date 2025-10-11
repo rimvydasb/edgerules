@@ -8,7 +8,7 @@ use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::values::{ValueEnum, ValueOrSv, ArrayValue};
+use crate::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use js_sys::{Array, Date as JsDate, Object, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -141,13 +141,13 @@ fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
                 &JsValue::from_str("start"),
                 &JsValue::from_f64(range.start as f64),
             )
-                .map_err(|_| RuntimeError::eval_error("Failed to export range.start".to_string()))?;
+            .map_err(|_| RuntimeError::eval_error("Failed to export range.start".to_string()))?;
             Reflect::set(
                 &js_range,
                 &JsValue::from_str("endExclusive"),
                 &JsValue::from_f64(range.end as f64),
             )
-                .map_err(|_| RuntimeError::eval_error("Failed to export range.end".to_string()))?;
+            .map_err(|_| RuntimeError::eval_error("Failed to export range.end".to_string()))?;
             Ok(JsValue::from(js_range))
         }
         ValueEnum::DateValue(inner) => match inner {
@@ -219,7 +219,10 @@ fn js_to_value(js_value: &JsValue) -> Result<ValueEnum, String> {
             elements.push(js_to_value(&item)?);
         }
         // Construct ArrayValue manually
-        return Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: elements, item_type: crate::typesystem::types::ValueType::ListType(None) }));
+        return Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
+            values: elements,
+            item_type: crate::typesystem::types::ValueType::ListType(None),
+        }));
     }
 
     if js_value.is_instance_of::<JsDate>() {

@@ -26,61 +26,40 @@ impl DurationTotal {
     fn from_value(value: &RuntimeDurationValue) -> Self {
         match value.kind {
             DurationKind::YearsMonths => {
-                let total_months = i128::from(value.years) * 12 + i128::from(value.months);
-                let total = if value.negative {
-                    -total_months
-                } else {
-                    total_months
-                };
-                DurationTotal::YearsMonths(total)
+                let total = i128::from(value.years) * 12 + i128::from(value.months);
+                DurationTotal::YearsMonths(if value.negative { -total } else { total })
             }
             DurationKind::DaysTime => {
-                let total_seconds = i128::from(value.days) * 86_400
+                let total = i128::from(value.days) * 86_400
                     + i128::from(value.hours) * 3_600
                     + i128::from(value.minutes) * 60
                     + i128::from(value.seconds);
-                let total = if value.negative {
-                    -total_seconds
-                } else {
-                    total_seconds
-                };
-                DurationTotal::DaysTime(total)
+                DurationTotal::DaysTime(if value.negative { -total } else { total })
             }
         }
     }
 
     fn compare(&self, other: &Self) -> Result<Ordering, RuntimeError> {
         match (self, other) {
-            (DurationTotal::YearsMonths(left), DurationTotal::YearsMonths(right)) => {
+            (DurationTotal::YearsMonths(left), DurationTotal::YearsMonths(right))
+            | (DurationTotal::DaysTime(left), DurationTotal::DaysTime(right)) => {
                 Ok(left.cmp(right))
             }
-            (DurationTotal::DaysTime(left), DurationTotal::DaysTime(right)) => Ok(left.cmp(right)),
             _ => Err(RuntimeError::eval_error(
-                "Duration comparison requires values of the same kind".to_string(),
+                "Duration kinds must match".to_string(),
             )),
         }
     }
 
     fn add_assign(&mut self, other: &Self) -> Result<(), RuntimeError> {
         match (self, other) {
-            (DurationTotal::YearsMonths(total), DurationTotal::YearsMonths(extra)) => {
-                *total = (*total).checked_add(*extra).ok_or_else(|| {
-                    RuntimeError::eval_error(
-                        "Duration addition overflowed total months".to_string(),
-                    )
-                })?;
-                Ok(())
-            }
-            (DurationTotal::DaysTime(total), DurationTotal::DaysTime(extra)) => {
-                *total = (*total).checked_add(*extra).ok_or_else(|| {
-                    RuntimeError::eval_error(
-                        "Duration addition overflowed total seconds".to_string(),
-                    )
-                })?;
+            (DurationTotal::YearsMonths(total), DurationTotal::YearsMonths(extra))
+            | (DurationTotal::DaysTime(total), DurationTotal::DaysTime(extra)) => {
+                *total += *extra;
                 Ok(())
             }
             _ => Err(RuntimeError::eval_error(
-                "Duration addition requires values of the same kind".to_string(),
+                "Duration kinds must match".to_string(),
             )),
         }
     }
@@ -93,19 +72,14 @@ impl DurationTotal {
                 }
                 let negative = total_months < 0;
                 let absolute = if negative {
-                    total_months.checked_neg().ok_or_else(|| {
-                        RuntimeError::eval_error(
-                            "Duration conversion overflowed total months".to_string(),
-                        )
-                    })?
+                    -total_months
                 } else {
                     total_months
                 };
-                let years = i32::try_from(absolute / 12).map_err(|_| {
-                    RuntimeError::eval_error("Duration years exceed supported range".to_string())
-                })?;
+                let years = i32::try_from(absolute / 12)
+                    .map_err(|_| RuntimeError::eval_error("Duration years overflow".to_string()))?;
                 let months = i32::try_from(absolute % 12).map_err(|_| {
-                    RuntimeError::eval_error("Duration months exceed supported range".to_string())
+                    RuntimeError::eval_error("Duration months overflow".to_string())
                 })?;
                 Ok(RuntimeDurationValue::ym(years, months, negative))
             }
@@ -115,27 +89,21 @@ impl DurationTotal {
                 }
                 let negative = total_seconds < 0;
                 let absolute = if negative {
-                    total_seconds.checked_neg().ok_or_else(|| {
-                        RuntimeError::eval_error(
-                            "Duration conversion overflowed total seconds".to_string(),
-                        )
-                    })?
+                    -total_seconds
                 } else {
                     total_seconds
                 };
-                let days = i64::try_from(absolute / 86_400).map_err(|_| {
-                    RuntimeError::eval_error("Duration days exceed supported range".to_string())
-                })?;
+                let days = i64::try_from(absolute / 86_400)
+                    .map_err(|_| RuntimeError::eval_error("Duration days overflow".to_string()))?;
                 let rem = absolute % 86_400;
-                let hours = i64::try_from(rem / 3_600).map_err(|_| {
-                    RuntimeError::eval_error("Duration hours exceed supported range".to_string())
-                })?;
+                let hours = i64::try_from(rem / 3_600)
+                    .map_err(|_| RuntimeError::eval_error("Duration hours overflow".to_string()))?;
                 let rem = rem % 3_600;
                 let minutes = i64::try_from(rem / 60).map_err(|_| {
-                    RuntimeError::eval_error("Duration minutes exceed supported range".to_string())
+                    RuntimeError::eval_error("Duration minutes overflow".to_string())
                 })?;
                 let seconds = i64::try_from(rem % 60).map_err(|_| {
-                    RuntimeError::eval_error("Duration seconds exceed supported range".to_string())
+                    RuntimeError::eval_error("Duration seconds overflow".to_string())
                 })?;
                 Ok(RuntimeDurationValue::dt(
                     days, hours, minutes, seconds, negative,
@@ -722,10 +690,6 @@ pub fn validate_multi_all_args_numbers(args: Vec<ValueType>) -> Link<()> {
 
 pub fn return_binary_same_as_right_arg(_left: ValueType, right: ValueType) -> ValueType {
     right
-}
-
-pub fn return_uni_number(_arg: ValueType) -> ValueType {
-    NumberType
 }
 
 pub fn return_multi_number() -> ValueType {

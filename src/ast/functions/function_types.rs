@@ -25,10 +25,16 @@ pub struct FunctionHolder<T, V, R> {
     pub return_type: R,
 }
 
+#[derive(Debug)]
+pub enum UnaryReturnType {
+    Constant(ValueType),
+    Derived(fn(ValueType) -> ValueType),
+}
+
 pub type UnaryFunctionDefinition = FunctionHolder<
     fn(ValueEnum) -> Result<ValueEnum, RuntimeError>,
     fn(ValueType) -> Link<()>,
-    fn(ValueType) -> ValueType,
+    UnaryReturnType,
 >;
 
 pub type BinaryFunctionDefinition = FunctionHolder<
@@ -44,47 +50,17 @@ pub type MultiFunctionDefinition = FunctionHolder<
     fn() -> ValueType,
 >;
 
-#[inline]
+/// #[inline]
 fn validate_unary_any(_: ValueType) -> Link<()> {
     Ok(())
 }
 
-#[inline]
-fn return_uni_string(_: ValueType) -> ValueType {
-    ValueType::StringType
-}
-
-#[inline]
-fn return_uni_boolean(_: ValueType) -> ValueType {
-    ValueType::BooleanType
-}
-
-#[inline]
-fn return_uni_date(_: ValueType) -> ValueType {
-    ValueType::DateType
-}
-
-#[inline]
-fn return_uni_time(_: ValueType) -> ValueType {
-    ValueType::TimeType
-}
-
-#[inline]
-fn return_uni_datetime(_: ValueType) -> ValueType {
-    ValueType::DateTimeType
-}
-
-#[inline]
-fn return_uni_duration(_: ValueType) -> ValueType {
-    ValueType::DurationType
-}
-
-#[inline]
+/// #[inline]
 fn return_uni_mode_number_list(_: ValueType) -> ValueType {
     ValueType::ListType(Some(Box::new(ValueType::NumberType)))
 }
 
-#[inline]
+/// #[inline]
 fn return_binary_same_as_left_arg(left: ValueType, _: ValueType) -> ValueType {
     left
 }
@@ -93,272 +69,264 @@ pub const U_TO_STRING: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "toString",
     function: eval_to_string,
     validation: validate_unary_any,
-    return_type: return_uni_string,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_COUNT: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "count",
     function: eval_count,
     validation: number_range_or_any_list,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_MAX: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "max",
     function: eval_max,
     validation: number_range_or_number_list,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_SUM: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "sum",
     function: eval_sum,
     validation: number_range_or_number_list,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_MIN: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "min",
     function: eval_min,
     validation: number_range_or_number_list,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_PRODUCT: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "product",
     function: eval_product,
     validation: validate_unary_list_numbers,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_MEAN: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "mean",
     function: eval_mean,
     validation: validate_unary_list_numbers,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_MEDIAN: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "median",
     function: eval_median,
     validation: validate_unary_list_numbers,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_STDDEV: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "stddev",
     function: eval_stddev,
     validation: validate_unary_list_numbers,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_MODE: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "mode",
     function: eval_mode,
     validation: validate_unary_list,
-    return_type: return_uni_mode_number_list,
+    return_type: UnaryReturnType::Derived(return_uni_mode_number_list),
 };
 
 pub const U_DATE: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "date",
     function: eval_date,
     validation: expect_string_arg,
-    return_type: return_uni_date,
+    return_type: UnaryReturnType::Constant(ValueType::DateType),
 };
 
 pub const U_TIME: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "time",
     function: eval_time,
     validation: expect_string_arg,
-    return_type: return_uni_time,
+    return_type: UnaryReturnType::Constant(ValueType::TimeType),
 };
 
 pub const U_DATETIME: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "datetime",
     function: eval_datetime,
     validation: expect_string_arg,
-    return_type: return_uni_datetime,
+    return_type: UnaryReturnType::Constant(ValueType::DateTimeType),
 };
 
 pub const U_DURATION: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "duration",
     function: eval_duration,
     validation: expect_string_arg,
-    return_type: return_uni_duration,
+    return_type: UnaryReturnType::Constant(ValueType::DurationType),
 };
 
 pub const U_DAY_OF_WEEK: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "dayOfWeek",
     function: eval_day_of_week,
     validation: expect_date_arg,
-    return_type: return_uni_string,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_MONTH_OF_YEAR: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "monthOfYear",
     function: eval_month_of_year,
     validation: expect_date_arg,
-    return_type: return_uni_string,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_LAST_DAY_OF_MONTH: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "lastDayOfMonth",
     function: eval_last_day_of_month,
     validation: expect_date_arg,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_LENGTH: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "length",
     function: eval_length,
     validation: validate_unary_string,
-    return_type: return_uni_number,
+    return_type: UnaryReturnType::Constant(ValueType::NumberType),
 };
 
 pub const U_TO_UPPER_CASE: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "toUpperCase",
     function: eval_to_upper,
     validation: validate_unary_string,
-    return_type: return_string_type_unary,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_TO_LOWER_CASE: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "toLowerCase",
     function: eval_to_lower,
     validation: validate_unary_string,
-    return_type: return_string_type_unary,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_TRIM: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "trim",
     function: eval_trim,
     validation: validate_unary_string,
-    return_type: return_string_type_unary,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_TO_BASE64: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "toBase64",
     function: eval_to_base64,
     validation: validate_unary_string,
-    return_type: return_string_type_unary,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_FROM_BASE64: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "fromBase64",
     function: eval_from_base64,
     validation: validate_unary_string,
-    return_type: return_string_type_unary,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_REVERSE: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "reverse",
     function: eval_reverse_mixed,
     validation: validate_unary_reverse_mixed,
-    return_type: return_same_list_type,
+    return_type: UnaryReturnType::Derived(return_same_list_type),
 };
 
 pub const U_SORT: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "sort",
     function: eval_sort,
     validation: validate_unary_list,
-    return_type: return_same_list_type,
+    return_type: UnaryReturnType::Derived(return_same_list_type),
 };
 
 pub const U_SORT_DESCENDING: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "sortDescending",
     function: eval_sort_desc,
     validation: validate_unary_list,
-    return_type: return_same_list_type,
+    return_type: UnaryReturnType::Derived(return_same_list_type),
 };
 
 pub const U_SANITIZE_FILENAME: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "sanitizeFilename",
     function: eval_sanitize_filename,
     validation: validate_unary_string,
-    return_type: return_string_type_unary,
+    return_type: UnaryReturnType::Constant(ValueType::StringType),
 };
 
 pub const U_DISTINCT_VALUES: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "distinctValues",
     function: eval_distinct,
     validation: validate_unary_list,
-    return_type: return_same_list_type,
+    return_type: UnaryReturnType::Derived(return_same_list_type),
 };
 
 pub const U_DUPLICATE_VALUES: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "duplicateValues",
     function: eval_duplicates,
     validation: validate_unary_list,
-    return_type: return_same_list_type,
+    return_type: UnaryReturnType::Derived(return_same_list_type),
 };
 
 pub const U_FLATTEN: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "flatten",
     function: eval_flatten,
     validation: validate_unary_list,
-    return_type: return_flatten_type,
+    return_type: UnaryReturnType::Derived(return_flatten_type),
 };
 
 pub const U_IS_EMPTY: UnaryFunctionDefinition = UnaryFunctionDefinition {
     name: "isEmpty",
     function: eval_is_empty,
     validation: validate_unary_list,
-    return_type: return_uni_boolean,
+    return_type: UnaryReturnType::Constant(ValueTypeConst::Boolean),
 };
 
 // Build a sorted-by-name table of unary function metas.
-pub static UNARY_FUNCS: &[&UnaryFunctionDefinition] = &[
-    &U_COUNT,
-    &U_DATE,
-    &U_DATETIME,
-    &U_DAY_OF_WEEK,
-    &U_DISTINCT_VALUES,
-    &U_DUPLICATE_VALUES,
-    &U_DURATION,
-    &U_FLATTEN,
-    &U_FROM_BASE64,
-    &U_IS_EMPTY,
-    &U_LAST_DAY_OF_MONTH,
-    &U_LENGTH,
-    &U_MAX,
-    &U_MEAN,
-    &U_MEDIAN,
-    &U_MIN,
-    &U_MODE,
-    &U_MONTH_OF_YEAR,
-    &U_PRODUCT,
-    &U_REVERSE,
-    &U_SANITIZE_FILENAME,
-    &U_SORT,
-    &U_SORT_DESCENDING,
-    &U_STDDEV,
-    &U_SUM,
-    &U_TIME,
-    &U_TO_BASE64,
-    &U_TO_LOWER_CASE,
-    &U_TO_STRING,
-    &U_TO_UPPER_CASE,
-    &U_TRIM,
+pub static UNARY_INDEX: &[(&str, &UnaryFunctionDefinition)] = &[
+    ("count", &U_COUNT),
+    ("date", &U_DATE),
+    ("datetime", &U_DATETIME),
+    ("dayOfWeek", &U_DAY_OF_WEEK),
+    ("distinctValues", &U_DISTINCT_VALUES),
+    ("duplicateValues", &U_DUPLICATE_VALUES),
+    ("duration", &U_DURATION),
+    ("flatten", &U_FLATTEN),
+    ("fromBase64", &U_FROM_BASE64),
+    ("isEmpty", &U_IS_EMPTY),
+    ("lastDayOfMonth", &U_LAST_DAY_OF_MONTH),
+    ("length", &U_LENGTH),
+    ("max", &U_MAX),
+    ("mean", &U_MEAN),
+    ("median", &U_MEDIAN),
+    ("min", &U_MIN),
+    ("mode", &U_MODE),
+    ("monthOfYear", &U_MONTH_OF_YEAR),
+    ("product", &U_PRODUCT),
+    ("reverse", &U_REVERSE),
+    ("sanitizeFilename", &U_SANITIZE_FILENAME),
+    ("sort", &U_SORT),
+    ("sortDescending", &U_SORT_DESCENDING),
+    ("stddev", &U_STDDEV),
+    ("sum", &U_SUM),
+    ("time", &U_TIME),
+    ("toBase64", &U_TO_BASE64),
+    ("toLowerCase", &U_TO_LOWER_CASE),
+    ("toString", &U_TO_STRING),
+    ("toUpperCase", &U_TO_UPPER_CASE),
+    ("trim", &U_TRIM),
 ];
 
-#[inline(never)]
-fn binary_search_by_name<'a, T>(table: &'a [&'a T], needle: &str, name_of: fn(&T) -> &str) -> Option<&'a T> {
-    let (mut lo, mut hi) = (0usize, table.len());
-    while lo < hi {
-        let mid = (lo + hi) / 2;
-        let mid_name = name_of(table[mid]);
-        match mid_name.cmp(needle) {
-            core::cmp::Ordering::Less => lo = mid + 1,
-            core::cmp::Ordering::Greater => hi = mid,
-            core::cmp::Ordering::Equal => return Some(table[mid]),
-        }
-    }
-    None
+fn lookup_builtin<'a, T>(index: &'a [(&'a str, &'a T)], name: &str) -> Option<&'a T> {
+    index
+        .binary_search_by_key(&name, |(key, _)| *key)
+        .ok()
+        .map(|idx| index[idx].1)
 }
 
-#[inline]
+/// #[inline]
 pub fn lookup_unary(name: &str) -> Option<&'static UnaryFunctionDefinition> {
-    binary_search_by_name(UNARY_FUNCS, name, |m| m.name)
+    lookup_builtin(UNARY_INDEX, name)
 }
 
 pub const B_FIND: BinaryFunctionDefinition = BinaryFunctionDefinition {
@@ -474,28 +442,28 @@ pub const B_PARTITION: BinaryFunctionDefinition = BinaryFunctionDefinition {
 };
 
 // Sorted-by-name table of binary function metas
-pub static BINARY_FUNCS: &[&BinaryFunctionDefinition] = &[
-    &B_CHAR_AT,
-    &B_CHAR_CODE_AT,
-    &B_CONTAINS,
-    &B_ENDS_WITH,
-    &B_FIND,
-    &B_INDEX_OF,
-    &B_INTERPOLATE,
-    &B_LAST_INDEX_OF,
-    &B_PARTITION,
-    &B_REGEX_SPLIT,
-    &B_REMOVE,
-    &B_REPEAT,
-    &B_SPLIT,
-    &B_STARTS_WITH,
-    &B_SUBSTRING_AFTER,
-    &B_SUBSTRING_BEFORE,
+pub static BINARY_INDEX: &[(&str, &BinaryFunctionDefinition)] = &[
+    ("charAt", &B_CHAR_AT),
+    ("charCodeAt", &B_CHAR_CODE_AT),
+    ("contains", &B_CONTAINS),
+    ("endsWith", &B_ENDS_WITH),
+    ("find", &B_FIND),
+    ("indexOf", &B_INDEX_OF),
+    ("interpolate", &B_INTERPOLATE),
+    ("lastIndexOf", &B_LAST_INDEX_OF),
+    ("partition", &B_PARTITION),
+    ("regexSplit", &B_REGEX_SPLIT),
+    ("remove", &B_REMOVE),
+    ("repeat", &B_REPEAT),
+    ("split", &B_SPLIT),
+    ("startsWith", &B_STARTS_WITH),
+    ("substringAfter", &B_SUBSTRING_AFTER),
+    ("substringBefore", &B_SUBSTRING_BEFORE),
 ];
 
-#[inline]
+/// #[inline]
 pub fn lookup_binary(name: &str) -> Option<&'static BinaryFunctionDefinition> {
-    binary_search_by_name(BINARY_FUNCS, name, |m| m.name)
+    lookup_builtin(BINARY_INDEX, name)
 }
 
 pub const M_MAX: MultiFunctionDefinition = MultiFunctionDefinition {
@@ -618,29 +586,29 @@ pub const M_PAD_END: MultiFunctionDefinition = MultiFunctionDefinition {
 };
 
 // Sorted-by-name table of multi-arg function metas
-pub static MULTI_FUNCS: &[&MultiFunctionDefinition] = &[
-    &M_APPEND,
-    &M_CONCATENATE,
-    &M_FROM_CHAR_CODE,
-    &M_INSERT_BEFORE,
-    &M_JOIN,
-    &M_MAX,
-    &M_MIN,
-    &M_PAD_END,
-    &M_PAD_START,
-    &M_REGEX_REPLACE,
-    &M_REPLACE,
-    &M_REPLACE_FIRST,
-    &M_REPLACE_LAST,
-    &M_SUBLIST,
-    &M_SUBSTRING,
-    &M_SUM,
-    &M_UNION,
+pub static MULTI_INDEX: &[(&str, &MultiFunctionDefinition)] = &[
+    ("append", &M_APPEND),
+    ("concatenate", &M_CONCATENATE),
+    ("fromCharCode", &M_FROM_CHAR_CODE),
+    ("insertBefore", &M_INSERT_BEFORE),
+    ("join", &M_JOIN),
+    ("max", &M_MAX),
+    ("min", &M_MIN),
+    ("padEnd", &M_PAD_END),
+    ("padStart", &M_PAD_START),
+    ("regexReplace", &M_REGEX_REPLACE),
+    ("replace", &M_REPLACE),
+    ("replaceFirst", &M_REPLACE_FIRST),
+    ("replaceLast", &M_REPLACE_LAST),
+    ("sublist", &M_SUBLIST),
+    ("substring", &M_SUBSTRING),
+    ("sum", &M_SUM),
+    ("union", &M_UNION),
 ];
 
-#[inline]
+/// #[inline]
 pub fn lookup_multi(name: &str) -> Option<&'static MultiFunctionDefinition> {
-    binary_search_by_name(MULTI_FUNCS, name, |m| m.name)
+    lookup_builtin(MULTI_INDEX, name)
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -651,15 +619,15 @@ pub enum EFunctionType {
     Custom(u8),
 }
 
-#[inline]
+/// #[inline]
 pub fn lookup_built_in_function(name: &str) -> Option<EFunctionType> {
-    if binary_search_by_name(UNARY_FUNCS, name, |m| m.name).is_some() {
+    if lookup_unary(name).is_some() {
         return Some(EFunctionType::Unary);
     }
-    if binary_search_by_name(BINARY_FUNCS, name, |m| m.name).is_some() {
+    if lookup_binary(name).is_some() {
         return Some(EFunctionType::Binary);
     }
-    if binary_search_by_name(MULTI_FUNCS, name, |m| m.name).is_some() {
+    if lookup_multi(name).is_some() {
         return Some(EFunctionType::Multi);
     }
 
@@ -755,7 +723,12 @@ impl StaticLink for UnaryFunction {
 
             (self.definition.validation)(arg_type.clone())?;
 
-            self.return_type = Ok((self.definition.return_type)(arg_type));
+            let return_type = match &self.definition.return_type {
+                UnaryReturnType::Constant(value) => (*value).materialize(),
+                UnaryReturnType::Derived(func) => (*func)(arg_type),
+            };
+
+            self.return_type = Ok(return_type);
         }
 
         self.return_type.clone()
@@ -836,22 +809,16 @@ mod tests {
 
     #[test]
     fn unary_index_is_sorted() {
-        assert!(UNARY_FUNCS
-            .windows(2)
-            .all(|w| w[0].name <= w[1].name));
+        assert!(UNARY_INDEX.windows(2).all(|w| w[0].0 <= w[1].0));
     }
 
     #[test]
     fn binary_index_is_sorted() {
-        assert!(BINARY_FUNCS
-            .windows(2)
-            .all(|w| w[0].name <= w[1].name));
+        assert!(BINARY_INDEX.windows(2).all(|w| w[0].0 <= w[1].0));
     }
 
     #[test]
     fn multi_index_is_sorted() {
-        assert!(MULTI_FUNCS
-            .windows(2)
-            .all(|w| w[0].name <= w[1].name));
+        assert!(MULTI_INDEX.windows(2).all(|w| w[0].0 <= w[1].0));
     }
 }
