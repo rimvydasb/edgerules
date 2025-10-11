@@ -363,6 +363,7 @@ pub fn eval_mode(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
+#[allow(dead_code)]
 pub fn eval_all(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(BooleanValue(true)),
@@ -384,6 +385,7 @@ pub fn eval_all(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
+#[allow(dead_code)]
 pub fn eval_any(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(BooleanValue(false)),

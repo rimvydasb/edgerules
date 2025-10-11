@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use edge_rules::runtime::edge_rules::{EdgeRulesModel, EdgeRulesRuntime};
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
 use env_logger::Builder;
 
 pub fn inline<S: AsRef<str>>(code: S) -> String {
@@ -113,8 +113,14 @@ pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
     let model = wrap_in_object(lines);
     let evaluated = eval_all(&model);
     assert_eq!(
-        evaluated.lines().map(|l| inline(l.trim())).collect::<Vec<_>>(),
-        expected_lines.iter().map(|l| inline(l.trim())).collect::<Vec<_>>()
+        evaluated
+            .lines()
+            .map(|l| inline(l.trim()))
+            .collect::<Vec<_>>(),
+        expected_lines
+            .iter()
+            .map(|l| inline(l.trim()))
+            .collect::<Vec<_>>()
     );
 }
 

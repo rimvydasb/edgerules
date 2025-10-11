@@ -216,8 +216,8 @@ pub mod factory {
     use crate::ast::context::context_object_type::FormalParameter;
     use crate::ast::foreach::ForFunction;
     use crate::ast::functions::function_types::{
-        BinaryFunction, MultiFunction, UnaryFunction, BINARY_BUILT_IN_FUNCTIONS,
-        BUILT_IN_ALL_FUNCTIONS, MULTI_BUILT_IN_FUNCTIONS, UNARY_BUILT_IN_FUNCTIONS,
+        lookup_binary, lookup_built_in_function, lookup_multi, lookup_unary, BinaryFunction,
+        MultiFunction, UnaryFunction,
     };
     use crate::ast::ifthenelse::IfThenElseFunction;
     use crate::ast::metaphors::decision_tables::DecisionTable;
@@ -438,32 +438,29 @@ pub mod factory {
         let mut arguments = right.drain_expressions()?;
 
         if arguments.len() == 1 {
-            if let Some(function) = UNARY_BUILT_IN_FUNCTIONS.get(name) {
+            if let Some(function) = lookup_unary(name) {
                 let expression = arguments.pop().unwrap();
                 return Ok(Expression(
-                    UnaryFunction::build(function.clone(), expression).into(),
+                    UnaryFunction::build(function, expression).into(),
                 ));
             }
         } else if arguments.len() == 2 {
-            if let Some(function) = BINARY_BUILT_IN_FUNCTIONS.get(name) {
+            if let Some(function) = lookup_binary(name) {
                 let right_expression = arguments.pop().unwrap();
                 let left_expression = arguments.pop().unwrap();
                 return Ok(Expression(
-                    BinaryFunction::build(function.clone(), left_expression, right_expression)
-                        .into(),
+                    BinaryFunction::build(function, left_expression, right_expression).into(),
                 ));
             }
         }
 
         if !arguments.is_empty() {
-            if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
-                return Ok(Expression(
-                    MultiFunction::build(function.clone(), arguments).into(),
-                ));
+            if let Some(function) = lookup_multi(name) {
+                return Ok(Expression(MultiFunction::build(function, arguments).into()));
             }
         }
 
-        match BUILT_IN_ALL_FUNCTIONS.get(name) {
+        match lookup_built_in_function(name) {
             None => {
                 if !arguments.is_empty() {
                     Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
@@ -479,7 +476,7 @@ pub mod factory {
             }
             Some(finding) => Err(FunctionWrongNumberOfArguments(
                 name.to_string(),
-                finding.clone(),
+                finding,
                 arguments.len(),
             )),
         }

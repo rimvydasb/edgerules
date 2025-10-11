@@ -124,11 +124,7 @@ fn type_string_lists() {
         strs: ['a','b']
         nested: [[1,2], [3]]
         "#,
-        &[
-            "nums: number[]",
-            "strs: string[]",
-            "nested: number[][]",
-        ],
+        &["nums: number[]", "strs: string[]", "nested: number[][]"],
     );
 }
 
