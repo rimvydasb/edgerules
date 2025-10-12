@@ -77,7 +77,7 @@ pub fn eval_all(code: &str) -> String {
 
 pub fn eval_field(code: &str, field: &str) -> String {
     let mut service = EdgeRulesModel::new();
-    match service.load_source(code) {
+    match service.load_source(&wrap_in_object(code)) {
         Ok(()) => match service.to_runtime() {
             Ok(runtime) => match runtime.evaluate_field(field) {
                 Ok(value) => value.to_string(),
@@ -101,7 +101,7 @@ pub fn init_logger() {
     });
 }
 
-fn wrap_in_object(lines: &str) -> String {
+pub fn wrap_in_object(lines: &str) -> String {
     if lines.trim().starts_with('{') && lines.trim().ends_with('}') {
         return lines.trim().to_string();
     }

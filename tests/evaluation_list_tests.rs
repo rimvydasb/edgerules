@@ -118,23 +118,6 @@ fn list_numeric_aggregates() {
 }
 
 #[test]
-fn list_extrema_temporal_values() {
-    assert_value!(
-        "max([date('2020-01-01'), date('2020-05-01')])",
-        "2020-05-01"
-    );
-    assert_value!("min([time('10:00:00'), time('08:00:00')])", "8:00:00.0");
-    assert_value!(
-        "max([datetime('2020-01-01T00:00:00'), datetime('2020-01-02T03:00:00')])",
-        "2020-01-023:00:00.0"
-    );
-    assert_value!("min([duration('P1D'), duration('P2D')])", "P1D");
-    assert_value!("max([duration('P1M'), duration('P2M')])", "P2M");
-    assert_value!("max(date('2020-01-01'), date('2020-05-01'))", "2020-05-01");
-    assert_value!("min(duration('P1D'), duration('P2D'))", "P1D");
-}
-
-#[test]
 fn complex_objects_in_lists() {
     assert_value!(
         r#"

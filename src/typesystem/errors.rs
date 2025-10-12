@@ -151,58 +151,58 @@ pub enum ParseErrorEnum {
 impl Display for ParseErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            UnknownType(maybe_type) => f.write_str(maybe_type),
-            UnknownParseError(message) => write!(f, "{}", message),
+            UnknownType(maybe_type) => write!(f, "[parse] {}", maybe_type),
+            UnknownParseError(message) => write!(f, "[parse] {}", message),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "Unexpected '{}', expected '{}'", token, expected)
+                    write!(f, "[parse] Unexpected '{}', expected '{}'", token, expected)
                 } else {
-                    write!(f, "Unexpected '{}'", token)
+                    write!(f, "[parse] Unexpected '{}'", token)
                 }
             }
-            ParseErrorEnum::Empty => f.write_str("-Empty-"),
-            UnknownError(message) => f.write_str(message),
-            InvalidType(error) => f.write_str(error),
+            ParseErrorEnum::Empty => f.write_str("[parse] -Empty-"),
+            UnknownError(message) => write!(f, "[parse] {}", message),
+            InvalidType(error) => write!(f, "[parse] {}", error),
             UnexpectedLiteral(literal, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "Unexpected '{}', expected '{}'", literal, expected)
+                    write!(f, "[parse] Unexpected '{}', expected '{}'", literal, expected)
                 } else {
-                    write!(f, "Unexpected '{}'", literal)
+                    write!(f, "[parse] Unexpected '{}'", literal)
                 }
             }
             MissingLiteral(literal) => {
-                write!(f, "Missing '{}'", literal)
+                write!(f, "[parse] Missing '{}'", literal)
             }
             FunctionWrongNumberOfArguments(function_name, function_type, existing) => {
                 if existing == &0 {
-                    return write!(f, "Function '{}' got no arguments", function_name);
+                    return write!(f, "[parse] Function '{}' got no arguments", function_name);
                 }
                 match function_type {
                     EFunctionType::Custom(expected) => {
                         write!(
                             f,
-                            "Function '{}' expected {} arguments, but got {}",
+                            "[parse] Function '{}' expected {} arguments, but got {}",
                             function_name, expected, existing
                         )
                     }
                     EFunctionType::Binary => {
                         write!(
                             f,
-                            "Binary function '{}' expected 2 arguments, but got {}",
+                            "[parse] Binary function '{}' expected 2 arguments, but got {}",
                             function_name, existing
                         )
                     }
                     EFunctionType::Multi => {
                         write!(
                             f,
-                            "Function '{}' expected 1 or more arguments, but got {}",
+                            "[parse] Function '{}' expected 1 or more arguments, but got {}",
                             function_name, existing
                         )
                     }
                     EFunctionType::Unary => {
                         write!(
                             f,
-                            "Function '{}' expected 1 argument, but got {}",
+                            "[parse] Function '{}' expected 1 argument, but got {}",
                             function_name, existing
                         )
                     }

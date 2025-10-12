@@ -102,8 +102,12 @@ impl CollectionExpression {
     pub fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
         let list_type = self.list_type.clone()?;
 
+        // We cannot lose the type information even if the array is empty
         if self.elements.is_empty() {
-            return Ok(Array(ArrayValue::EmptyUntyped));
+            return Ok(Array(ArrayValue::PrimitivesArray {
+                values: vec![],
+                item_type: list_type,
+            }));
         }
 
         match list_type {
@@ -153,6 +157,8 @@ impl CollectionExpression {
                     item_type: ValueType::UndefinedType,
                 }))
             }
+
+            // This should never happen, but just in case
             other => RuntimeError::type_not_supported(other).into(),
         }
     }
