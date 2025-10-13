@@ -83,9 +83,9 @@ fn example_ruleset_collecting() {
             {name: "INC_CHECK"; rule: applicant.income > applicant.expense * 2}
             {name: "MIN_INCOM"; rule: applicant.income > 1000}
             {name: "AGE_CHECK"; rule: applicant.age >= 18}
-        ][rule = false]
+        ]
         result: {
-            firedRules: for invalid in rules return invalid.name
+            firedRules: for invalid in rules[rule = false] return invalid.name
             status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
         }
     }
