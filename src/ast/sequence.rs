@@ -121,7 +121,7 @@ impl CollectionExpression {
                             ValueEnum::Reference(eval_context) => {
                                 // To simplify the overall execution, all fields of objects inside array are evaluated immediately
                                 // @Todo: consider lazy evaluation if performance becomes an issue (sometimes not all objects are needed from the collection if filter or selection is applied later)
-                                ExecutionContext::eval_all_fields(Rc::clone(&eval_context))?;
+                                ExecutionContext::eval_all_fields(&eval_context)?;
                                 results.push(eval_context);
                             }
                             other => {

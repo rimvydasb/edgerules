@@ -63,7 +63,7 @@ pub fn throw_js_error(message: String) -> ! {
 fn execution_context_to_js(
     context: Rc<RefCell<ExecutionContext>>,
 ) -> Result<JsValue, RuntimeError> {
-    ExecutionContext::eval_all_fields(Rc::clone(&context))?;
+    ExecutionContext::eval_all_fields(&context)?;
 
     let js_object = Object::new();
     let field_names: Vec<&'static str> = {
@@ -141,13 +141,13 @@ fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
                 &JsValue::from_str("start"),
                 &JsValue::from_f64(range.start as f64),
             )
-                .map_err(|_| RuntimeError::eval_error("Failed to export range.start".to_string()))?;
+            .map_err(|_| RuntimeError::eval_error("Failed to export range.start".to_string()))?;
             Reflect::set(
                 &js_range,
                 &JsValue::from_str("endExclusive"),
                 &JsValue::from_f64(range.end as f64),
             )
-                .map_err(|_| RuntimeError::eval_error("Failed to export range.end".to_string()))?;
+            .map_err(|_| RuntimeError::eval_error("Failed to export range.end".to_string()))?;
             Ok(JsValue::from(js_range))
         }
         ValueEnum::DateValue(inner) => match inner {
@@ -280,6 +280,6 @@ fn js_object_to_value(object: Object) -> Result<ValueEnum, String> {
     let static_context = builder.build();
     linker::link_parts(Rc::clone(&static_context)).map_err(|err| err.to_string())?;
     let exec_ctx = ExecutionContext::create_isolated_context(Rc::clone(&static_context));
-    ExecutionContext::eval_all_fields(Rc::clone(&exec_ctx)).map_err(|err| err.to_string())?;
+    ExecutionContext::eval_all_fields(&exec_ctx).map_err(|err| err.to_string())?;
     Ok(ValueEnum::Reference(exec_ctx))
 }

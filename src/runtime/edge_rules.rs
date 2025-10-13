@@ -327,7 +327,7 @@ impl EdgeRulesRuntime {
      * Evaluates all expressions in the context tree, starting from the root context
      */
     pub fn eval_all(&self) -> Result<(), RuntimeError> {
-        ExecutionContext::eval_all_fields(Rc::clone(&self.context))
+        ExecutionContext::eval_all_fields(&self.context)
     }
 }
 

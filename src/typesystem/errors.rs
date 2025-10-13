@@ -164,7 +164,11 @@ impl Display for ParseErrorEnum {
             UnknownParseError(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected)))
+                    write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected))
+                    )
                 } else {
                     write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
                 }
@@ -174,7 +178,14 @@ impl Display for ParseErrorEnum {
             InvalidType(error) => write!(f, "{}", prefix_parse(error)),
             UnexpectedLiteral(literal, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}', expected '{}'", literal, expected)))
+                    write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!(
+                            "Unexpected '{}', expected '{}'",
+                            literal, expected
+                        ))
+                    )
                 } else {
                     write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", literal)))
                 }
@@ -184,7 +195,11 @@ impl Display for ParseErrorEnum {
             }
             FunctionWrongNumberOfArguments(function_name, function_type, existing) => {
                 if existing == &0 {
-                    return write!(f, "{}", prefix_parse(&format!("Function '{}' got no arguments", function_name)));
+                    return write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!("Function '{}' got no arguments", function_name))
+                    );
                 }
                 match function_type {
                     EFunctionType::Custom(expected) => {

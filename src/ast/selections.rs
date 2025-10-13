@@ -383,7 +383,7 @@ impl EvaluatableExpression for FieldSelection {
             Reference(reference) => {
                 let value = self.method.eval(Rc::clone(&reference))?;
                 if let Reference(child_ctx) = &value {
-                    ExecutionContext::eval_all_fields(Rc::clone(child_ctx))?;
+                    ExecutionContext::eval_all_fields(child_ctx)?;
                 }
                 Ok(value)
             }

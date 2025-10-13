@@ -318,8 +318,7 @@ impl ExecutionContext {
         self.stack.borrow_mut().insert(field_name, value);
     }
 
-    // @Todo: during this function call the clone is repeated `eval_all_fields(Rc::clone(&context))?` = just return accepted context so no clone is needed
-    pub fn eval_all_fields(ctx: Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
+    pub fn eval_all_fields(ctx: &Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
         if ctx.borrow().promise_eval_all {
             return Ok(());
         }
@@ -332,13 +331,13 @@ impl ExecutionContext {
             match ctx.borrow().get(name)? {
                 EObjectContent::ExpressionRef(expression) => {
                     ctx.borrow().node().lock_field(name)?;
-                    let value = expression.borrow().expression.eval(Rc::clone(&ctx));
+                    let value = expression.borrow().expression.eval(Rc::clone(ctx));
                     ctx.borrow().stack_insert(name, value);
                     ctx.borrow().node().unlock_field(name);
                 }
                 EObjectContent::ObjectRef(reference) => {
-                    NodeData::attach_child(&ctx, &reference);
-                    ExecutionContext::eval_all_fields(reference)?;
+                    NodeData::attach_child(ctx, &reference);
+                    ExecutionContext::eval_all_fields(&reference)?;
                 }
                 _ => {}
             }
