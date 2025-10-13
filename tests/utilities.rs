@@ -61,14 +61,8 @@ macro_rules! assert_string_contains {
     };
 }
 
-#[macro_export]
-macro_rules! assert_path {
-    ($runtime:expr, $path:expr, $expected:expr) => {
-        assert_eq!(
-            inline($runtime.evaluate_field($path).unwrap().to_string()),
-            $expected
-        );
-    };
+pub fn exe_field(runtime: &EdgeRulesRuntime, path: &str) -> String {
+    inline(runtime.evaluate_field(path).unwrap().to_string())
 }
 
 pub fn get_runtime(code: &str) -> EdgeRulesRuntime {

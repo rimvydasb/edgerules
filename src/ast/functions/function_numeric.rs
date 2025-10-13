@@ -341,6 +341,10 @@ pub fn eval_sum_all(
         return sum_duration_values(values);
     }
 
+    if values.is_empty() {
+        return Ok(NumberValue(NumberEnum::from(0_i64)));
+    }
+
     let mut acc: Option<NumberEnum> = None;
 
     for token in values {

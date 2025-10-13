@@ -13,15 +13,15 @@ fn example_context_deep_evaluation() {
     }
     "#;
 
-    let runtime = get_runtime(code);
+    let rt = get_runtime(code);
 
-    assert_path!(runtime, "applicant.income", "1100");
-    assert_path!(runtime, "applicant.expense", "600");
-    assert_path!(runtime, "applicant.age", "22");
+    assert_eq!(exe_field(&rt, "applicant.income"), "1100");
+    assert_eq!(exe_field(&rt, "applicant.expense"), "600");
+    assert_eq!(exe_field(&rt, "applicant.age"), "22");
 
-    assert_path!(runtime, "rules.row1.rule", "false");
-    assert_path!(runtime, "rules.row2.rule", "true");
-    assert_path!(runtime, "rules.row3.rule", "true");
+    assert_eq!(exe_field(&rt, "rules.row1.rule"), "false");
+    assert_eq!(exe_field(&rt, "rules.row2.rule"), "true");
+    assert_eq!(exe_field(&rt, "rules.row3.rule"), "true");
 }
 
 #[test]
@@ -40,19 +40,19 @@ fn example_ruleset_deep_evaluation() {
     applicantEligibility: rules[rule = true]
     "#;
 
-    let runtime = get_runtime(code);
-    assert_path!(runtime, "applicant.income", "1100");
-    assert_path!(runtime, "applicant.expense", "600");
-    assert_path!(runtime, "applicant.age", "22");
+    let rt = get_runtime(code);
+    assert_eq!(exe_field(&rt, "applicant.income"), "1100");
+    assert_eq!(exe_field(&rt, "applicant.expense"), "600");
+    assert_eq!(exe_field(&rt, "applicant.age"), "22");
 
     // Ensures array indexing resolves correctly (regression guard for RuntimeFieldNotFound).
-    assert_path!(runtime, "rules[0]", "{rule:false}");
-    assert_path!(runtime, "rules[0].rule", "false");
-    assert_path!(runtime, "rules[1].rule", "true");
-    assert_path!(runtime, "rules[2].rule", "true");
+    assert_eq!(exe_field(&rt, "rules[0]"), "{rule:false}");
+    assert_eq!(exe_field(&rt, "rules[0].rule"), "false");
+    assert_eq!(exe_field(&rt, "rules[1].rule"), "true");
+    assert_eq!(exe_field(&rt, "rules[2].rule"), "true");
 
-    assert_path!(runtime, "applicantEligibility[0].rule", "true");
-    assert_path!(runtime, "applicantEligibility[1].rule", "true");
+    assert_eq!(exe_field(&rt, "applicantEligibility[0].rule"), "true");
+    assert_eq!(exe_field(&rt, "applicantEligibility[1].rule"), "true");
 
     let code = r#"
     func eligibilityDecision(applicant): {
@@ -63,15 +63,43 @@ fn example_ruleset_deep_evaluation() {
         ]
     }
     applicantEligibility: eligibilityDecision({
-        income: 5000
-        expense: 550
+        income: 1100
+        expense: 600
         age: 22
     }).rules
     "#;
 
-    let runtime = get_runtime(code);
+    let rt = get_runtime(code);
 
-    assert_path!(runtime, "applicantEligibility", "[{rule:true},{rule:true},{rule:true}]");
+    assert_eq!(exe_field(&rt, "applicantEligibility"), "[{rule:false},{rule:true},{rule:true}]");
+}
+
+#[test]
+fn example_ruleset_collecting() {
+
+    let code = r#"
+    func eligibilityDecision(applicant): {
+        rules: [
+            {name: "INC_CHECK"; rule: applicant.income > applicant.expense * 2}
+            {name: "MIN_INCOM"; rule: applicant.income > 1000}
+            {name: "AGE_CHECK"; rule: applicant.age >= 18}
+        ][rule = false]
+        result: {
+            firedRules: for invalid in rules return invalid.name
+            status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
+        }
+    }
+    applicantEligibility: eligibilityDecision({
+        income: 1100
+        expense: 600
+        age: 22
+    }).result
+    "#;
+
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicantEligibility.firedRules"), "['INC_CHECK']");
+    assert_eq!(exe_field(&rt, "applicantEligibility.status"), "'INELIGIBLE'");
 }
 
 mod utilities;
