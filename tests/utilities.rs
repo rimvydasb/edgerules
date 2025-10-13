@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, EdgeRulesRuntime};
 use env_logger::Builder;
 
 pub fn inline<S: AsRef<str>>(code: S) -> String {
@@ -59,6 +59,27 @@ macro_rules! assert_string_contains {
             $needle
         );
     };
+}
+
+#[macro_export]
+macro_rules! assert_path {
+    ($runtime:expr, $path:expr, $expected:expr) => {
+        assert_eq!(
+            $runtime.evaluate_field($path).unwrap().to_string(),
+            $expected
+        );
+    };
+}
+
+pub fn get_runtime(code: &str) -> EdgeRulesRuntime {
+    let mut service = EdgeRulesModel::new();
+    match service.load_source(&wrap_in_object(code)) {
+        Ok(()) => match service.to_runtime() {
+            Ok(runtime) => runtime,
+            Err(err) => panic!("link error: {err}\ncode:\n{code}"),
+        },
+        Err(err) => panic!("parse error: {err}\ncode:\n{code}"),
+    }
 }
 
 pub fn eval_all(code: &str) -> String {

@@ -115,38 +115,6 @@ impl TypedValue for ExecutionContext {
 }
 
 impl ExecutionContext {
-    // Use cases:
-    // 1. Creates an isolated execution for a function call
-    // pub fn create_for(static_context: Rc<RefCell<ContextObject>>, maybe_parent: Option<Rc<RefCell<ExecutionContext>>>) -> Rc<RefCell<ExecutionContext>> {
-    //     let len = static_context.borrow().size();
-    //     match maybe_parent {
-    //         None => {
-    //             Self {
-    //                 object: static_context,
-    //                 stack: RefCell::new(HashMap::new()),
-    //                 context_variable: None,
-    //                 node: NodeData::new(None, len),
-    //                 promise_eval_all: false,
-    //             }.to_rc()
-    //         }
-    //         Some(parent) => {
-    //             let assigned_to_field = parent.borrow().node().get_assigned_to_field();
-    //             let new_child = Self {
-    //                 object: static_context,
-    //                 stack: RefCell::new(HashMap::new()),
-    //                 context_variable: None,
-    //                 node: NodeData::new(None, len),
-    //                 promise_eval_all: false,
-    //             }.to_rc();
-    //
-    //             new_child.borrow_mut().mut_node().attach_to_parent(&parent,Some(assigned_to_field.clone()));
-    //             parent.borrow().node().add_child(assigned_to_field, Rc::clone(&new_child));
-    //
-    //             new_child
-    //         }
-    //     }
-    // }
-
     pub fn create_isolated_context(
         static_context: Rc<RefCell<ContextObject>>,
     ) -> Rc<RefCell<ExecutionContext>> {
