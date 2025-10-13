@@ -118,8 +118,11 @@ impl CollectionExpression {
 
                     for expr in self.elements.iter() {
                         match expr.eval(Rc::clone(&context))? {
-                            ValueEnum::Reference(reference) => {
-                                results.push(reference);
+                            ValueEnum::Reference(eval_context) => {
+                                // To simplify the overall execution, all fields of objects inside array are evaluated immediately
+                                // @Todo: consider lazy evaluation if performance becomes an issue (sometimes not all objects are needed from the collection if filter or selection is applied later)
+                                ExecutionContext::eval_all_fields(Rc::clone(&eval_context))?;
+                                results.push(eval_context);
                             }
                             other => {
                                 return RuntimeError::type_not_supported(other.get_type()).into();

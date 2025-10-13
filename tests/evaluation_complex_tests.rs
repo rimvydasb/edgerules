@@ -1,20 +1,35 @@
 #[test]
-fn example_ruleset() {
-
+fn example_context_deep_evaluation() {
     let code = r#"
-
     applicant: {
         income: 1100
         expense: 600
         age: 22
     }
+    rules: {
+        row1: {rule: applicant.income > applicant.expense * 2}
+        row2: {rule: applicant.income > 1000}
+        row3: {rule: applicant.age >= 18}
+    }
+    "#;
 
+    // deep evaluation of contexts triggers all inner rules to be evaluated
+    assert_eval_all(code, &["{", "applicant:{", "income:1100", "expense:600", "age:22", "}", "rules:{", "row1:{", "rule:false", "}", "row2:{", "rule:true", "}", "row3:{", "rule:true", "}", "}", "}"]);
+}
+
+#[test]
+fn example_ruleset_deep_evaluation() {
+    let code = r#"
+    applicant: {
+        income: 1100
+        expense: 600
+        age: 22
+    }
     rules: [
         {rule: applicant.income > applicant.expense * 2}
         {rule: applicant.income > 1000}
         {rule: applicant.age >= 18}
     ]
-
     applicantEligibility: rules[rule = true]
     "#;
 
@@ -25,8 +40,7 @@ fn example_ruleset() {
 
     assert_eq!(inline(eval_field( code, "applicantEligibility")),inline("[{rule: true}, {rule: true}]"));
 
-    // @Todo: This fails because contexts in rules are not triggered, needs to be fixed
-    assert_eq!(inline(eval_field( code, "rules")),inline("[{rule: true}, {rule: true}]"));
+    assert_eq!(inline(eval_field( code, "rules")),inline("[{rule:false},{rule:true},{rule:true}]"));
 
     let code = r#"
     func eligibilityDecision(applicant): {
@@ -36,7 +50,6 @@ fn example_ruleset() {
             {rule: applicant.age >= 18}
         ]
     }
-
     applicantEligibility: eligibilityDecision({
         income: 5000
         expense: 550
@@ -44,7 +57,7 @@ fn example_ruleset() {
     }).rules
     "#;
 
-    assert_eval_all(code, &["{", "output1: 14", "}"]);
+    assert_eval_all(code, &["{", "applicantEligibility:[{", "rule:true", "},{", "rule:true", "},{", "rule:true", "}]", "}"]);
 
 }
 

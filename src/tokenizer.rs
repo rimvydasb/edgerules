@@ -178,7 +178,7 @@ mod test {
         );
         is_equals(
             "value : [[key,value],[,2],[3,4]]",
-            "Veryfirstsequenceelementismissing→'value'assignmentsideisnotcomplete",
+            "[parse]Veryfirstsequenceelementismissing→[parse]'value'assignmentsideisnotcomplete",
         );
 
         // Various functions
@@ -254,7 +254,7 @@ mod test {
 
         is_equals(
             "p : [{a:},5]",
-            "'a'assignmentsideisnotcomplete→'p'assignmentsideisnotcomplete",
+            "[parse]'a'assignmentsideisnotcomplete→[parse]'p'assignmentsideisnotcomplete",
         );
     }
 

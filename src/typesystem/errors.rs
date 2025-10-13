@@ -150,60 +150,81 @@ pub enum ParseErrorEnum {
 
 impl Display for ParseErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Helper closure to prefix [parse] only if not already present
+        let prefix_parse = |msg: &str| {
+            if msg.starts_with("[parse]") {
+                msg.to_string()
+            } else {
+                format!("[parse] {}", msg)
+            }
+        };
+
         match self {
-            UnknownType(maybe_type) => write!(f, "[parse] {}", maybe_type),
-            UnknownParseError(message) => write!(f, "[parse] {}", message),
+            UnknownType(maybe_type) => write!(f, "{}", prefix_parse(maybe_type)),
+            UnknownParseError(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "[parse] Unexpected '{}', expected '{}'", token, expected)
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected)))
                 } else {
-                    write!(f, "[parse] Unexpected '{}'", token)
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
                 }
             }
             ParseErrorEnum::Empty => f.write_str("[parse] -Empty-"),
-            UnknownError(message) => write!(f, "[parse] {}", message),
-            InvalidType(error) => write!(f, "[parse] {}", error),
+            UnknownError(message) => write!(f, "{}", prefix_parse(message)),
+            InvalidType(error) => write!(f, "{}", prefix_parse(error)),
             UnexpectedLiteral(literal, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "[parse] Unexpected '{}', expected '{}'", literal, expected)
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}', expected '{}'", literal, expected)))
                 } else {
-                    write!(f, "[parse] Unexpected '{}'", literal)
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", literal)))
                 }
             }
             MissingLiteral(literal) => {
-                write!(f, "[parse] Missing '{}'", literal)
+                write!(f, "{}", prefix_parse(&format!("Missing '{}'", literal)))
             }
             FunctionWrongNumberOfArguments(function_name, function_type, existing) => {
                 if existing == &0 {
-                    return write!(f, "[parse] Function '{}' got no arguments", function_name);
+                    return write!(f, "{}", prefix_parse(&format!("Function '{}' got no arguments", function_name)));
                 }
                 match function_type {
                     EFunctionType::Custom(expected) => {
                         write!(
                             f,
-                            "[parse] Function '{}' expected {} arguments, but got {}",
-                            function_name, expected, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected {} arguments, but got {}",
+                                function_name, expected, existing
+                            ))
                         )
                     }
                     EFunctionType::Binary => {
                         write!(
                             f,
-                            "[parse] Binary function '{}' expected 2 arguments, but got {}",
-                            function_name, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Binary function '{}' expected 2 arguments, but got {}",
+                                function_name, existing
+                            ))
                         )
                     }
                     EFunctionType::Multi => {
                         write!(
                             f,
-                            "[parse] Function '{}' expected 1 or more arguments, but got {}",
-                            function_name, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected 1 or more arguments, but got {}",
+                                function_name, existing
+                            ))
                         )
                     }
                     EFunctionType::Unary => {
                         write!(
                             f,
-                            "[parse] Function '{}' expected 1 argument, but got {}",
-                            function_name, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected 1 argument, but got {}",
+                                function_name, existing
+                            ))
                         )
                     }
                 }
