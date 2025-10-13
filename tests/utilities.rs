@@ -65,7 +65,7 @@ macro_rules! assert_string_contains {
 macro_rules! assert_path {
     ($runtime:expr, $path:expr, $expected:expr) => {
         assert_eq!(
-            $runtime.evaluate_field($path).unwrap().to_string(),
+            inline($runtime.evaluate_field($path).unwrap().to_string()),
             $expected
         );
     };

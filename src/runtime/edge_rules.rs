@@ -293,9 +293,14 @@ impl EdgeRulesRuntime {
      * Evaluates a single field in the root context
      */
     pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
-        let mut variable = ExpressionEnum::variable(name);
-        variable.link(Rc::clone(&self.static_tree))?;
-        variable.eval(Rc::clone(&self.context))
+        let expression = EdgeRulesModel::parse_expression(name).map_err(|errors| {
+            RuntimeError::eval_error(format!(
+                "Failed to parse `{}`: {}",
+                name, errors
+            ))
+        })?;
+
+        self.evaluate_expression(expression)
     }
 
     /**
