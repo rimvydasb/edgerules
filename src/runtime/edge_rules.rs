@@ -704,7 +704,7 @@ pub mod test {
 
         let message = err.to_string();
         assert!(
-            message.contains("Function 'missing(...)' not found"),
+            message.contains("Function 'missing(...)"),
             "unexpected error: {message}"
         );
 

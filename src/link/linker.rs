@@ -116,11 +116,54 @@ pub fn find_implementation(
                     function_name,
                     ctx.borrow().node().node_type
                 );
-                return LinkingError::new(FunctionNotFound(format!("{}(...)", function_name)))
-                    .into();
+
+                let known_metaphors =
+                    collect_known_implementations(Rc::clone(&ctx), function_name.clone());
+
+                let message = if !known_metaphors.is_empty() {
+                    format!(
+                        "{}(...). Known metaphors: {}",
+                        function_name,
+                        known_metaphors.join(", ")
+                    )
+                } else {
+                    format!("{}(...). No metaphors in the scope.", function_name)
+                };
+
+                // @Todo: add known_metaphors into FunctionNotFound and format it in Display impl
+                // @Todo: fix user_function_not_found test to assert messages properly
+                return LinkingError::new(FunctionNotFound(message)).into();
             }
         }
     }
+}
+
+/// This method will be used for debugging and error reporting purposes inside find_implementation
+/// when user needs to be informed about all known implementations of a given function
+pub fn collect_known_implementations(
+    context: Rc<RefCell<ContextObject>>,
+    function_name: String,
+) -> Vec<String> {
+    let mut ctx: Rc<RefCell<ContextObject>> = context;
+    let mut implementations = Vec::new();
+
+    loop {
+        let implementation = (*ctx).borrow().get_function(function_name.as_str());
+
+        if let Some(definition) = implementation {
+            implementations.push(function_name.clone());
+        }
+
+        let maybe_parent = (*ctx).borrow().node().node_type.get_parent();
+
+        if let Some(parent_to_check) = maybe_parent {
+            ctx = parent_to_check;
+        } else {
+            break;
+        }
+    }
+
+    implementations
 }
 
 pub fn get_till_root<T: Node<T>>(

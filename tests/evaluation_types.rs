@@ -174,3 +174,42 @@ fn types_story_placeholders_and_aliases_link() {
         &["identification: number", "relationsList: number[]"],
     );
 }
+
+#[test]
+fn using_types_in_deeper_scope() {
+
+    let code = r#"
+    type Application: {
+        loanAmount: <number>;
+        maxAmount: <number>;
+    }
+    func incAmount(application: Application): {
+        func int(x): {
+            result: x + 1
+        }
+        newAmount: int(application.amount).result
+    }
+    func applicationDecisions(application: Application): {
+        amountsDiff: {
+            oldAmount: application.amount
+            newAmount: incAmount(application).newAmount
+            evenDeeper: {
+                test: incAmount(application).newAmount + 5
+                willItExplode: {
+                    yesItWill: incAmount(application).newAmount + newAmount
+                    willBeMissing: application.maxAmount
+                }
+            }
+        }
+    }
+
+    applicationResponse: applicationDecisions({
+        amount: 1000
+    }).amountsDiff
+    "#;
+
+    // @Todo: Field 'amount' not found in Root#child - this is absolutely wrong, it should be in Application
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicationResponse"), "{oldAmount: 1000, newAmount: 1001, evenDeeper: {test: 1006, willItExplode: {yesItWill: 2002, willBeMissing: Missing('maxAmount')}}}");
+}

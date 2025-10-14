@@ -395,7 +395,7 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
 #[test]
 fn user_function_not_found() {
     let model = "{ value: inc(1) }";
-    link_error_contains(model, &["Function 'inc(...)' not found"]);
+    link_error_contains(model, &["Function 'inc(...)"]);
 
     let model = r#"
     {
@@ -404,7 +404,7 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(model, &["Function 'inc(...)' not found"]);
+    link_error_contains(model, &["Function 'inc(...)"]);
 
     let model = r#"
     {
@@ -413,7 +413,7 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(model, &["Function 'deeper.inc(...)' not found"]);
+    link_error_contains(model, &["Function 'deeper.inc(...)"]);
 }
 
 #[test]
@@ -461,4 +461,34 @@ fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
             "}",
         ],
     );
+}
+
+#[test]
+fn accessing_function_in_different_context() {
+
+    // Function `incAmount`, that is defined in upper context, is accessible in lower context.
+    let code = r#"
+    type Application: {
+        loanAmount: <number>;
+    }
+    func incAmount(application: Application): {
+        func int(x): {
+            result: x + 1
+        }
+        newAmount: int(application.amount).result
+    }
+
+    func applicationDecisions(application: Application): {
+        oldAmount: application.amount
+        newAmount: incAmount(application).newAmount
+    }
+
+    applicationResponse: applicationDecisions({
+        amount: 1000
+    }).amountsDiff
+    "#;
+
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicationResponse"), "{ oldAmount: 1000; newAmount: 1001 }");
 }

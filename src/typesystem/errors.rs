@@ -308,6 +308,7 @@ pub enum LinkingErrorEnum {
     // subject, type 1, type 2
     DifferentTypesDetected(Option<String>, ValueType, ValueType),
 
+    // @Todo: add candidates list to better format a message in Display impl
     FunctionNotFound(String),
 
     // object, field
