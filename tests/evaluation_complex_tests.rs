@@ -135,8 +135,8 @@ fn example_variable_library() {
     func applicantDecisions(applicant: Applicant, applicationRecord): {
         func eligibilityDecision(applicantRecord): {
             rules: [
-                {name: "INC_CHECK"; rule: applicantRecord.date.income > applicantRecord.date.expense * 2}
-                {name: "MIN_INCOM"; rule: applicantRecord.date.income > 1000}
+                {name: "INC_CHECK"; rule: applicantRecord.data.income > applicantRecord.data.expense * 2}
+                {name: "MIN_INCOM"; rule: applicantRecord.data.income > 1000}
                 {name: "AGE_CHECK"; rule: applicantRecord.age >= 18}
             ]
             firedRules: for invalid in rules[rule = false] return invalid.name
@@ -144,7 +144,7 @@ fn example_variable_library() {
         }
         applicantRecord: {
             data: applicant
-            age: (applicationRecord.date.applicationDate - applicant.birthDate).years
+            age: (applicationRecord.data.applicationDate - applicant.birthDate).years
         }
         eligibility: eligibilityDecision(applicantRecord).result
     }

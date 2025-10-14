@@ -88,24 +88,37 @@ impl EvaluatableExpression for VariableLink {
         // browsing from the current context rather than root.
         let (start_ctx, path_vec, find_root) = {
             if let Some(&first) = self.path.first() {
-                // climb to nearest ancestor named `first`
-                let mut cursor = Some(Rc::clone(&context));
-                let mut found = None;
-                while let Some(ctx) = cursor {
-                    trace!("variable.eval climb: at {:?}", ctx.borrow().node.node_type);
-                    let assigned = ctx.borrow().node.get_assigned_to_field();
-                    trace!("assigned: {:?}", assigned);
-                    if assigned == Some(first) {
-                        found = Some(ctx);
-                        break;
-                    }
-                    cursor = ctx.borrow().node.node_type.get_parent();
-                }
+                let has_parameter = {
+                    let exec_borrowed = context.borrow();
+                    let ctx_borrowed = exec_borrowed.object.borrow();
+                    ctx_borrowed
+                        .parameters
+                        .iter()
+                        .any(|param| intern_field_name(param.name.as_str()) == first)
+                };
 
-                if let Some(ctx) = found {
-                    (ctx, &self.path[1..], false)
+                if has_parameter {
+                    (Rc::clone(&context), &self.path[..], false)
                 } else {
-                    (Rc::clone(&context), &self.path[..], true)
+                    // climb to nearest ancestor named `first`
+                    let mut cursor = Some(Rc::clone(&context));
+                    let mut found = None;
+                    while let Some(ctx) = cursor {
+                        trace!("variable.eval climb: at {:?}", ctx.borrow().node.node_type);
+                        let assigned = ctx.borrow().node.get_assigned_to_field();
+                        trace!("assigned: {:?}", assigned);
+                        if assigned == Some(first) {
+                            found = Some(ctx);
+                            break;
+                        }
+                        cursor = ctx.borrow().node.node_type.get_parent();
+                    }
+
+                    if let Some(ctx) = found {
+                        (ctx, &self.path[1..], false)
+                    } else {
+                        (Rc::clone(&context), &self.path[..], true)
+                    }
                 }
             } else {
                 (Rc::clone(&context), &self.path[..], true)
@@ -181,21 +194,33 @@ impl StaticLink for VariableLink {
             // inside that context as local browse, not root lookup.
             let (start_ctx, path_vec, find_root) = {
                 if let Some(&first) = self.path.first() {
-                    let mut cursor = Some(Rc::clone(&context));
-                    let mut found = None;
-                    while let Some(ctx) = cursor {
-                        let assigned = ctx.borrow().node.get_assigned_to_field();
-                        if assigned == Some(first) {
-                            found = Some(ctx);
-                            break;
-                        }
-                        cursor = ctx.borrow().node.node_type.get_parent();
-                    }
+                    let has_parameter = {
+                        let borrowed = context.borrow();
+                        borrowed
+                            .parameters
+                            .iter()
+                            .any(|param| intern_field_name(param.name.as_str()) == first)
+                    };
 
-                    if let Some(ctx) = found {
-                        (ctx, &self.path[1..], false)
+                    if has_parameter {
+                        (Rc::clone(&context), &self.path[..], false)
                     } else {
-                        (Rc::clone(&context), &self.path[..], true)
+                        let mut cursor = Some(Rc::clone(&context));
+                        let mut found = None;
+                        while let Some(ctx) = cursor {
+                            let assigned = ctx.borrow().node.get_assigned_to_field();
+                            if assigned == Some(first) {
+                                found = Some(ctx);
+                                break;
+                            }
+                            cursor = ctx.borrow().node.node_type.get_parent();
+                        }
+
+                        if let Some(ctx) = found {
+                            (ctx, &self.path[1..], false)
+                        } else {
+                            (Rc::clone(&context), &self.path[..], true)
+                        }
                     }
                 } else {
                     (Rc::clone(&context), &self.path[..], true)

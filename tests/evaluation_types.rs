@@ -176,22 +176,44 @@ fn types_story_placeholders_and_aliases_link() {
 }
 
 #[test]
-fn using_types_in_deeper_scope() {
-
+fn using_types_in_deeper_scope_v1() {
     let code = r#"
     type Application: {
         loanAmount: <number>;
         maxAmount: <number>;
     }
     func incAmount(application: Application): {
-        func int(x): {
+        func inc(x): {
             result: x + 1
         }
-        newAmount: int(application.amount).result
+        newAmount: inc(application.loanAmount).result
+    }
+    applicationResponse: incAmount({
+        loanAmount: 1000
+    }).newAmount
+    "#;
+
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicationResponse"), "1001");
+}
+
+#[test]
+fn using_types_in_deeper_scope() {
+    let code = r#"
+    type Application: {
+        loanAmount: <number>;
+        maxAmount: <number>;
+    }
+    func incAmount(application: Application): {
+        func inc(x): {
+            result: x + 1
+        }
+        newAmount: inc(application.loanAmount).result
     }
     func applicationDecisions(application: Application): {
         amountsDiff: {
-            oldAmount: application.amount
+            oldAmount: application.loanAmount
             newAmount: incAmount(application).newAmount
             evenDeeper: {
                 test: incAmount(application).newAmount + 5
@@ -204,12 +226,14 @@ fn using_types_in_deeper_scope() {
     }
 
     applicationResponse: applicationDecisions({
-        amount: 1000
+        loanAmount: 1000
     }).amountsDiff
     "#;
 
-    // @Todo: Field 'amount' not found in Root#child - this is absolutely wrong, it should be in Application
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse"), "{oldAmount: 1000, newAmount: 1001, evenDeeper: {test: 1006, willItExplode: {yesItWill: 2002, willBeMissing: Missing('maxAmount')}}}");
+    assert_eq!(
+        exe_field(&rt, "applicationResponse"),
+        "applicationResponse:{oldAmount:1000newAmount:1001evenDeeper:{test:1006willItExplode:{yesItWill:2002willBeMissing:Missing('maxAmount')}}}"
+    );
 }

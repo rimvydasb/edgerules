@@ -493,7 +493,6 @@ fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
 
 #[test]
 fn accessing_function_in_different_context() {
-
     // Function `incAmount`, that is defined in upper context, is accessible in lower context.
     let code = r#"
     type Application: {
