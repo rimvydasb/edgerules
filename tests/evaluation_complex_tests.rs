@@ -110,8 +110,6 @@ fn example_ruleset_collecting() {
     );
 }
 
-// @Todo: fix using_types_in_deeper_scope first
-// @Todo: fix accessing_function_in_different_context first
 #[test]
 fn example_variable_library() {
     let code = r#"
@@ -152,7 +150,7 @@ fn example_variable_library() {
     func applicationDecisions(application: Application): {
         applicationRecord: {
             data: application
-            applicantsDecisions: for app in application.applicants return applicantDecisions(app, application)
+            applicantsDecisions: for app in application.applicants return applicantDecisions(app, applicationRecord)
         }
     }
 

@@ -21,6 +21,14 @@ fn test_common() {
     "#,
         "[34]"
     );
+    assert_value!(
+        r#"
+    func inc(x: number): { result: x + 1 }
+    objectList: [{age:23},{age:34}][age > 25]
+    value: for x in objectList return inc(x.age).result
+    "#,
+        "[35]"
+    );
 
     assert_value!("2 / 3", "0.6666666666666666");
     assert_value!("1 * 2 / 3 + 1 - 2", "-0.33333333333333337");
