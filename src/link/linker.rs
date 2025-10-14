@@ -13,6 +13,7 @@ use crate::typesystem::values::ValueEnum;
 use crate::utils::intern_field_name;
 use log::{error, trace};
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -117,22 +118,13 @@ pub fn find_implementation(
                     ctx.borrow().node().node_type
                 );
 
-                let known_metaphors =
-                    collect_known_implementations(Rc::clone(&ctx), function_name.clone());
+                let known_metaphors = collect_known_implementations(Rc::clone(&ctx));
 
-                let message = if !known_metaphors.is_empty() {
-                    format!(
-                        "{}(...). Known metaphors: {}",
-                        function_name,
-                        known_metaphors.join(", ")
-                    )
-                } else {
-                    format!("{}(...). No metaphors in the scope.", function_name)
-                };
-
-                // @Todo: add known_metaphors into FunctionNotFound and format it in Display impl
-                // @Todo: fix user_function_not_found test to assert messages properly
-                return LinkingError::new(FunctionNotFound(message)).into();
+                return LinkingError::new(FunctionNotFound {
+                    name: function_name,
+                    known_metaphors,
+                })
+                .into();
             }
         }
     }
@@ -140,28 +132,31 @@ pub fn find_implementation(
 
 /// This method will be used for debugging and error reporting purposes inside find_implementation
 /// when user needs to be informed about all known implementations of a given function
-pub fn collect_known_implementations(
-    context: Rc<RefCell<ContextObject>>,
-    function_name: String,
-) -> Vec<String> {
+pub fn collect_known_implementations(context: Rc<RefCell<ContextObject>>) -> Vec<String> {
     let mut ctx: Rc<RefCell<ContextObject>> = context;
     let mut implementations = Vec::new();
+    let mut visited = HashSet::new();
 
     loop {
-        let implementation = (*ctx).borrow().get_function(function_name.as_str());
+        let maybe_parent = {
+            let borrowed = ctx.borrow();
+            for name in borrowed.metaphors.keys() {
+                if visited.insert(*name) {
+                    implementations.push((*name).to_string());
+                }
+            }
+            borrowed.node().node_type.get_parent()
+        };
 
-        if let Some(definition) = implementation {
-            implementations.push(function_name.clone());
-        }
-
-        let maybe_parent = (*ctx).borrow().node().node_type.get_parent();
-
-        if let Some(parent_to_check) = maybe_parent {
-            ctx = parent_to_check;
-        } else {
-            break;
+        match maybe_parent {
+            Some(parent_to_check) => {
+                ctx = parent_to_check;
+            }
+            None => break,
         }
     }
+
+    implementations.sort();
 
     implementations
 }

@@ -308,8 +308,10 @@ pub enum LinkingErrorEnum {
     // subject, type 1, type 2
     DifferentTypesDetected(Option<String>, ValueType, ValueType),
 
-    // @Todo: add candidates list to better format a message in Display impl
-    FunctionNotFound(String),
+    FunctionNotFound {
+        name: String,
+        known_metaphors: Vec<String>,
+    },
 
     // object, field
     FieldNotFound(String, String),
@@ -514,8 +516,21 @@ impl Display for LinkingErrorEnum {
                     left, right
                 ),
             },
-            LinkingErrorEnum::FunctionNotFound(name) => {
-                write!(f, "[link] Function '{}' not found", name)
+            LinkingErrorEnum::FunctionNotFound {
+                name,
+                known_metaphors,
+            } => {
+                write!(f, "[link] Function '{}(...)' not found", name)?;
+                if known_metaphors.is_empty() {
+                    write!(f, ". No metaphors in scope.")
+                } else {
+                    let formatted_candidates = known_metaphors
+                        .iter()
+                        .map(|metaphor_name| format!("{}(...)", metaphor_name))
+                        .collect::<Vec<String>>()
+                        .join(", ");
+                    write!(f, ". Known metaphors in scope: {}.", formatted_candidates)
+                }
             }
             FieldNotFound(object, field) => {
                 write!(f, "[link] Field '{}' not found in {}", field, object)

@@ -14,10 +14,13 @@ fn test_common() {
     assert_value!("for x in [1,2,3] return x * 2.0", "[2, 4, 6]");
     assert_value!("for x in 1..3 return x * 2", "[2, 4, 6]");
     assert_value!("for x in [{age:23},{age:34}] return x.age + 2", "[25, 36]");
-    assert_value!(r#"
+    assert_value!(
+        r#"
     objectList: [{age:23},{age:34}][age > 25]
     value: for x in objectList return x.age
-    "#, "[34]");
+    "#,
+        "[34]"
+    );
 
     assert_value!("2 / 3", "0.6666666666666666");
     assert_value!("1 * 2 / 3 + 1 - 2", "-0.33333333333333337");

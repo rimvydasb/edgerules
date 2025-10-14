@@ -294,10 +294,7 @@ impl EdgeRulesRuntime {
      */
     pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
         let expression = EdgeRulesModel::parse_expression(name).map_err(|errors| {
-            RuntimeError::eval_error(format!(
-                "Failed to parse `{}`: {}",
-                name, errors
-            ))
+            RuntimeError::eval_error(format!("Failed to parse `{}`: {}", name, errors))
         })?;
 
         self.evaluate_expression(expression)

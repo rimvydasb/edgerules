@@ -395,7 +395,26 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
 #[test]
 fn user_function_not_found() {
     let model = "{ value: inc(1) }";
-    link_error_contains(model, &["Function 'inc(...)"]);
+    link_error_contains(
+        model,
+        &["Function 'inc(...)' not found", "No metaphors in scope"],
+    );
+
+    let model = r#"
+    {
+        func addOne(value: number): { result: value + 1 }
+        value: missingFunc(1)
+    }
+    "#;
+
+    link_error_contains(
+        model,
+        &[
+            "Function 'missingFunc(...)' not found",
+            "Known metaphors in scope",
+            "addOne(...)",
+        ],
+    );
 
     let model = r#"
     {
@@ -404,7 +423,10 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(model, &["Function 'inc(...)"]);
+    link_error_contains(
+        model,
+        &["Function 'inc(...)' not found", "No metaphors in scope"],
+    );
 
     let model = r#"
     {
@@ -413,7 +435,13 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(model, &["Function 'deeper.inc(...)"]);
+    link_error_contains(
+        model,
+        &[
+            "Function 'deeper.inc(...)' not found",
+            "No metaphors in scope",
+        ],
+    );
 }
 
 #[test]
@@ -490,5 +518,8 @@ fn accessing_function_in_different_context() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse"), "{ oldAmount: 1000; newAmount: 1001 }");
+    assert_eq!(
+        exe_field(&rt, "applicationResponse"),
+        "{ oldAmount: 1000; newAmount: 1001 }"
+    );
 }

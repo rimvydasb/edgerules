@@ -71,12 +71,14 @@ fn example_ruleset_deep_evaluation() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicantEligibility"), "[{rule:false},{rule:true},{rule:true}]");
+    assert_eq!(
+        exe_field(&rt, "applicantEligibility"),
+        "[{rule:false},{rule:true},{rule:true}]"
+    );
 }
 
 #[test]
 fn example_ruleset_collecting() {
-
     let code = r#"
     func eligibilityDecision(applicant): {
         rules: [
@@ -98,15 +100,20 @@ fn example_ruleset_collecting() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicantEligibility.firedRules"), "['INC_CHECK']");
-    assert_eq!(exe_field(&rt, "applicantEligibility.status"), "'INELIGIBLE'");
+    assert_eq!(
+        exe_field(&rt, "applicantEligibility.firedRules"),
+        "['INC_CHECK']"
+    );
+    assert_eq!(
+        exe_field(&rt, "applicantEligibility.status"),
+        "'INELIGIBLE'"
+    );
 }
 
 // @Todo: fix using_types_in_deeper_scope first
 // @Todo: fix accessing_function_in_different_context first
 #[test]
 fn example_variable_library() {
-
     let code = r#"
     // Business Object Model Entities:
 
@@ -173,8 +180,14 @@ fn example_variable_library() {
     let rt = get_runtime(code);
 
     // @Todo: finish writing test:
-    assert_eq!(exe_field(&rt, "applicantEligibility.firedRules"), "['INC_CHECK']");
-    assert_eq!(exe_field(&rt, "applicantEligibility.status"), "'INELIGIBLE'");
+    assert_eq!(
+        exe_field(&rt, "applicantEligibility.firedRules"),
+        "['INC_CHECK']"
+    );
+    assert_eq!(
+        exe_field(&rt, "applicantEligibility.status"),
+        "'INELIGIBLE'"
+    );
 }
 
 mod utilities;
