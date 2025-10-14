@@ -499,27 +499,25 @@ fn accessing_function_in_different_context() {
     type Application: {
         loanAmount: <number>;
     }
-    func incAmount(application: Application): {
-        func int(x): {
+    func parentContextFunction(amount: number): {
+        func sameContextFunction(x): {
             result: x + 1
         }
-        newAmount: int(application.amount).result
+        newAmount: sameContextFunction(amount).result
     }
 
-    func applicationDecisions(application: Application): {
-        oldAmount: application.amount
-        newAmount: incAmount(application).newAmount
+    func applicationDecisions(amount: number): {
+        oldAmount: amount
+        newAmount: parentContextFunction(amount).newAmount
     }
 
-    applicationResponse: applicationDecisions({
-        amount: 1000
-    }).amountsDiff
+    applicationResponse: applicationDecisions(1000)
     "#;
 
     let rt = get_runtime(code);
 
     assert_eq!(
         exe_field(&rt, "applicationResponse"),
-        "{ oldAmount: 1000; newAmount: 1001 }"
+        "applicationResponse:{oldAmount:1000newAmount:1001}"
     );
 }

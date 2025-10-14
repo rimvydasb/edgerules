@@ -1,5 +1,6 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::metaphors::metaphor::Metaphor;
 use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
@@ -223,6 +224,17 @@ impl ContextObjectBuilder {
             let borrowed = child_map.borrow();
             for (&name, child) in borrowed.iter() {
                 child.borrow_mut().node.node_type = NodeDataEnum::Child(name, Rc::downgrade(&ctx));
+            }
+        }
+
+        {
+            let parent = Rc::downgrade(&ctx);
+            let borrowed = ctx.borrow();
+            for method in borrowed.metaphors.values() {
+                if let BuiltinMetaphor::Function(function_def) = &method.borrow().metaphor {
+                    function_def.body.borrow_mut().node.node_type =
+                        NodeDataEnum::Internal(parent.clone());
+                }
             }
         }
 
