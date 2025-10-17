@@ -14,7 +14,6 @@ fn example_context_deep_evaluation() {
     "#;
 
     let rt = get_runtime(code);
-
     assert_eq!(exe_field(&rt, "applicant.income"), "1100");
     assert_eq!(exe_field(&rt, "applicant.expense"), "600");
     assert_eq!(exe_field(&rt, "applicant.age"), "22");
@@ -130,19 +129,20 @@ fn example_variable_library() {
 
     // All Decision Areas:
 
-    func applicantDecisions(applicant: Applicant, applicationRecord): {
+    func applicantDecisions(applicant: Applicant, application): {
         func eligibilityDecision(applicantRecord): {
             rules: [
                 {name: "INC_CHECK"; rule: applicantRecord.data.income > applicantRecord.data.expense * 2}
                 {name: "MIN_INCOM"; rule: applicantRecord.data.income > 1000}
-                {name: "AGE_CHECK"; rule: applicantRecord.age >= 18}
+                {name: "AGE_CHECK"; rule: applicantRecord.age >= duration('P18Y')}
             ]
             firedRules: for invalid in rules[rule = false] return invalid.name
             status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
         }
         applicantRecord: {
             data: applicant
-            age: (applicationRecord.data.applicationDate - applicant.birthDate).years
+            //age: application.applicationDate - applicant.birthDate
+            age: duration('P18Y')
         }
         eligibility: eligibilityDecision(applicantRecord).result
     }
@@ -150,12 +150,12 @@ fn example_variable_library() {
     func applicationDecisions(application: Application): {
         applicationRecord: {
             data: application
-            applicantsDecisions: for app in application.applicants return applicantDecisions(app, applicationRecord)
+            applicantsDecisions: for app in application.applicants return applicantDecisions(app, application).eligibility
         }
     }
 
     applicationResponse: applicationDecisions({
-        applicationDate: datetime("2023-01-01")
+        applicationDate: date("2023-01-01")
         propertyValue: 100000
         loanAmount: 80000
         applicants: [
