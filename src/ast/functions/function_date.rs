@@ -101,12 +101,15 @@ pub fn parse_duration_iso8601(s: &str) -> Option<crate::typesystem::values::Dura
                     }
                     b'H' => {
                         hours = num;
+                        saw_dt = true;
                     }
                     b'M' if in_time => {
                         minutes = num;
+                        saw_dt = true;
                     }
                     b'S' => {
                         seconds = num;
+                        saw_dt = true;
                     }
                     _ => return None,
                 }
@@ -120,10 +123,11 @@ pub fn parse_duration_iso8601(s: &str) -> Option<crate::typesystem::values::Dura
         idx += 1;
     }
 
-    if saw_ym && saw_dt {
-        return None;
-    }
-    let v = if saw_ym {
+    let v = if saw_ym && saw_dt {
+        crate::typesystem::values::DurationValue::combined(
+            years, months, days, hours, minutes, seconds, negative,
+        )
+    } else if saw_ym {
         crate::typesystem::values::DurationValue::ym(years, months, negative)
     } else {
         crate::typesystem::values::DurationValue::dt(days, hours, minutes, seconds, negative)

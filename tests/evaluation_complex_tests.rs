@@ -144,7 +144,7 @@ fn example_variable_library() {
             //age: application.applicationDate - applicant.birthDate
             age: duration('P18Y')
         }
-        eligibility: eligibilityDecision(applicantRecord).result
+        eligibility: eligibilityDecision(applicantRecord).status
     }
 
     func applicationDecisions(application: Application): {
@@ -179,7 +179,7 @@ fn example_variable_library() {
 
     // @Todo: finish writing test:
     assert_eq!(
-        exe_field(&rt, "applicantEligibility.firedRules"),
+        exe_field(&rt, "applicationResponse.applicationRecord"),
         "['INC_CHECK']"
     );
     assert_eq!(

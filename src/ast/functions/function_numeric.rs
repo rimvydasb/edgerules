@@ -12,7 +12,7 @@ use crate::typesystem::values::ValueEnum::{
     TimeValue,
 };
 use crate::typesystem::values::{
-    ArrayValue, DurationKind, DurationValue as DurationStruct, ValueEnum, ValueOrSv,
+    ArrayValue, DurationValue as DurationStruct, ValueEnum, ValueOrSv,
 };
 use std::cmp::Ordering;
 
@@ -365,28 +365,18 @@ pub fn eval_sum_all(
 }
 
 fn sum_duration_values(values: Vec<ValueEnum>) -> Result<ValueEnum, RuntimeError> {
-    let mut accumulator: Option<(DurationKind, i128)> = None;
+    let mut months_total: i128 = 0;
+    let mut seconds_total: i128 = 0;
+    let mut has_value = false;
     let mut special: Option<SpecialValueEnum> = None;
 
     for value in values {
         match value {
             DurationVariant(ValueOrSv::Value(duration)) => {
-                let addition = match duration.kind {
-                    DurationKind::YearsMonths => duration.signed_months(),
-                    DurationKind::DaysTime => duration.signed_seconds(),
-                };
-                match &mut accumulator {
-                    Some((kind, total)) => {
-                        if *kind != duration.kind {
-                            return RuntimeError::eval_error(
-                                "Cannot sum durations of different kinds".to_string(),
-                            )
-                            .into();
-                        }
-                        *total += addition;
-                    }
-                    None => accumulator = Some((duration.kind.clone(), addition)),
-                }
+                let (months, seconds) = duration.components();
+                months_total += months;
+                seconds_total += seconds;
+                has_value = true;
             }
             DurationVariant(ValueOrSv::Sv(sv)) => {
                 special = Some(sv);
@@ -398,11 +388,8 @@ fn sum_duration_values(values: Vec<ValueEnum>) -> Result<ValueEnum, RuntimeError
 
     if let Some(sv) = special {
         Ok(DurationVariant(ValueOrSv::Sv(sv)))
-    } else if let Some((kind, total)) = accumulator {
-        let result = match kind {
-            DurationKind::YearsMonths => DurationStruct::from_total_months(total),
-            DurationKind::DaysTime => DurationStruct::from_total_seconds(total),
-        };
+    } else if has_value {
+        let result = DurationStruct::from_components(months_total, seconds_total)?;
         Ok(DurationVariant(ValueOrSv::Value(result)))
     } else {
         Ok(DurationVariant(ValueOrSv::Sv(

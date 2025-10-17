@@ -1,5 +1,6 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
+use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
@@ -188,6 +189,7 @@ impl ArrayValue {
 pub enum DurationKind {
     YearsMonths,
     DaysTime,
+    Combined,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -229,11 +231,40 @@ impl DurationValue {
         }
     }
 
+    pub fn combined(
+        years: i32,
+        months: i32,
+        days: i64,
+        hours: i64,
+        minutes: i64,
+        seconds: i64,
+        negative: bool,
+    ) -> Self {
+        DurationValue {
+            negative,
+            kind: DurationKind::Combined,
+            years,
+            months,
+            days,
+            hours,
+            minutes,
+            seconds,
+        }
+    }
+
     pub fn is_zero(&self) -> bool {
         match self.kind {
             DurationKind::YearsMonths => self.years == 0 && self.months == 0,
             DurationKind::DaysTime => {
                 self.days == 0 && self.hours == 0 && self.minutes == 0 && self.seconds == 0
+            }
+            DurationKind::Combined => {
+                self.years == 0
+                    && self.months == 0
+                    && self.days == 0
+                    && self.hours == 0
+                    && self.minutes == 0
+                    && self.seconds == 0
             }
         }
     }
@@ -258,24 +289,53 @@ impl DurationValue {
         }
     }
 
-    pub(crate) fn from_total_months(total: i128) -> Self {
-        let negative = total < 0;
-        let abs_total = total.abs();
-        let years = (abs_total / 12) as i32;
-        let months = (abs_total % 12) as i32;
-        DurationValue::ym(years, months, negative)
+    pub(crate) fn components(&self) -> (i128, i128) {
+        match self.kind {
+            DurationKind::YearsMonths => (self.signed_months(), 0),
+            DurationKind::DaysTime => (0, self.signed_seconds()),
+            DurationKind::Combined => (self.signed_months(), self.signed_seconds()),
+        }
     }
 
-    pub(crate) fn from_total_seconds(total: i128) -> Self {
-        let negative = total < 0;
-        let abs_total = total.abs();
-        let days = (abs_total / 86_400) as i64;
-        let mut remainder = abs_total % 86_400;
+    pub(crate) fn from_components(
+        months_total: i128,
+        seconds_total: i128,
+    ) -> Result<Self, RuntimeError> {
+        let months_negative = months_total < 0;
+        let seconds_negative = seconds_total < 0;
+
+        if months_total != 0 && seconds_total != 0 && months_negative != seconds_negative {
+            return RuntimeError::eval_error(
+                "Cannot represent duration with mixed month and day/time signs".to_string(),
+            )
+            .into();
+        }
+
+        let negative = months_negative || seconds_negative;
+        let abs_months = months_total.abs();
+        let abs_seconds = seconds_total.abs();
+
+        let years = (abs_months / 12) as i32;
+        let months = (abs_months % 12) as i32;
+
+        let days = (abs_seconds / 86_400) as i64;
+        let mut remainder = abs_seconds % 86_400;
         let hours = (remainder / 3_600) as i64;
         remainder %= 3_600;
         let minutes = (remainder / 60) as i64;
         let seconds = (remainder % 60) as i64;
-        DurationValue::dt(days, hours, minutes, seconds, negative)
+
+        if abs_months > 0 && abs_seconds > 0 {
+            Ok(DurationValue::combined(
+                years, months, days, hours, minutes, seconds, negative,
+            ))
+        } else if abs_months > 0 {
+            Ok(DurationValue::ym(years, months, negative))
+        } else if abs_seconds > 0 {
+            Ok(DurationValue::dt(days, hours, minutes, seconds, negative))
+        } else {
+            Ok(DurationValue::dt(0, 0, 0, 0, false))
+        }
     }
 }
 
@@ -288,6 +348,7 @@ impl PartialOrd for DurationValue {
         match self.kind {
             DurationKind::YearsMonths => Some(self.signed_months().cmp(&other.signed_months())),
             DurationKind::DaysTime => Some(self.signed_seconds().cmp(&other.signed_seconds())),
+            DurationKind::Combined => None,
         }
     }
 }
@@ -392,6 +453,29 @@ impl Display for ValueEnum {
                             }
                         }
                         DurationKind::DaysTime => {
+                            if dur.days != 0 {
+                                s.push_str(&format!("{}D", dur.days.abs()));
+                            }
+                            if dur.hours != 0 || dur.minutes != 0 || dur.seconds != 0 {
+                                s.push('T');
+                                if dur.hours != 0 {
+                                    s.push_str(&format!("{}H", dur.hours.abs()));
+                                }
+                                if dur.minutes != 0 {
+                                    s.push_str(&format!("{}M", dur.minutes.abs()));
+                                }
+                                if dur.seconds != 0 {
+                                    s.push_str(&format!("{}S", dur.seconds.abs()));
+                                }
+                            }
+                        }
+                        DurationKind::Combined => {
+                            if dur.years != 0 {
+                                s.push_str(&format!("{}Y", dur.years.abs()));
+                            }
+                            if dur.months != 0 {
+                                s.push_str(&format!("{}M", dur.months.abs()));
+                            }
                             if dur.days != 0 {
                                 s.push_str(&format!("{}D", dur.days.abs()));
                             }

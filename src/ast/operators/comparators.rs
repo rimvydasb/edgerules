@@ -16,6 +16,7 @@ use crate::typesystem::values::ValueEnum::{
 use crate::typesystem::values::ValueOrSv;
 use log::trace;
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
@@ -102,7 +103,18 @@ impl StaticLink for ComparatorOperator {
         let left_type = self.data.left.link(Rc::clone(&ctx))?;
         let right_type = self.data.right.link(ctx)?;
 
-        let same_type = LinkingError::expect_same_types("Comparator", left_type, right_type)?;
+        let type_pair = (left_type.clone(), right_type.clone());
+        let same_type = if type_pair.0 == type_pair.1 {
+            LinkingError::expect_same_types("Comparator", type_pair.0, type_pair.1)?
+        } else {
+            match type_pair {
+                (ValueType::DateType, ValueType::DateTimeType)
+                | (ValueType::DateTimeType, ValueType::DateType) => ValueType::DateTimeType,
+                (left, right) => {
+                    return LinkingError::expect_same_types("Comparator", left, right);
+                }
+            }
+        };
 
         match (&same_type, &self.data.operator) {
             (ValueType::BooleanType, Equals) => {}
@@ -150,6 +162,14 @@ impl StaticLink for ComparatorOperator {
             | (ValueType::DateTimeType, Greater)
             | (ValueType::DateTimeType, GreaterEquals) => {}
 
+            // if both are durations, allow =, <>, <, <=, >, >=
+            (ValueType::DurationType, Equals)
+            | (ValueType::DurationType, NotEquals)
+            | (ValueType::DurationType, Less)
+            | (ValueType::DurationType, LessEquals)
+            | (ValueType::DurationType, Greater)
+            | (ValueType::DurationType, GreaterEquals) => {}
+
             // if both are numbers all comparators are allowed
             (ValueType::NumberType, _) => {}
 
@@ -184,6 +204,24 @@ impl ComparatorOperator {
         };
 
         Ok(comparator)
+    }
+
+    fn duration_ordering(
+        &self,
+        left: &crate::typesystem::values::DurationValue,
+        right: &crate::typesystem::values::DurationValue,
+    ) -> Result<Ordering, RuntimeError> {
+        left.partial_cmp(right).ok_or_else(|| {
+            RuntimeError::eval_error("Cannot compare durations of different kinds".to_string())
+        })
+    }
+
+    fn date_datetime_ordering(date: &time::Date, datetime: &time::PrimitiveDateTime) -> Ordering {
+        time::PrimitiveDateTime::new(*date, time::Time::MIDNIGHT).cmp(datetime)
+    }
+
+    fn datetime_date_ordering(datetime: &time::PrimitiveDateTime, date: &time::Date) -> Ordering {
+        Self::date_datetime_ordering(date, datetime).reverse()
     }
 
     fn eval_operator(
@@ -267,6 +305,137 @@ impl ComparatorOperator {
             (DateTimeValue(ValueOrSv::Value(a)), Greater, DateTimeValue(ValueOrSv::Value(b))) => {
                 Ok(BooleanValue(a > b))
             }
+
+            (
+                DateValue(ValueOrSv::Value(date)),
+                Equals,
+                DateTimeValue(ValueOrSv::Value(datetime)),
+            ) => Ok(BooleanValue(
+                Self::date_datetime_ordering(date, datetime) == Ordering::Equal,
+            )),
+            (
+                DateValue(ValueOrSv::Value(date)),
+                NotEquals,
+                DateTimeValue(ValueOrSv::Value(datetime)),
+            ) => Ok(BooleanValue(
+                Self::date_datetime_ordering(date, datetime) != Ordering::Equal,
+            )),
+            (
+                DateValue(ValueOrSv::Value(date)),
+                Less,
+                DateTimeValue(ValueOrSv::Value(datetime)),
+            ) => Ok(BooleanValue(
+                Self::date_datetime_ordering(date, datetime) == Ordering::Less,
+            )),
+            (
+                DateValue(ValueOrSv::Value(date)),
+                Greater,
+                DateTimeValue(ValueOrSv::Value(datetime)),
+            ) => Ok(BooleanValue(
+                Self::date_datetime_ordering(date, datetime) == Ordering::Greater,
+            )),
+            (
+                DateValue(ValueOrSv::Value(date)),
+                LessEquals,
+                DateTimeValue(ValueOrSv::Value(datetime)),
+            ) => Ok(BooleanValue({
+                let ordering = Self::date_datetime_ordering(date, datetime);
+                ordering == Ordering::Less || ordering == Ordering::Equal
+            })),
+            (
+                DateValue(ValueOrSv::Value(date)),
+                GreaterEquals,
+                DateTimeValue(ValueOrSv::Value(datetime)),
+            ) => Ok(BooleanValue({
+                let ordering = Self::date_datetime_ordering(date, datetime);
+                ordering == Ordering::Greater || ordering == Ordering::Equal
+            })),
+
+            (
+                DateTimeValue(ValueOrSv::Value(datetime)),
+                Equals,
+                DateValue(ValueOrSv::Value(date)),
+            ) => Ok(BooleanValue(
+                Self::datetime_date_ordering(datetime, date) == Ordering::Equal,
+            )),
+            (
+                DateTimeValue(ValueOrSv::Value(datetime)),
+                NotEquals,
+                DateValue(ValueOrSv::Value(date)),
+            ) => Ok(BooleanValue(
+                Self::datetime_date_ordering(datetime, date) != Ordering::Equal,
+            )),
+            (
+                DateTimeValue(ValueOrSv::Value(datetime)),
+                Less,
+                DateValue(ValueOrSv::Value(date)),
+            ) => Ok(BooleanValue(
+                Self::datetime_date_ordering(datetime, date) == Ordering::Less,
+            )),
+            (
+                DateTimeValue(ValueOrSv::Value(datetime)),
+                Greater,
+                DateValue(ValueOrSv::Value(date)),
+            ) => Ok(BooleanValue(
+                Self::datetime_date_ordering(datetime, date) == Ordering::Greater,
+            )),
+            (
+                DateTimeValue(ValueOrSv::Value(datetime)),
+                LessEquals,
+                DateValue(ValueOrSv::Value(date)),
+            ) => Ok(BooleanValue({
+                let ordering = Self::datetime_date_ordering(datetime, date);
+                ordering == Ordering::Less || ordering == Ordering::Equal
+            })),
+            (
+                DateTimeValue(ValueOrSv::Value(datetime)),
+                GreaterEquals,
+                DateValue(ValueOrSv::Value(date)),
+            ) => Ok(BooleanValue({
+                let ordering = Self::datetime_date_ordering(datetime, date);
+                ordering == Ordering::Greater || ordering == Ordering::Equal
+            })),
+
+            (
+                ValueEnum::DurationValue(ValueOrSv::Value(a)),
+                Equals,
+                ValueEnum::DurationValue(ValueOrSv::Value(b)),
+            ) => Ok(BooleanValue(a == b)),
+            (
+                ValueEnum::DurationValue(ValueOrSv::Value(a)),
+                NotEquals,
+                ValueEnum::DurationValue(ValueOrSv::Value(b)),
+            ) => Ok(BooleanValue(a != b)),
+            (
+                ValueEnum::DurationValue(ValueOrSv::Value(a)),
+                Less,
+                ValueEnum::DurationValue(ValueOrSv::Value(b)),
+            ) => Ok(BooleanValue(
+                self.duration_ordering(a, b)? == Ordering::Less,
+            )),
+            (
+                ValueEnum::DurationValue(ValueOrSv::Value(a)),
+                Greater,
+                ValueEnum::DurationValue(ValueOrSv::Value(b)),
+            ) => Ok(BooleanValue(
+                self.duration_ordering(a, b)? == Ordering::Greater,
+            )),
+            (
+                ValueEnum::DurationValue(ValueOrSv::Value(a)),
+                LessEquals,
+                ValueEnum::DurationValue(ValueOrSv::Value(b)),
+            ) => Ok(BooleanValue({
+                let ordering = self.duration_ordering(a, b)?;
+                ordering == Ordering::Less || ordering == Ordering::Equal
+            })),
+            (
+                ValueEnum::DurationValue(ValueOrSv::Value(a)),
+                GreaterEquals,
+                ValueEnum::DurationValue(ValueOrSv::Value(b)),
+            ) => Ok(BooleanValue({
+                let ordering = self.duration_ordering(a, b)?;
+                ordering == Ordering::Greater || ordering == Ordering::Equal
+            })),
 
             (left, comparator, right) => RuntimeError::eval_error(format!(
                 "Not possible to compare {} {} {}",
