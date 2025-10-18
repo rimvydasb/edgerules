@@ -460,15 +460,8 @@ fn merge_date_with_datetime(
 
 fn duration_from_time_diff(diff: time::Duration) -> ErDurationValue {
     let neg = diff.is_negative();
-    let total_secs = diff.whole_seconds().abs();
-    let days = total_secs / 86_400;
-    let remainder = total_secs % 86_400;
-    let hours = remainder / 3_600;
-    let remainder = remainder % 3_600;
-    let minutes = remainder / 60;
-    let seconds = remainder % 60;
-
-    ErDurationValue::dt(days, hours, minutes, seconds, neg)
+    let total_secs = diff.whole_seconds().abs() as i128;
+    ErDurationValue::dt_from_total_seconds(total_secs, neg)
 }
 
 impl PartialEq for MathOperator {

@@ -147,15 +147,28 @@ fn time_comparator_operators() {
 
 #[test]
 fn duration_comparator_operators() {
-    assert_value!("duration(\"P3D\") = duration(\"P3D\")", "true");
-    assert_value!("duration(\"P3D\") <> duration(\"P4D\")", "true");
-    assert_value!("duration(\"P1D\") < duration(\"P2D\")", "true");
-    assert_value!("duration(\"P1D\") <= duration(\"P1D\")", "true");
-    assert_value!("duration(\"P2D\") > duration(\"P1D\")", "true");
-    assert_value!("duration(\"P2D\") >= duration(\"P3D\")", "false");
-    assert_value!("duration(\"P1Y\") < duration(\"P2Y\")", "true");
-    assert_value!("duration(\"P18M\") >= duration(\"P1Y6M\")", "true");
-    assert_value!("duration(\"P1Y\") >= duration(\"P13M\")", "false");
+    assert_value!("duration('P3D') = duration('P3D')", "true");
+    assert_value!("duration('P3D') <> duration('P4D')", "true");
+    assert_value!("duration('P1D') < duration('P2D')", "true");
+    assert_value!("duration('P1D') <= duration('P1D')", "true");
+    assert_value!("duration('P2D') > duration('P1D')", "true");
+    assert_value!("duration('P2D') >= duration('P3D')", "false");
+    assert_value!("duration('P1Y') < duration('P2Y')", "true");
+    assert_value!("duration('P18M') >= duration('P1Y6M')", "true");
+    assert_value!("duration('P1Y') >= duration('P13M')", "false");
+    assert_value!("duration('P1M') = duration('P1M')", "true");
+    assert_value!("duration('P1M') = duration('P30D')", "false");
+    assert_value!("duration('P1M') = duration('P31D')", "false");
+    assert_value!("duration('P30D') = duration('P31D')", "false");
+    assert_value!("duration('P365D') = duration('P1Y')", "false");
+    assert_value!("duration('P365D') = duration('P366D')", "false");
+    assert_value!("duration('P1M') <> duration('P30D')", "true");
+    assert_value!("duration('P1M') <> duration('P31D')", "true");
+    assert_value!("duration('P1Y') <> duration('P365D')", "true");
+    assert_value!("duration('P1Y') <> duration('P366D')", "true");
+    assert_value!("duration('P10D') < duration('P11D')", "true");
+    assert_value!("duration('P2M') > duration('P1M')", "true");
+    assert_value!("duration('P1Y') > duration('P6M')", "true");
 }
 
 #[test]
@@ -238,6 +251,13 @@ fn duration_arithmetic_with_comparators() {
         "datetime('2020-01-02T00:00:00') - duration(\"PT30M\") >= datetime('2020-01-01T23:30:00')",
         "true"
     );
+}
+
+#[test]
+fn duration_mixed_kinds_comparison_returns_null() {
+    // TODO: consider canonical conversion so months/days comparisons can yield a boolean result.
+    assert_value!("duration('P1M') < duration('P30D')", "null");
+    assert_value!("duration('P1M') > duration('P30D')", "null");
 }
 
 #[test]

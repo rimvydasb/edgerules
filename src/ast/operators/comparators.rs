@@ -210,10 +210,8 @@ impl ComparatorOperator {
         &self,
         left: &crate::typesystem::values::DurationValue,
         right: &crate::typesystem::values::DurationValue,
-    ) -> Result<Ordering, RuntimeError> {
-        left.partial_cmp(right).ok_or_else(|| {
-            RuntimeError::eval_error("Cannot compare durations of different kinds".to_string())
-        })
+    ) -> Option<Ordering> {
+        left.partial_cmp(right)
     }
 
     fn date_datetime_ordering(date: &time::Date, datetime: &time::PrimitiveDateTime) -> Ordering {
@@ -410,32 +408,38 @@ impl ComparatorOperator {
                 ValueEnum::DurationValue(ValueOrSv::Value(a)),
                 Less,
                 ValueEnum::DurationValue(ValueOrSv::Value(b)),
-            ) => Ok(BooleanValue(
-                self.duration_ordering(a, b)? == Ordering::Less,
-            )),
+            ) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
+                None => RuntimeError::eval_error("Cannot compare durations".to_string()).into(),
+            },
             (
                 ValueEnum::DurationValue(ValueOrSv::Value(a)),
                 Greater,
                 ValueEnum::DurationValue(ValueOrSv::Value(b)),
-            ) => Ok(BooleanValue(
-                self.duration_ordering(a, b)? == Ordering::Greater,
-            )),
+            ) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
+                None => RuntimeError::eval_error("Cannot compare durations".to_string()).into(),
+            },
             (
                 ValueEnum::DurationValue(ValueOrSv::Value(a)),
                 LessEquals,
                 ValueEnum::DurationValue(ValueOrSv::Value(b)),
-            ) => Ok(BooleanValue({
-                let ordering = self.duration_ordering(a, b)?;
-                ordering == Ordering::Less || ordering == Ordering::Equal
-            })),
+            ) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(
+                    ordering == Ordering::Less || ordering == Ordering::Equal,
+                )),
+                None => RuntimeError::eval_error("Cannot compare durations".to_string()).into(),
+            },
             (
                 ValueEnum::DurationValue(ValueOrSv::Value(a)),
                 GreaterEquals,
                 ValueEnum::DurationValue(ValueOrSv::Value(b)),
-            ) => Ok(BooleanValue({
-                let ordering = self.duration_ordering(a, b)?;
-                ordering == Ordering::Greater || ordering == Ordering::Equal
-            })),
+            ) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(
+                    ordering == Ordering::Greater || ordering == Ordering::Equal,
+                )),
+                None => RuntimeError::eval_error("Cannot compare durations".to_string()).into(),
+            },
 
             (left, comparator, right) => RuntimeError::eval_error(format!(
                 "Not possible to compare {} {} {}",

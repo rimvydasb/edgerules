@@ -113,21 +113,13 @@ fn should_replace_duration(
     candidate: &ValueOrSv<DurationStruct, SpecialValueEnum>,
 ) -> Result<bool, RuntimeError> {
     match (current, candidate) {
-        (ValueOrSv::Value(a), ValueOrSv::Value(b)) => {
-            if a.kind != b.kind {
-                return RuntimeError::eval_error(
-                    "Cannot compare durations of different kinds".to_string(),
-                )
-                .into();
+        (ValueOrSv::Value(a), ValueOrSv::Value(b)) => match a.partial_cmp(b) {
+            Some(ordering) => Ok(order.should_replace(ordering)),
+            None => {
+                RuntimeError::eval_error("Cannot compare durations of different kinds".to_string())
+                    .into()
             }
-            match a.partial_cmp(b) {
-                Some(ordering) => Ok(order.should_replace(ordering)),
-                None => RuntimeError::eval_error(
-                    "Cannot compare durations of different kinds".to_string(),
-                )
-                .into(),
-            }
-        }
+        },
         (ValueOrSv::Sv(_), ValueOrSv::Value(_)) => Ok(matches!(order, ExtremaOrder::Max)),
         (ValueOrSv::Value(_), ValueOrSv::Sv(_)) => Ok(matches!(order, ExtremaOrder::Min)),
         (ValueOrSv::Sv(_), ValueOrSv::Sv(_)) => Ok(false),
