@@ -58,28 +58,30 @@ fn datetime_primitives_and_components() {
 fn datetime_comparisons_and_arithmetic() {
     // Comparisons
     assert_eq!(
-        crate::eval_field("value: date('2017-05-03') < date('2017-05-04')", "value"),
+        eval_field("value: date('2017-05-03') < date('2017-05-04')", "value"),
         "true"
     );
 
-    // date - date => P1D
-    assert_eq!(
-        crate::eval_field("value: date('2017-05-04') - date('2017-05-03')", "value"),
-        "P1D"
-    );
+    assert_value!("date('2017-05-04') - date('2017-05-03')", "P1D");
+
+    //industry practice (SQL, DMN FEEL): date - date → produces a date time period
+    assert_value!("date('2017-06-04') - date('2017-05-03')", "P32D");
+
+    //industry practice (SQL, DMN FEEL): datetime - datetime → produces a date time period
+    assert_value!("datetime('2017-06-04T09:00:00') - datetime('2017-05-03T08:00:00')", "P32DT1H");
 
     // date + duration days
-    assert_value!("date('2017-05-03') + duration(\"P1D\")", "2017-05-04");
+    assert_value!("date('2017-05-03') + duration('P1D')", "2017-05-04");
 
     // clamp day-of-month
-    assert_value!("date('2018-01-31') + duration(\"P1M\")", "2018-02-28");
+    assert_value!("date('2018-01-31') + duration('P1M')", "2018-02-28");
 
     // time - time => PT1H10M30S
     assert_value!("time('13:10:30') - time('12:00:00')", "PT1H10M30S");
 
     // datetime + PT23H
     assert_value!(
-        "datetime('2016-12-09T15:37:00') + duration(\"PT23H\")",
+        "datetime('2016-12-09T15:37:00') + duration('PT23H')",
         "2016-12-10 14:37:00.0"
     );
 }
@@ -255,9 +257,11 @@ fn duration_arithmetic_with_comparators() {
 
 #[test]
 fn duration_mixed_kinds_comparison_returns_null() {
-    // TODO: consider canonical conversion so months/days comparisons can yield a boolean result.
-    assert_value!("duration('P1M') < duration('P30D')", "null");
-    assert_value!("duration('P1M') > duration('P30D')", "null");
+    let evaluated = eval_all("value: duration('P1M') < duration('P30D')");
+    assert_string_contains!("[runtime] Cannot compare durations", &evaluated);
+
+    let evaluated = eval_all("value: duration('P1M') > duration('P30D')");
+    assert_string_contains!("[runtime] Cannot compare durations", &evaluated);
 }
 
 #[test]
@@ -375,6 +379,10 @@ fn comparator_if_else_blocks() {
     assert_value!(
         "if date('2020-01-01') + duration(\"P2D\") <> date('2020-01-04') then 'still match' else 'unexpected'",
         "'still match'"
+    );
+    assert_value!(
+        "if datetime('2020-01-01T18:00:00') >= datetime('2020-01-01T12:00:00') + duration('P18Y') then 'a' else 'b'",
+        "'b'"
     );
 }
 

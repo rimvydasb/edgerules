@@ -191,7 +191,9 @@ const MINUTES_PER_HOUR: i128 = 60;
 const HOURS_PER_DAY: i128 = 24;
 const SECONDS_PER_HOUR: i128 = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 const SECONDS_PER_DAY: i128 = HOURS_PER_DAY * SECONDS_PER_HOUR;
+const SECONDS_PER_FEBRUARY_NON_LEAP: i128 = 28 * SECONDS_PER_DAY;
 
+// @Todo: it must be struct and hold only seconds and negative flag
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DurationValue {
     YearsMonths { months: i128 },
@@ -350,17 +352,35 @@ impl DurationValue {
 
 impl PartialOrd for DurationValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        pub type DV = DurationValue;
         match (self, other) {
+            (DV::YearsMonths { months: a }, DV::YearsMonths { months: b }) => Some(a.cmp(b)),
+            (DV::YearsMonths { months: a }, DV::DaysTime { seconds: b }) => {
+                if (b < &SECONDS_PER_FEBRUARY_NON_LEAP && *a > 0){
+                    // this is a work-around for the fact that months cannot be precisely converted to days
+                    Some(Ordering::Greater)
+                } else {
+                    None
+                }
+            },
+            (DV::DaysTime { seconds: a }, DV::YearsMonths { months: b }) => {
+                if (a < &SECONDS_PER_FEBRUARY_NON_LEAP && *b > 0){
+                    // this is a work-around for the fact that months cannot be precisely converted to days
+                    Some(Ordering::Less)
+                } else {
+                    None
+                }
+            },
+            (DV::DaysTime { seconds: a }, DV::DaysTime { seconds: b }) => Some(a.cmp(b)),
             (
-                DurationValue::YearsMonths { months: a },
-                DurationValue::YearsMonths { months: b },
-            ) => Some(a.cmp(b)),
-            (DurationValue::DaysTime { seconds: a }, DurationValue::DaysTime { seconds: b }) => {
-                Some(a.cmp(b))
-            }
-            (
-                DurationValue::Combined { months: am, seconds: as0 },
-                DurationValue::Combined { months: bm, seconds: bs },
+                DV::Combined {
+                    months: am,
+                    seconds: as0,
+                },
+                DV::Combined {
+                    months: bm,
+                    seconds: bs,
+                },
             ) => match am.cmp(bm) {
                 Ordering::Equal => Some(as0.cmp(bs)),
                 other => Some(other),

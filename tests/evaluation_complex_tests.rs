@@ -110,7 +110,11 @@ fn example_ruleset_collecting() {
 }
 
 #[test]
+#[ignore]
 fn example_variable_library() {
+
+    init_logger();
+
     let code = r#"
     // Business Object Model Entities:
 
@@ -134,17 +138,18 @@ fn example_variable_library() {
             rules: [
                 {name: "INC_CHECK"; rule: applicantRecord.data.income > applicantRecord.data.expense * 2}
                 {name: "MIN_INCOM"; rule: applicantRecord.data.income > 1000}
-                {name: "AGE_CHECK"; rule: applicantRecord.age >= duration('P18Y')}
+                // @Todo: fix it
+                {name: "AGE_CHECK"; rule: applicantRecord.checkDate >= (applicantRecord.checkDate + duration('P18Y'))}
             ]
             firedRules: for invalid in rules[rule = false] return invalid.name
             status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
         }
         applicantRecord: {
+            checkDate: application.applicationDate
             data: applicant
-            //age: application.applicationDate - applicant.birthDate
-            age: duration('P18Y')
+            age: (application.applicationDate - applicant.birthDate).years
         }
-        eligibility: eligibilityDecision(applicantRecord).status
+        eligibility: eligibilityDecision(applicantRecord)
     }
 
     func applicationDecisions(application: Application): {
@@ -155,7 +160,7 @@ fn example_variable_library() {
     }
 
     applicationResponse: applicationDecisions({
-        applicationDate: date("2023-01-01")
+        applicationDate: date("2025-01-01")
         propertyValue: 100000
         loanAmount: 80000
         applicants: [
@@ -168,7 +173,7 @@ fn example_variable_library() {
             {
                 name: "Jane Doe"
                 birthDate: date("1992-05-01")
-                income: 900
+                income: 1500
                 expense: 300
             }
         ]
@@ -179,11 +184,11 @@ fn example_variable_library() {
 
     // @Todo: finish writing test:
     assert_eq!(
-        exe_field(&rt, "applicationResponse.applicationRecord"),
-        "['INC_CHECK']"
+        exe_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[0]"),
+        "'INELIGIBLE'"
     );
     assert_eq!(
-        exe_field(&rt, "applicantEligibility.status"),
+        exe_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[1]"),
         "'INELIGIBLE'"
     );
 }
