@@ -147,6 +147,12 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
         validation: expect_string_arg,
         return_type: |_| ValueType::DurationType,
     },
+    "period" => UnaryFunctionDefinition {
+        name: "period",
+        function: eval_period,
+        validation: expect_string_arg,
+        return_type: |_| ValueType::PeriodType,
+    },
     // Additional helpers
     "dayOfWeek" => UnaryFunctionDefinition {
         name: "dayOfWeek",
@@ -257,6 +263,12 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
 };
 
 pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefinition> = phf_map! {
+    "calendarDiff" => BinaryFunctionDefinition {
+        name: "calendarDiff",
+        function: eval_calendar_diff,
+        validation: validate_binary_date_date,
+        return_type: return_period_type_binary,
+    },
     "find" => BinaryFunctionDefinition {
         name: "find",
         function: eval_find,

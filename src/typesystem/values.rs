@@ -37,6 +37,7 @@ pub enum ValueEnum {
     TimeValue(ValueOrSv<Time, SpecialValueEnum>),
     DateTimeValue(ValueOrSv<PrimitiveDateTime, SpecialValueEnum>),
     DurationValue(ValueOrSv<DurationValue, SpecialValueEnum>),
+    PeriodValue(ValueOrSv<PeriodValue, SpecialValueEnum>),
 
     /// Non-primitive values
     Array(ArrayValue),
@@ -191,116 +192,119 @@ const MINUTES_PER_HOUR: i128 = 60;
 const HOURS_PER_DAY: i128 = 24;
 const SECONDS_PER_HOUR: i128 = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 const SECONDS_PER_DAY: i128 = HOURS_PER_DAY * SECONDS_PER_HOUR;
-const SECONDS_PER_FEBRUARY_NON_LEAP: i128 = 28 * SECONDS_PER_DAY;
 
-// @Todo: it must be struct and hold only seconds and negative flag
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DurationValue {
-    YearsMonths { months: i128 },
-    DaysTime { seconds: i128 },
-    Combined { months: i128, seconds: i128 },
+pub struct DurationValue {
+    seconds: u64,
+    is_negative: bool,
 }
 
 impl DurationValue {
-    pub fn ym(years: i32, months: i32, negative: bool) -> Self {
-        let total_months = i128::from(years) * MONTHS_PER_YEAR + i128::from(months);
-        let signed = if negative {
-            -total_months.abs()
-        } else {
-            total_months
-        };
-        DurationValue::YearsMonths { months: signed }
+    pub fn new(seconds: u64, is_negative: bool) -> Self {
+        let neg = is_negative && seconds > 0;
+        DurationValue {
+            seconds,
+            is_negative: neg,
+        }
     }
 
-    pub fn dt(days: i64, hours: i64, minutes: i64, seconds: i64, negative: bool) -> Self {
-        DurationValue::dt_from_total_seconds(
-            ((((i128::from(days) * HOURS_PER_DAY) + i128::from(hours)) * MINUTES_PER_HOUR
-                + i128::from(minutes))
-                * SECONDS_PER_MINUTE)
-                + i128::from(seconds),
-            negative,
-        )
+    pub fn zero() -> Self {
+        DurationValue {
+            seconds: 0,
+            is_negative: false,
+        }
     }
 
-    pub fn dt_from_total_seconds(total_seconds: i128, negative: bool) -> Self {
-        let signed = if negative {
-            -total_seconds.abs()
-        } else {
-            total_seconds
-        };
-        DurationValue::DaysTime { seconds: signed }
-    }
-
-    pub fn combined(
-        years: i32,
-        months: i32,
+    pub fn from_components(
         days: i64,
         hours: i64,
         minutes: i64,
         seconds: i64,
         negative: bool,
-    ) -> Self {
-        let months_total = i128::from(years) * MONTHS_PER_YEAR + i128::from(months);
-        let seconds_total = ((((i128::from(days) * HOURS_PER_DAY) + i128::from(hours))
-            * MINUTES_PER_HOUR
-            + i128::from(minutes))
-            * SECONDS_PER_MINUTE)
-            + i128::from(seconds);
-
-        let months_signed = if negative {
-            -months_total.abs()
-        } else {
-            months_total
-        };
-        let seconds_signed = if negative {
-            -seconds_total.abs()
-        } else {
-            seconds_total
-        };
-
-        match (months_signed, seconds_signed) {
-            (0, 0) => DurationValue::DaysTime { seconds: 0 },
-            (0, seconds) => DurationValue::DaysTime { seconds },
-            (months, 0) => DurationValue::YearsMonths { months },
-            (months, seconds) => DurationValue::Combined { months, seconds },
-        }
-    }
-
-    pub fn is_zero(&self) -> bool {
-        match self {
-            DurationValue::YearsMonths { months } => *months == 0,
-            DurationValue::DaysTime { seconds } => *seconds == 0,
-            DurationValue::Combined { months, seconds } => *months == 0 && *seconds == 0,
-        }
-    }
-
-    pub(crate) fn components(&self) -> (i128, i128) {
-        match self {
-            DurationValue::YearsMonths { months } => (*months, 0),
-            DurationValue::DaysTime { seconds } => (0, *seconds),
-            DurationValue::Combined { months, seconds } => (*months, *seconds),
-        }
-    }
-
-    pub(crate) fn from_components(
-        months_total: i128,
-        seconds_total: i128,
     ) -> Result<Self, RuntimeError> {
-        if months_total != 0
-            && seconds_total != 0
-            && ((months_total > 0 && seconds_total < 0) || (months_total < 0 && seconds_total > 0))
-        {
+        let mut total: i128 = 0;
+        total = total
+            .checked_add(
+                i128::from(days)
+                    .checked_mul(SECONDS_PER_DAY)
+                    .ok_or_else(|| {
+                        RuntimeError::eval_error(
+                            "Duration days overflow the supported range".to_string(),
+                        )
+                    })?,
+            )
+            .ok_or_else(|| {
+                RuntimeError::eval_error("Duration overflow while calculating seconds".to_string())
+            })?;
+        total = total
+            .checked_add(
+                i128::from(hours)
+                    .checked_mul(SECONDS_PER_HOUR)
+                    .ok_or_else(|| {
+                        RuntimeError::eval_error(
+                            "Duration hours overflow the supported range".to_string(),
+                        )
+                    })?,
+            )
+            .ok_or_else(|| {
+                RuntimeError::eval_error("Duration overflow while calculating seconds".to_string())
+            })?;
+        total = total
+            .checked_add(
+                i128::from(minutes)
+                    .checked_mul(SECONDS_PER_MINUTE)
+                    .ok_or_else(|| {
+                        RuntimeError::eval_error(
+                            "Duration minutes overflow the supported range".to_string(),
+                        )
+                    })?,
+            )
+            .ok_or_else(|| {
+                RuntimeError::eval_error("Duration overflow while calculating seconds".to_string())
+            })?;
+        total = total.checked_add(i128::from(seconds)).ok_or_else(|| {
+            RuntimeError::eval_error("Duration seconds overflow the supported range".to_string())
+        })?;
+
+        if total < 0 {
             return RuntimeError::eval_error(
-                "Cannot represent duration with mixed month and day/time signs".to_string(),
+                "Duration components must be non-negative before applying the sign".to_string(),
             )
             .into();
         }
 
-        match (months_total, seconds_total) {
-            (0, 0) => Ok(DurationValue::DaysTime { seconds: 0 }),
-            (months, 0) => Ok(DurationValue::YearsMonths { months }),
-            (0, seconds) => Ok(DurationValue::DaysTime { seconds }),
-            (months, seconds) => Ok(DurationValue::Combined { months, seconds }),
+        DurationValue::from_total_seconds(total as u128, negative)
+    }
+
+    pub fn from_total_seconds(total_seconds: u128, negative: bool) -> Result<Self, RuntimeError> {
+        if total_seconds > u64::MAX as u128 {
+            return RuntimeError::eval_error(
+                "Duration seconds overflow the supported range".to_string(),
+            )
+            .into();
+        }
+        Ok(DurationValue::new(total_seconds as u64, negative))
+    }
+
+    pub fn from_signed_seconds(total_seconds: i128) -> Result<Self, RuntimeError> {
+        if total_seconds == 0 {
+            return Ok(DurationValue::zero());
+        }
+        let negative = total_seconds < 0;
+        let abs = total_seconds.abs() as u128;
+        DurationValue::from_total_seconds(abs, negative)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.seconds == 0
+    }
+
+    pub fn signed_seconds(&self) -> i128 {
+        let magnitude = i128::from(self.seconds);
+        if self.is_negative {
+            -magnitude
+        } else {
+            magnitude
         }
     }
 
@@ -310,130 +314,182 @@ impl DurationValue {
         }
 
         let mut out = String::new();
-        if self.is_negative() {
+        if self.is_negative {
             out.push('-');
         }
         out.push('P');
 
-        match self {
-            DurationValue::YearsMonths { months } => {
-                append_months_part(months.abs(), &mut out);
+        let mut remaining = self.seconds;
+        let days = remaining / (SECONDS_PER_DAY as u64);
+        remaining %= SECONDS_PER_DAY as u64;
+
+        if days > 0 {
+            let _ = write!(out, "{}D", days);
+        }
+
+        let hours = remaining / (SECONDS_PER_HOUR as u64);
+        remaining %= SECONDS_PER_HOUR as u64;
+        let minutes = remaining / (SECONDS_PER_MINUTE as u64);
+        let seconds = remaining % (SECONDS_PER_MINUTE as u64);
+
+        if hours > 0 || minutes > 0 || seconds > 0 {
+            out.push('T');
+            if hours > 0 {
+                let _ = write!(out, "{}H", hours);
             }
-            DurationValue::DaysTime { seconds } => {
-                append_days_time_part(seconds.abs(), &mut out);
+            if minutes > 0 {
+                let _ = write!(out, "{}M", minutes);
             }
-            DurationValue::Combined { months, seconds } => {
-                append_months_part(months.abs(), &mut out);
-                append_days_time_part(seconds.abs(), &mut out);
+            if seconds > 0 {
+                let _ = write!(out, "{}S", seconds);
             }
         }
 
         if out.ends_with('P') {
             out.push_str("T0S");
         }
-
         out
-    }
-
-    fn is_negative(&self) -> bool {
-        match self {
-            DurationValue::YearsMonths { months } => *months < 0,
-            DurationValue::DaysTime { seconds } => *seconds < 0,
-            DurationValue::Combined { months, seconds } => {
-                if *months != 0 {
-                    *months < 0
-                } else {
-                    *seconds < 0
-                }
-            }
-        }
     }
 }
 
 impl PartialOrd for DurationValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        pub type DV = DurationValue;
-        match (self, other) {
-            (DV::YearsMonths { months: a }, DV::YearsMonths { months: b }) => Some(a.cmp(b)),
-            (DV::YearsMonths { months: a }, DV::DaysTime { seconds: b }) => {
-                if (b < &SECONDS_PER_FEBRUARY_NON_LEAP && *a > 0){
-                    // this is a work-around for the fact that months cannot be precisely converted to days
-                    Some(Ordering::Greater)
-                } else {
-                    None
-                }
-            },
-            (DV::DaysTime { seconds: a }, DV::YearsMonths { months: b }) => {
-                if (a < &SECONDS_PER_FEBRUARY_NON_LEAP && *b > 0){
-                    // this is a work-around for the fact that months cannot be precisely converted to days
-                    Some(Ordering::Less)
-                } else {
-                    None
-                }
-            },
-            (DV::DaysTime { seconds: a }, DV::DaysTime { seconds: b }) => Some(a.cmp(b)),
-            (
-                DV::Combined {
-                    months: am,
-                    seconds: as0,
-                },
-                DV::Combined {
-                    months: bm,
-                    seconds: bs,
-                },
-            ) => match am.cmp(bm) {
-                Ordering::Equal => Some(as0.cmp(bs)),
-                other => Some(other),
-            },
-            _ => None,
-        }
+        self.signed_seconds().partial_cmp(&other.signed_seconds())
     }
 }
 
-fn append_months_part(months_abs: i128, target: &mut String) {
-    if months_abs == 0 {
-        return;
-    }
-
-    let years = months_abs / MONTHS_PER_YEAR;
-    let months = months_abs % MONTHS_PER_YEAR;
-
-    if years != 0 {
-        let _ = write!(target, "{}Y", years);
-    }
-    if months != 0 {
-        let _ = write!(target, "{}M", months);
-    }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PeriodValue {
+    months: u32,
+    days: u32,
+    is_negative: bool,
 }
 
-fn append_days_time_part(seconds_abs: i128, target: &mut String) {
-    if seconds_abs == 0 {
-        return;
+impl PeriodValue {
+    pub fn new(months: u32, days: u32, is_negative: bool) -> Self {
+        let neg = is_negative && (months > 0 || days > 0);
+        PeriodValue {
+            months,
+            days,
+            is_negative: neg,
+        }
     }
 
-    let days = seconds_abs / SECONDS_PER_DAY;
-    let mut remainder = seconds_abs % SECONDS_PER_DAY;
-
-    if days != 0 {
-        let _ = write!(target, "{}D", days);
+    pub fn zero() -> Self {
+        PeriodValue {
+            months: 0,
+            days: 0,
+            is_negative: false,
+        }
     }
 
-    let hours = remainder / SECONDS_PER_HOUR;
-    remainder %= SECONDS_PER_HOUR;
-    let minutes = remainder / SECONDS_PER_MINUTE;
-    let seconds = remainder % SECONDS_PER_MINUTE;
+    pub fn from_components(
+        years: i32,
+        months: i32,
+        days: i64,
+        negative: bool,
+    ) -> Result<Self, RuntimeError> {
+        if years < 0 || months < 0 || days < 0 {
+            return RuntimeError::eval_error(
+                "Period components must be non-negative before applying the sign".to_string(),
+            )
+            .into();
+        }
 
-    if hours != 0 || minutes != 0 || seconds != 0 {
-        target.push('T');
-        if hours != 0 {
-            let _ = write!(target, "{}H", hours);
+        let total_months = i128::from(years)
+            .checked_mul(MONTHS_PER_YEAR)
+            .and_then(|v| v.checked_add(i128::from(months)))
+            .ok_or_else(|| {
+                RuntimeError::eval_error("Period months overflow the supported range".to_string())
+            })?;
+
+        PeriodValue::from_total_parts(total_months, i128::from(days), negative)
+    }
+
+    pub fn from_total_parts(
+        months_total: i128,
+        days_total: i128,
+        negative: bool,
+    ) -> Result<Self, RuntimeError> {
+        if months_total < 0 || days_total < 0 {
+            return RuntimeError::eval_error(
+                "Period components must be non-negative before applying the sign".to_string(),
+            )
+            .into();
         }
-        if minutes != 0 {
-            let _ = write!(target, "{}M", minutes);
+
+        if months_total > u32::MAX as i128 || days_total > u32::MAX as i128 {
+            return RuntimeError::eval_error(
+                "Period components overflow the supported range".to_string(),
+            )
+            .into();
         }
-        if seconds != 0 {
-            let _ = write!(target, "{}S", seconds);
+
+        Ok(PeriodValue::new(
+            months_total as u32,
+            days_total as u32,
+            negative,
+        ))
+    }
+
+    pub fn from_signed_parts(months: i128, days: i128) -> Result<Self, RuntimeError> {
+        if months == 0 && days == 0 {
+            return Ok(PeriodValue::zero());
         }
+
+        if (months > 0 && days < 0) || (months < 0 && days > 0) {
+            return RuntimeError::eval_error(
+                "Period months and days must carry the same sign".to_string(),
+            )
+            .into();
+        }
+
+        let negative = months < 0 || days < 0;
+        let months_abs = months.abs();
+        let days_abs = days.abs();
+        PeriodValue::from_total_parts(months_abs, days_abs, negative)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.months == 0 && self.days == 0
+    }
+
+    pub fn signed_components(&self) -> (i128, i128) {
+        let months = i128::from(self.months);
+        let days = i128::from(self.days);
+        if self.is_negative {
+            (-months, -days)
+        } else {
+            (months, days)
+        }
+    }
+
+    pub fn to_iso_string(&self) -> String {
+        if self.is_zero() {
+            return "P0D".to_string();
+        }
+
+        let mut out = String::new();
+        if self.is_negative {
+            out.push('-');
+        }
+        out.push('P');
+
+        let total_months = self.months as u128;
+        let years = total_months / MONTHS_PER_YEAR as u128;
+        let months = total_months % MONTHS_PER_YEAR as u128;
+
+        if years > 0 {
+            let _ = write!(out, "{}Y", years);
+        }
+        if months > 0 {
+            let _ = write!(out, "{}M", months);
+        }
+        if self.days > 0 {
+            let _ = write!(out, "{}D", self.days);
+        }
+
+        out
     }
 }
 
@@ -464,6 +520,7 @@ impl TypedValue for ValueEnum {
             ValueEnum::TimeValue(_) => ValueType::TimeType,
             ValueEnum::DateTimeValue(_) => ValueType::DateTimeType,
             ValueEnum::DurationValue(_) => ValueType::DurationType,
+            ValueEnum::PeriodValue(_) => ValueType::PeriodType,
             ValueEnum::RangeValue(_) => ValueType::RangeType,
 
             // @Todo: that is incorrect, because held type is not a result of get_type. Must return specific TypeValue as a type
@@ -523,6 +580,10 @@ impl Display for ValueEnum {
                 ValueOrSv::Value(dur) => write!(f, "{}", dur.to_iso_string()),
                 ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
+            ValueEnum::PeriodValue(period) => match period {
+                ValueOrSv::Value(per) => write!(f, "{}", per.to_iso_string()),
+                ValueOrSv::Sv(sv) => write!(f, "{}", sv),
+            },
             ValueEnum::TypeValue(type_value) => {
                 write!(f, "{}", type_value)
             }
@@ -563,5 +624,11 @@ impl From<Month> for ValueEnum {
 impl From<DurationValue> for ValueEnum {
     fn from(value: DurationValue) -> Self {
         ValueEnum::DurationValue(ValueOrSv::Value(value))
+    }
+}
+
+impl From<PeriodValue> for ValueEnum {
+    fn from(value: PeriodValue) -> Self {
+        ValueEnum::PeriodValue(ValueOrSv::Value(value))
     }
 }

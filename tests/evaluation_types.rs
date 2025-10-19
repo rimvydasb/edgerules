@@ -63,8 +63,9 @@ fn date_time_and_duration_roundtrip_to_string() {
         "toString(datetime('2024-06-05T07:30:00'))",
         "'2024-06-05 7:30:00.0'"
     );
-    assert_value!("toString(duration('P1Y2M'))", "'P1Y2M'");
     assert_value!("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'");
+    assert_value!("toString(duration('PT90M'))", "'PT1H30M'");
+    assert_value!("toString(period('P1Y2M'))", "'P1Y2M'");
 }
 
 #[test]

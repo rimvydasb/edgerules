@@ -250,7 +250,7 @@ fn test_functions_max_temporal() {
         "max([datetime('2020-01-01T00:00:00'), datetime('2020-01-02T03:00:00')])",
         "2020-01-023:00:00.0"
     );
-    assert_value!("max([duration('P1M'), duration('P2M')])", "P2M");
+    assert_value!("max([duration('P1D'), duration('P2D')])", "P2D");
     assert_value!("max(date('2020-01-01'), date('2020-05-01'))", "2020-05-01");
 }
 

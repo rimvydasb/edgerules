@@ -112,7 +112,6 @@ fn example_ruleset_collecting() {
 #[test]
 #[ignore]
 fn example_variable_library() {
-
     init_logger();
 
     let code = r#"
@@ -138,8 +137,7 @@ fn example_variable_library() {
             rules: [
                 {name: "INC_CHECK"; rule: applicantRecord.data.income > applicantRecord.data.expense * 2}
                 {name: "MIN_INCOM"; rule: applicantRecord.data.income > 1000}
-                // @Todo: fix it
-                {name: "AGE_CHECK"; rule: applicantRecord.checkDate >= (applicantRecord.checkDate + duration('P18Y'))}
+                {name: "AGE_CHECK"; rule: applicantRecord.data.birthDate + period('P18Y') <= applicantRecord.checkDate}
             ]
             firedRules: for invalid in rules[rule = false] return invalid.name
             status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
@@ -184,11 +182,17 @@ fn example_variable_library() {
 
     // @Todo: finish writing test:
     assert_eq!(
-        exe_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[0]"),
+        exe_field(
+            &rt,
+            "applicationResponse.applicationRecord.applicantsDecisions[0]"
+        ),
         "'INELIGIBLE'"
     );
     assert_eq!(
-        exe_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[1]"),
+        exe_field(
+            &rt,
+            "applicationResponse.applicationRecord.applicantsDecisions[1]"
+        ),
         "'INELIGIBLE'"
     );
 }

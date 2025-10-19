@@ -169,6 +169,13 @@ fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
             }
             ValueOrSv::Sv(sv) => Ok(JsValue::from_str(&sv.to_string())),
         },
+        ValueEnum::PeriodValue(inner) => match inner {
+            ValueOrSv::Value(period) => {
+                let text = ValueEnum::PeriodValue(ValueOrSv::Value(period.clone())).to_string();
+                Ok(JsValue::from_str(&text))
+            }
+            ValueOrSv::Sv(sv) => Ok(JsValue::from_str(&sv.to_string())),
+        },
         ValueEnum::TypeValue(value_type) => Ok(JsValue::from_str(&value_type.to_string())),
     }
 }

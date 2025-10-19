@@ -44,6 +44,7 @@ pub(crate) fn missing_for_type(
         ValueType::TimeType => Ok(V::TimeValue(Sv(SV::missing_for(field_name)))),
         ValueType::DateTimeType => Ok(V::DateTimeValue(Sv(SV::missing_for(field_name)))),
         ValueType::DurationType => Ok(V::DurationValue(Sv(SV::missing_for(field_name)))),
+        ValueType::PeriodType => Ok(V::PeriodValue(Sv(SV::missing_for(field_name)))),
         ValueType::ListType(inner) => match inner.as_ref() {
             Some(item_type) => Ok(V::Array(ArrayValue::PrimitivesArray {
                 values: Vec::new(),
@@ -112,6 +113,7 @@ fn cast_value_to_type(
         | ValueType::TimeType
         | ValueType::DateTimeType
         | ValueType::DurationType
+        | ValueType::PeriodType
         | ValueType::RangeType
         | ValueType::UndefinedType => Ok(value),
         ValueType::ListType(inner) => {

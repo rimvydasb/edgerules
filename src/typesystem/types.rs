@@ -31,6 +31,7 @@ pub enum ValueType {
     DateType,
     TimeType,
     DateTimeType,
+    PeriodType,
 
     // Range is not a type, it is a filter method
     RangeType,
@@ -100,6 +101,7 @@ impl TryFrom<&str> for ValueType {
             "date" => Ok(ValueType::DateType),
             "time" => Ok(ValueType::TimeType),
             "datetime" => Ok(ValueType::DateTimeType),
+            "period" => Ok(ValueType::PeriodType),
             "duration" => Ok(ValueType::DurationType),
             _ => Err(ParseErrorEnum::UnknownType(trimmed.to_string())),
         }
@@ -115,6 +117,7 @@ impl Display for ValueType {
             ValueType::DateType => f.write_str("date"),
             ValueType::TimeType => f.write_str("time"),
             ValueType::DateTimeType => f.write_str("datetime"),
+            ValueType::PeriodType => f.write_str("period"),
             ValueType::ListType(maybe_type) => match maybe_type {
                 Some(boxed_type) => write!(f, "{}[]", boxed_type),
                 None => f.write_str("[]"),

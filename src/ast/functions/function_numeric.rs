@@ -357,7 +357,6 @@ pub fn eval_sum_all(
 }
 
 fn sum_duration_values(values: Vec<ValueEnum>) -> Result<ValueEnum, RuntimeError> {
-    let mut months_total: i128 = 0;
     let mut seconds_total: i128 = 0;
     let mut has_value = false;
     let mut special: Option<SpecialValueEnum> = None;
@@ -365,9 +364,7 @@ fn sum_duration_values(values: Vec<ValueEnum>) -> Result<ValueEnum, RuntimeError
     for value in values {
         match value {
             DurationVariant(ValueOrSv::Value(duration)) => {
-                let (months, seconds) = duration.components();
-                months_total += months;
-                seconds_total += seconds;
+                seconds_total += duration.signed_seconds();
                 has_value = true;
             }
             DurationVariant(ValueOrSv::Sv(sv)) => {
@@ -381,7 +378,7 @@ fn sum_duration_values(values: Vec<ValueEnum>) -> Result<ValueEnum, RuntimeError
     if let Some(sv) = special {
         Ok(DurationVariant(ValueOrSv::Sv(sv)))
     } else if has_value {
-        let result = DurationStruct::from_components(months_total, seconds_total)?;
+        let result = DurationStruct::from_signed_seconds(seconds_total)?;
         Ok(DurationVariant(ValueOrSv::Value(result)))
     } else {
         Ok(DurationVariant(ValueOrSv::Sv(

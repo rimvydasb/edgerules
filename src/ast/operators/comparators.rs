@@ -11,10 +11,11 @@ use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
-    BooleanValue, DateTimeValue, DateValue, DurationValue, NumberValue, StringValue, TimeValue,
+    BooleanValue, DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue,
+    PeriodValue as PeriodVariant, StringValue, TimeValue,
 };
 use crate::typesystem::values::ValueOrSv;
-use log::{log, trace};
+use log::trace;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt;
@@ -169,6 +170,16 @@ impl StaticLink for ComparatorOperator {
             | (ValueType::DurationType, LessEquals)
             | (ValueType::DurationType, Greater)
             | (ValueType::DurationType, GreaterEquals) => {}
+
+            // periods support only equality / inequality
+            (ValueType::PeriodType, Equals) | (ValueType::PeriodType, NotEquals) => {}
+            (ValueType::PeriodType, operator) => {
+                return Err(LinkingError::operation_not_supported(
+                    operator.as_str(),
+                    same_type.clone(),
+                    same_type,
+                ));
+            }
 
             // if both are numbers all comparators are allowed
             (ValueType::NumberType, _) => {}
@@ -343,23 +354,25 @@ impl ComparatorOperator {
                 }))
             }
 
-            (DurationValue(Value(a)), Equals, DurationValue(Value(b))) => Ok(BooleanValue(a == b)),
-            (DurationValue(Value(a)), NotEquals, DurationValue(Value(b))) => {
+            (DurationVariant(Value(a)), Equals, DurationVariant(Value(b))) => {
+                Ok(BooleanValue(a == b))
+            }
+            (DurationVariant(Value(a)), NotEquals, DurationVariant(Value(b))) => {
                 Ok(BooleanValue(a != b))
             }
-            (DurationValue(Value(a)), Less, DurationValue(Value(b))) => match self
+            (DurationVariant(Value(a)), Less, DurationVariant(Value(b))) => match self
                 .duration_ordering(a, b)
             {
                 Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
                 None => RuntimeError::eval_error("Cannot compare durations 1".to_string()).into(),
             },
-            (DurationValue(Value(a)), Greater, DurationValue(Value(b))) => match self
+            (DurationVariant(Value(a)), Greater, DurationVariant(Value(b))) => match self
                 .duration_ordering(a, b)
             {
                 Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
                 None => RuntimeError::eval_error("Cannot compare durations 2".to_string()).into(),
             },
-            (DurationValue(Value(a)), LessEquals, DurationValue(Value(b))) => match self
+            (DurationVariant(Value(a)), LessEquals, DurationVariant(Value(b))) => match self
                 .duration_ordering(a, b)
             {
                 Some(ordering) => Ok(BooleanValue(
@@ -367,18 +380,27 @@ impl ComparatorOperator {
                 )),
                 None => RuntimeError::eval_error("Cannot compare durations 3".to_string()).into(),
             },
-            (DurationValue(Value(a)), GreaterEquals, DurationValue(Value(b))) => {
+            (DurationVariant(Value(a)), GreaterEquals, DurationVariant(Value(b))) => {
                 match self.duration_ordering(a, b) {
                     Some(ordering) => Ok(BooleanValue(
                         ordering == Ordering::Greater || ordering == Ordering::Equal,
                     )),
                     None => {
                         trace!("Durations: a: {:?}, b: {:?}", a, b);
-                        println!("Durations: a: {:?}, b: {:?}", a, b);
-                        println!("Durations: a: {:?}, b: {:?}", a.to_iso_string(), b.to_iso_string());
                         RuntimeError::eval_error("Cannot compare durations 4".to_string()).into()
                     }
                 }
+            }
+            (PeriodVariant(Value(a)), Equals, PeriodVariant(Value(b))) => Ok(BooleanValue(a == b)),
+            (PeriodVariant(Value(a)), NotEquals, PeriodVariant(Value(b))) => {
+                Ok(BooleanValue(a != b))
+            }
+            (PeriodVariant(Value(_)), comparator, PeriodVariant(Value(_))) => {
+                RuntimeError::eval_error(format!(
+                    "Comparator '{}' is not supported for period values",
+                    comparator
+                ))
+                .into()
             }
 
             (left, comparator, right) => RuntimeError::eval_error(format!(
