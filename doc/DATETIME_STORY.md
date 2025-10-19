@@ -143,6 +143,10 @@ calendarDiff(date("2024-01-15"), date("2025-03-10")) // period("P1Y1M23D")
 
 # Implementation Notes
 
+Run all tests to see if they're passing. After an implementation all tests must pass.
+`evaluation_datetime_tests.rs` might contain invalid tests:
+check against specification "Math Operations Patterns" and "Comparator Operations Patterns".
+
 1. Find `DurationValue(ValueOrSv<DurationValue, SpecialValueEnum>),`
 DurationValue must be struct and hold only seconds and negative flag.
 During printing or serializing duration, it must be converted to ISO 8601 format
@@ -155,6 +159,8 @@ During printing or serializing period, it must be converted to ISO 8601 format
 
 3. There will be no such a thing as `Combined` type and exceptions must be raised
 if user mixes period and duration in operations.
+
+4. Implement missing tests according to "Math Operations Patterns" and "Comparator Operations Patterns".
 
 ## Literal Duration Support (TBC, subject to change)
 
