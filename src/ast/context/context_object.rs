@@ -209,7 +209,7 @@ impl ContextObject {
             }
         }
 
-        format!("Type<{}>", lines.join(", "))
+        format!("{{{}}}", lines.join("; "))
     }
 }
 

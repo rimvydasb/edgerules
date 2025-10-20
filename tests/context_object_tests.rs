@@ -94,7 +94,7 @@ fn test_nesting() -> Result<(), EvalError> {
     );
     assert_eq!(
         obj.borrow().to_type_string(),
-        "Type<a: number, b: number, c: Type<x: string, y: number>>"
+        "{a: number; b: number; c: {x: string; y: number}}"
     );
 
     Ok(())

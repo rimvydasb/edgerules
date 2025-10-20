@@ -807,11 +807,11 @@ pub mod test {
         init_logger();
 
         test_code("{ a: 1; b: a  }")
-            .expect_type("Type<a: number, b: number>")
+            .expect_type("{a: number; b: number}")
             .expect_num("a", Int(1));
 
         test_code("{ a: z; b: a; z: 8 * 2  }")
-            .expect_type("Type<a: number, b: number, z: number>")
+            .expect_type("{a: number; b: number; z: number}")
             .expect_num("a", Int(16));
 
         test_code("{ a: {x: 1}; b: a.x }")
