@@ -1,13 +1,14 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::expression::{missing_for_type, EvaluatableExpression, StaticLink};
 use crate::ast::token::{EToken, ExpressionEnum};
 use crate::ast::{is_linked, Link};
 use crate::link::linker::browse;
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
+use crate::utils::intern_field_name;
 use log::trace;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
@@ -20,19 +21,31 @@ use std::rc::Rc;
 /// - linking variable within another expression: x = 1 + b.a
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariableLink {
-    pub path: Vec<String>,
+    pub path: Vec<&'static str>,
     pub variable_type: Link<ValueType>,
 }
 
 impl VariableLink {
-    pub fn new_unlinked(path: String) -> Self {
+    pub fn new_unlinked(name: String) -> Self {
+        let interned = intern_field_name(name.as_str());
         VariableLink {
-            path: vec![path],
+            path: vec![interned],
             variable_type: LinkingError::not_linked().into(),
         }
     }
 
     pub fn new_unlinked_path(path: Vec<String>) -> Self {
+        let interned_path = path
+            .into_iter()
+            .map(|segment| intern_field_name(segment.as_str()))
+            .collect();
+        VariableLink {
+            path: interned_path,
+            variable_type: LinkingError::not_linked().into(),
+        }
+    }
+
+    pub fn new_interned_path(path: Vec<&'static str>) -> Self {
         VariableLink {
             path,
             variable_type: LinkingError::not_linked().into(),
@@ -41,14 +54,10 @@ impl VariableLink {
 
     pub fn get_name(&self) -> String {
         if self.path.len() == 1 {
-            self.path.first().unwrap().clone()
+            self.path.first().copied().unwrap().to_string()
         } else {
             self.path.join(".")
         }
-    }
-
-    fn path_as_str(&self) -> Vec<&str> {
-        self.path.iter().map(|s| s.as_str()).collect()
     }
 }
 
@@ -78,39 +87,78 @@ impl EvaluatableExpression for VariableLink {
         // `calendar: { ... }` context by stripping the leading self name and
         // browsing from the current context rather than root.
         let (start_ctx, path_vec, find_root) = {
-            if let Some(first) = self.path.first() {
-                // climb to nearest ancestor named `first`
-                let mut cursor = Some(Rc::clone(&context));
-                let mut found = None;
-                while let Some(ctx) = cursor {
-                    trace!("variable.eval climb: at {:?}", ctx.borrow().node.node_type);
-                    let assigned = ctx.borrow().node.get_assigned_to_field();
-                    trace!("assigned: {:?}", assigned);
-                    if assigned.as_deref() == Some(first.as_str()) {
-                        found = Some(ctx);
-                        break;
-                    }
-                    cursor = ctx.borrow().node.node_type.get_parent();
-                }
+            if let Some(&first) = self.path.first() {
+                let has_parameter = {
+                    let exec_borrowed = context.borrow();
+                    let ctx_borrowed = exec_borrowed.object.borrow();
+                    ctx_borrowed
+                        .parameters
+                        .iter()
+                        .any(|param| intern_field_name(param.name.as_str()) == first)
+                };
 
-                if let Some(ctx) = found {
-                    let remaining: Vec<&str> =
-                        self.path.iter().skip(1).map(|s| s.as_str()).collect();
-                    (ctx, remaining, false)
+                if has_parameter {
+                    (Rc::clone(&context), &self.path[..], false)
                 } else {
-                    let full: Vec<&str> = self.path_as_str();
-                    (Rc::clone(&context), full, true)
+                    // climb to nearest ancestor named `first`
+                    let mut cursor = Some(Rc::clone(&context));
+                    let mut found = None;
+                    while let Some(ctx) = cursor {
+                        trace!("variable.eval climb: at {:?}", ctx.borrow().node.node_type);
+                        let assigned = ctx.borrow().node.get_assigned_to_field();
+                        trace!("assigned: {:?}", assigned);
+                        if assigned == Some(first) {
+                            found = Some(ctx);
+                            break;
+                        }
+                        cursor = ctx.borrow().node.node_type.get_parent();
+                    }
+
+                    if let Some(ctx) = found {
+                        (ctx, &self.path[1..], false)
+                    } else {
+                        (Rc::clone(&context), &self.path[..], true)
+                    }
                 }
             } else {
-                let full: Vec<&str> = self.path_as_str();
-                (Rc::clone(&context), full, true)
+                (Rc::clone(&context), &self.path[..], true)
             }
         };
 
-        let result = browse(start_ctx, &path_vec, find_root)?.on_incomplete(
+        let browse_result = match browse(start_ctx, path_vec, find_root) {
+            Ok(res) => res,
+            Err(link_err) => {
+                if let LinkingErrorEnum::FieldNotFound(_, field) = &link_err.error {
+                    let expected_type = match self.variable_type.clone() {
+                        Ok(value_type) => value_type,
+                        Err(_) => ValueType::UndefinedType,
+                    };
+                    let missing = missing_for_type(&expected_type, Some(field.as_str()), &context)?;
+                    return Ok(missing);
+                } else {
+                    return Err(link_err.into());
+                }
+            }
+        };
+
+        let result = browse_result.on_incomplete(
             |ctx, result, _remaining| match result.borrow().expression.eval(Rc::clone(&ctx)) {
                 Ok(intermediate) => Ok(intermediate.into()),
-                Err(err) => Err(LinkingError::other_error(err.to_string())),
+                Err(err) => {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                        let expected_type = match self.variable_type.clone() {
+                            Ok(value_type) => value_type,
+                            Err(_) => ValueType::UndefinedType,
+                        };
+                        let missing = missing_for_type(&expected_type, Some(field.as_str()), &ctx)
+                            .map_err(|runtime_err| {
+                                LinkingError::other_error(runtime_err.to_string())
+                            })?;
+                        Ok(EObjectContent::ConstantValue(missing))
+                    } else {
+                        Err(LinkingError::other_error(err.to_string()))
+                    }
+                }
             },
             |ctx, _result, _remaining| {
                 Err(LinkingError::other_error(format!(
@@ -145,33 +193,41 @@ impl StaticLink for VariableLink {
             // Same self-qualification handling as in eval: treat `contextName.*`
             // inside that context as local browse, not root lookup.
             let (start_ctx, path_vec, find_root) = {
-                if let Some(first) = self.path.first() {
-                    let mut cursor = Some(Rc::clone(&context));
-                    let mut found = None;
-                    while let Some(ctx) = cursor {
-                        let assigned = ctx.borrow().node.get_assigned_to_field();
-                        if assigned.as_deref() == Some(first.as_str()) {
-                            found = Some(ctx);
-                            break;
-                        }
-                        cursor = ctx.borrow().node.node_type.get_parent();
-                    }
+                if let Some(&first) = self.path.first() {
+                    let has_parameter = {
+                        let borrowed = context.borrow();
+                        borrowed
+                            .parameters
+                            .iter()
+                            .any(|param| intern_field_name(param.name.as_str()) == first)
+                    };
 
-                    if let Some(ctx) = found {
-                        let remaining: Vec<&str> =
-                            self.path.iter().skip(1).map(|s| s.as_str()).collect();
-                        (ctx, remaining, false)
+                    if has_parameter {
+                        (Rc::clone(&context), &self.path[..], false)
                     } else {
-                        let full: Vec<&str> = self.path_as_str();
-                        (Rc::clone(&context), full, true)
+                        let mut cursor = Some(Rc::clone(&context));
+                        let mut found = None;
+                        while let Some(ctx) = cursor {
+                            let assigned = ctx.borrow().node.get_assigned_to_field();
+                            if assigned == Some(first) {
+                                found = Some(ctx);
+                                break;
+                            }
+                            cursor = ctx.borrow().node.node_type.get_parent();
+                        }
+
+                        if let Some(ctx) = found {
+                            (ctx, &self.path[1..], false)
+                        } else {
+                            (Rc::clone(&context), &self.path[..], true)
+                        }
                     }
                 } else {
-                    let full: Vec<&str> = self.path_as_str();
-                    (Rc::clone(&context), full, true)
+                    (Rc::clone(&context), &self.path[..], true)
                 }
             };
 
-            let result = browse(start_ctx, &path_vec, find_root).and_then(|r| {
+            let result = browse(start_ctx, path_vec, find_root).and_then(|r| {
                 r.on_incomplete(
                     |ctx, result, _remaining| {
                         let linked_type = result.borrow_mut().expression.link(Rc::clone(&ctx))?;
@@ -192,6 +248,8 @@ impl StaticLink for VariableLink {
                         crate::link::node_data::NodeDataEnum::Root()
                             | crate::link::node_data::NodeDataEnum::Isolated()
                     );
+
+                    // @Todo: must return LinkingErrorEnum::FieldNotFound or the other even better linking error
                     if self.path.len() > 1 && is_unattached_root {
                         self.variable_type = LinkingError::not_linked().into();
                         return Ok(ValueType::UndefinedType);

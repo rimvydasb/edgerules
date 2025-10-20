@@ -17,11 +17,11 @@ use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
 use log::trace;
 
-use crate::typesystem::values::ValueEnum::NumberValue;
 use crate::typesystem::types::ValueType;
+use crate::typesystem::values::ValueEnum::NumberValue;
 
 /// @TODO brackets counting and error returning
-pub fn tokenize(input: &String) -> VecDeque<EToken> {
+pub fn tokenize(input: &str) -> VecDeque<EToken> {
     let mut ast_builder = ASTBuilder::new();
     let mut source = CharStream::new(input);
 
@@ -38,7 +38,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
     //let mut position: usize = 0;
 
     while let Some(symbol) = source.peek() {
-        trace!("- got {} for {}", symbol, input);
+        trace!("- got {}", symbol);
 
         match symbol {
             '0'..='9' => {
@@ -250,11 +250,13 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                             }
                             //result.push_back(Unparsed(ReturnLiteral)),
                             "true" => {
-                                ast_builder.push_element(Expression(ExpressionEnum::from(true)))
+                                ast_builder.push_element(Expression(ExpressionEnum::from(true)));
+                                after_colon = false;
                             }
 
                             "false" => {
-                                ast_builder.push_element(Expression(ExpressionEnum::from(false)))
+                                ast_builder.push_element(Expression(ExpressionEnum::from(false)));
+                                after_colon = false;
                             }
 
                             "not" => ast_builder.push_node(
@@ -299,7 +301,20 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                                 after_colon = false;
                             }
                             _ => {
-                                ast_builder.push_element(VariableLink::new_unlinked(literal).into());
+                                if after_colon {
+                                    if let Some(tref) = parse_type_with_trailing_lists(
+                                        literal.as_str(),
+                                        &mut source,
+                                    ) {
+                                        ast_builder
+                                            .push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                        after_colon = false;
+                                        continue;
+                                    }
+                                }
+
+                                ast_builder
+                                    .push_element(VariableLink::new_unlinked(literal).into());
                                 after_colon = false;
                             }
                         }
@@ -414,6 +429,7 @@ pub fn tokenize(input: &String) -> VecDeque<EToken> {
                 let literal = source.get_all_till(string_starter);
 
                 ast_builder.push_element(Expression(ExpressionEnum::from(literal)));
+                after_colon = false;
             }
             '@' => {
                 source.next();
@@ -447,33 +463,51 @@ fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
             source.next();
         }
     }
-    parse_complex_type_from_name(name.trim())
+    parse_type(name.trim())
 }
 
 fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
     source.skip_whitespace();
-    let ident = source.get_alphanumeric();
-    let mut tref = parse_complex_type_from_name(ident.trim());
-    loop {
-        source.skip_whitespace();
-        match source.peek().cloned() {
-            Some('[') => {
-                source.next();
-                if let Some(']') = source.peek().cloned() {
-                    source.next();
-                    tref = ComplexTypeRef::List(Box::new(tref));
-                    continue;
-                }
-            }
-            _ => {}
-        }
-        break;
-    }
-    tref
+    let ident = source.get_alphanumeric_or(&['[', ']']);
+    parse_type(ident.as_str())
 }
 
-fn parse_complex_type_from_name(name: &str) -> ComplexTypeRef {
-    match name {
+fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option<ComplexTypeRef> {
+    let mut layers = 0usize;
+    loop {
+        let mut iter = source.iter.clone();
+        match (iter.next(), iter.peek().copied()) {
+            (Some('['), Some(']')) => {
+                source.next();
+                source.next();
+                layers += 1;
+            }
+            _ => break,
+        }
+    }
+
+    if layers == 0 {
+        return None;
+    }
+
+    let mut tref = parse_type(base);
+    for _ in 0..layers {
+        tref = ComplexTypeRef::List(Box::new(tref));
+    }
+
+    Some(tref)
+}
+
+pub fn parse_type(name: &str) -> ComplexTypeRef {
+    let mut string = name;
+    let mut layers = 0usize;
+
+    while string.len() >= 2 && string.ends_with("[]") {
+        string = &string[..string.len() - 2];
+        layers += 1;
+    }
+
+    let mut return_type = match string {
         "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
         "string" => ComplexTypeRef::Primitive(ValueType::StringType),
         "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
@@ -481,29 +515,12 @@ fn parse_complex_type_from_name(name: &str) -> ComplexTypeRef {
         "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
         "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
         "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
-        other => {
-            // peel off [] suffixes first
-            let mut base = other.to_string();
-            let mut layers = 0usize;
-            while base.ends_with("[]") {
-                base.truncate(base.len() - 2);
-                layers += 1;
-            }
-            // decide primitive vs alias for base
-            let mut t = match base.as_str() {
-                "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
-                "string" => ComplexTypeRef::Primitive(ValueType::StringType),
-                "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
-                "date" => ComplexTypeRef::Primitive(ValueType::DateType),
-                "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
-                "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
-                "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
-                _ => ComplexTypeRef::Alias(base),
-            };
-            for _ in 0..layers {
-                t = ComplexTypeRef::List(Box::new(t));
-            }
-            t
-        }
+        _ => ComplexTypeRef::Alias(string.to_owned()),
+    };
+
+    for _ in 0..layers {
+        return_type = ComplexTypeRef::List(Box::new(return_type));
     }
+
+    return_type
 }

@@ -1,13 +1,15 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
-use crate::ast::expression::{EvaluatableExpression, StaticLink};
+use crate::ast::expression::{missing_for_type, EvaluatableExpression, StaticLink};
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::ExpressionEnum::Variable;
 use crate::ast::variable::VariableLink;
 use crate::ast::{is_linked, Link};
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::ParseErrorEnum::UnknownError;
-use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
+use crate::typesystem::errors::{
+    ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
+};
 use log::trace;
 use std::cell::RefCell;
 use std::fmt;
@@ -15,13 +17,20 @@ use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 use crate::typesystem::types::number::NumberEnum as Num;
-use crate::typesystem::types::number::NumberEnum::{Int, SV};
-use crate::typesystem::types::{SpecialValueEnum, TypedValue, ValueType};
-use crate::typesystem::values::ValueEnum;
+use crate::typesystem::types::number::NumberEnum::Int;
+use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{
-    Array, BooleanValue, DateTimeValue, DateValue, NumberValue, Reference, TimeValue,
+    BooleanValue, DateTimeValue, DateValue, NumberValue, Reference, TimeValue,
 };
 use crate::typesystem::values::ValueOrSv;
+use crate::typesystem::values::{ArrayValue, ValueEnum};
+
+fn flatten_list_type(value_type: ValueType) -> ValueType {
+    match value_type {
+        ValueType::ListType(Some(inner)) => flatten_list_type(*inner),
+        other => other,
+    }
+}
 
 //--------------------------------------------------------------------------------------------------
 
@@ -56,48 +65,128 @@ impl ExpressionFilter {
 
     fn select_from_list(
         &self,
-        values: Vec<Result<ValueEnum, RuntimeError>>,
+        array: ArrayValue,
         list_type: ValueType,
         context: Rc<RefCell<ExecutionContext>>,
     ) -> Result<ValueEnum, RuntimeError> {
         trace!("Selecting from list with method: {}", self.method);
-        // @Todo: remove cloning
-        if self.method_type.clone()? == ValueType::BooleanType {
-            let mut filtered_values = Vec::new();
 
-            for value in values {
-                // Evaluate the predicate in a temporary child context to avoid
-                // borrowing the same ExecutionContext while evaluating the filter condition.
-                // This child can still access the parent for variables, while holding
-                // its own context variable for `...` / `it`.
-                let candidate = value?;
+        if self.method_type.clone()? == ValueType::BooleanType {
+            match array {
+                ArrayValue::EmptyUntyped => Ok(ValueEnum::Array(ArrayValue::EmptyUntyped)),
+                ArrayValue::PrimitivesArray { values, item_type } => {
+                    let mut filtered = Vec::new();
+                    for candidate in values {
+                        if self.evaluate_predicate(candidate.clone(), Rc::clone(&context))? {
+                            filtered.push(candidate);
+                        }
+                    }
+                    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
+                        values: filtered,
+                        item_type,
+                    }))
+                }
+                ArrayValue::ObjectsArray {
+                    values,
+                    object_type,
+                } => {
+                    let mut filtered = Vec::new();
+                    for reference in values {
+                        if self.evaluate_predicate(
+                            ValueEnum::Reference(Rc::clone(&reference)),
+                            Rc::clone(&context),
+                        )? {
+                            filtered.push(reference);
+                        }
+                    }
+                    Ok(ValueEnum::Array(ArrayValue::ObjectsArray {
+                        values: filtered,
+                        object_type,
+                    }))
+                }
+            }
+        } else {
+            let method = self.method.eval(Rc::clone(&context))?;
+
+            if let NumberValue(Int(number)) = method {
+                if number < 0 {
+                    let element_type = list_type
+                        .get_list_type()
+                        .unwrap_or(ValueType::UndefinedType);
+                    return missing_for_type(&element_type, None, &context);
+                }
+                let idx = number as usize;
+                match array {
+                    ArrayValue::EmptyUntyped => {
+                        let element_type = list_type
+                            .get_list_type()
+                            .unwrap_or(ValueType::UndefinedType);
+                        missing_for_type(&element_type, None, &context)
+                    }
+                    ArrayValue::PrimitivesArray { values, item_type } => {
+                        if let Some(value) = values.into_iter().nth(idx) {
+                            Ok(value)
+                        } else {
+                            missing_for_type(&item_type, None, &context)
+                        }
+                    }
+                    ArrayValue::ObjectsArray {
+                        values,
+                        object_type,
+                    } => {
+                        if let Some(reference) = values.into_iter().nth(idx) {
+                            Ok(ValueEnum::Reference(reference))
+                        } else {
+                            missing_for_type(
+                                &ValueType::ObjectType(Rc::clone(&object_type)),
+                                None,
+                                &context,
+                            )
+                        }
+                    }
+                }
+            } else {
+                RuntimeError::eval_error(format!("Cannot select a value with '{}'", method)).into()
+            }
+        }
+    }
+
+    fn evaluate_predicate(
+        &self,
+        candidate: ValueEnum,
+        context: Rc<RefCell<ExecutionContext>>,
+    ) -> Result<bool, RuntimeError> {
+        let interpret_result = |result: Result<ValueEnum, RuntimeError>| match result {
+            Ok(BooleanValue(true)) => Ok(true),
+            Ok(BooleanValue(false)) => Ok(false),
+            Ok(_) => Ok(false),
+            Err(err) => match err.error {
+                RuntimeErrorEnum::RuntimeFieldNotFound(_, _) => Ok(false),
+                _ => Err(err),
+            },
+        };
+
+        match &candidate {
+            Reference(reference_ctx) => {
+                let element_ctx = Rc::clone(reference_ctx);
+                let previous_context_variable = element_ctx.borrow().context_variable.clone();
+
+                element_ctx.borrow_mut().context_variable = Some(candidate.clone());
+                let evaluation = self.method.eval(Rc::clone(&element_ctx));
+                element_ctx.borrow_mut().context_variable = previous_context_variable;
+
+                interpret_result(evaluation)
+            }
+            _ => {
                 let tmp_ctx = ExecutionContext::create_temp_child_context(
                     Rc::clone(&context),
                     ContextObjectBuilder::new().build(),
                 );
                 {
-                    // Limit the mutable borrow strictly to this scope.
                     tmp_ctx.borrow_mut().context_variable = Some(candidate.clone());
                 }
-                if self.method.eval(Rc::clone(&tmp_ctx))? == BooleanValue(true) {
-                    filtered_values.push(Ok(candidate));
-                }
+                interpret_result(self.method.eval(Rc::clone(&tmp_ctx)))
             }
-
-            Ok(Array(filtered_values, list_type))
-        } else {
-            let method = self.method.eval(Rc::clone(&context))?;
-
-            if let NumberValue(Int(number)) = method {
-                return if let Some(token) = values.get(number as usize) {
-                    token.clone()
-                } else {
-                    // todo: should determine the type
-                    Ok(NumberValue(SV(SpecialValueEnum::Missing)))
-                };
-            }
-
-            RuntimeError::eval_error(format!("Cannot select a value with '{}'", method)).into()
         }
     }
 }
@@ -107,21 +196,50 @@ impl StaticLink for ExpressionFilter {
         if !is_linked(&self.return_type) {
             let source_type = self.source.link(Rc::clone(&ctx))?;
 
-            if let ValueType::ListType(list_type) = source_type {
+            if let ValueType::ListType(inner) = source_type {
                 let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&ctx));
 
-                // in the iteration the context variable will be of the type of the list
-                builder.set_context_type(*list_type.clone());
+                if let Some(inner_type) = inner.as_ref() {
+                    if let ValueType::ObjectType(object_type) = inner_type.as_ref() {
+                        if let Err(err) = builder.append_if_missing(Rc::clone(object_type)) {
+                            let linking_error = LinkingError::other_error(err.to_string());
+                            self.method_type = Err(linking_error.clone());
+                            self.return_type = Err(linking_error.clone());
+                            return Err(linking_error);
+                        }
 
-                self.method_type = self.method.link(Rc::clone(&builder.build()));
+                        if let ExpressionEnum::Collection(collection) = &self.source {
+                            for element in &collection.elements {
+                                if let ExpressionEnum::StaticObject(obj) = element {
+                                    if let Err(err) = builder.append_if_missing(Rc::clone(obj)) {
+                                        let linking_error =
+                                            LinkingError::other_error(err.to_string());
+                                        self.method_type = Err(linking_error.clone());
+                                        self.return_type = Err(linking_error.clone());
+                                        return Err(linking_error);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-                // @Todo: what about List type?
+                let element_type = inner
+                    .as_ref()
+                    .map(|boxed| (**boxed).clone())
+                    .unwrap_or(ValueType::UndefinedType);
+                let element_type = flatten_list_type(element_type);
+
+                builder.set_context_type(element_type.clone());
+
+                let method_context = builder.build();
+
+                self.method_type = self.method.link(Rc::clone(&method_context));
                 let static_type = match &self.method_type.clone()? {
-                    // expecting multi, value return
-                    ValueType::BooleanType | ValueType::RangeType => ValueType::ListType(list_type),
-
-                    // expecting only single value return
-                    _ => *list_type,
+                    ValueType::BooleanType | ValueType::RangeType => {
+                        ValueType::ListType(inner.clone())
+                    }
+                    _ => element_type,
                 };
 
                 self.return_type = Ok(static_type);
@@ -142,7 +260,10 @@ impl EvaluatableExpression for ExpressionFilter {
         let source_value = self.source.eval(Rc::clone(&context))?;
 
         match source_value {
-            Array(list, list_item_type) => self.select_from_list(list, list_item_type, context),
+            ValueEnum::Array(array) => {
+                let list_type = array.list_type();
+                self.select_from_list(array, list_type, context)
+            }
             _ => RuntimeError::eval_error(format!(
                 "Cannot filter '{}' because data type is {} and not an array",
                 self.source,
@@ -259,7 +380,13 @@ impl EvaluatableExpression for FieldSelection {
         trace!("Selecting from {} ({})", self.source, source_value);
 
         match source_value {
-            Reference(reference) => self.method.eval(reference),
+            Reference(reference) => {
+                let value = self.method.eval(Rc::clone(&reference))?;
+                if let Reference(child_ctx) = &value {
+                    ExecutionContext::eval_all_fields(child_ctx)?;
+                }
+                Ok(value)
+            }
             DateValue(ValueOrSv::Value(d)) => {
                 let name = self.method.get_name();
                 match name.as_str() {

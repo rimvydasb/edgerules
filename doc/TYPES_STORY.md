@@ -52,7 +52,7 @@ Parameter   ::= Identifier ( ":" (PrimitiveType | TypeAlias) ("[]")* )?
 
     // Decision Service:
     func calculateLoanOffer(applicant: Applicant): {
-        eligible: if executionDatetime - applicant.customer.birthdate >= duration('P18Y') then true else false;
+        eligible: if applicant.customer.birthdate + period('P18Y') <= executionDatetime then true else false;
         interestRate: if applicant.customer.income > 5000 then 0.05 else 0.1;
         monthlyPayment: (applicant.requestedAmount * (1 + interestRate)) / applicant.termInMonths;
         result: {

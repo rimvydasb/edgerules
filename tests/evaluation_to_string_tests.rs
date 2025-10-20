@@ -18,9 +18,11 @@ fn test_to_string_for_various_types() {
         "'2025-09-02 13:45:07.0'"
     );
 
-    assert_value!("toString(duration('P1Y2M'))", "'P1Y2M'");
     assert_value!("toString(duration('P2DT3H4M5S'))", "'P2DT3H4M5S'");
-    assert_value!("toString(duration('-P3D'))", "'-P3D'");
+    assert_value!("toString(duration('PT90M'))", "'PT1H30M'");
+    assert_value!("toString(duration('-PT3H'))", "'-PT3H'");
+    assert_value!("toString(period('P1Y2M'))", "'P1Y2M'");
+    assert_value!("toString(period('-P3D'))", "'-P3D'");
 }
 
 mod utilities;

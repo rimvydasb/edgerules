@@ -10,8 +10,10 @@ use crate::typesystem::errors::LinkingErrorEnum::*;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::ValueType::ObjectType;
 use crate::typesystem::values::ValueEnum;
+use crate::utils::intern_field_name;
 use log::{error, trace};
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -27,18 +29,40 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
     let mut references = Vec::new();
 
     for name in field_names {
-        match context.borrow().get(&name)? {
+        match context.borrow().get(name)? {
             EObjectContent::ExpressionRef(expression) => {
-                context.borrow().node().lock_field(&name)?;
-                {
-                    let linked_type = expression
-                        .borrow_mut()
-                        .expression
-                        .link(Rc::clone(&context))?;
-                    trace!("expression: {:?} -> {}", expression, linked_type);
-                    expression.borrow_mut().field_type = Ok(linked_type);
+                context.borrow().node().lock_field(name)?;
+
+                let linked_type = {
+                    match expression.try_borrow_mut() {
+                        Ok(mut entry) => {
+                            let result = entry.expression.link(Rc::clone(&context));
+                            match result {
+                                Ok(field_type) => {
+                                    entry.field_type = Ok(field_type.clone());
+                                    Ok(field_type)
+                                }
+                                Err(err) => Err(err),
+                            }
+                        }
+                        Err(_) => {
+                            let context_name = context.borrow().node().node_type.to_string();
+                            Err(LinkingError::new(CyclicReference(
+                                context_name,
+                                name.to_string(),
+                            )))
+                        }
+                    }
+                };
+
+                context.borrow().node().unlock_field(name);
+
+                if let Ok(field_type) = &linked_type {
+                    let context_name = context.borrow().node().node_type.to_string();
+                    trace!("expression: {}.{} -> {}", context_name, name, field_type);
                 }
-                context.borrow().node().unlock_field(&name);
+
+                linked_type?;
             }
             EObjectContent::ObjectRef(reference) => {
                 references.push((name, reference));
@@ -93,22 +117,60 @@ pub fn find_implementation(
                     function_name,
                     ctx.borrow().node().node_type
                 );
-                return LinkingError::new(FunctionNotFound(format!("{}(...)", function_name)))
-                    .into();
+
+                let known_metaphors = collect_known_implementations(Rc::clone(&ctx));
+
+                return LinkingError::new(FunctionNotFound {
+                    name: function_name,
+                    known_metaphors,
+                })
+                .into();
             }
         }
     }
 }
 
+/// This method will be used for debugging and error reporting purposes inside find_implementation
+/// when user needs to be informed about all known implementations of a given function
+pub fn collect_known_implementations(context: Rc<RefCell<ContextObject>>) -> Vec<String> {
+    let mut ctx: Rc<RefCell<ContextObject>> = context;
+    let mut implementations = Vec::new();
+    let mut visited = HashSet::new();
+
+    loop {
+        let maybe_parent = {
+            let borrowed = ctx.borrow();
+            for name in borrowed.metaphors.keys() {
+                if visited.insert(*name) {
+                    implementations.push((*name).to_string());
+                }
+            }
+            borrowed.node().node_type.get_parent()
+        };
+
+        match maybe_parent {
+            Some(parent_to_check) => {
+                ctx = parent_to_check;
+            }
+            None => break,
+        }
+    }
+
+    implementations.sort();
+
+    implementations
+}
+
 pub fn get_till_root<T: Node<T>>(
     ctx: Rc<RefCell<T>>,
     name: &str,
-) -> Result<BrowseResultFound<'_, T>, LinkingError> {
-    ctx.borrow().node().lock_field(name)?;
+) -> Result<BrowseResultFound<T>, LinkingError> {
+    let interned = intern_field_name(name);
+    ctx.borrow().node().lock_field(interned)?;
     let result;
     match ctx.borrow().get(name) {
         Ok(finding) => {
-            result = Ok(BrowseResultFound::new(Rc::clone(&ctx), name, finding));
+            result = Ok(BrowseResultFound::new(Rc::clone(&ctx), interned, finding));
         }
         Err(LinkingError {
             error: FieldNotFound(obj_name, field),
@@ -126,23 +188,23 @@ pub fn get_till_root<T: Node<T>>(
             result = Err(error);
         }
     }
-    ctx.borrow().node().unlock_field(name);
+    ctx.borrow().node().unlock_field(interned);
     result
 }
 
 #[derive(Debug, Clone)]
-pub struct BrowseResultFound<'a, T: Node<T>> {
+pub struct BrowseResultFound<T: Node<T>> {
     pub context: Rc<RefCell<T>>,
-    pub field_name: &'a str,
+    pub field_name: &'static str,
     pub content: EObjectContent<T>,
 }
 
-impl<T: Node<T>> BrowseResultFound<'_, T> {
+impl<T: Node<T>> BrowseResultFound<T> {
     pub fn new(
         context: Rc<RefCell<T>>,
-        field_name: &str,
+        field_name: &'static str,
         content: EObjectContent<T>,
-    ) -> BrowseResultFound<'_, T> {
+    ) -> BrowseResultFound<T> {
         BrowseResultFound {
             context,
             field_name,
@@ -151,7 +213,7 @@ impl<T: Node<T>> BrowseResultFound<'_, T> {
     }
 }
 
-impl BrowseResultFound<'_, ExecutionContext> {
+impl BrowseResultFound<ExecutionContext> {
     /// ObjectContent was retrieved, but to evaluate it it is necessary to provide context:
     /// - context is the execution context where this object is being acquired
     /// - content_name is the name that was used to acquire this content
@@ -164,14 +226,14 @@ impl BrowseResultFound<'_, ExecutionContext> {
                 // no need to check if in stack, if it was already acquired as expression, it is not in stack
                 self.context
                     .borrow()
-                    .stack_insert(self.field_name.to_string(), result.clone());
+                    .stack_insert(self.field_name, result.clone());
                 result
             }
             MetaphorRef(_value) => {
                 todo!("MetaphorRef")
             }
             ObjectRef(value) => {
-                NodeData::attach_child(value, &self.context);
+                NodeData::attach_child(&self.context, value);
                 Ok(ValueEnum::Reference(Rc::clone(value)))
             }
             Definition(definition) => Err(RuntimeError::eval_error(format!(
@@ -182,7 +244,7 @@ impl BrowseResultFound<'_, ExecutionContext> {
     }
 }
 
-impl<T: Node<T>> Display for BrowseResultFound<'_, T> {
+impl<T: Node<T>> Display for BrowseResultFound<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -196,7 +258,7 @@ impl<T: Node<T>> Display for BrowseResultFound<'_, T> {
 
 #[derive(Debug, Clone)]
 pub enum BrowseResult<'a, T: Node<T>> {
-    Found(BrowseResultFound<'a, T>),
+    Found(BrowseResultFound<T>),
 
     // context, expression, remaining path
     OnExpression(Rc<RefCell<T>>, Rc<RefCell<ExpressionEntry>>, Vec<&'a str>),
@@ -210,14 +272,15 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
         field_name: &'a str,
         content: EObjectContent<T>,
     ) -> BrowseResult<'a, T> {
-        BrowseResult::Found(BrowseResultFound::new(context, field_name, content))
+        let interned = intern_field_name(field_name);
+        BrowseResult::Found(BrowseResultFound::new(context, interned, content))
     }
 
     pub fn on_incomplete<FE, FC>(
         self,
         mut on_expression: FE,
         mut on_object_type: FC,
-    ) -> Result<BrowseResultFound<'a, T>, LinkingError>
+    ) -> Result<BrowseResultFound<T>, LinkingError>
     where
         FE: FnMut(
             Rc<RefCell<T>>,

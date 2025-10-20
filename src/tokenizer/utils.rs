@@ -181,6 +181,21 @@ impl<'a> CharStream<'a> {
         alphanumeric
     }
 
+    pub fn get_alphanumeric_or(&mut self, or: &[char]) -> String {
+        let mut alphanumeric = String::new();
+
+        while let Some(c) = self.iter.peek() {
+            if c.is_alphanumeric() || or.contains(c) {
+                alphanumeric.push(*c);
+                self.iter.next();
+            } else {
+                break;
+            }
+        }
+
+        alphanumeric
+    }
+
     pub fn skip_whitespace(&mut self) -> &mut Self {
         while self.iter.next_if_eq(&' ').is_some() {}
 

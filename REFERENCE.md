@@ -195,8 +195,8 @@ indexing out of bounds or `find` when not found. These are not user literals, bu
 
 ```edgerules
 {
-    idx          : find([1,2], 3)    // number.Missing
-    oob          : [10][5]           // number.Missing
+    idx          : find([1,2], 3)    // Missing
+    oob          : [10][5]           // Missing
 }
 ```
 
@@ -523,7 +523,7 @@ model : {
 | `regexSplit("a   b\c", "\\s+")` → `['a','b','c']`           | Splits string by regex.                      | `split(string, delimiter)`             | `"John Doe".split(/\s/)`                    |  
 | `split("a-b-c", "-")` → `['a','b','c']`                     | Simple substring split.                      | `split(string, delimiter)`             | `"a-b-c".split("-")`                        |
 | `trim("  hello  ")` → `"hello"`                             | Trim whitespace.                             | `trim(string)` *(Camunda)*             | `"  hello  ".trim()`                        |  
-| `uuid()` → `"7793aab1-..."`                                 | Generate UUID.                               | `uuid()` *(Camunda)*                   | `crypto.randomUUID()`                       |  
+| `uuid()` → `"7793aab1-..."`                                 | Generate UUID. (NOT YET IMPLEMENTED)         | `uuid()` *(Camunda)*                   | `crypto.randomUUID()`                       |  
 | `toBase64("FEEL")` → `"RkVFTA=="`                           | Encode to base64.                            | `to base64(value)` *(Camunda)*         | `btoa("FEEL")`                              |  
 | `regexReplace("abcd","ab,"xx")` → `"xxcd"`                  | Regex replace.                               | `replace(input, pattern, replacement)` | `"abcd".replace(/ab/,"xx")`                 |  
 | `regexReplace("Abcd","ab","xx","i")` → `"xxcd"`             | Regex replace with flags.                    | `replace(input, pattern, replacement)` | `"Abcd".replace(/ab/i,"xx")`                | 
@@ -573,9 +573,20 @@ model : {
 | `distinctValues([1,2,3,2,1])` → `[1,2,3]`             | Removes duplicates.                      | `distinct values(list)`                                    | `[...new Set(list)]`                                        |
 | `duplicateValues([1,2,3,2,1])` → `[1,2]`              | Returns only the duplicates (unique).    | `duplicate values(list)` *(Camunda)*                       | N/A                                                         |
 | `flatten([[1,2], [[3]], 4])` → `[1,2,3,4]`            | Flattens nested lists.                   | `flatten(list)`                                            | `list.flat(Infinity)`                                       |
-| `sort([3,1,4,2], function(x,y) x<y)` → `[1,2,3,4]`    | Sorts list with comparator.              | `sort(list, precedes)`                                     | `[...list].sort((x,y)=>precedes(x,y)?-1:precedes(y,x)?1:0)` |
+| `sort([3,1,4,2])` → `[1,2,3,4]`                       | Sorts list ascending.                    | `sort(list)`                                               | `[...list].sort()`                                          |
+| `sortDescending([3,1,4,2])` → `[4,3,2,1]`             | Sorts list descending.                   | `sortDescending(list)`                                     | `[...list].sort().reverse()`                                |
 | `join(["a", null, "c"])` → `"ac"`                     | Joins strings, ignores nulls.            | `string join(list)`                                        | `string join(["a",null,"c"], "")`                           |
 | `join(["a","b","c"], ", ")` → `"a, b, c"`             | Joins strings with delimiter.            | `string join(list, delimiter)`                             | `list.filter(s=>s!=null).join(delimiter)`                   |
 | `join(["a","b","c"], ", ", "[", "]")` → `"[a, b, c]"` | Joins with delimiter and wraps result.   | `string join(list, delimiter, prefix, suffix)` *(Camunda)* | `prefix + list.filter(s=>s!=null).join(delimiter) + suffix` |
 | `isEmpty([])` → `true`                                | True if list has no elements.            | `is empty(list)` *(Camunda)*                               | `list.length===0`                                           |
 | `partition([1,2,3,4,5], 2)` → `[[1,2],[3,4],[5]]`     | Splits list into sublists of given size. | `partition(list, size)` *(Camunda)*                        | `_.chunk(list, size)`                                       |
+
+## Date and Time Functions (TBC)
+
+| EdgeRules function                                | Description                                                              |
+|---------------------------------------------------|--------------------------------------------------------------------------|
+| `between(x, start, end)` → `true`                 | Checks if `x` lies within `[start, end]` (inclusive by default).         |
+| `meets([start1,end1], [start2,end2])` → `true`    | Checks if the first interval ends exactly where the second begins.       |
+| `before([start1,end1], [start2,end2])` → `true`   | Checks if the first interval occurs entirely before the second interval. |
+| `after([start1,end1], [start2,end2])` → `true`    | Checks if the first interval occurs entirely after the second interval.  |
+| `overlaps([start1,end1], [start2,end2])` → `true` | Checks if two intervals share at least one point in common.              |

@@ -1,8 +1,8 @@
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
-use wasm_bindgen::prelude::*;
+mod wasm_convert;
 
-use crate::runtime::edge_rules::EdgeRules;
+use wasm_bindgen::prelude::*;
 
 // Inline JS glue to leverage host RegExp for regexReplace/regexSplit on Web/Node
 // without pulling in the Rust regex crate (keeps WASM small).
@@ -76,7 +76,11 @@ pub(crate) fn regex_replace_js(
 }
 
 // Calls into JS RegExp split; returns vector of parts.
-pub(crate) fn regex_split_js(s: &str, pattern: &str, flags: Option<&str>) -> Result<Vec<String>, String> {
+pub(crate) fn regex_split_js(
+    s: &str,
+    pattern: &str,
+    flags: Option<&str>,
+) -> Result<Vec<String>, String> {
     let f = flags.unwrap_or("g");
     let out = __er_regex_split(s, pattern, f);
     if let Some(msg) = out.strip_prefix("__er_err__:") {
@@ -142,25 +146,33 @@ pub fn init_panic_hook() {
 }
 
 #[wasm_bindgen]
-pub fn evaluate_all(code: &str) -> String {
-    let service = EdgeRules::new();
-    service.evaluate_all(code)
-}
-
-#[wasm_bindgen]
-pub fn evaluate_expression(code: &str) -> String {
-    let mut service = EdgeRules::new();
-    match service.evaluate_expression(code) {
-        Ok(v) => v.to_string(),
-        Err(e) => e.to_string(),
+pub fn evaluate_all(code: &str) -> JsValue {
+    match wasm_convert::evaluate_all_inner(code) {
+        Ok(value) => value,
+        Err(err) => wasm_convert::throw_js_error(err),
     }
 }
 
 #[wasm_bindgen]
-pub fn evaluate_field(code: &str, field: &str) -> String {
-    let mut service = EdgeRules::new();
-    match service.load_source(code) {
-        Ok(()) => service.evaluate_field(field),
-        Err(e) => e.to_string(),
+pub fn evaluate_expression(code: &str) -> JsValue {
+    match wasm_convert::evaluate_expression_inner(code) {
+        Ok(value) => value,
+        Err(err) => wasm_convert::throw_js_error(err),
+    }
+}
+
+#[wasm_bindgen]
+pub fn evaluate_field(code: &str, field: &str) -> JsValue {
+    match wasm_convert::evaluate_field_inner(code, field) {
+        Ok(value) => value,
+        Err(err) => wasm_convert::throw_js_error(err),
+    }
+}
+
+#[wasm_bindgen]
+pub fn evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue {
+    match wasm_convert::evaluate_method_inner(code, method, args) {
+        Ok(value) => value,
+        Err(err) => wasm_convert::throw_js_error(err),
     }
 }

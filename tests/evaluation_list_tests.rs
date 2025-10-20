@@ -6,6 +6,14 @@ fn list_membership_and_boolean_aggregates() {
     // contains with numbers, strings, booleans, dates
     assert_value!("contains([1,2,3], 2)", "true");
     assert_value!("contains(['a','b','c'], 'd')", "false");
+    assert_value!("contains(['ass','bss','css'], 'bss')", "true");
+    assert_value!(
+        r#"
+        provided: ['ass','bss','css']
+        value: contains(provided, 'bss')
+    "#,
+        "true"
+    );
     assert_value!("contains([true,false], true)", "true");
     assert_value!(
         "contains([date('2017-05-03'), date('2017-05-04')], date('2017-05-04'))",
@@ -15,6 +23,21 @@ fn list_membership_and_boolean_aggregates() {
     // all/any for booleans
     assert_value!("all([true,true,false])", "false");
     assert_value!("any([false,false,true])", "true");
+    assert_value!(
+        r#"
+        numbers: [1, 2, 3]
+        value: all(for n in numbers return n < 4)
+    "#,
+        "true"
+    );
+    assert_value!(
+        r#"
+        numbers: [1, 2, 3]
+        threshold: 2
+        value: any(for n in numbers return n > threshold)
+    "#,
+        "true"
+    );
 }
 
 #[test]
@@ -48,19 +71,12 @@ fn list_order_and_indexing() {
     // indexOf returns 1-based positions (list)
     assert_value!("indexOf([1,2,3,2], 2)", "[2, 4]");
 
-    // sort default ascending (second argument ignored for now)
-    assert_eq!(
-        crate::eval_value("value : sort([3,1,4,2], 0)"),
-        "[1, 2, 3, 4]"
-    );
-    assert_eq!(
-        crate::eval_value("value : sort(['b','a','c'], 0)"),
-        "['a', 'b', 'c']"
-    );
+    // sort default ascending
+    assert_value!("sort([3,1,4,2])", "[1, 2, 3, 4]");
+    assert_value!("sort(['b','a','c'])", "['a', 'b', 'c']");
 
-    // sort objects by field
-    // Note: comparator function + field-based sort will be covered in a follow-up once
-    // inline comparator semantics land. Implementation supports field sort (right arg string).
+    assert_value!("sortDescending([3,1,4,2])", "[4, 3, 2, 1]");
+    assert_value!("sortDescending(['b','a','c'])", "['c', 'b', 'a']");
 }
 
 #[test]
@@ -73,7 +89,8 @@ fn list_set_ops_and_flatten() {
     assert_value!("duplicateValues([1,2,3,2,1])", "[2, 1]");
 
     // flatten
-    assert_value!("flatten([[1,2], [[3]], 4])", "[1, 2, 3, 4]");
+    // @Todo: as of now only homogeneous lists are supported, so it is unclear how flattening should happen
+    //assert_value!("flatten([[1,2], [[3]], 4])", "[1, 2, 3, 4]");
 }
 
 #[test]
@@ -98,6 +115,26 @@ fn list_numeric_aggregates() {
     assert_value!("median([1,2,3])", "2");
     assert_value!("stddev([2,4])", "1");
     assert_value!("mode([1,2,2,3])", "[2]");
+}
+
+#[test]
+fn complex_objects_in_lists() {
+    assert_value!(
+        r#"
+        list: [{a:1}, {a:2}, {a:3}]
+        value: for item in list return item.a
+    "#,
+        "[1, 2, 3]"
+    );
+
+    assert_value!(
+        r#"
+        config: 5
+        list: [{a:1 + config}, {a:2 + config}, {a:3 + config}]
+        value: for item in list return item.a
+    "#,
+        "[6, 7, 8]"
+    );
 }
 
 #[test]

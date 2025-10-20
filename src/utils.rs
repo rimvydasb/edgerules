@@ -1,7 +1,8 @@
 use crate::ast::context::function_context::RETURN_EXPRESSION;
-use std::collections::vec_deque::VecDeque;
+use std::collections::{vec_deque::VecDeque, HashSet};
 use std::fmt::Display;
 use std::ops::Add;
+use std::sync::{Mutex, OnceLock};
 
 pub fn to_display<T: Display>(vec: &[T], sep: &str) -> String {
     vec.iter()
@@ -28,10 +29,17 @@ pub fn context_unwrap(input: String) -> String {
     if input.starts_with('{') && input.ends_with('}') {
         let stripped = input[1..input.len() - 1].to_string();
         // @Todo: this is hack that must be solved differently
-        match stripped.strip_prefix(format!("{} : ", RETURN_EXPRESSION).as_str()) {
-            None => stripped,
-            Some(end) => end.to_string(),
+        let prefix = format!("{}:", RETURN_EXPRESSION);
+        if let Some(rest) = stripped.strip_prefix(&prefix) {
+            return rest.trim_start().to_string();
         }
+
+        let legacy_prefix = format!("{} : ", RETURN_EXPRESSION);
+        if let Some(rest) = stripped.strip_prefix(&legacy_prefix) {
+            return rest.to_string();
+        }
+
+        stripped
     } else {
         input
     }
@@ -44,6 +52,20 @@ pub fn capitalize(s: String) -> String {
         None => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
+}
+
+static FIELD_NAME_INTERNER: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+
+pub fn intern_field_name(name: &str) -> &'static str {
+    let interner = FIELD_NAME_INTERNER.get_or_init(|| Mutex::new(HashSet::new()));
+    let mut guard = interner.lock().expect("field name interner poisoned");
+    if let Some(existing) = guard.get(name) {
+        return existing;
+    }
+
+    let leaked = Box::leak(name.to_string().into_boxed_str());
+    guard.insert(leaked);
+    leaked
 }
 
 static TABS: [&str; 6] = [

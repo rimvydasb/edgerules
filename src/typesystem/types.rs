@@ -1,9 +1,14 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::typesystem::errors::ParseErrorEnum;
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+
+pub trait ToSchema {
+    fn to_schema(&self) -> String;
+}
 
 pub trait TypedValue {
     fn get_type(&self) -> ValueType;
@@ -30,12 +35,13 @@ pub enum ValueType {
     DateType,
     TimeType,
     DateTimeType,
+    PeriodType,
 
     // Range is not a type, it is a filter method
     RangeType,
 
-    // Only homogenous lists are supported now
-    ListType(Box<ValueType>),
+    // This is the type of the list, for example number[], Only homogenous lists are supported now
+    ListType(Option<Box<ValueType>>),
 
     // Represents Years-months-duration and Days-time-duration
     DurationType,
@@ -48,16 +54,60 @@ pub enum ValueType {
     /// - @Todo: it is a question if RefCell is necessary - context object must be immutable btw
     ObjectType(Rc<RefCell<ContextObject>>),
 
+    // @Todo: this must not exists in runtime - if it exists, runtime must not start
     UndefinedType,
-    // Todo: remove it and update
-    //AnyType,
 }
 
 impl ValueType {
     pub fn get_list_type(&self) -> Option<ValueType> {
         match self {
-            ValueType::ListType(list_type) => Some(*list_type.clone()),
+            ValueType::ListType(Some(list_type)) => Some(*list_type.clone()),
             _ => None,
+        }
+    }
+
+    pub fn list_of(inner: ValueType) -> Self {
+        ValueType::ListType(Some(Box::new(inner)))
+    }
+}
+
+impl TryFrom<&str> for ValueType {
+    type Error = ParseErrorEnum;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let trimmed = value.trim();
+
+        if trimmed.is_empty() {
+            return Err(ParseErrorEnum::UnknownType(trimmed.to_string()));
+        }
+
+        if trimmed == "[]" {
+            return Ok(ValueType::ListType(None));
+        }
+
+        if let Some(stripped) = trimmed.strip_suffix("[]") {
+            if stripped.is_empty() {
+                return Ok(ValueType::ListType(None));
+            }
+            let inner = ValueType::try_from(stripped)?;
+            return Ok(ValueType::list_of(inner));
+        }
+
+        if let Some(rest) = trimmed.strip_prefix("list of ") {
+            let inner = ValueType::try_from(rest)?;
+            return Ok(ValueType::list_of(inner));
+        }
+
+        match trimmed {
+            "number" => Ok(ValueType::NumberType),
+            "string" => Ok(ValueType::StringType),
+            "boolean" => Ok(ValueType::BooleanType),
+            "date" => Ok(ValueType::DateType),
+            "time" => Ok(ValueType::TimeType),
+            "datetime" => Ok(ValueType::DateTimeType),
+            "period" => Ok(ValueType::PeriodType),
+            "duration" => Ok(ValueType::DurationType),
+            _ => Err(ParseErrorEnum::UnknownType(trimmed.to_string())),
         }
     }
 }
@@ -71,9 +121,13 @@ impl Display for ValueType {
             ValueType::DateType => f.write_str("date"),
             ValueType::TimeType => f.write_str("time"),
             ValueType::DateTimeType => f.write_str("datetime"),
-            ValueType::ListType(value) => write!(f, "list of {}", value),
+            ValueType::PeriodType => f.write_str("period"),
+            ValueType::ListType(maybe_type) => match maybe_type {
+                Some(boxed_type) => write!(f, "{}[]", boxed_type),
+                None => f.write_str("[]"),
+            },
             ValueType::DurationType => f.write_str("duration"),
-            ValueType::ObjectType(value) => write!(f, "{}", value.borrow().to_type_string()),
+            ValueType::ObjectType(value) => write!(f, "{}", value.borrow().to_schema()),
 
             // Todo: remove it
             ValueType::RangeType => f.write_str("range"),
@@ -85,51 +139,6 @@ impl Display for ValueType {
     }
 }
 
-// todo: support objects
-impl TryFrom<&str> for ValueType {
-    type Error = ParseErrorEnum;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.starts_with("list of ") {
-            let value = value.replace("list of ", "");
-            return Ok(ValueType::ListType(Box::new(ValueType::try_from(
-                value.as_str(),
-            )?)));
-        }
-
-        match value {
-            "number" => Ok(ValueType::NumberType),
-            "string" => Ok(ValueType::StringType),
-            "boolean" => Ok(ValueType::BooleanType),
-            "date" => Ok(ValueType::DateType),
-            "time" => Ok(ValueType::TimeType),
-            "datetime" => Ok(ValueType::DateTimeType),
-            "duration" => Ok(ValueType::DurationType),
-            _ => Err(ParseErrorEnum::UnknownType(value.to_string())),
-        }
-    }
-}
-
-// impl TryFrom<ValueType> for ValueEnum {
-//     type Error = ();
-//
-//     fn try_from(value: ValueType) -> Result<Self, Self::Error> {
-//         match value {
-//             ValueType::NumberType => Ok(ValueEnum::NumberValue(NumberEnum::SV(SpecialValueEnum::Missing))),
-//             ValueType::StringType => Ok(ValueEnum::StringValue(StringEnum::SV(SpecialValueEnum::Missing))),
-//             ValueType::BooleanType => Ok(ValueEnum::BooleanValue(false)),
-//             ValueType::DateType => Ok(DateValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::TimeType => Ok(TimeValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::DateTimeType => Ok(ValueEnum::DateTimeValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::ListType(value) => Ok(ValueEnum::Array(vec![], *value)),
-//             ValueType::DurationType => Ok(ValueEnum::DurationValue(Sv(SpecialValueEnum::Missing))),
-//             ValueType::ObjectType(_) => Err(()),
-//             ValueType::AnyType => Err(()),
-//             ValueType::RangeType => Err(())
-//         }
-//     }
-// }
-
 //--------------------------------------------------------------------------------------------------
 // SpecialValueEnum
 //--------------------------------------------------------------------------------------------------
@@ -138,17 +147,52 @@ impl TryFrom<&str> for ValueType {
 // 2 - Missing -> value is mandatory, but not present. Functions will not be applied for this value and result will be Missing
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SpecialValueEnum {
-    Missing,
-    NotApplicable,
-    NotFound,
+    Missing(String),
+    NotApplicable(String),
+    NotFound(String),
+}
+
+impl SpecialValueEnum {
+    pub const DEFAULT_ORIGIN: &'static str = "N/A";
+
+    fn origin(field_name: Option<&str>) -> String {
+        match field_name {
+            Some(name) if !name.is_empty() => name.to_string(),
+            _ => Self::DEFAULT_ORIGIN.to_string(),
+        }
+    }
+
+    pub fn missing(origin: impl Into<String>) -> Self {
+        SpecialValueEnum::Missing(origin.into())
+    }
+
+    pub fn missing_for(field_name: Option<&str>) -> Self {
+        SpecialValueEnum::Missing(Self::origin(field_name))
+    }
+
+    pub fn not_applicable(origin: impl Into<String>) -> Self {
+        SpecialValueEnum::NotApplicable(origin.into())
+    }
+
+    pub fn not_applicable_for(field_name: Option<&str>) -> Self {
+        SpecialValueEnum::NotApplicable(Self::origin(field_name))
+    }
+
+    pub fn not_found(origin: impl Into<String>) -> Self {
+        SpecialValueEnum::NotFound(origin.into())
+    }
+
+    pub fn not_found_for(field_name: Option<&str>) -> Self {
+        SpecialValueEnum::NotFound(Self::origin(field_name))
+    }
 }
 
 impl Display for SpecialValueEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            SpecialValueEnum::Missing => f.write_str("Missing"),
-            SpecialValueEnum::NotApplicable => f.write_str("NotApplicable"),
-            SpecialValueEnum::NotFound => f.write_str("NotFound"),
+            SpecialValueEnum::Missing(field) => write!(f, "Missing('{}')", field),
+            SpecialValueEnum::NotApplicable(field) => write!(f, "NotApplicable('{}')", field),
+            SpecialValueEnum::NotFound(field) => write!(f, "NotFound('{}')", field),
         }
     }
 }
@@ -162,7 +206,7 @@ pub type Integer = i64;
 //--------------------------------------------------------------------------------------------------
 
 pub mod number {
-    use crate::typesystem::types::number::NumberEnum::{Fraction, Int, Real, SV};
+    use crate::typesystem::types::number::NumberEnum::{Int, Real, SV};
     use crate::typesystem::types::ValueType::NumberType;
     use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
     use std::cmp::Ordering;
@@ -175,7 +219,9 @@ pub mod number {
     pub enum NumberEnum {
         Real(Float),
         Int(Integer),
-        Fraction(Integer, Integer),
+
+        // @Todo: fraction mathematics is not implemented yet (Fraction(numerator, denominator))
+        //Fraction(Integer, Integer),
         SV(SpecialValueEnum),
     }
 
@@ -186,7 +232,6 @@ pub mod number {
             match self {
                 Real(value) => Real(-*value),
                 Int(value) => Int(-*value),
-                Fraction(numerator, denominator) => Fraction(-*numerator, *denominator),
                 other => other.clone(),
             }
         }
@@ -194,7 +239,7 @@ pub mod number {
         pub fn has_remaining(&self) -> bool {
             match self {
                 Real(value) => value.fract() != 0.0,
-                Fraction(_, denominator) => denominator != &NumberEnum::ZERO,
+                //Fraction(_, denominator) => denominator != &NumberEnum::ZERO,
                 _ => false,
             }
         }
@@ -211,8 +256,8 @@ pub mod number {
             match self {
                 Real(value) => write!(f, "{}", value),
                 Int(value) => write!(f, "{}", value),
-                SV(value) => write!(f, "number.{}", value),
-                Fraction(numerator, denominator) => write!(f, "{}/{}", numerator, denominator),
+                SV(value) => write!(f, "{}", value),
+                //Fraction(numerator, denominator) => write!(f, "{}/{}", numerator, denominator),
             }
         }
     }
@@ -226,11 +271,10 @@ pub mod number {
                 (Int(a), Int(b)) => NumberEnum::from(a + b),
                 (Real(a), Int(b)) => NumberEnum::from(a + (b as Float)),
                 (Int(a), Real(b)) => NumberEnum::from((a as Float) + b),
-                (SV(SpecialValueEnum::Missing), any) => any,
-                (any, SV(SpecialValueEnum::Missing)) => any,
+                (SV(SpecialValueEnum::NotApplicable(_)), any) => any,
+                (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
                 (_, SV(any)) => SV(any),
-                _ => SV(SpecialValueEnum::NotFound),
             }
         }
     }
@@ -244,11 +288,10 @@ pub mod number {
                 (Int(a), Int(b)) => NumberEnum::from(a - b),
                 (Real(a), Int(b)) => NumberEnum::from(a - (b as Float)),
                 (Int(a), Real(b)) => NumberEnum::from((a as Float) - b),
-                (SV(SpecialValueEnum::Missing), any) => any.negate(),
-                (any, SV(SpecialValueEnum::Missing)) => any,
+                (SV(SpecialValueEnum::NotApplicable(_)), any) => any.negate(),
+                (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
                 (_, SV(any)) => SV(any),
-                _ => SV(SpecialValueEnum::NotFound),
             }
         }
     }
@@ -262,11 +305,10 @@ pub mod number {
                 (Int(a), Int(b)) => NumberEnum::from(a * b),
                 (Real(a), Int(b)) => NumberEnum::from(a * (b as Float)),
                 (Int(a), Real(b)) => NumberEnum::from((a as Float) * b),
-                (SV(SpecialValueEnum::Missing), any) => any,
-                (any, SV(SpecialValueEnum::Missing)) => any,
+                (SV(SpecialValueEnum::NotApplicable(_)), any) => any,
+                (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
                 (_, SV(any)) => SV(any),
-                _ => SV(SpecialValueEnum::NotFound),
             }
         }
     }
@@ -280,11 +322,12 @@ pub mod number {
                 (Int(a), Int(b)) => NumberEnum::from(a as Float / b as Float),
                 (Real(a), Int(b)) => NumberEnum::from(a / (b as Float)),
                 (Int(a), Real(b)) => NumberEnum::from((a as Float) / b),
-                (SV(SpecialValueEnum::Missing), _any) => SV(SpecialValueEnum::Missing),
-                (any, SV(SpecialValueEnum::Missing)) => any,
+                (SV(SpecialValueEnum::NotApplicable(field)), _any) => {
+                    SV(SpecialValueEnum::NotApplicable(field))
+                }
+                (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
                 (_, SV(any)) => SV(any),
-                _ => SV(SpecialValueEnum::NotFound),
             }
         }
     }
@@ -298,11 +341,10 @@ pub mod number {
                 (Int(a), Int(b)) => NumberEnum::from(a % b),
                 (Real(a), Int(b)) => NumberEnum::from(a % (b as Float)),
                 (Int(a), Real(b)) => NumberEnum::from((a as Float) % b),
-                (SV(SpecialValueEnum::Missing), _any) => SV(SpecialValueEnum::Missing),
-                (any, SV(SpecialValueEnum::Missing)) => any,
+                (SV(value @ SpecialValueEnum::Missing(_)), _any) => SV(value),
+                (any, SV(SpecialValueEnum::Missing(_))) => any,
                 (SV(any), _) => SV(any),
                 (_, SV(any)) => SV(any),
-                _ => SV(SpecialValueEnum::NotFound),
             }
         }
     }
@@ -324,8 +366,8 @@ pub mod number {
                 (Int(a), Int(b)) => a.partial_cmp(b),
                 (Real(a), Int(b)) => a.partial_cmp(&(*b as Float)),
                 (Int(a), Real(b)) => (*a as Float).partial_cmp(b),
-                (SV(SpecialValueEnum::Missing), _any) => Some(Ordering::Less),
-                (_, SV(SpecialValueEnum::Missing)) => Some(Ordering::Greater),
+                (SV(SpecialValueEnum::Missing(_)), _any) => Some(Ordering::Less),
+                (_, SV(SpecialValueEnum::Missing(_))) => Some(Ordering::Greater),
                 _ => None,
             }
         }
@@ -394,8 +436,8 @@ pub mod string {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             match (self, other) {
                 (StringEnum::String(a), StringEnum::String(b)) => a.partial_cmp(b),
-                (StringEnum::SV(SpecialValueEnum::Missing), _any) => Some(Ordering::Less),
-                (_, StringEnum::SV(SpecialValueEnum::Missing)) => Some(Ordering::Greater),
+                (StringEnum::SV(SpecialValueEnum::Missing(_)), _any) => Some(Ordering::Less),
+                (_, StringEnum::SV(SpecialValueEnum::Missing(_))) => Some(Ordering::Greater),
                 _ => None,
             }
         }
@@ -405,86 +447,98 @@ pub mod string {
 #[cfg(test)]
 mod test {
     use crate::typesystem::types::number::NumberEnum;
-
-    use crate::typesystem::types::SpecialValueEnum::{Missing, NotApplicable, NotFound};
+    use crate::typesystem::types::SpecialValueEnum;
 
     #[test]
     fn test_numbers() {
+        let missing = SpecialValueEnum::missing_for(None);
+        let not_applicable = SpecialValueEnum::not_applicable_for(None);
+        let not_found = SpecialValueEnum::not_found_for(None);
+
         // Add
         assert_eq!(
-            NumberEnum::from(10) + NumberEnum::SV(Missing),
-            NumberEnum::from(10)
+            NumberEnum::from(10) + NumberEnum::SV(missing.clone()),
+            NumberEnum::SV(missing.clone())
         );
         assert_eq!(
-            NumberEnum::SV(Missing) + NumberEnum::from(10),
-            NumberEnum::from(10)
+            NumberEnum::SV(missing.clone()) + NumberEnum::from(10),
+            NumberEnum::SV(missing.clone())
         );
         assert_eq!(
             NumberEnum::from(10) + NumberEnum::from(10),
             NumberEnum::from(20)
         );
         assert_eq!(
-            NumberEnum::SV(NotFound) + NumberEnum::from(10),
-            NumberEnum::SV(NotFound)
+            NumberEnum::SV(not_found.clone()) + NumberEnum::from(10),
+            NumberEnum::SV(not_found.clone())
         );
 
         // Rem
         assert_eq!(
-            NumberEnum::from(10) % NumberEnum::SV(Missing),
+            NumberEnum::from(10) % NumberEnum::SV(missing.clone()),
             NumberEnum::from(10)
         );
         assert_eq!(
-            NumberEnum::SV(Missing) % NumberEnum::from(10),
-            NumberEnum::SV(Missing)
+            NumberEnum::SV(missing.clone()) % NumberEnum::from(10),
+            NumberEnum::SV(missing.clone())
         );
         assert_eq!(
             NumberEnum::from(10) % NumberEnum::from(10),
             NumberEnum::from(0)
         );
         assert_eq!(
-            NumberEnum::SV(NotFound) % NumberEnum::from(10),
-            NumberEnum::SV(NotFound)
+            NumberEnum::SV(not_found.clone()) % NumberEnum::from(10),
+            NumberEnum::SV(not_found.clone())
         );
 
         assert!(NumberEnum::from(10) <= NumberEnum::from(10));
 
         // Missing
 
-        assert!(NumberEnum::from(10) > NumberEnum::SV(Missing));
+        assert!(NumberEnum::from(10) > NumberEnum::SV(missing.clone()));
         assert!(matches!(
-            NumberEnum::SV(Missing).partial_cmp(&NumberEnum::from(10)),
+            NumberEnum::SV(missing.clone()).partial_cmp(&NumberEnum::from(10)),
             Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
         ));
-        assert!(NumberEnum::SV(Missing) != NumberEnum::from(10));
+        assert!(NumberEnum::SV(missing.clone()) != NumberEnum::from(10));
 
         // NotApplicable
         assert!(matches!(
-            NumberEnum::from(10).partial_cmp(&NumberEnum::SV(NotApplicable)),
+            NumberEnum::from(10).partial_cmp(&NumberEnum::SV(not_applicable.clone())),
             Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
         ));
         assert!(matches!(
-            NumberEnum::SV(NotApplicable).partial_cmp(&NumberEnum::from(10)),
+            NumberEnum::SV(not_applicable.clone()).partial_cmp(&NumberEnum::from(10)),
             Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
         ));
-        assert!(NumberEnum::SV(NotApplicable) != NumberEnum::from(10));
+        assert!(NumberEnum::SV(not_applicable.clone()) != NumberEnum::from(10));
 
         // NotApplicable
         assert!(matches!(
-            NumberEnum::from(10).partial_cmp(&NumberEnum::SV(NotFound)),
+            NumberEnum::from(10).partial_cmp(&NumberEnum::SV(not_found.clone())),
             Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
         ));
         assert!(matches!(
-            NumberEnum::SV(NotFound).partial_cmp(&NumberEnum::from(10)),
+            NumberEnum::SV(not_found.clone()).partial_cmp(&NumberEnum::from(10)),
             Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal) | None
         ));
-        assert!(NumberEnum::SV(NotFound) != NumberEnum::from(10));
+        assert!(NumberEnum::SV(not_found.clone()) != NumberEnum::from(10));
 
-        assert!(NumberEnum::SV(Missing) != NumberEnum::SV(NotFound));
-        assert!(NumberEnum::SV(Missing) != NumberEnum::SV(NotApplicable));
+        assert!(NumberEnum::SV(missing.clone()) != NumberEnum::SV(not_found.clone()));
+        assert!(NumberEnum::SV(missing) != NumberEnum::SV(not_applicable));
 
-        assert!(NumberEnum::SV(Missing) == NumberEnum::SV(Missing));
-        assert!(NumberEnum::SV(NotFound) == NumberEnum::SV(NotFound));
-        assert!(NumberEnum::SV(NotApplicable) == NumberEnum::SV(NotApplicable));
+        assert!(
+            NumberEnum::SV(SpecialValueEnum::missing_for(None))
+                == NumberEnum::SV(SpecialValueEnum::missing_for(None))
+        );
+        assert!(
+            NumberEnum::SV(SpecialValueEnum::not_found_for(None))
+                == NumberEnum::SV(SpecialValueEnum::not_found_for(None))
+        );
+        assert!(
+            NumberEnum::SV(SpecialValueEnum::not_applicable_for(None))
+                == NumberEnum::SV(SpecialValueEnum::not_applicable_for(None))
+        );
     }
 
     #[test]

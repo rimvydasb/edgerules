@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Read};
 
-use edge_rules::runtime::edge_rules::EdgeRules;
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
 
 pub fn run() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -26,14 +26,23 @@ pub fn run() {
             println!("{}", output);
         }
         _ => {
-            let service = EdgeRules::new();
-            println!("{}", service.evaluate_all(&code));
+            let mut service = EdgeRulesModel::new();
+            match service.load_source(&code) {
+                Ok(()) => match service.to_runtime() {
+                    Ok(runtime) => match runtime.eval_all() {
+                        Ok(()) => println!("{}", runtime.context.borrow().to_code()),
+                        Err(error) => println!("{}", error),
+                    },
+                    Err(error) => println!("{}", error),
+                },
+                Err(error) => println!("{}", error),
+            }
         }
     }
 }
 
 fn eval_value(code: &str) -> Result<Option<String>, String> {
-    let mut service = EdgeRules::new();
+    let mut service = EdgeRulesModel::new();
     service.load_source(code).map_err(|e| e.to_string())?;
     let runtime = service.to_runtime().map_err(|e| e.to_string())?;
 

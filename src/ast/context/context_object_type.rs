@@ -3,9 +3,12 @@ use crate::ast::context::context_object_type::EObjectContent::{
     ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
 };
 use crate::ast::expression::StaticLink;
+use crate::ast::token::ComplexTypeRef;
 use crate::ast::Link;
 use crate::link::linker::link_parts;
 use crate::link::node_data::Node;
+use crate::typesystem::errors::LinkingError;
+use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use core::fmt;
@@ -16,21 +19,48 @@ use std::rc::Rc;
 #[derive(Debug, Clone, PartialEq)]
 pub struct FormalParameter {
     pub name: String,
+    pub type_ref: Option<ComplexTypeRef>,
     pub value_type: ValueType,
 }
 
 impl FormalParameter {
     pub(crate) fn new(name: String, value_type: ValueType) -> FormalParameter {
-        FormalParameter { name, value_type }
+        FormalParameter {
+            name,
+            type_ref: None,
+            value_type,
+        }
+    }
+
+    pub(crate) fn with_type_ref(name: String, type_ref: Option<ComplexTypeRef>) -> FormalParameter {
+        FormalParameter {
+            name,
+            type_ref,
+            value_type: ValueType::UndefinedType,
+        }
+    }
+
+    pub fn declared_type(&self) -> Option<&ComplexTypeRef> {
+        self.type_ref.as_ref()
+    }
+
+    pub fn with_runtime_type(&self, value_type: ValueType) -> FormalParameter {
+        FormalParameter {
+            name: self.name.clone(),
+            type_ref: self.type_ref.clone(),
+            value_type,
+        }
     }
 }
 
 impl Display for FormalParameter {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if self.value_type == ValueType::UndefinedType {
-            write!(f, "{}", self.name)
-        } else {
+        if self.value_type != ValueType::UndefinedType {
             write!(f, "{}: {}", self.name, self.value_type)
+        } else if let Some(type_ref) = &self.type_ref {
+            write!(f, "{}: {}", self.name, type_ref)
+        } else {
+            write!(f, "{}", self.name)
         }
     }
 }
@@ -49,11 +79,29 @@ impl StaticLink for EObjectContent<ContextObject> {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         match self {
             ConstantValue(value) => Ok(value.get_type()),
-            ExpressionRef(value) => {
-                let field_type = value.borrow_mut().expression.link(ctx);
-                value.borrow_mut().field_type = field_type.clone();
-                field_type
-            }
+            ExpressionRef(value) => match value.try_borrow_mut() {
+                Ok(mut entry) => {
+                    let field_type = entry.expression.link(Rc::clone(&ctx));
+                    if let Ok(field_type_value) = &field_type {
+                        entry.field_type = Ok(field_type_value.clone());
+                    }
+                    field_type
+                }
+                Err(_) => {
+                    let ctx_ref = ctx.borrow();
+                    let context_name = ctx_ref.node().node_type.to_string();
+                    let field_name = ctx_ref.node().node_type.to_code();
+                    let field_label = if field_name.is_empty() {
+                        "<self>".to_string()
+                    } else {
+                        field_name
+                    };
+                    Err(LinkingError::new(CyclicReference(
+                        context_name,
+                        field_label,
+                    )))
+                }
+            },
             MetaphorRef(_metaphor) => {
                 todo!("MetaphorRef")
             }
@@ -75,110 +123,5 @@ impl<T: Node<T>> Display for EObjectContent<T> {
             ObjectRef(obj) => write!(f, "{}", obj.borrow()),
             Definition(definition) => write!(f, "{}", definition),
         }
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use crate::ast::context::context_object_builder::*;
-    use crate::ast::metaphors::functions::FunctionDefinition;
-    use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
-    use crate::ast::token::ExpressionEnum;
-    use crate::link::linker::link_parts;
-    use crate::runtime::edge_rules::{expr, EvalError};
-    use log::info;
-    use std::rc::Rc;
-
-    use crate::utils::test::init_logger;
-
-    type E = ExpressionEnum;
-
-    #[test]
-    fn test_builder() -> Result<(), EvalError> {
-        init_logger();
-
-        info!(">>> test_builder()");
-
-        let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
-
-        let obj = builder.build();
-
-        link_parts(Rc::clone(&obj))?;
-
-        assert_eq!(obj.borrow().expressions.len(), 2);
-        assert_eq!(obj.borrow().metaphors.len(), 0);
-        assert_eq!(obj.borrow().all_field_names.len(), 2);
-        assert_eq!(obj.borrow().to_string(), "{a : 1; b : 2}");
-        assert_eq!(obj.borrow().to_type_string(), "Type<a: number, b: number>");
-
-        let mut builder2 = ContextObjectBuilder::new();
-        builder2.add_expression("x", E::from("Hello"));
-        builder2.add_expression("y", expr("1 + 2")?);
-
-        let obj2 = builder2.build();
-
-        link_parts(Rc::clone(&obj2))?;
-
-        assert_eq!(obj2.borrow().to_type_string(), "Type<x: string, y: number>");
-
-        let mut builder3 = ContextObjectBuilder::new();
-        builder3.add_expression("x", E::from("Hello"));
-        builder3.add_expression("y", expr("a + b")?);
-        builder3.append(Rc::clone(&obj));
-
-        let obj3 = builder3.build();
-
-        link_parts(Rc::clone(&obj3))?;
-
-        assert_eq!(
-            obj3.borrow().to_type_string(),
-            "Type<a: number, b: number, x: string, y: number>"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_nesting() -> Result<(), EvalError> {
-        init_logger();
-
-        info!(">>> test_nesting()");
-
-        let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
-
-        {
-            let mut child = ContextObjectBuilder::new();
-            child.add_expression("x", E::from("Hello"));
-            child.add_expression("y", expr("a + b")?);
-            child.add_definition(MetaphorDef(
-                FunctionDefinition::build(
-                    vec![],
-                    "income".to_string(),
-                    vec![],
-                    ContextObjectBuilder::new().build(),
-                )
-                .into(),
-            ));
-            builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
-        }
-
-        let obj = builder.build();
-
-        link_parts(Rc::clone(&obj))?;
-
-        assert_eq!(
-            obj.borrow().to_string(),
-            "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}"
-        );
-        assert_eq!(
-            obj.borrow().to_type_string(),
-            "Type<a: number, b: number, c: Type<x: string, y: number>>"
-        );
-
-        Ok(())
     }
 }

@@ -8,7 +8,7 @@ use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::Reference;
-use crate::utils::{Line, Lines};
+use crate::utils::{intern_field_name, Line, Lines};
 use log::trace;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ pub struct ExecutionContext {
     /// This flag can be set by any method that performs or ensures that context is really fully evaluated so full evaluation will not be repeated.
     pub promise_eval_all: bool,
     /// stack can be constantly updated. accessed via API
-    stack: RefCell<HashMap<String, Result<ValueEnum, RuntimeError>>>,
+    stack: RefCell<HashMap<&'static str, Result<ValueEnum, RuntimeError>>>,
     /// Weak self pointer to allow building parent links from methods that only have &self
     self_ref: Weak<RefCell<ExecutionContext>>,
 }
@@ -89,7 +89,7 @@ impl ContentHolder<ExecutionContext> for ExecutionContext {
                     "Creating new child execution context for get: {}",
                     object.borrow().node().node_type
                 );
-                let new_child = self.create_orphan_context(name.to_string(), object);
+                let new_child = self.create_orphan_context(intern_field_name(name), object);
                 Ok(EObjectContent::ObjectRef(new_child))
             }
             ConstantValue(value) => Ok(ConstantValue(value)),
@@ -103,7 +103,7 @@ impl ContentHolder<ExecutionContext> for ExecutionContext {
         }
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> Vec<&'static str> {
         self.object.borrow().get_field_names()
     }
 }
@@ -115,38 +115,6 @@ impl TypedValue for ExecutionContext {
 }
 
 impl ExecutionContext {
-    // Use cases:
-    // 1. Creates an isolated execution for a function call
-    // pub fn create_for(static_context: Rc<RefCell<ContextObject>>, maybe_parent: Option<Rc<RefCell<ExecutionContext>>>) -> Rc<RefCell<ExecutionContext>> {
-    //     let len = static_context.borrow().size();
-    //     match maybe_parent {
-    //         None => {
-    //             Self {
-    //                 object: static_context,
-    //                 stack: RefCell::new(HashMap::new()),
-    //                 context_variable: None,
-    //                 node: NodeData::new(None, len),
-    //                 promise_eval_all: false,
-    //             }.to_rc()
-    //         }
-    //         Some(parent) => {
-    //             let assigned_to_field = parent.borrow().node().get_assigned_to_field();
-    //             let new_child = Self {
-    //                 object: static_context,
-    //                 stack: RefCell::new(HashMap::new()),
-    //                 context_variable: None,
-    //                 node: NodeData::new(None, len),
-    //                 promise_eval_all: false,
-    //             }.to_rc();
-    //
-    //             new_child.borrow_mut().mut_node().attach_to_parent(&parent,Some(assigned_to_field.clone()));
-    //             parent.borrow().node().add_child(assigned_to_field, Rc::clone(&new_child));
-    //
-    //             new_child
-    //         }
-    //     }
-    // }
-
     pub fn create_isolated_context(
         static_context: Rc<RefCell<ContextObject>>,
     ) -> Rc<RefCell<ExecutionContext>> {
@@ -177,14 +145,14 @@ impl ExecutionContext {
 
     pub fn create_orphan_context(
         &self,
-        assigned_to_field: String,
+        assigned_to_field: &'static str,
         static_context: Rc<RefCell<ContextObject>>,
     ) -> Rc<RefCell<ExecutionContext>> {
         let new_child = Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
             context_variable: None,
-            node: NodeData::new(NodeDataEnum::Child(assigned_to_field.clone(), Weak::new())),
+            node: NodeData::new(NodeDataEnum::Child(assigned_to_field, Weak::new())),
             promise_eval_all: false,
             self_ref: Weak::new(),
         }
@@ -250,10 +218,10 @@ impl ExecutionContext {
             let mut line = Line::new();
             match &self.node().node_type {
                 NodeDataEnum::Child(name, _) => {
-                    line.add(name.as_str()).add(" : {");
+                    line.add(name).add(": {");
                 }
                 NodeDataEnum::Internal(_) => {
-                    line.add("#child").add(" : {");
+                    line.add("#child").add(": {");
                 }
                 NodeDataEnum::Isolated() | NodeDataEnum::Root() => {
                     line.add("{");
@@ -275,11 +243,11 @@ impl ExecutionContext {
                 Ok(field) => {
                     match field {
                         ConstantValue(value) => {
-                            lines.add_str(format!("{} : {}", field_name, value).as_str());
+                            lines.add_str(format!("{}: {}", field_name, value).as_str());
                         }
                         ExpressionRef(expression) => {
                             lines.add_str(
-                                format!("{} : {}", field_name, expression.borrow().expression)
+                                format!("{}: {}", field_name, expression.borrow().expression)
                                     .as_str(),
                             );
                         }
@@ -305,8 +273,45 @@ impl ExecutionContext {
         lines.add_str("}");
     }
 
-    pub fn stack_insert(&self, field_name: String, value: Result<ValueEnum, RuntimeError>) {
+    pub fn stack_insert(&self, field_name: &'static str, value: Result<ValueEnum, RuntimeError>) {
+        if let Ok(Reference(child_ctx)) = &value {
+            if let Some(parent) = self.self_ref.upgrade() {
+                {
+                    let mut child = child_ctx.borrow_mut();
+                    child.mut_node().node_type = NodeDataEnum::Child(field_name, Weak::new());
+                }
+                NodeData::attach_child(&parent, child_ctx);
+            }
+        }
         self.stack.borrow_mut().insert(field_name, value);
+    }
+
+    pub fn eval_all_fields(ctx: &Rc<RefCell<ExecutionContext>>) -> Result<(), RuntimeError> {
+        if ctx.borrow().promise_eval_all {
+            return Ok(());
+        }
+
+        ctx.borrow_mut().promise_eval_all = true;
+
+        let field_names = ctx.borrow().object.borrow().get_field_names();
+
+        for name in field_names {
+            match ctx.borrow().get(name)? {
+                EObjectContent::ExpressionRef(expression) => {
+                    ctx.borrow().node().lock_field(name)?;
+                    let value = expression.borrow().expression.eval(Rc::clone(ctx));
+                    ctx.borrow().stack_insert(name, value);
+                    ctx.borrow().node().unlock_field(name);
+                }
+                EObjectContent::ObjectRef(reference) => {
+                    NodeData::attach_child(ctx, &reference);
+                    ExecutionContext::eval_all_fields(&reference)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -336,23 +341,23 @@ pub mod test {
         info!(">>> test_nesting()");
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
+        builder.add_expression("a", E::from(1.0))?;
+        builder.add_expression("b", E::from(2.0))?;
 
         {
             let mut child = ContextObjectBuilder::new();
-            child.add_expression("x", E::from("Hello"));
-            child.add_expression("y", expr("a + b")?);
+            child.add_expression("x", E::from("Hello"))?;
+            child.add_expression("y", expr("a + b")?)?;
             child.add_definition(MetaphorDef(
                 FunctionDefinition::build(
                     vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                )
+                )?
                 .into(),
-            ));
-            builder.add_expression("c", ExpressionEnum::StaticObject(child.build()));
+            ))?;
+            builder.add_expression("c", ExpressionEnum::StaticObject(child.build()))?;
         }
 
         let ctx = builder.build();
@@ -361,25 +366,23 @@ pub mod test {
 
         let ex = ExecutionContext::create_root_context(ctx);
 
-        ex.borrow()
-            .stack_insert("a".to_string(), Ok(ValueEnum::from(88.0)));
-        ex.borrow()
-            .stack_insert("b".to_string(), Ok(ValueEnum::from(99.0)));
+        ex.borrow().stack_insert("a", Ok(ValueEnum::from(88.0)));
+        ex.borrow().stack_insert("b", Ok(ValueEnum::from(99.0)));
 
         assert_eq!(ex.borrow().get("a")?.to_string(), "88");
         assert_eq!(ex.borrow().get("b")?.to_string(), "99");
         assert!(ex.borrow().get("x").is_err());
         assert_eq!(
             ex.borrow().to_string(),
-            "{a : 88; b : 99; c : {x : 'Hello'; y : a + b; income() : {}}}"
+            "{a: 88; b: 99; c: {x: 'Hello'; y: a + b; income() : {}}}"
         );
         assert_eq!(
             ex.borrow().get_type().to_string(),
-            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+            "{a: number; b: number; c: {x: string; y: number}}"
         );
         assert_eq!(
             ex.borrow().get("c")?.to_string(),
-            "{x : 'Hello'; y : a + b; income() : {}}"
+            "{x: 'Hello'; y: a + b; income() : {}}"
         );
 
         // @Todo: update tests

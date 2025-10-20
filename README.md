@@ -4,18 +4,13 @@ JSON-native business rules for the edge.
 
 ## Preface
 
-**EdgeRules** is a structure and programming language specification for defining algorithms and business rules.
-The project was started early in 2022 to create a simple, safe, and expressive language for business users and
-developers
-to oppose poor DMN FEEL language syntax decisions such as bizarre syntax choices and no proper missing value handling.
-Unfortunately, the Jsonnet project wasn't on my radar at that time, and it
-appeared to be the closest to what I wanted to achieve. Nonetheless, EdgeRules had its unique features and goals:
-hard to fail strategies such that the absence of reference loops, no nulls, fully traceable, referentially transparent,
-and the most crucial target was a small WASM binary size for inexpensive use in client browsers... until it exploded to
-600Kb,
-and I barely implemented one-third of my ideas... Due to the shift in my focus, I dropped the project in late 2023.
-In late 2025, I moved the project to GitHub and kept it for my experimentation and research. For this reason, the
-project might be volatile.
+**EdgeRules** is JSON-native, Domain-Specific Language with statically-typed semantics and
+missing data handling that is positioned as a safer alternative of FEEL and other bulkier DMN runtimes.
+
+Main features: simple expressive language for business users and developers
+with safety features such as no nulls, no runtime exceptions, no side effects,
+cycle-prevention that comes with a small runtime and hardly matched interpretation performance
+of Pratt’s top‑down operator precedence.
 
 - Interactive playground / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
 - [Language Reference](REFERENCE.md)
@@ -31,11 +26,15 @@ project might be volatile.
 - **FEEL**: Friendly Enough Expression Language, part of DMN standard; designed for business users to define decision
   logic.
 
-|                       | Jsonnet | DMN FEEL                   | EdgeRules             |
-|-----------------------|---------|----------------------------|-----------------------|
-| Null value treatment  | N/A     | nn (Proposed By Trisotech) | Native Special Values |
-| Objects, lists, types | Yes     | Yes                        | Yes                   |
-| TBC.                  |         |                            |                       |
+|                          | Jsonnet          | DMN FEEL          | EdgeRules             |
+|--------------------------|------------------|-------------------|-----------------------|
+| Null value treatment     | N/A              | nn (By Trisotech) | Native Special Values |
+| Objects, lists, types    | Yes              | Yes               | Yes                   |
+| Strict Types             | No               | No                | Yes                   |
+| Time and date operations | No               | Yes               | Yes                   |
+| GUI Needed               | No               | Yes, DMN Modeler  | No                    |
+| Runtime                  | Rust, WASM, etc. | Java              | Rust, WASM            |
+| Purpose                  | Data templating  | Business rules    | Business rules        |
 
 ## Deployment Options
 
@@ -60,8 +59,8 @@ EdgeRules is ready for four options based on your requirements:
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
 - [ ] Hard to fail: no infinite loops (TBA: optimistic limits strategy)
 - [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
-- [ ] Full DMN FEEL coverage
-- [ ] Strongly typed and statically typed with type inference
+- [x] Full DMN FEEL coverage
+- [x] Strongly typed and statically typed with type inference
 - [ ] Fractional mathematics for infinite precision
 - [ ] Infinite lists
 - [ ] Structures composition
@@ -73,36 +72,31 @@ EdgeRules is ready for four options based on your requirements:
 
 EdgeRules exposes a small, stateful API for loading source and evaluating expressions/fields. The typical flow is:
 
-- Create `EdgeRules`
-- Incrementally `load_source("...")` (can be called multiple times)
-- Evaluate using `evaluate_field("path")` or `evaluate_expression("expr")`
-
-All evaluations use the code loaded into the same `EdgeRules` instance.
-
 ```rust
 use edge_rules::runtime::edge_rules::EdgeRules;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a service instance (stateful)
-    let mut service = EdgeRules::new();
+    // Create a model builder
+    let mut model = EdgeRules::new();
 
     // Load some code (can be called multiple times to extend/override)
-    service.load_source("{ value: 3 }")?;
+    model.load_source("{ value: 3 }")?;
 
-    // Evaluate a pure expression using the loaded context
-    // e.g., "2 + value" where value comes from the loaded source above
-    let val = service.evaluate_expression("2 + value")?;
+    // Evaluate a pure expression using the loaded context without consuming the builder
+    let runtime = model.to_runtime_snapshot()?;
+    let val = runtime.evaluate_expression_str("2 + value")?;
     assert_eq!(val.to_string(), "5");
 
-    // Load more source and reuse the same instance
-    service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
+    // Load more source and reuse the same builder
+    model.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
 
-    // Evaluate a field/path from the loaded model
-    let start = service.evaluate_field("calendar.config.start");
-    assert_eq!(start, "7");
+    // Build a fresh runtime snapshot to evaluate fields
+    let runtime = model.to_runtime_snapshot()?;
+    let start = runtime.evaluate_field("calendar.config.start")?;
+    assert_eq!(start.to_string(), "7");
 
-    let end = service.evaluate_field("calendar.config.end");
-    assert_eq!(end, "12");
+    let end = runtime.evaluate_field("calendar.config.end")?;
+    assert_eq!(end.to_string(), "12");
 
     Ok(())
 }
@@ -112,9 +106,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 WASM exported methods via `wasm_bindgen`:
 
-- `evaluate_all(code: &str) -> String` – loads model code and returns the fully evaluated model as code.
-- `evaluate_expression(code: &str) -> String` – evaluates a standalone expression against an empty context.
-- `evaluate_field(code: &str, field: &str) -> String` – loads `code`, then evaluates a field/path.
+- `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
+- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript
+  value.
+- `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
+- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
+  with given `args`.
+
+All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors
+instead of encoding everything as strings. `evaluate_method` accepts primitives, arrays, dates, or plain JavaScript
+objects
+as arguments, and context outputs are surfaced as plain objects.
 
 ### Optional Function Groups for WASM
 

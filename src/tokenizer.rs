@@ -14,7 +14,7 @@ mod test {
     use log::info;
 
     fn is_equals(code: &str, expected: &str) {
-        let result = &tokenize(&code.to_string());
+        let result = &tokenize(code);
         let result_line = array_to_code_sep(result.iter(), ", ");
 
         if result.len() > 1 {
@@ -57,10 +57,12 @@ mod test {
         );
         is_equals("{ r : { a : 1 + 2} b : 3}", "{r:{a:1+2};b:3}");
         is_equals("{ r : { a : 1 + 2}; b : 3}", "{r:{a:1+2};b:3}"); // testing comma separator that should be OK
-        is_equals(
-            "{ record : { age1 : 11; variable : 100; variable : 200 }; record2 : { age2 : 22 }}",
-            "{record:{age1:11;variable:200;variable:200};record2:{age2:22}}",
-        );
+
+        // @Todo: duplicate keys are not supported and should raise an error
+        // is_equals(
+        //     "{ record : { age1 : 11; variable : 100; variable : 200 }; record2 : { age2 : 22 }}",
+        //     "{record:{age1:11;variable:200;variable:200};record2:{age2:22}}",
+        // );
         is_equals("value : [1,sum(9,8),3]", "value:[1,sum(9,8),3]");
         is_equals(
             "func record(input) : { age : input.age } ",
@@ -176,7 +178,7 @@ mod test {
         );
         is_equals(
             "value : [[key,value],[,2],[3,4]]",
-            "Veryfirstsequenceelementismissing→'value'assignmentsideisnotcomplete",
+            "[parse]Veryfirstsequenceelementismissing→[parse]'value'assignmentsideisnotcomplete",
         );
 
         // Various functions
@@ -197,12 +199,62 @@ mod test {
     }
 
     #[test]
+    fn test_fuzzy_code() {
+        is_equals(
+            r#"
+        { p : [{a:1},5] }
+         "#,
+            "{ p : [{a:1},5] }",
+        );
+
+        is_equals(
+            r#"
+        { p : [] }
+         "#,
+            "{ p : [] }",
+        );
+
+        is_equals(
+            r#"
+        { p : [
+        {a:1}
+        ,
+        5] }
+         "#,
+            "{ p : [{a:1},5] }",
+        );
+
+        is_equals(
+            r#"
+        { p : [
+            {a:1; g: []},
+            {b:1},
+            {c:1}
+        ] }
+         "#,
+            "{p:[{a:1;g:[]},{b:1},{c:1}]}",
+        );
+
+        is_equals(
+            r#"
+        {
+            p: [
+                {a: 30; t: ["a","b",
+                "c"]}
+            ]
+        }
+         "#,
+            "{p:[{a:30;t:['a','b','c']}]}",
+        );
+    }
+
+    #[test]
     fn test_errors() {
         init_logger();
 
         is_equals(
             "p : [{a:},5]",
-            "'a'assignmentsideisnotcomplete→'p'assignmentsideisnotcomplete",
+            "[parse]'a'assignmentsideisnotcomplete→[parse]'p'assignmentsideisnotcomplete",
         );
     }
 
@@ -244,6 +296,11 @@ mod test {
     #[test]
     fn test_conditionals() {
         is_equals("p : 1 = a", "p : 1 = a");
+        is_equals("p : 'a' = 'b'", "p : 'a' = 'b'");
+        is_equals("p : a <> b", "p : a <> b");
+        is_equals("p : 'a' <> 'b'", "p : 'a' <> 'b'");
+        is_equals("p : 'a' >= 'b'", "p : 'a' >= 'b'");
+        is_equals("p : true <= 'b'", "p : true <= 'b'");
         is_equals("p : 2 >= a", "p : 2 >= a");
         is_equals("p : 3 <= a", "p : 3 <= a");
         is_equals("p : 4 <> a", "p : 4 <> a");

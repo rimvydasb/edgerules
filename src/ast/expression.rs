@@ -1,15 +1,18 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_builder::ContextObjectBuilder;
+use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::token::ExpressionEnum::*;
-use crate::link::node_data::ContentHolder;
 use crate::ast::token::*;
 use crate::ast::variable::VariableLink;
 use crate::ast::Link;
+use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::{ErrorStack, LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum::Int;
-use crate::typesystem::types::ValueType;
-use crate::typesystem::values::ValueEnum;
+use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{NumberValue, RangeValue, Reference};
+use crate::typesystem::values::{ArrayValue, ValueEnum};
+use crate::utils::intern_field_name;
 use crate::*;
 use log::{error, trace};
 use std::cell::RefCell;
@@ -21,41 +24,65 @@ pub trait StaticLink: Display + Debug {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType>;
 }
 
-fn missing_for_type(ty: &ValueType, ctx: &Rc<RefCell<ExecutionContext>>) -> ValueEnum {
+pub(crate) fn missing_for_type(
+    ty: &ValueType,
+    field_name: Option<&str>,
+    ctx: &Rc<RefCell<ExecutionContext>>,
+) -> Result<ValueEnum, RuntimeError> {
     use crate::typesystem::types::number::NumberEnum;
     use crate::typesystem::types::string::StringEnum;
     use crate::typesystem::values::ValueOrSv::Sv;
     // use crate::typesystem::values::DurationValue;
-    use crate::typesystem::values::ValueEnum as V;
     use crate::typesystem::types::SpecialValueEnum as SV;
+    use crate::typesystem::values::ValueEnum as V;
 
     match ty {
-        ValueType::NumberType => V::NumberValue(NumberEnum::SV(SV::Missing)),
-        ValueType::StringType => V::StringValue(StringEnum::SV(SV::Missing)),
-        ValueType::BooleanType => V::StringValue(StringEnum::SV(SV::Missing)),
-        ValueType::DateType => V::DateValue(Sv(SV::Missing)),
-        ValueType::TimeType => V::TimeValue(Sv(SV::Missing)),
-        ValueType::DateTimeType => V::DateTimeValue(Sv(SV::Missing)),
-        ValueType::DurationType => V::DurationValue(Sv(SV::Missing)),
-        ValueType::ListType(inner) => V::Array(vec![], ValueType::ListType(inner.clone())),
+        ValueType::NumberType => Ok(NumberValue(NumberEnum::SV(SV::missing_for(field_name)))),
+        ValueType::StringType => Ok(V::StringValue(StringEnum::SV(SV::missing_for(field_name)))),
+        ValueType::BooleanType => Ok(V::StringValue(StringEnum::SV(SV::missing_for(field_name)))),
+        ValueType::DateType => Ok(V::DateValue(Sv(SV::missing_for(field_name)))),
+        ValueType::TimeType => Ok(V::TimeValue(Sv(SV::missing_for(field_name)))),
+        ValueType::DateTimeType => Ok(V::DateTimeValue(Sv(SV::missing_for(field_name)))),
+        ValueType::DurationType => Ok(V::DurationValue(Sv(SV::missing_for(field_name)))),
+        ValueType::PeriodType => Ok(V::PeriodValue(Sv(SV::missing_for(field_name)))),
+        ValueType::ListType(inner) => match inner.as_ref() {
+            Some(item_type) => Ok(V::Array(ArrayValue::PrimitivesArray {
+                values: Vec::new(),
+                item_type: (**item_type).clone(),
+            })),
+            None => Ok(V::Array(ArrayValue::EmptyUntyped)),
+        },
         ValueType::ObjectType(obj) => {
             // Build empty object filled with missing values for each field
-            let mut builder = crate::ast::context::context_object_builder::ContextObjectBuilder::new();
+            let mut builder = ContextObjectBuilder::new();
             for name in obj.borrow().get_field_names() {
-                if let Ok(content) = obj.borrow().get(&name) {
+                if let Ok(content) = obj.borrow().get(name) {
                     match content {
-                        crate::ast::context::context_object_type::EObjectContent::ExpressionRef(entry) => {
+                        EObjectContent::ExpressionRef(entry) => {
                             // Determine field type via placeholder if present
-                            let mut fty = match &entry.borrow().expression {
+                            let fty = match &entry.borrow().expression {
                                 TypePlaceholder(tref) => obj.borrow().resolve_type_ref(tref).ok(),
                                 _ => None,
-                            };
-                            let fty = fty.unwrap_or(ValueType::UndefinedType);
-                            builder.add_expression(&name, missing_for_type(&fty, ctx).into());
+                            }
+                            .unwrap_or(ValueType::UndefinedType);
+                            let child_origin_owned = field_name
+                                .filter(|parent| !parent.is_empty())
+                                .map(|parent| format!("{}.{}", parent, name));
+                            let child_origin = child_origin_owned.as_deref().or(Some(name));
+                            let default_value = missing_for_type(&fty, child_origin, ctx)?;
+                            builder.add_expression(name, default_value.into())?;
                         }
-                        crate::ast::context::context_object_type::EObjectContent::ObjectRef(o) => {
-                            let inner = missing_for_type(&ValueType::ObjectType(o.clone()), ctx);
-                            builder.add_expression(&name, inner.into());
+                        EObjectContent::ObjectRef(o) => {
+                            let child_origin_owned = field_name
+                                .filter(|parent| !parent.is_empty())
+                                .map(|parent| format!("{}.{}", parent, name));
+                            let child_origin = child_origin_owned.as_deref().or(Some(name));
+                            let inner = missing_for_type(
+                                &ValueType::ObjectType(o.clone()),
+                                child_origin,
+                                ctx,
+                            )?;
+                            builder.add_expression(name, inner.into())?;
                         }
                         _ => {}
                     }
@@ -63,9 +90,11 @@ fn missing_for_type(ty: &ValueType, ctx: &Rc<RefCell<ExecutionContext>>) -> Valu
             }
             let static_obj = builder.build();
             let exec = ExecutionContext::create_temp_child_context(Rc::clone(ctx), static_obj);
-            V::Reference(exec)
+            Ok(Reference(exec))
         }
-        ValueType::RangeType | ValueType::UndefinedType => V::StringValue(StringEnum::SV(SV::Missing)),
+        ValueType::RangeType | ValueType::UndefinedType => {
+            Ok(V::StringValue(StringEnum::SV(SV::missing_for(field_name))))
+        }
     }
 }
 
@@ -73,6 +102,7 @@ fn cast_value_to_type(
     value: ValueEnum,
     target: ValueType,
     ctx: Rc<RefCell<ExecutionContext>>, // used for building child contexts
+    origin: Option<&str>,
 ) -> Result<ValueEnum, RuntimeError> {
     use crate::typesystem::values::ValueEnum as V;
     match target {
@@ -83,61 +113,193 @@ fn cast_value_to_type(
         | ValueType::TimeType
         | ValueType::DateTimeType
         | ValueType::DurationType
+        | ValueType::PeriodType
         | ValueType::RangeType
         | ValueType::UndefinedType => Ok(value),
-        ValueType::ListType(inner) => match value {
-            V::Array(items, _) => {
-                // rewrap items; no element-wise casting for now
-                Ok(V::Array(items, ValueType::ListType(inner)))
+        ValueType::ListType(inner) => {
+            let desired_item_type = inner.as_ref().map(|boxed| (**boxed).clone());
+            match value {
+                V::Array(array) => match array {
+                    ArrayValue::EmptyUntyped => {
+                        if let Some(item_type) = desired_item_type {
+                            Ok(V::Array(ArrayValue::PrimitivesArray {
+                                values: Vec::new(),
+                                item_type,
+                            }))
+                        } else {
+                            Ok(V::Array(ArrayValue::EmptyUntyped))
+                        }
+                    }
+                    ArrayValue::PrimitivesArray { values, item_type } => {
+                        let target_item_type =
+                            desired_item_type.clone().unwrap_or(item_type.clone());
+                        let mut casted = Vec::with_capacity(values.len());
+                        for v in values {
+                            let mapped = cast_value_to_type(
+                                v,
+                                target_item_type.clone(),
+                                Rc::clone(&ctx),
+                                origin,
+                            )?;
+                            casted.push(mapped);
+                        }
+                        Ok(V::Array(ArrayValue::PrimitivesArray {
+                            values: casted,
+                            item_type: target_item_type,
+                        }))
+                    }
+                    ArrayValue::ObjectsArray {
+                        values,
+                        object_type,
+                    } => match desired_item_type.clone() {
+                        Some(ValueType::ObjectType(target_object_type)) => {
+                            let mut casted: Vec<Rc<RefCell<ExecutionContext>>> =
+                                Vec::with_capacity(values.len());
+                            for reference in values {
+                                let casted_value = cast_value_to_type(
+                                    V::Reference(Rc::clone(&reference)),
+                                    ValueType::ObjectType(Rc::clone(&target_object_type)),
+                                    Rc::clone(&ctx),
+                                    origin,
+                                )?;
+                                if let V::Reference(obj_ref) = casted_value {
+                                    casted.push(obj_ref);
+                                } else {
+                                    return RuntimeError::type_not_supported(
+                                        casted_value.get_type(),
+                                    )
+                                    .into();
+                                }
+                            }
+                            Ok(V::Array(ArrayValue::ObjectsArray {
+                                values: casted,
+                                object_type: target_object_type,
+                            }))
+                        }
+                        Some(other_item_type) => {
+                            let mut casted_values = Vec::with_capacity(values.len());
+                            for reference in values {
+                                let mapped = cast_value_to_type(
+                                    V::Reference(reference),
+                                    other_item_type.clone(),
+                                    Rc::clone(&ctx),
+                                    origin,
+                                )?;
+                                casted_values.push(mapped);
+                            }
+                            let final_item_type =
+                                if matches!(other_item_type, ValueType::UndefinedType)
+                                    && !casted_values.is_empty()
+                                {
+                                    casted_values[0].get_type()
+                                } else {
+                                    other_item_type
+                                };
+                            Ok(V::Array(ArrayValue::PrimitivesArray {
+                                values: casted_values,
+                                item_type: final_item_type,
+                            }))
+                        }
+                        None => Ok(V::Array(ArrayValue::ObjectsArray {
+                            values,
+                            object_type,
+                        })),
+                    },
+                },
+                other => {
+                    let target_item_type = desired_item_type
+                        .clone()
+                        .unwrap_or_else(|| other.get_type());
+                    let mapped = cast_value_to_type(
+                        other,
+                        target_item_type.clone(),
+                        Rc::clone(&ctx),
+                        origin,
+                    )?;
+                    Ok(V::Array(ArrayValue::PrimitivesArray {
+                        values: vec![mapped],
+                        item_type: target_item_type,
+                    }))
+                }
             }
-            other => Ok(other),
-        },
+        }
         ValueType::ObjectType(schema) => {
             // Expect source to be an object reference
             let src_exec = match value {
-                V::Reference(r) => r,
-                other => {
+                Reference(r) => r,
+                _ => {
                     // cannot shape non-object to object; build missing object
-                    return Ok(missing_for_type(&ValueType::ObjectType(schema), &ctx));
+                    return missing_for_type(&ValueType::ObjectType(schema), None, &ctx);
                 }
             };
 
-            let mut builder = crate::ast::context::context_object_builder::ContextObjectBuilder::new();
+            let mut builder = ContextObjectBuilder::new();
             for name in schema.borrow().get_field_names() {
-                if let Ok(content) = schema.borrow().get(&name) {
+                let field_origin_owned = origin.map(|parent| {
+                    if parent.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}.{}", parent, name)
+                    }
+                });
+                let field_origin = field_origin_owned.as_deref().or(Some(name));
+
+                if let Ok(content) = schema.borrow().get(name) {
                     match content {
-                        crate::ast::context::context_object_type::EObjectContent::ExpressionRef(entry) => {
+                        EObjectContent::ExpressionRef(entry) => {
                             // Attempt to resolve expected field type
-                            let mut expected_ty = match entry.borrow().field_type.clone() {
-                                Ok(t) => t,
-                                Err(_) => ValueType::UndefinedType,
-                            };
+                            let mut expected_ty = entry
+                                .borrow()
+                                .field_type
+                                .clone()
+                                .unwrap_or_else(|_| ValueType::UndefinedType);
                             // If expression is a TypePlaceholder, try to resolve from schema
-                            if let crate::ast::token::ExpressionEnum::TypePlaceholder(tref) = &entry.borrow().expression {
-                                expected_ty = schema.borrow().resolve_type_ref(tref).unwrap_or(ValueType::UndefinedType);
+                            if let TypePlaceholder(tref) = &entry.borrow().expression {
+                                expected_ty = schema
+                                    .borrow()
+                                    .resolve_type_ref(tref)
+                                    .unwrap_or(ValueType::UndefinedType);
                             }
                             // Get source field value and cast if possible
-                            let casted = match src_exec.borrow().get(&name) {
-                                Ok(crate::ast::context::context_object_type::EObjectContent::ObjectRef(obj_exec)) => {
+                            let casted = match src_exec.borrow().get(name) {
+                                Ok(EObjectContent::ObjectRef(obj_exec)) => {
                                     // nested object; reuse reference
-                                    cast_value_to_type(V::Reference(obj_exec), expected_ty.clone(), Rc::clone(&ctx))?
+                                    cast_value_to_type(
+                                        V::Reference(obj_exec),
+                                        expected_ty.clone(),
+                                        Rc::clone(&ctx),
+                                        field_origin,
+                                    )?
                                 }
-                                Ok(crate::ast::context::context_object_type::EObjectContent::ExpressionRef(src_entry)) => {
-                                    let v = src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
-                                    cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
+                                Ok(EObjectContent::ExpressionRef(src_entry)) => {
+                                    let v =
+                                        src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
+                                    cast_value_to_type(
+                                        v,
+                                        expected_ty.clone(),
+                                        Rc::clone(&ctx),
+                                        field_origin,
+                                    )?
                                 }
-                                Ok(crate::ast::context::context_object_type::EObjectContent::ConstantValue(v)) => {
-                                    cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx))?
-                                }
-                                Ok(_) => missing_for_type(&expected_ty, &ctx),
-                                Err(_) => missing_for_type(&expected_ty, &ctx),
+                                Ok(EObjectContent::ConstantValue(v)) => cast_value_to_type(
+                                    v,
+                                    expected_ty.clone(),
+                                    Rc::clone(&ctx),
+                                    field_origin,
+                                )?,
+                                Ok(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
+                                Err(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
                             };
-                            builder.add_expression(&name, casted.into());
+                            builder.add_expression(name, casted.into())?;
                         }
-                        crate::ast::context::context_object_type::EObjectContent::ObjectRef(obj) => {
+                        EObjectContent::ObjectRef(obj) => {
                             // create empty shaped nested object
-                            let val = missing_for_type(&ValueType::ObjectType(obj.clone()), &ctx);
-                            builder.add_expression(&name, val.into());
+                            let val = missing_for_type(
+                                &ValueType::ObjectType(obj.clone()),
+                                field_origin,
+                                &ctx,
+                            )?;
+                            builder.add_expression(name, val.into())?;
                         }
                         _ => {}
                     }
@@ -149,7 +311,6 @@ fn cast_value_to_type(
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct CastCall {
@@ -183,7 +344,6 @@ impl Display for CastCall {
     }
 }
 
-
 pub trait EvaluatableExpression: StaticLink {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError>;
 }
@@ -201,7 +361,7 @@ impl EvaluatableExpression for CastCall {
         };
 
         let value = self.expression.eval(Rc::clone(&context))?;
-        cast_value_to_type(value, target_type, context)
+        cast_value_to_type(value, target_type, context, None)
     }
 }
 
@@ -256,9 +416,11 @@ impl ExpressionEnum {
             }
             TypePlaceholder(_tref) => {
                 // BLOCKED: no external context hookup; always Missing as per spec
-                Ok(ValueEnum::StringValue(crate::typesystem::types::string::StringEnum::from(
-                    crate::typesystem::types::SpecialValueEnum::Missing,
-                )))
+                Ok(ValueEnum::StringValue(
+                    crate::typesystem::types::string::StringEnum::from(
+                        typesystem::types::SpecialValueEnum::missing_for(None),
+                    ),
+                ))
             }
         };
 
@@ -279,9 +441,11 @@ impl ExpressionEnum {
     }
 
     pub fn variable(_literal: &str) -> ExpressionEnum {
-        let path: Vec<&str> = _literal.split('.').collect();
-        let path = VariableLink::new_unlinked_path(path.iter().map(|s| String::from(*s)).collect());
-        Variable(path)
+        let path: Vec<&'static str> = _literal
+            .split('.')
+            .map(|segment| intern_field_name(segment))
+            .collect();
+        Variable(VariableLink::new_interned_path(path))
     }
 }
 

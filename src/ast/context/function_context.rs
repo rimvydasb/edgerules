@@ -7,9 +7,10 @@ use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::token::ExpressionEnum;
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use crate::utils::intern_field_name;
 use log::trace;
 use std::cell::RefCell;
 use std::fmt;
@@ -51,7 +52,7 @@ impl ContentHolder<ContextObject> for FunctionContext {
         }
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> Vec<&'static str> {
         self.body.borrow().get_field_names()
     }
 }
@@ -93,18 +94,18 @@ impl FunctionContext {
         expression: ExpressionEnum,
         parameters: Vec<FormalParameter>,
         parent: Rc<RefCell<ContextObject>>,
-    ) -> Self {
+    ) -> Result<Self, ParseErrorEnum> {
         let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&parent));
 
-        builder
-            .set_parameters(parameters.clone())
-            .add_expression(RETURN_EXPRESSION, expression);
+        builder.set_parameters(parameters.clone());
 
-        Self {
+        builder.add_expression(RETURN_EXPRESSION, expression)?;
+
+        Ok(Self {
             body: builder.build(),
             parameters,
             node: NodeData::new(NodeDataEnum::Isolated()),
-        }
+        })
     }
 
     pub fn create_eval_context(
@@ -123,7 +124,8 @@ impl FunctionContext {
                     arg.name,
                     &value
                 );
-                ctx.borrow().stack_insert(arg.name.clone(), value);
+                ctx.borrow()
+                    .stack_insert(intern_field_name(arg.name.as_str()), value);
             });
 
         Ok(ctx)

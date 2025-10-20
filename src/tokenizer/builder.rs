@@ -1,7 +1,7 @@
 use crate::ast::token::EToken;
+use crate::ast::token::EToken::Expression;
 use crate::ast::token::EToken::Unparsed;
 use crate::ast::token::EUnparsedToken::Literal;
-use crate::ast::token::EToken::Expression;
 use crate::ast::token::ExpressionEnum::{Value, Variable};
 use crate::tokenizer::utils::TokenChain;
 use crate::typesystem::errors::ParseErrorEnum;
@@ -211,6 +211,7 @@ impl ASTBuilder {
 
 pub mod factory {
     use crate::ast::annotations::AnnotationEnum;
+    use crate::ast::context::context_object::ExpressionEntry;
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::context::context_object_type::FormalParameter;
     use crate::ast::foreach::ForFunction;
@@ -233,14 +234,16 @@ pub mod factory {
     use crate::ast::token::ExpressionEnum::*;
     use crate::ast::token::*;
     use crate::ast::user_function_call::UserFunctionCall;
+    use crate::tokenizer::parser::parse_type;
     use crate::tokenizer::utils::*;
     use crate::typesystem::errors::ParseErrorEnum;
     use crate::typesystem::errors::ParseErrorEnum::{
         FunctionWrongNumberOfArguments, UnknownError, UnknownParseError,
     };
-    use crate::typesystem::types::ValueType;
     use log::trace;
+    use std::cell::RefCell;
     use std::collections::vec_deque::VecDeque;
+    use std::rc::Rc;
 
     fn pop_back_as_expected(deque: &mut VecDeque<EToken>, expected: &str) -> bool {
         if let Some(Unparsed(Literal(maybe))) = deque.pop_back() {
@@ -281,35 +284,42 @@ pub mod factory {
                 })))
             }
             // Typed placeholder: field : <Type>
-            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) => {
-                Ok(Expression(ObjectField(
-                    link.get_name(),
-                    Box::new(TypePlaceholder(tref)),
-                )))
-            }
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) => Ok(Expression(
+                ObjectField(link.get_name(), Box::new(TypePlaceholder(tref))),
+            )),
             // Type alias with object body: type Alias : { ... }
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
                 let _ = left.pop_left_as_expected("type");
 
-                // Enforce: no functions or typed placeholders inside type definitions; only nested type objects
-                {
+                // Enforce: no functions or executable expressions inside type definitions.
+                let field_entries: Vec<(&'static str, Rc<RefCell<ExpressionEntry>>)> = {
                     let obj_ref = object.borrow();
                     if !obj_ref.metaphors.is_empty() {
                         return Err(UnknownError(
                             "Type definition cannot contain function definitions".to_string(),
                         ));
                     }
-                    for (fname, entry) in obj_ref.expressions.iter() {
-                        let expr = &entry.borrow().expression;
-                        match expr {
-                            ExpressionEnum::StaticObject(_) => { /* ok: nested type object */ }
-                            ExpressionEnum::TypePlaceholder(_) => { /* ok: typed field in type body */ }
-                            _ => {
-                                return Err(UnknownError(format!(
-                                    "Type definition contains non-type field '{}'",
-                                    fname
-                                )));
-                            }
+                    obj_ref
+                        .expressions
+                        .iter()
+                        .map(|(&name, entry)| (name, Rc::clone(entry)))
+                        .collect()
+                };
+
+                for (fname, entry_rc) in field_entries {
+                    let mut entry = entry_rc.borrow_mut();
+                    match &entry.expression {
+                        StaticObject(_) => { /* ok: nested type object */ }
+                        TypePlaceholder(_) => { /* ok: typed field in type body */ }
+                        Variable(alias_link) => {
+                            entry.expression =
+                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name()));
+                        }
+                        _ => {
+                            return Err(UnknownError(format!(
+                                "Type definition contains non-type field '{}'",
+                                fname
+                            )));
                         }
                     }
                 }
@@ -320,7 +330,18 @@ pub mod factory {
                 })))
             }
             (Expression(Variable(link)), Expression(right)) => {
-                Ok(Expression(ObjectField(link.get_name(), Box::new(right))))
+                let field_name = link.get_name();
+                if is_type_stmt {
+                    if let Variable(alias_link) = right {
+                        let type_ref = ComplexTypeRef::Alias(alias_link.get_name());
+                        return Ok(Expression(ObjectField(
+                            field_name,
+                            Box::new(TypePlaceholder(type_ref)),
+                        )));
+                    }
+                }
+
+                Ok(Expression(ObjectField(field_name, Box::new(right))))
             }
             (
                 Unparsed(FunctionDefinitionLiteral(annotations, function_name, arguments)),
@@ -329,9 +350,9 @@ pub mod factory {
                 // let plain = SimpleObject::try_unwrap(object)
                 //     .map_err(|_err| UnknownError(format!("'{}' failed to construct", function_name)))?;
 
-                Ok(Definition(DefinitionEnum::Metaphor(
-                    FunctionDefinition::build(annotations, function_name, arguments, object).into(),
-                )))
+                let function =
+                    FunctionDefinition::build(annotations, function_name, arguments, object)?;
+                Ok(Definition(DefinitionEnum::Metaphor(function.into())))
             }
             (
                 Unparsed(FunctionDefinitionLiteral(annotations, function_name, _arguments)),
@@ -373,7 +394,7 @@ pub mod factory {
         while let Some(right_token) = right.pop_front() {
             match right_token {
                 Definition(definition) => {
-                    obj.add_definition(definition);
+                    obj.add_definition(definition)?;
                 }
                 Expression(ObjectField(field_name, expression)) => {
                     // if let Object(_) = &mut *expression {
@@ -382,7 +403,7 @@ pub mod factory {
                     //         obj.object_type = ValueType::ObjectType(type_name)
                     //     }
                     // }
-                    obj.add_expression(field_name.as_str(), *expression);
+                    obj.add_expression(field_name.as_str(), *expression)?;
                 }
 
                 // @Todo: need to accumulate errors instead of just returning - same applies for an array
@@ -414,19 +435,19 @@ pub mod factory {
     ) -> Result<EToken, ParseErrorEnum> {
         let name_result = function_name.into_string_or_literal()?;
         let name = name_result.as_str();
-        let mut expressions = right.drain_expressions()?;
+        let mut arguments = right.drain_expressions()?;
 
-        if expressions.len() == 1 {
+        if arguments.len() == 1 {
             if let Some(function) = UNARY_BUILT_IN_FUNCTIONS.get(name) {
-                let expression = expressions.pop().unwrap();
+                let expression = arguments.pop().unwrap();
                 return Ok(Expression(
                     UnaryFunction::build(function.clone(), expression).into(),
                 ));
             }
-        } else if expressions.len() == 2 {
+        } else if arguments.len() == 2 {
             if let Some(function) = BINARY_BUILT_IN_FUNCTIONS.get(name) {
-                let right_expression = expressions.pop().unwrap();
-                let left_expression = expressions.pop().unwrap();
+                let right_expression = arguments.pop().unwrap();
+                let left_expression = arguments.pop().unwrap();
                 return Ok(Expression(
                     BinaryFunction::build(function.clone(), left_expression, right_expression)
                         .into(),
@@ -434,20 +455,20 @@ pub mod factory {
             }
         }
 
-        if !expressions.is_empty() {
+        if !arguments.is_empty() {
             if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
                 return Ok(Expression(
-                    MultiFunction::build(function.clone(), expressions).into(),
+                    MultiFunction::build(function.clone(), arguments).into(),
                 ));
             }
         }
 
         match BUILT_IN_ALL_FUNCTIONS.get(name) {
             None => {
-                if !expressions.is_empty() {
+                if !arguments.is_empty() {
                     Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
                         name.to_string(),
-                        expressions,
+                        arguments,
                     )))))
                 } else {
                     Err(UnknownError(format!(
@@ -459,7 +480,7 @@ pub mod factory {
             Some(finding) => Err(FunctionWrongNumberOfArguments(
                 name.to_string(),
                 finding.clone(),
-                expressions.len(),
+                arguments.len(),
             )),
         }
     }
@@ -514,12 +535,16 @@ pub mod factory {
                         ));
                     }
                 }
-                _ => {
-                    // @Todo: implement type parsing
-                    arguments.push(FormalParameter::new(
-                        format!("{}", right_token),
-                        ValueType::UndefinedType,
-                    ));
+                ParseError(err) => return Err(err),
+                Expression(expression) => {
+                    let parameter = parse_function_parameter(expression)?;
+                    arguments.push(parameter);
+                }
+                other => {
+                    return Err(UnknownError(format!(
+                        "Unsupported token `{}` in function parameter list",
+                        other
+                    )));
                 }
             }
         }
@@ -529,6 +554,57 @@ pub mod factory {
             token.into_string_or_literal()?,
             arguments,
         )))
+    }
+
+    fn parse_function_parameter(
+        expression: ExpressionEnum,
+    ) -> Result<FormalParameter, ParseErrorEnum> {
+        match expression {
+            Variable(variable) => {
+                if variable.path.len() != 1 {
+                    return Err(UnknownError(format!(
+                        "Function parameter must be a simple identifier, got `{}`",
+                        variable
+                    )));
+                }
+
+                Ok(FormalParameter::with_type_ref(variable.get_name(), None))
+            }
+            ObjectField(name, boxed_expression) => {
+                let annotation = extract_type_annotation(*boxed_expression)?;
+                Ok(FormalParameter::with_type_ref(name, annotation))
+            }
+            _ => Err(UnknownError(format!(
+                "Unsupported expression `{}` in function parameter list",
+                expression
+            ))),
+        }
+    }
+
+    fn extract_type_annotation(
+        expression: ExpressionEnum,
+    ) -> Result<Option<ComplexTypeRef>, ParseErrorEnum> {
+        match expression {
+            TypePlaceholder(tref) => Ok(Some(tref)),
+            Variable(variable) => {
+                if variable.path.len() != 1 {
+                    return Err(UnknownError(format!(
+                        "Type annotation must be a simple identifier, got `{}`",
+                        variable
+                    )));
+                }
+
+                let type_name = variable.get_name();
+                Ok(Some(parse_type(&type_name)))
+            }
+            Value(_) => Err(UnknownError(
+                "Default values for function parameters are not supported".to_string(),
+            )),
+            other => Err(UnknownError(format!(
+                "Unsupported type annotation expression `{}`",
+                other
+            ))),
+        }
     }
 
     pub fn build_sequence(
@@ -568,12 +644,6 @@ pub mod factory {
                     ));
                 }
             }
-        }
-
-        if args.is_empty() {
-            return Err(UnknownError(
-                "Function definition is not allowed in sequence".to_string(),
-            ));
         }
 
         Ok(Expression(Collection(CollectionExpression::build(args))))
@@ -628,7 +698,7 @@ pub mod factory {
             (Expression(left_expression), Expression(right_expression)) => Ok(Expression(
                 RangeExpression(Box::new(left_expression), Box::new(right_expression)),
             )),
-            (_left_unknown, _right_unknown) => Err(ParseErrorEnum::UnknownParseError(format!(
+            (_left_unknown, _right_unknown) => Err(UnknownParseError(format!(
                 "Range not completed '{}'",
                 token
             ))),
@@ -710,7 +780,7 @@ pub mod factory {
                                 format!("{}", in_loop_variable),
                                 in_expression,
                                 return_expression,
-                            ))))
+                            )?)))
                         } else {
                             return Err(UnknownParseError("??? ... in ... return ...".to_string()));
                         }

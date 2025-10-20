@@ -22,13 +22,12 @@ use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, Runtim
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::ValueType::{ObjectType, RangeType};
-use crate::typesystem::types::{Float, Integer, TypedValue, ValueType};
+use crate::typesystem::types::{Float, Integer, ToSchema, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-
 //--------------------------------------------------------------------------------------------------
 
 /// 1 - do as a last priority
@@ -50,7 +49,7 @@ pub enum EPriorities {
     CastPriority = 16,
     // Todo: is it really OK?
     FilterArray = 17,
-    FieldSelectionPriority = 19,
+    FieldSelectionPriority = 26,
     Plus = 21,
     Minus = 22,
     DivideMultiply = 23,
@@ -67,9 +66,12 @@ impl From<&str> for FormalParameter {
         let name = split.next().unwrap();
         let arg_type = split.next().unwrap_or("unknown");
 
+        let parsed_type = ValueType::try_from(arg_type.trim()).ok();
+
         FormalParameter {
             name: name.trim().to_string(),
-            value_type: ValueType::try_from(arg_type.trim()).unwrap_or(ValueType::UndefinedType),
+            type_ref: parsed_type.clone().map(ComplexTypeRef::Primitive),
+            value_type: parsed_type.unwrap_or(ValueType::UndefinedType),
         }
     }
 }
@@ -108,15 +110,11 @@ impl Display for ComplexTypeRef {
     }
 }
 
-pub fn into_valid(
-    values: Vec<Result<ValueEnum, RuntimeError>>,
-) -> Result<Vec<ValueEnum>, RuntimeError> {
-    let mut clean = Vec::new();
-
+pub fn into_valid<T>(values: Vec<Result<T, RuntimeError>>) -> Result<Vec<T>, RuntimeError> {
+    let mut clean = Vec::with_capacity(values.len());
     for value in values {
         clean.push(value?);
     }
-
     Ok(clean)
 }
 
@@ -178,7 +176,7 @@ impl Display for DefinitionEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Metaphor(m) => write!(f, "{}", m),
-            DefinitionEnum::UserType(t) => write!(f, "type {} : {}", t.name, t.body),
+            DefinitionEnum::UserType(t) => write!(f, "type {}: {}", t.name, t.body),
         }
     }
 }
@@ -218,7 +216,7 @@ pub enum ExpressionEnum {
     /// @Todo: move to unparsed
     ObjectField(String, Box<ExpressionEnum>),
     /// Typed placeholder with known type, value provided externally at eval time
-    TypePlaceholder(ComplexTypeRef)
+    TypePlaceholder(ComplexTypeRef),
 }
 
 impl StaticLink for ExpressionEnum {
@@ -234,10 +232,7 @@ impl StaticLink for ExpressionEnum {
             Operator(operator) => operator.link(ctx),
             Filter(filter) => filter.link(ctx),
             Selection(selection) => selection.link(ctx),
-            Collection(collection) => match collection.link(ctx) {
-                Ok(list_item_type) => Ok(ValueType::ListType(Box::new(list_item_type))),
-                err => err,
-            },
+            Collection(collection) => collection.link(ctx),
             ObjectField(_name, field) => field.link(ctx),
             Value(value) => Ok(value.get_type()),
             ContextVariable => match &ctx.borrow().context_type {
@@ -254,7 +249,7 @@ impl StaticLink for ExpressionEnum {
                 // @Todo: it is unknown when this must be linked separately or it is callers responsibility
                 Ok(ObjectType(Rc::clone(object)))
             }
-            TypePlaceholder(tref) => ctx.borrow().resolve_type_ref(tref)
+            TypePlaceholder(tref) => ctx.borrow().resolve_type_ref(tref),
         };
 
         if let Err(error) = linking_result {
@@ -401,7 +396,7 @@ impl Display for ExpressionEnum {
             ContextVariable => Display::fmt("...", f),
             Filter(value) => Display::fmt(value, f),
             StaticObject(obj) => write!(f, "{}", obj.borrow()),
-            TypePlaceholder(t) => write!(f, "<{}>", t)
+            TypePlaceholder(t) => write!(f, "<{}>", t),
         }
     }
 }
@@ -417,6 +412,15 @@ impl Display for UserTypeBody {
         match self {
             UserTypeBody::TypeRef(r) => write!(f, "<{}>", r),
             UserTypeBody::TypeObject(obj) => write!(f, "{}", obj.borrow()),
+        }
+    }
+}
+
+impl ToSchema for UserTypeBody {
+    fn to_schema(&self) -> String {
+        match self {
+            UserTypeBody::TypeRef(reference) => reference.to_string(),
+            UserTypeBody::TypeObject(obj) => obj.borrow().to_schema(),
         }
     }
 }

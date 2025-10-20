@@ -9,8 +9,8 @@ use crate::typesystem::types::ValueType::{
     BooleanType, ListType as VTList, NumberType, StringType,
 };
 use crate::typesystem::types::{TypedValue, ValueType};
-use crate::typesystem::values::ValueEnum;
-use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
+use crate::typesystem::values::ValueEnum::{BooleanValue, NumberValue, StringValue};
+use crate::typesystem::values::{ArrayValue, ValueEnum};
 #[cfg(feature = "base64_functions")]
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(feature = "regex_functions")]
@@ -97,11 +97,11 @@ pub fn return_boolean_type_binary(_: ValueType, _: ValueType) -> ValueType {
 pub fn return_string_type_binary(_: ValueType, _: ValueType) -> ValueType {
     StringType
 }
-pub fn return_string_type_multi() -> ValueType {
+pub fn return_string_type_multi(_args: &[ValueType]) -> ValueType {
     StringType
 }
 pub fn return_string_list_type_binary(_: ValueType, _: ValueType) -> ValueType {
-    VTList(Box::new(StringType))
+    VTList(Some(Box::new(StringType)))
 }
 pub fn return_number_type_binary(_: ValueType, _: ValueType) -> ValueType {
     NumberType
@@ -239,11 +239,14 @@ pub fn eval_substring_after(left: ValueEnum, right: ValueEnum) -> Result<ValueEn
 
 pub fn eval_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
-        let parts: Vec<Result<ValueEnum, RuntimeError>> = h
+        let parts: Vec<ValueEnum> = h
             .split(&pat)
-            .map(|s| Ok(StringValue(SString(s.to_string()))))
+            .map(|s| StringValue(SString(s.to_string())))
             .collect();
-        Ok(Array(parts, VTList(Box::new(StringType))))
+        Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
+            values: parts,
+            item_type: StringType,
+        }))
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
     }
@@ -381,27 +384,35 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
         let re = RegexBuilder::new(&pat)
             .build()
             .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
-        let parts: Vec<Result<ValueEnum, RuntimeError>> = re
+        let parts: Vec<ValueEnum> = re
             .split(&h)
-            .map(|s| Ok(StringValue(SString(s.to_string()))))
+            .map(|s| StringValue(SString(s.to_string())))
             .collect();
-        Ok(Array(parts, VTList(Box::new(StringType))))
+        Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
+            values: parts,
+            item_type: StringType,
+        }))
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
     }
 }
 
 // WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
-#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "regex_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
         match crate::wasm::regex_split_js(&h, &pat, Some("g")) {
             Ok(vec) => {
-                let parts: Vec<Result<ValueEnum, RuntimeError>> = vec
-                    .into_iter()
-                    .map(|s| Ok(StringValue(SString(s))))
-                    .collect();
-                Ok(Array(parts, VTList(Box::new(StringType))))
+                let parts: Vec<ValueEnum> =
+                    vec.into_iter().map(|s| StringValue(SString(s))).collect();
+                Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
+                    values: parts,
+                    item_type: StringType,
+                }))
             }
             Err(e) => RuntimeError::eval_error(e).into(),
         }
@@ -428,7 +439,11 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 // WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
-#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "base64_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match crate::wasm::to_base64_js(&s) {
@@ -460,7 +475,11 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 // WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
-#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "base64_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match crate::wasm::from_base64_js(&s) {
@@ -510,7 +529,11 @@ pub fn eval_regex_replace(
 }
 
 // WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
-#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
+#[cfg(all(
+    not(feature = "regex_functions"),
+    target_arch = "wasm32",
+    feature = "wasm"
+))]
 pub fn eval_regex_replace(
     args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,

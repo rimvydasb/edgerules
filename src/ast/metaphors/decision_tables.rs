@@ -16,6 +16,7 @@ use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use crate::utils::intern_field_name;
 use log::error;
 use std::cell::RefCell;
 use std::fmt;
@@ -220,7 +221,9 @@ impl DecisionTable {
             if all_conditions_met {
                 for (action, header) in row.action_cells.iter().zip(self.output.iter()) {
                     let result = action.eval(Rc::clone(&context));
-                    context.borrow().stack_insert(header.clone(), result);
+                    context
+                        .borrow()
+                        .stack_insert(intern_field_name(header), result);
                 }
 
                 return Ok(true);

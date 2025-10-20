@@ -65,6 +65,7 @@ web-debug: ensure
 
 node-debug: ensure
     just build-pkg nodejs {{out_node_debug}} wasm_debug
+    node examples/js/node-demo.mjs
 
 wasi: ensure
     cargo build --release --target wasm32-wasip1 -p {{CRATE}} --bin {{BIN_WASI}}

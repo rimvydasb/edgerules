@@ -5,8 +5,8 @@ use std::fmt::{Debug, Display, Formatter};
 use crate::ast::token::EToken;
 use crate::ast::Link;
 use crate::typesystem::errors::LinkingErrorEnum::{
-    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OtherLinkingError,
-    TypesNotCompatible,
+    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OperationNotSupported,
+    OtherLinkingError, TypesNotCompatible,
 };
 use crate::typesystem::errors::ParseErrorEnum::{
     FunctionWrongNumberOfArguments, InvalidType, MissingLiteral, UnexpectedLiteral,
@@ -150,60 +150,96 @@ pub enum ParseErrorEnum {
 
 impl Display for ParseErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Helper closure to prefix [parse] only if not already present
+        let prefix_parse = |msg: &str| {
+            if msg.starts_with("[parse]") {
+                msg.to_string()
+            } else {
+                format!("[parse] {}", msg)
+            }
+        };
+
         match self {
-            UnknownType(maybe_type) => f.write_str(maybe_type),
-            UnknownParseError(message) => write!(f, "{}", message),
+            UnknownType(maybe_type) => write!(f, "{}", prefix_parse(maybe_type)),
+            UnknownParseError(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "Unexpected '{}', expected '{}'", token, expected)
+                    write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected))
+                    )
                 } else {
-                    write!(f, "Unexpected '{}'", token)
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
                 }
             }
-            ParseErrorEnum::Empty => f.write_str("-Empty-"),
-            UnknownError(message) => f.write_str(message),
-            InvalidType(error) => f.write_str(error),
+            ParseErrorEnum::Empty => f.write_str("[parse] -Empty-"),
+            UnknownError(message) => write!(f, "{}", prefix_parse(message)),
+            InvalidType(error) => write!(f, "{}", prefix_parse(error)),
             UnexpectedLiteral(literal, expected) => {
                 if let Some(expected) = expected {
-                    write!(f, "Unexpected '{}', expected '{}'", literal, expected)
+                    write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!(
+                            "Unexpected '{}', expected '{}'",
+                            literal, expected
+                        ))
+                    )
                 } else {
-                    write!(f, "Unexpected '{}'", literal)
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", literal)))
                 }
             }
             MissingLiteral(literal) => {
-                write!(f, "Missing '{}'", literal)
+                write!(f, "{}", prefix_parse(&format!("Missing '{}'", literal)))
             }
             FunctionWrongNumberOfArguments(function_name, function_type, existing) => {
                 if existing == &0 {
-                    return write!(f, "Function '{}' got no arguments", function_name);
+                    return write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!("Function '{}' got no arguments", function_name))
+                    );
                 }
                 match function_type {
                     EFunctionType::Custom(expected) => {
                         write!(
                             f,
-                            "Function '{}' expected {} arguments, but got {}",
-                            function_name, expected, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected {} arguments, but got {}",
+                                function_name, expected, existing
+                            ))
                         )
                     }
                     EFunctionType::Binary => {
                         write!(
                             f,
-                            "Binary function '{}' expected 2 arguments, but got {}",
-                            function_name, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Binary function '{}' expected 2 arguments, but got {}",
+                                function_name, existing
+                            ))
                         )
                     }
                     EFunctionType::Multi => {
                         write!(
                             f,
-                            "Function '{}' expected 1 or more arguments, but got {}",
-                            function_name, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected 1 or more arguments, but got {}",
+                                function_name, existing
+                            ))
                         )
                     }
                     EFunctionType::Unary => {
                         write!(
                             f,
-                            "Function '{}' expected 1 argument, but got {}",
-                            function_name, existing
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected 1 argument, but got {}",
+                                function_name, existing
+                            ))
                         )
                     }
                 }
@@ -234,26 +270,32 @@ pub enum RuntimeErrorEnum {
     // object, field
     RuntimeFieldNotFound(String, String),
 
-    // Todo: update this: (existing type, expected type, method name)
+    /// @Todo: update this: (existing type, expected type, method name)
+    /// @Todo: this is absolutely unclear how it happens in runtime, because linking solves types.
+    /// Add [unexpected] prefix to the error message for me to indicate that this is a linking/runtime mismatch
+    /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
     TypeNotSupported(ValueType),
 
+    // @Todo: remove this, it's not a runtime error (remove RuntimeError::into_runtime as well)
     Unlinked,
 }
 
 impl Display for RuntimeErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            EvalError(message) => f.write_str(message),
-            TypeNotSupported(value_type) => write!(f, "Type '{}' is not supported", value_type),
+            EvalError(message) => write!(f, "[runtime] {}", message),
+            TypeNotSupported(value_type) => {
+                write!(f, "[runtime] Type '{}' is not supported", value_type)
+            }
             RuntimeCyclicReference(object, field) => write!(
                 f,
-                "Field {}.{} appears in a cyclic reference loop",
+                "[runtime] Field {}.{} appears in a cyclic reference loop",
                 object, field
             ),
             RuntimeFieldNotFound(object, field) => {
-                write!(f, "Field {} not found in {}", field, object)
+                write!(f, "[runtime] Field '{}' not found in {}", field, object)
             }
-            RuntimeErrorEnum::Unlinked => f.write_str("Unlinked"),
+            RuntimeErrorEnum::Unlinked => f.write_str("[runtime] Unlinked"),
         }
     }
 }
@@ -266,13 +308,20 @@ pub enum LinkingErrorEnum {
     // subject, type 1, type 2
     DifferentTypesDetected(Option<String>, ValueType, ValueType),
 
-    FunctionNotFound(String),
+    FunctionNotFound {
+        name: String,
+        known_metaphors: Vec<String>,
+    },
 
     // object, field
     FieldNotFound(String, String),
 
     // object, field
     CyclicReference(String, String),
+
+    // operation, left type, right type
+    // e.g., "+" operation not supported for types Integer and String
+    OperationNotSupported(String, ValueType, ValueType),
 
     // @todo: remove this, it's not a linking error
     OtherLinkingError(String),
@@ -306,6 +355,10 @@ impl LinkingError {
         LinkingError::new(DifferentTypesDetected(subject, type1, type2))
     }
 
+    pub fn operation_not_supported(operation: &str, left: ValueType, right: ValueType) -> Self {
+        LinkingError::new(OperationNotSupported(operation.to_string(), left, right))
+    }
+
     pub fn types_not_compatible(
         subject: Option<String>,
         unexpected: ValueType,
@@ -331,13 +384,12 @@ impl LinkingError {
         expression_type: ValueType,
     ) -> Link<ValueType> {
         match expression_type {
-            ValueType::ListType(list_type) => Ok(*list_type),
+            ValueType::ListType(Some(list_type)) => Ok(*list_type),
+            ValueType::ListType(None) => Ok(ValueType::UndefinedType),
             other => LinkingError::types_not_compatible(
                 subject,
                 other,
-                Some(vec![ValueType::ListType(Box::new(
-                    ValueType::UndefinedType,
-                ))]),
+                Some(vec![ValueType::ListType(None)]),
             )
             .into(),
         }
@@ -408,6 +460,12 @@ impl From<LinkingError> for RuntimeError {
     }
 }
 
+impl From<ParseErrorEnum> for RuntimeError {
+    fn from(err: ParseErrorEnum) -> Self {
+        RuntimeError::eval_error(err.to_string())
+    }
+}
+
 impl RuntimeError {
     fn into_runtime(error: LinkingError) -> Self {
         let mut runtime_error = match &error.error {
@@ -437,7 +495,7 @@ impl Display for LinkingErrorEnum {
                         .join(" or ");
                     write!(
                         f,
-                        "{} type '{}', expected '{}'",
+                        "[link] {} type '{}', expected '{}'",
                         clean_subject, unexpected, expected_str
                     )
                 } else {
@@ -446,29 +504,53 @@ impl Display for LinkingErrorEnum {
             }
             DifferentTypesDetected(subject, left, right) => match subject {
                 Some(subject) => {
-                    write!(f, "{} types `{}` and `{}` must match", subject, left, right)
+                    write!(
+                        f,
+                        "[link] {} types `{}` and `{}` must match",
+                        subject, left, right
+                    )
                 }
                 None => write!(
                     f,
-                    "Operation is not supported for different types: {} and {}",
+                    "[link] Operation is not supported for different types: {} and {}",
                     left, right
                 ),
             },
-            LinkingErrorEnum::FunctionNotFound(name) => {
-                write!(f, "Function '{}' not found", name)
+            LinkingErrorEnum::FunctionNotFound {
+                name,
+                known_metaphors,
+            } => {
+                write!(f, "[link] Function '{}(...)' not found", name)?;
+                if known_metaphors.is_empty() {
+                    write!(f, ". No metaphors in scope.")
+                } else {
+                    let formatted_candidates = known_metaphors
+                        .iter()
+                        .map(|metaphor_name| format!("{}(...)", metaphor_name))
+                        .collect::<Vec<String>>()
+                        .join(", ");
+                    write!(f, ". Known metaphors in scope: {}.", formatted_candidates)
+                }
             }
             FieldNotFound(object, field) => {
-                write!(f, "Field {} not found in {}", field, object)
+                write!(f, "[link] Field '{}' not found in {}", field, object)
             }
             CyclicReference(object, field) => {
                 write!(
                     f,
-                    "Field {}.{} appears in a cyclic reference loop",
+                    "[link] Field {}.{} appears in a cyclic reference loop",
                     object, field
                 )
             }
-            OtherLinkingError(error) => f.write_str(error),
-            NotLinkedYet => f.write_str("Not linked yet"),
+            OtherLinkingError(error) => write!(f, "[link] {}", error),
+            NotLinkedYet => f.write_str("[link] Not linked yet"),
+            OperationNotSupported(op, left, right) => {
+                write!(
+                    f,
+                    "[link] Operation '{}' not supported for types '{}' and '{}'",
+                    op, left, right
+                )
+            }
         }
     }
 }

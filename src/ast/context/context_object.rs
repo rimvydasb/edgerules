@@ -2,14 +2,14 @@ use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::metaphors::builtin::BuiltinMetaphor;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
-use crate::link::linker;
 use crate::ast::Link;
+use crate::link::linker;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::typesystem::errors::LinkingError;
-use crate::typesystem::types::ValueType;
+use crate::typesystem::types::{ToSchema, ValueType};
 use log::trace;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
@@ -60,12 +60,13 @@ impl From<MethodEntry> for Rc<RefCell<MethodEntry>> {
 /// - Context Object is a Type itself
 #[derive(Debug, Clone)]
 pub struct ContextObject {
-    /// fields can also referenced by variables in various places in AST. This is why it is Rc.
-    pub expressions: HashMap<String, Rc<RefCell<ExpressionEntry>>>,
+    /// fields can also be referenced by variables in various places in AST. This is why it is Rc.
+    pub expressions: HashMap<&'static str, Rc<RefCell<ExpressionEntry>>>,
     /// metaphors are reference counted because they are linked to UserFunctionCall
-    pub metaphors: HashMap<String, Rc<RefCell<MethodEntry>>>,
+    pub metaphors: HashMap<&'static str, Rc<RefCell<MethodEntry>>>,
     /// node.childs, expressions and metaphors have names
-    pub all_field_names: Vec<String>,
+    pub all_field_names: Vec<&'static str>,
+    pub field_name_set: HashSet<&'static str>,
     /// context object can be treated as a function body, so it can have parameters
     pub parameters: Vec<FormalParameter>,
 
@@ -105,7 +106,7 @@ impl ContentHolder<ContextObject> for ContextObject {
         }
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> Vec<&'static str> {
         self.get_field_names()
     }
 }
@@ -128,8 +129,17 @@ impl ContextObject {
         Rc::new(RefCell::new(self))
     }
 
-    pub fn get_field_names(&self) -> Vec<String> {
+    pub fn get_field_names(&self) -> Vec<&'static str> {
         self.all_field_names.clone()
+    }
+
+    pub fn add_field_name(&mut self, field_name: &'static str) {
+        if self.field_name_set.contains(field_name) {
+            return;
+        }
+
+        self.field_name_set.insert(field_name);
+        self.all_field_names.push(field_name);
     }
 
     pub fn size(&self) -> usize {
@@ -173,31 +183,90 @@ impl ContextObject {
 
                 LinkingError::other_error(format!("Unknown type '{}'", name)).into()
             }
-            ComplexTypeRef::List(inner) => Ok(ValueType::ListType(Box::new(self.resolve_type_ref(inner)?))),
+            ComplexTypeRef::List(inner) => Ok(ValueType::ListType(Some(Box::new(
+                self.resolve_type_ref(inner)?,
+            )))),
         }
     }
 
-    pub fn to_type_string(&self) -> String {
+    fn alias_in_map(
+        map: &HashMap<String, UserTypeBody>,
+        target: &Rc<RefCell<ContextObject>>,
+    ) -> Option<String> {
+        map.iter().find_map(|(name, body)| match body {
+            UserTypeBody::TypeObject(obj) if Rc::ptr_eq(obj, target) => Some(name.clone()),
+            _ => None,
+        })
+    }
+
+    fn find_alias_for_object(&self, target: &Rc<RefCell<ContextObject>>) -> Option<String> {
+        if let Some(name) = Self::alias_in_map(&self.defined_types, target) {
+            return Some(name);
+        }
+
+        let mut current = self.node().node_type.get_parent();
+        while let Some(parent_rc) = current {
+            let (alias, next_parent) = {
+                let parent = parent_rc.borrow();
+                let found = Self::alias_in_map(&parent.defined_types, target);
+                let next = parent.node().node_type.get_parent();
+                (found, next)
+            };
+            if let Some(name) = alias {
+                return Some(name);
+            }
+            current = next_parent;
+        }
+
+        None
+    }
+
+    fn format_value_type(&self, value_type: &ValueType) -> String {
+        match value_type {
+            ValueType::ObjectType(obj) => self
+                .find_alias_for_object(obj)
+                .unwrap_or_else(|| obj.borrow().to_schema()),
+            ValueType::ListType(Some(inner)) => {
+                format!("{}[]", self.format_value_type(inner.as_ref()))
+            }
+            ValueType::ListType(None) => "[]".to_string(),
+            _ => value_type.to_string(),
+        }
+    }
+}
+
+impl ToSchema for ContextObject {
+    fn to_schema(&self) -> String {
         let mut lines: Vec<String> = Vec::new();
+
+        let mut type_entries: Vec<_> = self.defined_types.iter().collect();
+        type_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+        for (name, body) in type_entries {
+            lines.push(format!("{}: {}", name, body.to_schema()));
+        }
+
         for name in self.all_field_names.iter() {
             let content = self.get(name).unwrap();
             match content {
-                EObjectContent::ExpressionRef(entry) => match &entry.borrow().field_type {
-                    Ok(field_type) => {
-                        lines.push(format!("{}: {}", name, field_type));
+                EObjectContent::ExpressionRef(entry) => {
+                    let entry_ref = entry.borrow();
+                    match &entry_ref.field_type {
+                        Ok(field_type) => {
+                            let formatted = self.format_value_type(field_type);
+                            lines.push(format!("{}: {}", name, formatted));
+                        }
+                        Err(err) => lines.push(format!("{}: {}", name, err)),
                     }
-                    Err(err) => {
-                        lines.push(format!("{}: {}", name, err));
-                    }
-                },
+                }
                 EObjectContent::ObjectRef(entry) => {
-                    lines.push(format!("{}: {}", name, entry.borrow().to_type_string()));
+                    lines.push(format!("{}: {}", name, entry.borrow().to_schema()));
                 }
                 _ => {}
             }
         }
 
-        format!("Type<{}>", lines.join(", "))
+        format!("{{{}}}", lines.join("; "))
     }
 }
 
@@ -216,6 +285,7 @@ pub mod test {
     use crate::link::linker::{get_till_root, link_parts};
     use crate::link::node_data::ContentHolder;
     use crate::runtime::edge_rules::{expr, EvalError};
+    use crate::typesystem::types::ToSchema;
 
     use crate::utils::test::init_logger;
 
@@ -228,27 +298,27 @@ pub mod test {
         info!(">>> test_nesting()");
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression("a", E::from(1.0));
-        builder.add_expression("b", E::from(2.0));
+        builder.add_expression("a", E::from(1.0))?;
+        builder.add_expression("b", E::from(2.0))?;
 
         let child_instance;
 
         {
             let mut child = ContextObjectBuilder::new();
-            child.add_expression("x", E::from("Hello"));
-            child.add_expression("y", expr("a + b")?);
+            child.add_expression("x", E::from("Hello"))?;
+            child.add_expression("y", expr("a + b")?)?;
             child.add_definition(DefinitionEnum::Metaphor(
                 FunctionDefinition::build(
                     vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),
-                )
+                )?
                 .into(),
-            ));
+            ))?;
             let instance = child.build();
             child_instance = Rc::clone(&instance);
-            builder.add_expression("c", ExpressionEnum::StaticObject(instance));
+            builder.add_expression("c", ExpressionEnum::StaticObject(instance))?;
         }
 
         let ctx = builder.build();
@@ -257,11 +327,11 @@ pub mod test {
 
         assert_eq!(
             ctx.borrow().to_string(),
-            "{a : 1; b : 2; c : {x : 'Hello'; y : a + b; income() : {}}}"
+            "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}"
         );
         assert_eq!(
-            ctx.borrow().to_type_string(),
-            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+            ctx.borrow().to_schema(),
+            "{a: number; b: number; c: {x: string; y: number}}"
         );
 
         assert_eq!(ctx.borrow().get("a")?.to_string(), "1");
@@ -269,7 +339,7 @@ pub mod test {
         assert!(ctx.borrow().get("x").is_err());
         assert_eq!(
             ctx.borrow().get("c")?.to_string(),
-            "{x : 'Hello'; y : a + b; income() : {}}"
+            "{x: 'Hello'; y: a + b; income() : {}}"
         );
 
         assert_eq!(
