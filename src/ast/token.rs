@@ -22,7 +22,7 @@ use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, Runtim
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::ValueType::{ObjectType, RangeType};
-use crate::typesystem::types::{Float, Integer, TypedValue, ValueType};
+use crate::typesystem::types::{Float, Integer, ToSchema, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use std::cell::RefCell;
 use std::fmt;
@@ -412,6 +412,15 @@ impl Display for UserTypeBody {
         match self {
             UserTypeBody::TypeRef(r) => write!(f, "<{}>", r),
             UserTypeBody::TypeObject(obj) => write!(f, "{}", obj.borrow()),
+        }
+    }
+}
+
+impl ToSchema for UserTypeBody {
+    fn to_schema(&self) -> String {
+        match self {
+            UserTypeBody::TypeRef(reference) => reference.to_string(),
+            UserTypeBody::TypeObject(obj) => obj.borrow().to_schema(),
         }
     }
 }

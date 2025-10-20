@@ -6,7 +6,7 @@ use crate::ast::Link;
 use crate::link::linker;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::typesystem::errors::LinkingError;
-use crate::typesystem::types::ValueType;
+use crate::typesystem::types::{ToSchema, ValueType};
 use log::trace;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -189,21 +189,78 @@ impl ContextObject {
         }
     }
 
-    pub fn to_type_string(&self) -> String {
+    fn alias_in_map(
+        map: &HashMap<String, UserTypeBody>,
+        target: &Rc<RefCell<ContextObject>>,
+    ) -> Option<String> {
+        map.iter().find_map(|(name, body)| match body {
+            UserTypeBody::TypeObject(obj) if Rc::ptr_eq(obj, target) => Some(name.clone()),
+            _ => None,
+        })
+    }
+
+    fn find_alias_for_object(&self, target: &Rc<RefCell<ContextObject>>) -> Option<String> {
+        if let Some(name) = Self::alias_in_map(&self.defined_types, target) {
+            return Some(name);
+        }
+
+        let mut current = self.node().node_type.get_parent();
+        while let Some(parent_rc) = current {
+            let (alias, next_parent) = {
+                let parent = parent_rc.borrow();
+                let found = Self::alias_in_map(&parent.defined_types, target);
+                let next = parent.node().node_type.get_parent();
+                (found, next)
+            };
+            if let Some(name) = alias {
+                return Some(name);
+            }
+            current = next_parent;
+        }
+
+        None
+    }
+
+    fn format_value_type(&self, value_type: &ValueType) -> String {
+        match value_type {
+            ValueType::ObjectType(obj) => self
+                .find_alias_for_object(obj)
+                .unwrap_or_else(|| obj.borrow().to_schema()),
+            ValueType::ListType(Some(inner)) => {
+                format!("{}[]", self.format_value_type(inner.as_ref()))
+            }
+            ValueType::ListType(None) => "[]".to_string(),
+            _ => value_type.to_string(),
+        }
+    }
+}
+
+impl ToSchema for ContextObject {
+    fn to_schema(&self) -> String {
         let mut lines: Vec<String> = Vec::new();
+
+        let mut type_entries: Vec<_> = self.defined_types.iter().collect();
+        type_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+        for (name, body) in type_entries {
+            lines.push(format!("{}: {}", name, body.to_schema()));
+        }
+
         for name in self.all_field_names.iter() {
             let content = self.get(name).unwrap();
             match content {
-                EObjectContent::ExpressionRef(entry) => match &entry.borrow().field_type {
-                    Ok(field_type) => {
-                        lines.push(format!("{}: {}", name, field_type));
+                EObjectContent::ExpressionRef(entry) => {
+                    let entry_ref = entry.borrow();
+                    match &entry_ref.field_type {
+                        Ok(field_type) => {
+                            let formatted = self.format_value_type(field_type);
+                            lines.push(format!("{}: {}", name, formatted));
+                        }
+                        Err(err) => lines.push(format!("{}: {}", name, err)),
                     }
-                    Err(err) => {
-                        lines.push(format!("{}: {}", name, err));
-                    }
-                },
+                }
                 EObjectContent::ObjectRef(entry) => {
-                    lines.push(format!("{}: {}", name, entry.borrow().to_type_string()));
+                    lines.push(format!("{}: {}", name, entry.borrow().to_schema()));
                 }
                 _ => {}
             }
@@ -228,6 +285,7 @@ pub mod test {
     use crate::link::linker::{get_till_root, link_parts};
     use crate::link::node_data::ContentHolder;
     use crate::runtime::edge_rules::{expr, EvalError};
+    use crate::typesystem::types::ToSchema;
 
     use crate::utils::test::init_logger;
 
@@ -272,8 +330,8 @@ pub mod test {
             "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}"
         );
         assert_eq!(
-            ctx.borrow().to_type_string(),
-            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+            ctx.borrow().to_schema(),
+            "{a: number; b: number; c: {x: string; y: number}}"
         );
 
         assert_eq!(ctx.borrow().get("a")?.to_string(), "1");

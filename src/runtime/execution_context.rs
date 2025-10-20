@@ -378,7 +378,7 @@ pub mod test {
         );
         assert_eq!(
             ex.borrow().get_type().to_string(),
-            "Type<a: number, b: number, c: Type<x: string, y: number>>"
+            "{a: number; b: number; c: {x: string; y: number}}"
         );
         assert_eq!(
             ex.borrow().get("c")?.to_string(),

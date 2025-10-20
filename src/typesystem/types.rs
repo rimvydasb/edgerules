@@ -6,6 +6,10 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+pub trait ToSchema {
+    fn to_schema(&self) -> String;
+}
+
 pub trait TypedValue {
     fn get_type(&self) -> ValueType;
 
@@ -123,7 +127,7 @@ impl Display for ValueType {
                 None => f.write_str("[]"),
             },
             ValueType::DurationType => f.write_str("duration"),
-            ValueType::ObjectType(value) => write!(f, "{}", value.borrow().to_type_string()),
+            ValueType::ObjectType(value) => write!(f, "{}", value.borrow().to_schema()),
 
             // Todo: remove it
             ValueType::RangeType => f.write_str("range"),

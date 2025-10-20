@@ -359,6 +359,7 @@ pub mod test {
     use crate::typesystem::types::number::NumberEnum::{self, Int};
 
     use crate::typesystem::types::SpecialValueEnum::Missing;
+    use crate::typesystem::types::ToSchema;
     use crate::typesystem::values::ValueEnum;
     use crate::utils::test::init_logger;
     use crate::utils::to_display;
@@ -424,7 +425,7 @@ pub mod test {
                     );
                 }
                 Some(runtime) => {
-                    assert_eq!(runtime.static_tree.borrow().to_type_string(), expected_type);
+                    assert_eq!(runtime.static_tree.borrow().to_schema(), expected_type);
                 }
             }
 
@@ -815,39 +816,38 @@ pub mod test {
             .expect_num("a", Int(16));
 
         test_code("{ a: {x: 1}; b: a.x }")
-            .expect_type("Type<a: Type<x: number>, b: number>")
+            .expect_type("{a: {x: number}; b: number}")
             .expect_num("b", Int(1));
 
         test_code("{ c: b; a: {x: 1}; b: a.x }")
-            .expect_type("Type<c: number, a: Type<x: number>, b: number>")
+            .expect_type("{c: number; a: {x: number}; b: number}")
             .expect_num("c", Int(1));
 
         // roundtrip test
         test_code("{ c: b; a: {x: 1; aa: b}; b: a.x }")
-            .expect_type("Type<c: number, a: Type<x: number, aa: number>, b: number>")
+            .expect_type("{c: number; a: {x: number; aa: number}; b: number}")
             .expect_num("c", Int(1));
 
         // messy handover test
         test_code("{ c: b; a: {x: {y: 1}}; b: a.x; d: c.y }")
-            .expect_type("Type<c: Type<y: number>, a: Type<x: Type<y: number>>, b: Type<y: number>, d: number>")
+            .expect_type("{c: {y: number}; a: {x: {y: number}}; b: {y: number}; d: number}")
             .expect_num("d", Int(1));
 
         // deep roundtrip test
         test_code("{ c: b; a: {x: {x: 1; aa: b}}; b: a.x.x }")
-            .expect_type("Type<c: number, a: Type<x: Type<x: number, aa: number>>, b: number>")
+            .expect_type("{c: number; a: {x: {x: number; aa: number}}; b: number}")
             .expect_num("c", Int(1));
 
-        test_code("{ func f(arg1):  { a: arg1 } }").expect_type("Type<>");
+        test_code("{ func f(arg1):  { a: arg1 } }").expect_type("{}");
 
         test_code("{ func f(arg1):  { a: arg1 }; b: 1 }")
-            .expect_type("Type<b: number>")
+            .expect_type("{b: number}")
             .expect_num("b", Int(1));
 
-        test_code("{ func f(arg1):  { a: arg1 }; b: f(1) }")
-            .expect_type("Type<b: Type<a: number>>");
+        test_code("{ func f(arg1):  { a: arg1 }; b: f(1) }").expect_type("{b: {a: number}}");
 
         test_code("{ func f(arg1):  { a: arg1 }; b: f(1).a }")
-            .expect_type("Type<b: number>")
+            .expect_type("{b: number}")
             .expect_num("b", Int(1));
 
         // possibility to call a function from a sub-context

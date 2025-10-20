@@ -1,6 +1,6 @@
 mod utilities;
 
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::runtime::{edge_rules::EdgeRulesModel, ToSchema};
 pub use utilities::*;
 
 // Additional tests for user-defined types: limitations and potential problems
@@ -180,7 +180,7 @@ fn cast_primitive_to_number_changes_do_not_change_type() {
         .to_string();
     assert_eq!(value, "7");
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_type_string();
+    let ty = runtime.static_tree.borrow().to_schema();
     assert!(ty.contains("x: number"), "got `{}`", ty);
 }
 
@@ -199,8 +199,9 @@ fn cast_object_to_alias_shape_links_type() {
         )
         .unwrap();
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_type_string();
-    assert!(ty.contains("p: Type<x: number, y: number>"), "got `{}`", ty);
+    let ty = runtime.static_tree.borrow().to_schema();
+    assert!(ty.contains("Point: {x: number; y: number}"), "got `{}`", ty);
+    assert!(ty.contains("p: Point"), "got `{}`", ty);
 }
 
 #[test]
@@ -218,7 +219,7 @@ fn cast_list_to_alias_of_number_list() {
         )
         .unwrap();
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_type_string();
+    let ty = runtime.static_tree.borrow().to_schema();
     assert!(ty.contains("vals: number[]"), "got `{}`", ty);
 }
 
@@ -237,12 +238,13 @@ fn cast_to_nested_alias() {
         )
         .unwrap();
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_type_string();
+    let ty = runtime.static_tree.borrow().to_schema();
     assert!(
-        ty.contains("c: Type<name: string, birthdate: date, income: number>"),
+        ty.contains("Customer: {name: string; birthdate: date; income: number}"),
         "got `{}`",
         ty
     );
+    assert!(ty.contains("c: Customer"), "got `{}`", ty);
 }
 
 #[test]
@@ -299,7 +301,7 @@ fn input_type_validation() {
         &[
             "Argument `x` of function `inc`",
             "type 'number'",
-            "expected 'Type<eligible: boolean",
+            "expected '{eligible: boolean",
         ],
     );
 
@@ -507,6 +509,30 @@ fn special_values_are_set_in_function_argument() {
             "}",
             "}",
         ],
+    );
+}
+
+#[test]
+fn to_schema_lists_defined_types_and_fields() {
+    let mut service = EdgeRulesModel::new();
+    service
+        .load_source(
+            r#"
+            {
+                type Customer: {valid: <boolean>; name: <string>; birthdate: <date>; birthtime: <time>; birthdatetime: <datetime>; income: <number>}
+                func incAll(customer: Customer): {
+                    primaryCustomer: customer
+                }
+                value: incAll({})
+            }
+            "#,
+        )
+        .expect("parse schema sample");
+    let runtime = service.to_runtime().expect("link");
+    let ty = runtime.static_tree.borrow().to_schema();
+    assert_eq!(
+        ty,
+        "{Customer: {valid: boolean; name: string; birthdate: date; birthtime: time; birthdatetime: datetime; income: number}; value: {primaryCustomer: Customer}}"
     );
 }
 

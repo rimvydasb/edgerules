@@ -1,5 +1,5 @@
 mod utilities;
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::runtime::{edge_rules::EdgeRulesModel, ToSchema};
 pub use utilities::*;
 
 fn assert_type_string(lines: &[&str], expected: &str) {
@@ -7,7 +7,7 @@ fn assert_type_string(lines: &[&str], expected: &str) {
     let mut service = EdgeRulesModel::new();
     let _ = service.load_source(&code);
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_type_string();
+    let ty = runtime.static_tree.borrow().to_schema();
     assert_eq!(ty, expected);
 }
 
@@ -16,15 +16,41 @@ fn assert_type_fields_unordered(lines: &[&str], expected_fields: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let _ = service.load_source(&code);
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_type_string();
-    assert!(ty.starts_with("Type<") && ty.ends_with('>'));
-    let inner = &ty[5..ty.len() - 1];
-    let mut actual: Vec<&str> = if inner.is_empty() {
-        vec![]
-    } else {
-        inner.split(", ").collect()
-    };
-    let mut expected: Vec<&str> = expected_fields.to_vec();
+    let ty = runtime.static_tree.borrow().to_schema();
+    assert!(ty.starts_with('{') && ty.ends_with('}'));
+    let inner = &ty[1..ty.len() - 1];
+    let mut actual: Vec<String> = Vec::new();
+    if !inner.trim().is_empty() {
+        let mut buffer = String::new();
+        let mut depth = 0;
+        for ch in inner.chars() {
+            match ch {
+                '{' => {
+                    depth += 1;
+                    buffer.push(ch);
+                }
+                '}' => {
+                    if depth > 0 {
+                        depth -= 1;
+                    }
+                    buffer.push(ch);
+                }
+                ';' if depth == 0 => {
+                    let trimmed = buffer.trim();
+                    if !trimmed.is_empty() {
+                        actual.push(trimmed.to_string());
+                    }
+                    buffer.clear();
+                }
+                _ => buffer.push(ch),
+            }
+        }
+        let trimmed = buffer.trim();
+        if !trimmed.is_empty() {
+            actual.push(trimmed.to_string());
+        }
+    }
+    let mut expected: Vec<String> = expected_fields.iter().map(|s| s.to_string()).collect();
     actual.sort();
     expected.sort();
     assert_eq!(actual, expected, "got type `{}`", ty);
@@ -87,7 +113,7 @@ fn type_string_simple_root() {
         b: 's'
         c: true
         "#,
-        "Type<a: number, b: string, c: boolean>",
+        "{a: number; b: string; c: boolean}",
     );
 }
 
@@ -99,7 +125,7 @@ fn type_string_nested_object() {
         b: 2
         c: { x: 'Hello'; y: a + b }
         "#,
-        "Type<a: number, b: number, c: Type<x: string, y: number>>",
+        "{a: number; b: number; c: {x: string; y: number}}",
     );
 }
 
@@ -112,7 +138,7 @@ fn type_string_deeper_nesting() {
         c: datetime('2024-06-05T07:30:00')
         d: { inner: { z: time('08:15:00') } }
         "#,
-        "Type<a: time, b: date, c: datetime, d: Type<inner: Type<z: time>>>",
+        "{a: time; b: date; c: datetime; d: {inner: {z: time}}}",
     );
 }
 
@@ -136,7 +162,7 @@ fn type_string_ranges() {
         r#"
         r: 1..5
         "#,
-        "Type<r: range>",
+        "{r: range}",
     );
 }
 
@@ -148,7 +174,7 @@ fn type_string_lists_and_ranges_combined() {
         b: 10..20
         c: [[10,20],[30]]
         "#,
-        "Type<a: number[], b: range, c: number[][]>",
+        "{a: number[]; b: range; c: number[][]}",
     );
 }
 
@@ -160,7 +186,7 @@ fn type_objects_amd_functions() {
         b: a
         c: toString(a)
         "#,
-        "Type<a: number, b: number, c: string>",
+        "{a: number; b: number; c: string}",
     );
 }
 
