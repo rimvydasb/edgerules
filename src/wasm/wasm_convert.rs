@@ -1,5 +1,7 @@
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
+use crate::ast::expression::StaticLink;
+use crate::ast::sequence::CollectionExpression;
 use crate::ast::token::ExpressionEnum;
 use crate::link::linker;
 use crate::link::node_data::ContentHolder;
@@ -8,6 +10,7 @@ use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
+use crate::typesystem::types::ValueType;
 use crate::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use js_sys::{Array, Date as JsDate, Object, Reflect};
 use std::cell::RefCell;
@@ -225,10 +228,42 @@ fn js_to_value(js_value: &JsValue) -> Result<ValueEnum, String> {
         for item in array.iter() {
             elements.push(js_to_value(&item)?);
         }
-        // Construct ArrayValue manually
+        if elements.is_empty() {
+            return Ok(ValueEnum::Array(ArrayValue::EmptyUntyped));
+        }
+
+        let list_type = infer_js_array_list_type(&elements).unwrap_or(ValueType::ListType(None));
+
+        if let ValueType::ListType(Some(inner)) = &list_type {
+            if let ValueType::ObjectType(object_type) = inner.as_ref() {
+                if elements
+                    .iter()
+                    .all(|value| matches!(value, ValueEnum::Reference(_)))
+                {
+                    let contexts = elements
+                        .into_iter()
+                        .map(|value| match value {
+                            ValueEnum::Reference(ctx) => ctx,
+                            _ => unreachable!("expected object reference in array"),
+                        })
+                        .collect();
+                    return Ok(ValueEnum::Array(ArrayValue::ObjectsArray {
+                        values: contexts,
+                        object_type: Rc::clone(object_type),
+                    }));
+                }
+            }
+        }
+
+        let item_type = match list_type {
+            ValueType::ListType(Some(inner)) => *inner,
+            ValueType::ListType(None) => ValueType::ListType(None),
+            other => other,
+        };
+
         return Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
             values: elements,
-            item_type: crate::typesystem::types::ValueType::ListType(None),
+            item_type,
         }));
     }
 
@@ -289,4 +324,17 @@ fn js_object_to_value(object: Object) -> Result<ValueEnum, String> {
     let exec_ctx = ExecutionContext::create_isolated_context(Rc::clone(&static_context));
     ExecutionContext::eval_all_fields(&exec_ctx).map_err(|err| err.to_string())?;
     Ok(ValueEnum::Reference(exec_ctx))
+}
+
+fn infer_js_array_list_type(elements: &[ValueEnum]) -> Option<ValueType> {
+    if elements.is_empty() {
+        return Some(ValueType::ListType(None));
+    }
+
+    let expressions: Vec<ExpressionEnum> =
+        elements.iter().cloned().map(ExpressionEnum::from).collect();
+
+    let mut collection = CollectionExpression::build(expressions);
+    let ctx = ContextObjectBuilder::new().build();
+    collection.link(ctx).ok()
 }
