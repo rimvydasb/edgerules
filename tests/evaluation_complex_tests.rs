@@ -110,7 +110,6 @@ fn example_ruleset_collecting() {
 }
 
 #[test]
-#[ignore]
 fn example_variable_library() {
     init_logger();
 
@@ -145,7 +144,7 @@ fn example_variable_library() {
         applicantRecord: {
             checkDate: application.applicationDate
             data: applicant
-            age: (application.applicationDate - applicant.birthDate).years
+            age: application.applicationDate - applicant.birthDate
         }
         eligibility: eligibilityDecision(applicantRecord)
     }
@@ -180,18 +179,17 @@ fn example_variable_library() {
 
     let rt = get_runtime(code);
 
-    // @Todo: finish writing test:
     assert_eq!(
         exe_field(
             &rt,
-            "applicationResponse.applicationRecord.applicantsDecisions[0]"
+            "applicationResponse.applicationRecord.applicantsDecisions[0].status"
         ),
         "'INELIGIBLE'"
     );
     assert_eq!(
         exe_field(
             &rt,
-            "applicationResponse.applicationRecord.applicantsDecisions[1]"
+            "applicationResponse.applicationRecord.applicantsDecisions[1].status"
         ),
         "'INELIGIBLE'"
     );
@@ -199,4 +197,5 @@ fn example_variable_library() {
 
 mod utilities;
 
+use edge_rules::runtime::ToSchema;
 pub use utilities::*;
