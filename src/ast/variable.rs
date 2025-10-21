@@ -129,10 +129,9 @@ impl EvaluatableExpression for VariableLink {
             Ok(res) => res,
             Err(link_err) => {
                 if let LinkingErrorEnum::FieldNotFound(_, field) = &link_err.error {
-                    let expected_type = match self.variable_type.clone() {
-                        Ok(value_type) => value_type,
-                        Err(_) => ValueType::UndefinedType,
-                    };
+                    let expected_type = self.variable_type.clone().unwrap_or_else(|err| {
+                        ValueType::UndefinedType
+                    });
                     let missing = missing_for_type(&expected_type, Some(field.as_str()), &context)?;
                     return Ok(missing);
                 } else {

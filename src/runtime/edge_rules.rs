@@ -913,6 +913,20 @@ pub mod test {
     }
 
     #[test]
+    fn pass_context_to_function_should_not_fail() {
+        init_logger();
+
+        // Users can pass the context object into a function defined in upper or another context.
+        test_code_lines(&[
+            "func start1(calendar): { result: calendar.shift + 1 }",
+            "calendar: {",
+            "    shift: 2",
+            "    firstDay: start1(calendar).result",
+            "}",
+        ]).expect_num("start1", Int(3));
+    }
+
+    #[test]
     fn pass_self_context_as_second_argument_should_fail() {
         init_logger();
 

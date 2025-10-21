@@ -195,6 +195,48 @@ fn example_variable_library() {
     );
 }
 
+#[test]
+fn unhappy_unreachable_orphan_child_path() {
+
+    // RUST_LOG=trace will crash the system due to infinite logging loop
+    init_logger();
+
+    // This triggers write!(f, "OrphanedChild({})", name)
+    let code = r#"
+    type Application: {
+        num: <datetime>;
+    }
+
+    func applicantDecisions(application: Application): {
+        // When applicantRecord added, problem occurs
+        applicantRecord: {
+            checkDate: application.num
+        }
+        a: 1
+    }
+
+    func applicationDecisions(application: Application): {
+        results: for app in [1,2,3] return applicantDecisions(application)
+        finalEligibility: count(results[a > 1])
+    }
+
+    applicationResponse: applicationDecisions({
+        num: 2
+        applicants: [
+            {
+            },
+            {
+            }
+        ]
+    })
+    "#;
+
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicationResponse.finalEligibility"), "0");
+    assert_eq!(exe_field(&rt, "applicationResponse.results"), "[{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1}]");
+}
+
 mod utilities;
 
 use edge_rules::runtime::ToSchema;

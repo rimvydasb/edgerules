@@ -520,3 +520,27 @@ fn accessing_function_in_different_context() {
         "applicationResponse:{oldAmount:1000newAmount:1001}"
     );
 }
+
+#[test]
+fn accessing_function_in_lower_context() {
+    // Function `rootFunction` and `incAmount are defined in upper context, is accessible in lower context.
+    let code = r#"
+    func rootFunction(z: number): {
+        zap: z * 1000
+    }
+    func processAmount(amount: number): {
+        func incAmount(x: number): {
+            result: x + 1
+        }
+        func doubleAndIncAmount(x: number): {
+            result: incAmount(x + x).result + rootFunction(1).zap
+        }
+        newAmount: doubleAndIncAmount(amount).result
+    }
+    applicationResponse: processAmount(1000)
+    "#;
+
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicationResponse.newAmount"), "3001");
+}

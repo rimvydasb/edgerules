@@ -32,18 +32,26 @@ pub enum NodeDataEnum<T: Debug + Node<T>> {
 impl<T: Debug + Node<T>> Display for NodeDataEnum<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Child(name, parent) => write!(
-                f,
-                "{}.{}",
-                parent.upgrade().unwrap().borrow().node().node_type,
-                name
-            ),
+            Child(name, parent) => match parent.upgrade() {
+                None => {
+                    // @Todo: put a debugger here and run "unhappy_unreachable_path" - try to trace calls, something is off there
+                    write!(f, "OrphanedChild({})", name)
+                }
+                Some(parent) => {
+                    write!(f, "{}.{}", parent.borrow().node().node_type, name)
+                }
+            },
             Isolated() => write!(f, "Isolated"),
-            Internal(parent) => write!(
-                f,
-                "{}#child",
-                parent.upgrade().unwrap().borrow().node().node_type
-            ),
+            Internal(parent) => match parent.upgrade() {
+                None => {
+                    // this situation should enver happen:
+                    write!(f, "OrphanedChild(#child)")
+                }
+                Some(parent) => {
+                    // @Todo: run tests with coverage and see if this path is ever hit
+                    write!(f, "{}.{}", parent.borrow().node().node_type, "#child")
+                }
+            },
             Root() => write!(f, "Root"),
         }
     }
