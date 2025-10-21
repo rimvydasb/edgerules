@@ -193,6 +193,27 @@ const HOURS_PER_DAY: i128 = 24;
 const SECONDS_PER_HOUR: i128 = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 const SECONDS_PER_DAY: i128 = HOURS_PER_DAY * SECONDS_PER_HOUR;
 
+fn format_time_value(time: &Time) -> String {
+    let (hour, minute, second) = time.as_hms();
+    format!("{:02}:{:02}:{:02}", hour, minute, second)
+}
+
+fn format_datetime_value(value: &PrimitiveDateTime) -> String {
+    let date = value.date();
+    let time = value.time();
+    let (hour, minute, second) = time.as_hms();
+    let month: u8 = date.month() as u8;
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+        date.year(),
+        month,
+        date.day(),
+        hour,
+        minute,
+        second
+    )
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DurationValue {
     seconds: u64,
@@ -350,6 +371,41 @@ impl DurationValue {
         }
         out
     }
+
+    pub fn normalized_components(&self) -> (i128, i128, i128, i128) {
+        let mut remaining = self.seconds;
+        let days = remaining / (SECONDS_PER_DAY as u64);
+        remaining %= SECONDS_PER_DAY as u64;
+
+        let hours = remaining / (SECONDS_PER_HOUR as u64);
+        remaining %= SECONDS_PER_HOUR as u64;
+
+        let minutes = remaining / (SECONDS_PER_MINUTE as u64);
+        let seconds = remaining % (SECONDS_PER_MINUTE as u64);
+
+        let day = i128::from(days);
+        let hour = i128::from(hours);
+        let minute = i128::from(minutes);
+        let second = i128::from(seconds);
+
+        if self.is_negative {
+            (-day, -hour, -minute, -second)
+        } else {
+            (day, hour, minute, second)
+        }
+    }
+
+    pub fn total_seconds_signed(&self) -> i128 {
+        self.signed_seconds()
+    }
+
+    pub fn total_minutes(&self) -> f64 {
+        self.signed_seconds() as f64 / SECONDS_PER_MINUTE as f64
+    }
+
+    pub fn total_hours(&self) -> f64 {
+        self.signed_seconds() as f64 / SECONDS_PER_HOUR as f64
+    }
 }
 
 impl PartialOrd for DurationValue {
@@ -491,6 +547,44 @@ impl PeriodValue {
 
         out
     }
+
+    pub fn normalized_years_months(&self) -> (i128, i128) {
+        let total_months = i128::from(self.months);
+        let years = total_months / MONTHS_PER_YEAR;
+        let months = total_months % MONTHS_PER_YEAR;
+
+        if self.is_negative {
+            (-years, -months)
+        } else {
+            (years, months)
+        }
+    }
+
+    pub fn total_months_signed(&self) -> i128 {
+        let months = i128::from(self.months);
+        if self.is_negative {
+            -months
+        } else {
+            months
+        }
+    }
+
+    pub fn total_days_signed(&self) -> i128 {
+        let days = i128::from(self.days);
+        if self.is_negative {
+            -days
+        } else {
+            days
+        }
+    }
+}
+
+pub(crate) fn number_value_from_i128(value: i128) -> ValueEnum {
+    if value >= i64::MIN as i128 && value <= i64::MAX as i128 {
+        ValueEnum::from(value as i64)
+    } else {
+        ValueEnum::NumberValue(NumberEnum::from(value as f64))
+    }
 }
 
 impl From<ValueEnum> for EObjectContent<ExecutionContext> {
@@ -569,11 +663,11 @@ impl Display for ValueEnum {
                 ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::TimeValue(time) => match time {
-                ValueOrSv::Value(time) => write!(f, "{}", time),
+                ValueOrSv::Value(time) => write!(f, "{}", format_time_value(time)),
                 ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::DateTimeValue(date_time) => match date_time {
-                ValueOrSv::Value(date_time) => write!(f, "{}", date_time),
+                ValueOrSv::Value(date_time) => write!(f, "{}", format_datetime_value(date_time)),
                 ValueOrSv::Sv(sv) => write!(f, "{}", sv),
             },
             ValueEnum::DurationValue(duration) => match duration {

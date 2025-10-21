@@ -176,27 +176,6 @@ lastDayOfMonth(date("2025-02-10"))  // 28 (number)
 calendarDiff(date("2024-01-15"), date("2025-03-10")) // period("P1Y1M23D")
 ```
 
-# Implementation Notes
-
-Run all tests to see if they're passing. After an implementation all tests must pass.
-`evaluation_datetime_tests.rs` might contain invalid tests:
-check against specification "Math Operations Patterns" and "Comparator Operations Patterns".
-
-1. Find `DurationValue(ValueOrSv<DurationValue, SpecialValueEnum>),`
-DurationValue must be struct and hold only seconds and negative flag.
-During printing or serializing duration, it must be converted to ISO 8601 format
-(so days and minutes must be calculated from seconds).
-
-2. Add `PeriodValue(ValueOrSv<PeriodValue, SpecialValueEnum>),`
-PeriodValue must be struct and hold months, days and negative flag.
-During printing or serializing period, it must be converted to ISO 8601 format
-(so years must be calculated from months).
-
-3. There will be no such a thing as `Combined` type and exceptions must be raised
-if user mixes period and duration in operations.
-
-4. Implement missing tests according to "Math Operations Patterns" and "Comparator Operations Patterns".
-
 ## Literal Duration Support (TBC, subject to change)
 
 You can also create durations using a literal syntax:

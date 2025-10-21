@@ -6,12 +6,77 @@ fn datetime_primitives_and_components() {
 
     assert_value!("time('12:00:00').second", "0");
     assert_value!("time('13:10:30').minute", "10");
+    assert_value!("time('13:10:30').hour", "13");
 
     assert_value!("datetime('2016-12-09T15:37:00').month", "12");
     assert_value!("datetime('2016-12-09T15:37:00').hour", "15");
-    assert_value!("datetime('2016-12-09T15:37:00').time", "15:37:00.0");
+    assert_value!("datetime('2016-12-09T15:37:00').time", "15:37:00");
+    assert_value!("datetime('2016-12-09T15:37:00').weekday", "5");
 
     assert_value!("date('2018-10-11').weekday", "4");
+}
+
+#[test]
+fn duration_object_properties() {
+    assert_value!("duration('PT90M').hours", "1");
+    assert_value!("duration('PT90M').minutes", "30");
+    assert_value!("duration('PT90M').seconds", "0");
+    assert_value!("duration('PT90M').totalSeconds", "5400");
+    assert_value!("duration('PT90M').totalMinutes", "90");
+    assert_value!("duration('PT90M').totalHours", "1.5");
+    assert_value!("duration('P2DT3H4M5S').days", "2");
+    assert_value!("duration('P2DT3H4M5S').hours", "3");
+    assert_value!("duration('P2DT3H4M5S').minutes", "4");
+    assert_value!("duration('P2DT3H4M5S').seconds", "5");
+    assert_value!("duration('-PT90M').hours", "-1");
+    assert_value!("duration('-PT90M').minutes", "-30");
+    assert_value!("duration('-PT45S').seconds", "-45");
+    assert_value!("duration('-PT45S').totalMinutes", "-0.75");
+}
+
+#[test]
+fn period_object_properties() {
+    assert_value!("period('P18M').years", "1");
+    assert_value!("period('P18M').months", "6");
+    assert_value!("period('P18M').days", "0");
+    assert_value!("period('P18M').totalMonths", "18");
+    assert_value!("period('P18M').totalDays", "0");
+    assert_value!("period('P2Y3M4D').years", "2");
+    assert_value!("period('P2Y3M4D').months", "3");
+    assert_value!("period('P2Y3M4D').days", "4");
+    assert_value!("period('-P1Y2M5D').years", "-1");
+    assert_value!("period('-P1Y2M5D').months", "-2");
+    assert_value!("period('-P1Y2M5D').days", "-5");
+    assert_value!("period('-P1Y2M5D').totalMonths", "-14");
+    assert_value!("period('-P1Y2M5D').totalDays", "-5");
+}
+
+#[test]
+fn invalid_temporal_properties() {
+    link_error_contains(
+        "value: duration('PT1H').years",
+        &["duration does not have 'years'"],
+    );
+    link_error_contains(
+        "value: duration('PT1H').weekday",
+        &["duration does not have 'weekday'"],
+    );
+    link_error_contains(
+        "value: time('13:10:30').year",
+        &["time does not have 'year'"],
+    );
+    link_error_contains(
+        "value: period('P1Y').totalHours",
+        &["period does not have 'totalhours'"],
+    );
+    link_error_contains(
+        "value: date('2020-01-01').hour",
+        &["date does not have 'hour'"],
+    );
+    link_error_contains(
+        "value: datetime('2016-12-09T15:37:00').timezone",
+        &["datetime does not have 'timezone'"],
+    );
 }
 
 #[test]
@@ -91,19 +156,19 @@ fn period_parsing_and_operations() {
 fn duration_with_temporal_values() {
     assert_value!(
         "date('2017-05-03') + duration('P1D')",
-        "2017-05-04 0:00:00.0"
+        "2017-05-04T00:00:00"
     );
     assert_value!(
         "date('2017-05-03') - duration('P1D')",
-        "2017-05-02 0:00:00.0"
+        "2017-05-02T00:00:00"
     );
     assert_value!(
         "datetime('2016-12-09T15:37:00') + duration('PT23H')",
-        "2016-12-10 14:37:00.0"
+        "2016-12-10T14:37:00"
     );
     assert_value!(
         "datetime('2016-12-10T14:37:00') - duration('PT23H')",
-        "2016-12-09 15:37:00.0"
+        "2016-12-09T15:37:00"
     );
     assert_value!(
         "datetime('2020-01-02T00:00:00') - datetime('2020-01-01T08:00:00')",
@@ -117,8 +182,8 @@ fn duration_with_temporal_values() {
         "datetime('2020-01-01T12:00:00') - date('2020-01-01')",
         "PT12H"
     );
-    assert_value!("time('13:10:30') - duration('PT1H10M30S')", "12:00:00.0");
-    assert_value!("time('13:10:30') + duration('PT50S')", "13:11:20.0");
+    assert_value!("time('13:10:30') - duration('PT1H10M30S')", "12:00:00");
+    assert_value!("time('13:10:30') + duration('PT50S')", "13:11:20");
     assert_value!("time('13:10:30') - time('12:00:00')", "PT1H10M30S");
 }
 
@@ -128,11 +193,11 @@ fn period_with_temporal_values() {
     assert_value!("date('2020-02-29') - period('P1M')", "2020-01-29");
     assert_value!(
         "datetime('2020-01-15T10:30:00') + period('P1Y2M')",
-        "2021-03-15 10:30:00.0"
+        "2021-03-15T10:30:00"
     );
     assert_value!(
         "datetime('2021-03-15T10:30:00') - period('P1Y2M')",
-        "2020-01-15 10:30:00.0"
+        "2020-01-15T10:30:00"
     );
 }
 

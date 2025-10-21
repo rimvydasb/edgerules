@@ -197,7 +197,6 @@ fn example_variable_library() {
 
 #[test]
 fn unhappy_unreachable_orphan_child_path() {
-
     // RUST_LOG=trace will crash the system due to infinite logging loop
     init_logger();
 

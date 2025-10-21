@@ -8,8 +8,9 @@ use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::LinkingErrorEnum::*;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::ValueType::ObjectType;
-use crate::typesystem::values::ValueEnum;
+use crate::typesystem::values::{number_value_from_i128, ValueEnum};
 use crate::utils::intern_field_name;
 use log::{error, trace};
 use std::cell::RefCell;
@@ -357,6 +358,17 @@ pub fn browse<'a, T: Node<T>>(
 
 // (Intentionally no browse_ids helper to avoid dead code until an interner lands.)
 
+fn constant_value_label(value: &ValueEnum) -> &'static str {
+    match value {
+        ValueEnum::DateValue(_) => "date",
+        ValueEnum::TimeValue(_) => "time",
+        ValueEnum::DateTimeValue(_) => "datetime",
+        ValueEnum::DurationValue(_) => "duration",
+        ValueEnum::PeriodValue(_) => "period",
+        _ => "value",
+    }
+}
+
 /**
  * Continue browsing through the object structure
  *
@@ -424,6 +436,38 @@ fn continue_browse<'a, T: Node<T>>(
                         "time" => Some(VE::TimeValue(ValueOrSv::Value(dt.time()))),
                         _ => None,
                     },
+                    VE::DurationValue(ValueOrSv::Value(dur)) => {
+                        let (days, hours, minutes, seconds) = dur.normalized_components();
+                        match current_search {
+                            "days" => Some(number_value_from_i128(days)),
+                            "hours" => Some(number_value_from_i128(hours)),
+                            "minutes" => Some(number_value_from_i128(minutes)),
+                            "seconds" => Some(number_value_from_i128(seconds)),
+                            "totalSeconds" => {
+                                Some(number_value_from_i128(dur.total_seconds_signed()))
+                            }
+                            "totalMinutes" => {
+                                Some(VE::NumberValue(NumberEnum::from(dur.total_minutes())))
+                            }
+                            "totalHours" => {
+                                Some(VE::NumberValue(NumberEnum::from(dur.total_hours())))
+                            }
+                            _ => None,
+                        }
+                    }
+                    VE::PeriodValue(ValueOrSv::Value(period)) => {
+                        let (years, months) = period.normalized_years_months();
+                        match current_search {
+                            "years" => Some(number_value_from_i128(years)),
+                            "months" => Some(number_value_from_i128(months)),
+                            "days" => Some(number_value_from_i128(period.total_days_signed())),
+                            "totalMonths" => {
+                                Some(number_value_from_i128(period.total_months_signed()))
+                            }
+                            "totalDays" => Some(number_value_from_i128(period.total_days_signed())),
+                            _ => None,
+                        }
+                    }
                     _ => None,
                 };
 
@@ -431,13 +475,14 @@ fn continue_browse<'a, T: Node<T>>(
                     // Step into the computed property value and continue browsing
                     starting = (Rc::clone(context), ConstantValue(next_value));
                 } else {
+                    let label = constant_value_label(value);
                     error!(
-                        "Constant value '{:?}' does not have '{}' item",
-                        value, current_search
+                        "{} '{}' does not have '{}' item",
+                        label, value, current_search
                     );
                     return LinkingError::new(OtherLinkingError(format!(
-                        "Value '{}' does not have '{}' item",
-                        value, current_search
+                        "{} does not have '{}' item",
+                        label, current_search
                     )))
                     .into();
                 }
@@ -497,6 +542,22 @@ fn continue_browse<'a, T: Node<T>>(
                     | (ValueType::DateTimeType, "second")
                     | (ValueType::DateTimeType, "weekday") => Some(ValueType::NumberType),
                     (ValueType::DateTimeType, "time") => Some(ValueType::TimeType),
+
+                    // Duration -> numeric components
+                    (ValueType::DurationType, "days")
+                    | (ValueType::DurationType, "hours")
+                    | (ValueType::DurationType, "minutes")
+                    | (ValueType::DurationType, "seconds")
+                    | (ValueType::DurationType, "totalSeconds")
+                    | (ValueType::DurationType, "totalMinutes")
+                    | (ValueType::DurationType, "totalHours") => Some(ValueType::NumberType),
+
+                    // Period -> numeric components
+                    (ValueType::PeriodType, "years")
+                    | (ValueType::PeriodType, "months")
+                    | (ValueType::PeriodType, "days")
+                    | (ValueType::PeriodType, "totalMonths")
+                    | (ValueType::PeriodType, "totalDays") => Some(ValueType::NumberType),
 
                     _ => None,
                 };

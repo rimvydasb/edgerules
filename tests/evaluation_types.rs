@@ -84,10 +84,10 @@ fn to_string_for_various_values_and_lists() {
 fn date_time_and_duration_roundtrip_to_string() {
     // date/time/datetime/duration constructors and their stringification
     assert_value!("toString(date('2024-01-01'))", "'2024-01-01'");
-    assert_value!("toString(time('12:00:00'))", "'12:00:00.0'");
+    assert_value!("toString(time('12:00:00'))", "'12:00:00'");
     assert_value!(
         "toString(datetime('2024-06-05T07:30:00'))",
-        "'2024-06-05 7:30:00.0'"
+        "'2024-06-05T07:30:00'"
     );
     assert_value!("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'");
     assert_value!("toString(duration('PT90M'))", "'PT1H30M'");

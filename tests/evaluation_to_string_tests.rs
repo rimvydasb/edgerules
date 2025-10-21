@@ -12,10 +12,10 @@ fn test_to_string_for_various_types() {
     assert_value!("toString(1..5)", "'1..5'");
 
     assert_value!("toString(date('2025-09-02'))", "'2025-09-02'");
-    assert_value!("toString(time('13:45:07'))", "'13:45:07.0'");
+    assert_value!("toString(time('13:45:07'))", "'13:45:07'");
     assert_value!(
         "toString(datetime('2025-09-02T13:45:07'))",
-        "'2025-09-02 13:45:07.0'"
+        "'2025-09-02T13:45:07'"
     );
 
     assert_value!("toString(duration('P2DT3H4M5S'))", "'P2DT3H4M5S'");

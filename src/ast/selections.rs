@@ -20,10 +20,10 @@ use crate::typesystem::types::number::NumberEnum as Num;
 use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{
-    BooleanValue, DateTimeValue, DateValue, NumberValue, Reference, TimeValue,
+    BooleanValue, DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue,
+    PeriodValue as PeriodVariant, Reference, TimeValue,
 };
-use crate::typesystem::values::ValueOrSv;
-use crate::typesystem::values::{ArrayValue, ValueEnum};
+use crate::typesystem::values::{number_value_from_i128, ArrayValue, ValueEnum, ValueOrSv};
 
 fn flatten_list_type(value_type: ValueType) -> ValueType {
     match value_type {
@@ -313,7 +313,7 @@ impl StaticLink for FieldSelection {
                         "year" | "month" | "day" | "weekday" => ValueType::NumberType,
                         _ => {
                             return LinkingError::other_error(format!(
-                                "Field '{}' not found in date",
+                                "date does not have '{}' item",
                                 name
                             ))
                             .into()
@@ -328,7 +328,7 @@ impl StaticLink for FieldSelection {
                         "hour" | "minute" | "second" => ValueType::NumberType,
                         _ => {
                             return LinkingError::other_error(format!(
-                                "Field '{}' not found in time",
+                                "time does not have '{}' item",
                                 name
                             ))
                             .into()
@@ -346,7 +346,40 @@ impl StaticLink for FieldSelection {
                         "time" => ValueType::TimeType,
                         _ => {
                             return LinkingError::other_error(format!(
-                                "Field '{}' not found in date and time",
+                                "datetime does not have '{}' item",
+                                name
+                            ))
+                            .into()
+                        }
+                    };
+                    self.return_type = Ok(ret);
+                }
+                Ok(ValueType::DurationType) => {
+                    // Supported: days, hours, minutes, seconds, totals
+                    let name = self.method.get_name();
+                    let ret = match name.as_str() {
+                        "days" | "hours" | "minutes" | "seconds" | "totalSeconds"
+                        | "totalMinutes" | "totalHours" => ValueType::NumberType,
+                        _ => {
+                            return LinkingError::other_error(format!(
+                                "duration does not have '{}' item",
+                                name
+                            ))
+                            .into()
+                        }
+                    };
+                    self.return_type = Ok(ret);
+                }
+                Ok(ValueType::PeriodType) => {
+                    // Supported: years, months, days, totals
+                    let name = self.method.get_name();
+                    let ret = match name.as_str() {
+                        "years" | "months" | "days" | "totalMonths" | "totalDays" => {
+                            ValueType::NumberType
+                        }
+                        _ => {
+                            return LinkingError::other_error(format!(
+                                "period does not have '{}' item",
                                 name
                             ))
                             .into()
@@ -422,6 +455,48 @@ impl EvaluatableExpression for FieldSelection {
                     ))),
                     "time" => Ok(TimeValue(ValueOrSv::Value(dt.time()))),
                     _ => RuntimeError::field_not_found(name.as_str(), "date and time").into(),
+                }
+            }
+            DurationVariant(ValueOrSv::Value(dur)) => {
+                let name = self.method.get_name();
+                match name.as_str() {
+                    "days" => {
+                        let (days, _, _, _) = dur.normalized_components();
+                        Ok(number_value_from_i128(days))
+                    }
+                    "hours" => {
+                        let (_, hours, _, _) = dur.normalized_components();
+                        Ok(number_value_from_i128(hours))
+                    }
+                    "minutes" => {
+                        let (_, _, minutes, _) = dur.normalized_components();
+                        Ok(number_value_from_i128(minutes))
+                    }
+                    "seconds" => {
+                        let (_, _, _, seconds) = dur.normalized_components();
+                        Ok(number_value_from_i128(seconds))
+                    }
+                    "totalSeconds" => Ok(number_value_from_i128(dur.total_seconds_signed())),
+                    "totalMinutes" => Ok(NumberValue(Num::from(dur.total_minutes()))),
+                    "totalHours" => Ok(NumberValue(Num::from(dur.total_hours()))),
+                    _ => RuntimeError::field_not_found(name.as_str(), "duration").into(),
+                }
+            }
+            PeriodVariant(ValueOrSv::Value(period)) => {
+                let name = self.method.get_name();
+                match name.as_str() {
+                    "years" => {
+                        let (years, _) = period.normalized_years_months();
+                        Ok(number_value_from_i128(years))
+                    }
+                    "months" => {
+                        let (_, months) = period.normalized_years_months();
+                        Ok(number_value_from_i128(months))
+                    }
+                    "days" => Ok(number_value_from_i128(period.total_days_signed())),
+                    "totalMonths" => Ok(number_value_from_i128(period.total_months_signed())),
+                    "totalDays" => Ok(number_value_from_i128(period.total_days_signed())),
+                    _ => RuntimeError::field_not_found(name.as_str(), "period").into(),
                 }
             }
             _ => RuntimeError::eval_error(format!(

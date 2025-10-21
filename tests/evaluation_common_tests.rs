@@ -236,11 +236,11 @@ fn test_functions_max_temporal() {
     );
     assert_value!(
         "max([time('10:00:00'),time('23:15:00'),time('05:00:00')])",
-        "23:15:00.0"
+        "23:15:00"
     );
     assert_value!(
         "max([datetime('2012-01-01T10:00:00'),datetime('2012-01-01T23:15:00'),datetime('2011-12-31T23:59:59')])",
-        "2012-01-0123:15:00.0"
+        "2012-01-01T23:15:00"
     );
     assert_value!(
         "max([date('2020-01-01'), date('2020-05-01')])",
@@ -248,7 +248,7 @@ fn test_functions_max_temporal() {
     );
     assert_value!(
         "max([datetime('2020-01-01T00:00:00'), datetime('2020-01-02T03:00:00')])",
-        "2020-01-023:00:00.0"
+        "2020-01-02T03:00:00"
     );
     assert_value!("max([duration('P1D'), duration('P2D')])", "P2D");
     assert_value!("max(date('2020-01-01'), date('2020-05-01'))", "2020-05-01");
@@ -263,14 +263,14 @@ fn test_functions_min_temporal() {
     );
     assert_value!(
         "min([time('10:00:00'),time('23:15:00'),time('05:00:00')])",
-        "5:00:00.0"
+        "05:00:00"
     );
     assert_value!(
         "min([datetime('2012-01-01T10:00:00'),datetime('2012-01-01T23:15:00'),datetime('2011-12-31T23:59:59')])",
-        "2011-12-3123:59:59.0"
+        "2011-12-31T23:59:59"
     );
     assert_value!("min(duration('P1D'), duration('P2D'))", "P1D");
-    assert_value!("min([time('10:00:00'), time('08:00:00')])", "8:00:00.0");
+    assert_value!("min([time('10:00:00'), time('08:00:00')])", "08:00:00");
     assert_value!("min([duration('P1D'), duration('P2D')])", "P1D");
 }
 
