@@ -12,6 +12,7 @@ fn datetime_primitives_and_components() {
     assert_value!("datetime('2016-12-09T15:37:00').hour", "15");
     assert_value!("datetime('2016-12-09T15:37:00').time", "15:37:00");
     assert_value!("datetime('2016-12-09T15:37:00').weekday", "5");
+    assert_value!("datetime('2016-12-09T15:37:00').date", "2016-12-09");
 
     assert_value!("date('2018-10-11').weekday", "4");
 }

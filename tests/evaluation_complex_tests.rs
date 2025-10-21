@@ -236,6 +236,109 @@ fn unhappy_unreachable_orphan_child_path() {
     assert_eq!(exe_field(&rt, "applicationResponse.results"), "[{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1}]");
 }
 
+#[test]
+#[ignore]
+fn incredibly_nested_vl_record_example() {
+
+    // @Todo: deep nesting linking errors to be resolved
+
+    init_logger();
+
+    let code = r#"
+    // Business Object Model Entities:
+
+    type Application: {
+        applicationDate: <datetime>;
+        applicants: <Applicant[]>;
+        propertyValue: <number>;
+        loanAmount: <number>;
+    }
+    type Applicant: {
+        name: <string>;
+        birthDate: <date>;
+        income: <number>;
+        expense: <number>;
+    }
+
+    // All Decision Areas:
+
+    // Applicant Decisions
+
+    func applicantDecisions(applicant: Applicant, applicationRecord): {
+
+        // Decisions
+
+         func CreditScore(age, income): {
+            bins: [
+                {name: "AGE_BIN"; score: 20; condition: if age <= 25 then score else 0}
+                {name: "AGE_BIN"; score: 30; condition: if age > 25 then score else 0}
+                {name: "INC_BIN"; score: 30; condition: if income >= 1500 then score else 0}
+            ]
+            totalScore: sum(for bin in bins return bin.condition)
+        }
+
+        func EligibilityDecision(applicantRecord, creditScore): {
+            rules: [
+                {name: "INC_CHECK"; rule: applicantRecord.data.income > applicantRecord.data.expense * 2}
+                {name: "MIN_INCOM"; rule: applicantRecord.data.income > 1000}
+                {name: "AGE_CHECK"; rule: applicantRecord.age >= 18}
+                {name: "SCREDIT_S"; rule: creditScore.totalScore > 10}
+            ]
+            firedRules: for invalid in rules[rule = false] return invalid.name
+            status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
+        }
+
+        // Record
+
+        applicantRecord: {
+            data: applicant
+            age: applicant.birthDate.year
+            age2: calendarDiff(applicationRecord.data.applicationDate, applicant.birthDate)
+        }
+        creditScore: CreditScore(12,1000)
+        eligibility: EligibilityDecision(applicantRecord, creditScore)
+    }
+
+    // Application Decisions
+
+    func applicationDecisions(application: Application): {
+
+        // Record
+
+        applicationRecord: {
+            data: application
+        }
+        applicantDecisions: for app in application.applicants return applicantDecisions(app, applicationRecord)
+    }
+
+    // Example Input Data
+
+    applicationResponse: applicationDecisions({
+        applicationDate: date("2025-01-01")
+        propertyValue: 100000
+        loanAmount: 80000
+        applicants: [
+            {
+                name: "John Doe"
+                birthDate: date("1990-06-05")
+                income: 1100
+                expense: 600
+            },
+            {
+                name: "Jane Doe"
+                birthDate: date("1992-05-01")
+                income: 1500
+                expense: 300
+            }
+        ]
+    })
+    "#;
+
+    let rt = get_runtime(code);
+
+    assert_eq!(exe_field(&rt, "applicationResponse.applicantDecisions"), "0");
+}
+
 mod utilities;
 
 use edge_rules::runtime::ToSchema;

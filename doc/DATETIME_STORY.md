@@ -39,7 +39,9 @@ hour (number), minute (number), second (number)
 
 ### datetime object properties
 
-year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7), hour (number), minute (number), second (number), time (time)
+year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7), 
+hour (number), minute (number), second (number), 
+time (time), date (date)
 
 ### duration object properties
 

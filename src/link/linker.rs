@@ -434,6 +434,7 @@ fn continue_browse<'a, T: Node<T>>(
                         "second" => Some(VE::from(dt.second())),
                         "weekday" => Some(VE::from(dt.weekday().number_from_monday())),
                         "time" => Some(VE::TimeValue(ValueOrSv::Value(dt.time()))),
+                        "date" => Some(VE::DateValue(ValueOrSv::Value(dt.date()))),
                         _ => None,
                     },
                     VE::DurationValue(ValueOrSv::Value(dur)) => {
@@ -542,6 +543,7 @@ fn continue_browse<'a, T: Node<T>>(
                     | (ValueType::DateTimeType, "second")
                     | (ValueType::DateTimeType, "weekday") => Some(ValueType::NumberType),
                     (ValueType::DateTimeType, "time") => Some(ValueType::TimeType),
+                    (ValueType::DateTimeType, "date") => Some(ValueType::DateType),
 
                     // Duration -> numeric components
                     (ValueType::DurationType, "days")

@@ -344,6 +344,7 @@ impl StaticLink for FieldSelection {
                             ValueType::NumberType
                         }
                         "time" => ValueType::TimeType,
+                        "date" => ValueType::DateType,
                         _ => {
                             return LinkingError::other_error(format!(
                                 "datetime does not have '{}' item",
@@ -454,6 +455,7 @@ impl EvaluatableExpression for FieldSelection {
                         dt.weekday().number_from_monday() as i64
                     ))),
                     "time" => Ok(TimeValue(ValueOrSv::Value(dt.time()))),
+                    "date" => Ok(DateValue(ValueOrSv::Value(dt.date()))),
                     _ => RuntimeError::field_not_found(name.as_str(), "date and time").into(),
                 }
             }
