@@ -19,7 +19,8 @@ mod test {
 
         if result.len() > 1 {
             panic!(
-                "Expected only one token, but got {}.\n text:\n {:?}\n tokens:\n {:?}",
+                "Expected only one token for `{}`, but got {}.\n text:\n {:?}\n tokens:\n {:?}",
+                code,
                 result.len(),
                 result_line,
                 result
@@ -309,5 +310,14 @@ mod test {
         is_equals("p : a and b", "p : a and b");
         is_equals("p : a or b", "p : a or b");
         is_equals("p : a xor b", "p : a xor b");
+    }
+
+    #[test]
+    fn tokenizer_symbol_regressions() {
+        init_test("tokenizer_symbol_regressions");
+
+        is_equals("value : 1..5", "value : 1..5");
+        is_equals("value : record.field", "value : record.field");
+        is_equals("value : time('12:00:00')", "value : time('12:00:00')");
     }
 }

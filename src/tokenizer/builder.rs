@@ -3,6 +3,7 @@ use crate::ast::token::EToken::Expression;
 use crate::ast::token::EToken::Unparsed;
 use crate::ast::token::EUnparsedToken::Literal;
 use crate::ast::token::ExpressionEnum::{Value, Variable};
+use crate::ast::variable::VariableLink;
 use crate::tokenizer::utils::TokenChain;
 use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::values::ValueEnum;
@@ -127,13 +128,19 @@ impl ASTBuilder {
         }
     }
 
-    pub fn last_variable(&mut self) -> Option<String> {
+    pub fn last_variable(&self) -> Option<&VariableLink> {
+        match self.result.back() {
+            Some(Expression(Variable(link))) => Some(link),
+            _ => None,
+        }
+    }
+
+    pub fn pop_last_variable(&mut self) -> Option<VariableLink> {
         if let Some(Expression(Variable(_))) = self.result.back() {
             if let Some(Expression(Variable(link))) = self.result.pop_back() {
-                return Some(link.get_name());
+                return Some(link);
             }
         }
-
         None
     }
 
@@ -145,7 +152,7 @@ impl ASTBuilder {
     /// remove it and return true. Otherwise, return false and leave the chain intact.
     pub fn pop_literal_if(&mut self, expected: &str) -> bool {
         if let Some(Unparsed(Literal(maybe))) = self.result.back() {
-            if maybe == expected {
+            if maybe.as_ref() == expected {
                 // Safe unwrap; just checked it's Some
                 let _ = self.result.pop_back();
                 return true;
@@ -247,7 +254,7 @@ pub mod factory {
 
     fn pop_back_as_expected(deque: &mut VecDeque<EToken>, expected: &str) -> bool {
         if let Some(Unparsed(Literal(maybe))) = deque.pop_back() {
-            if maybe.eq(expected) {
+            if maybe == expected {
                 return true;
             }
         }
@@ -271,7 +278,7 @@ pub mod factory {
         // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
         let is_type_stmt = matches!(
             left.back(),
-            Some(Unparsed(Literal(ref s))) if s == "type"
+            Some(Unparsed(Literal(ref s))) if s.as_ref() == "type"
         );
 
         match (left_token, right_token) {
@@ -433,8 +440,12 @@ pub mod factory {
         function_name: EToken,
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
-        let name_result = function_name.into_string_or_literal()?;
-        let name = name_result.as_str();
+        let name_string = match function_name {
+            Unparsed(FunctionNameToken(variable)) => variable.get_name(),
+            Expression(Variable(variable)) => variable.get_name(),
+            other => other.into_string_or_literal()?,
+        };
+        let name = name_string.as_str();
         let mut arguments = right.drain_expressions()?;
 
         if arguments.len() == 1 {
@@ -467,7 +478,7 @@ pub mod factory {
             None => {
                 if !arguments.is_empty() {
                     Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
-                        name.to_string(),
+                        name_string,
                         arguments,
                     )))))
                 } else {
@@ -549,9 +560,32 @@ pub mod factory {
             }
         }
 
+        let function_name = match token {
+            Unparsed(FunctionNameToken(variable)) => {
+                if variable.path.len() != 1 {
+                    return Err(UnknownError(format!(
+                        "Function name must be a simple identifier, got `{}`",
+                        variable
+                    )));
+                }
+
+                variable.get_name()
+            }
+            Expression(Variable(variable)) => {
+                if variable.path.len() != 1 {
+                    return Err(UnknownError(format!(
+                        "Function name must be a simple identifier, got `{}`",
+                        variable
+                    )));
+                }
+                variable.get_name()
+            }
+            other => other.into_string_or_literal()?,
+        };
+
         Ok(Unparsed(FunctionDefinitionLiteral(
             annotations,
-            token.into_string_or_literal()?,
+            function_name,
             arguments,
         )))
     }
@@ -842,7 +876,13 @@ pub mod factory {
         token: EToken,
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
-        let comparator = ComparatorEnum::try_from(token.into_string_or_literal()?.as_str())?;
+        let comparator = match token {
+            Unparsed(ComparatorToken(comp)) => comp,
+            other => {
+                let literal = other.into_string_or_literal()?;
+                ComparatorEnum::try_from(literal.as_str())?
+            }
+        };
 
         let left_token = left.pop_left().map_err(|err| {
             UnknownError(format!(

@@ -17,6 +17,11 @@ use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
 use log::trace;
 
+const RANGE_LITERAL: &str = "..";
+const ASSIGN_LITERAL: &str = ":";
+const OBJECT_LITERAL: &str = "OBJECT";
+const DOT_LITERAL: &str = ".";
+
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum::NumberValue;
 
@@ -53,7 +58,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                         ast_builder.push_node(
                             RangePriority as u32,
-                            Unparsed(Literal("..".to_string())),
+                            Unparsed(Literal(RANGE_LITERAL.into())),
                             build_range,
                         );
                     }
@@ -85,7 +90,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                 ast_builder.push_node(
                     Assign as u32,
-                    Unparsed(Literal(C_ASSIGN.to_string())),
+                    Unparsed(Literal(ASSIGN_LITERAL.into())),
                     build_assignment,
                 );
             }
@@ -103,7 +108,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                 ast_builder.push_node(
                     priority as u32,
-                    MathOperatorEnum::build(extracted.to_string().as_str()),
+                    MathOperatorEnum::build_from_char(extracted),
                     build_any_operator,
                 );
             }
@@ -118,7 +123,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                 ast_builder.push_node(
                     ContextPriority as u32,
-                    Unparsed(Literal("OBJECT".to_string())),
+                    Unparsed(Literal(OBJECT_LITERAL.into())),
                     build_context,
                 );
 
@@ -151,34 +156,30 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 ast_builder.incl_level();
                 after_colon = false;
 
-                if let Some(function_name) = ast_builder.last_variable() {
-                    if left_side {
-                        // Enforce new syntax: function definitions must be prefixed with 'func'
-                        // Peek previous token and ensure it's the literal 'func' (after any annotations)
-                        // We do this by scanning back through trailing annotations, then checking for 'func'.
-                        // If not found, treat as a function call (which will later cause an error if used on the left of ':').
+                if ast_builder.last_variable().is_some() {
+                    if let Some(function_var) = ast_builder.pop_last_variable() {
+                        if left_side {
+                            // Enforce new syntax: function definitions must be prefixed with 'func'
+                            let has_func_prefix = ast_builder.pop_literal_if("func");
 
-                        // Walk back temporarily to see past any annotations
-                        let has_func_prefix = ast_builder.pop_literal_if("func");
-
-                        if has_func_prefix {
+                            if has_func_prefix {
+                                ast_builder.push_node(
+                                    FunctionCallPriority as u32,
+                                    Unparsed(FunctionNameToken(function_var)),
+                                    build_function_definition,
+                                );
+                            } else {
+                                ast_builder.push_element(error_token!(
+                                    "Function definition must start with 'func'"
+                                ));
+                            }
+                        } else {
                             ast_builder.push_node(
                                 FunctionCallPriority as u32,
-                                Unparsed(Literal(function_name)),
-                                build_function_definition,
+                                Unparsed(FunctionNameToken(function_var)),
+                                build_function_call,
                             );
-                        } else {
-                            // No backwards compatibility: definitions must start with 'func'
-                            ast_builder.push_element(error_token!(
-                                "Function definition must start with 'func'"
-                            ));
                         }
-                    } else {
-                        ast_builder.push_node(
-                            FunctionCallPriority as u32,
-                            Unparsed(Literal(function_name)),
-                            build_function_call,
-                        );
                     }
                 }
 
@@ -211,14 +212,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             "if" => {
                                 // just jumping upper with no turning back
                                 //ast_builder.incl_level();
-                                ast_builder.push_element(Unparsed(Literal(literal)));
+                                ast_builder.push_element(Unparsed(Literal(literal.into())));
                                 ast_builder.incl_level();
                             }
 
                             "then" => {
                                 ast_builder.merge();
                                 ast_builder.dec_level();
-                                ast_builder.push_element(Unparsed(Literal(literal)));
+                                ast_builder.push_element(Unparsed(Literal(literal.into())));
                                 ast_builder.incl_level();
                             }
 
@@ -227,15 +228,15 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                    Unparsed(Literal(literal)),
+                                    Unparsed(Literal(literal.into())),
                                     build_if_then_else,
                                 )
                             }
 
-                            "for" => ast_builder.push_element(Unparsed(Literal(literal))),
+                            "for" => ast_builder.push_element(Unparsed(Literal(literal.into()))),
 
                             "in" => {
-                                ast_builder.push_element(Unparsed(Literal(literal)));
+                                ast_builder.push_element(Unparsed(Literal(literal.into())));
                                 ast_builder.incl_level();
                             }
 
@@ -244,7 +245,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                    Unparsed(Literal(literal)),
+                                    Unparsed(Literal(literal.into())),
                                     build_for_each_return,
                                 )
                             }
@@ -261,39 +262,39 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                             "not" => ast_builder.push_node(
                                 LogicalOperatorEnum::Not as u32,
-                                Unparsed(Literal(literal)),
+                                Unparsed(Literal(literal.into())),
                                 build_logical_operator,
                             ),
 
                             "and" => ast_builder.push_node(
                                 LogicalOperatorEnum::And as u32,
-                                Unparsed(Literal(literal)),
+                                Unparsed(Literal(literal.into())),
                                 build_logical_operator,
                             ),
 
                             "or" => ast_builder.push_node(
                                 LogicalOperatorEnum::Or as u32,
-                                Unparsed(Literal(literal)),
+                                Unparsed(Literal(literal.into())),
                                 build_logical_operator,
                             ),
 
                             "xor" => ast_builder.push_node(
                                 LogicalOperatorEnum::Xor as u32,
-                                Unparsed(Literal(literal)),
+                                Unparsed(Literal(literal.into())),
                                 build_logical_operator,
                             ),
 
                             "func" => {
-                                ast_builder.push_element(Unparsed(Literal(literal)));
+                                ast_builder.push_element(Unparsed(Literal(literal.into())));
                             }
                             "type" => {
-                                ast_builder.push_element(Unparsed(Literal(literal)));
+                                ast_builder.push_element(Unparsed(Literal(literal.into())));
                             }
                             "as" => {
                                 // Insert cast operator and immediately parse trailing type
                                 ast_builder.push_node(
                                     CastPriority as u32,
-                                    Unparsed(Literal(literal)),
+                                    Unparsed(Literal(literal.into())),
                                     build_cast,
                                 );
                                 let tref = parse_complex_type_no_angle(&mut source);
@@ -342,7 +343,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     } else {
                         ast_builder.push_node(
                             RangePriority as u32,
-                            Unparsed(Literal("..".to_string())),
+                            Unparsed(Literal(RANGE_LITERAL.into())),
                             build_range,
                         );
                     }
@@ -350,7 +351,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     // merge_left_if_can must already be called with ]
                     ast_builder.push_node(
                         FieldSelectionPriority as u32,
-                        Unparsed(Literal(".".to_string())),
+                        Unparsed(Literal(DOT_LITERAL.into())),
                         build_field_selection,
                     );
                 }
@@ -413,7 +414,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 } else if let Some(comparator) = ComparatorEnum::parse(&mut source) {
                     ast_builder.push_node(
                         ComparatorPriority as u32,
-                        Unparsed(Literal(comparator.as_str().to_string())),
+                        Unparsed(ComparatorToken(comparator)),
                         build_comparator,
                     );
                 } else {

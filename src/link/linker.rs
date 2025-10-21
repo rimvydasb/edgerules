@@ -261,9 +261,9 @@ pub enum BrowseResult<'a, T: Node<T>> {
     Found(BrowseResultFound<T>),
 
     // context, expression, remaining path
-    OnExpression(Rc<RefCell<T>>, Rc<RefCell<ExpressionEntry>>, Vec<&'a str>),
+    OnExpression(Rc<RefCell<T>>, Rc<RefCell<ExpressionEntry>>, &'a [&'a str]),
 
-    OnObjectType(Rc<RefCell<T>>, Rc<RefCell<ContextObject>>, Vec<&'a str>),
+    OnObjectType(Rc<RefCell<T>>, Rc<RefCell<ContextObject>>, &'a [&'a str]),
 }
 
 impl<'a, T: Node<T>> BrowseResult<'a, T> {
@@ -297,16 +297,14 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
         match self {
             BrowseResult::Found(result) => Ok(result),
             BrowseResult::OnExpression(ctx, content, path) => {
-                let remaining = path.as_slice();
-                let result = on_expression(Rc::clone(&ctx), content, remaining)?;
-                let continue_result = continue_browse(remaining, 0, (Rc::clone(&ctx), result))?;
+                let result = on_expression(Rc::clone(&ctx), content, path)?;
+                let continue_result = continue_browse(path, 0, (Rc::clone(&ctx), result))?;
 
                 continue_result.on_incomplete(on_expression, on_object_type)
             }
             BrowseResult::OnObjectType(ctx, content, path) => {
-                let remaining = path.as_slice();
-                let result = on_object_type(Rc::clone(&ctx), content, remaining)?;
-                let continue_result = continue_browse(remaining, 0, (Rc::clone(&ctx), result))?;
+                let result = on_object_type(Rc::clone(&ctx), content, path)?;
+                let continue_result = continue_browse(path, 0, (Rc::clone(&ctx), result))?;
 
                 continue_result.on_incomplete(on_expression, on_object_type)
             }
@@ -316,7 +314,7 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
 
 pub fn browse<'a, T: Node<T>>(
     ctx: Rc<RefCell<T>>,
-    path: &[&'a str],
+    path: &'a [&'a str],
     find_root: bool,
 ) -> Result<BrowseResult<'a, T>, LinkingError> {
     // Path is empty - this is abnormal and should never happen
@@ -371,7 +369,7 @@ pub fn browse<'a, T: Node<T>>(
  * - `BrowseResult::OnObjectType` if an object type was encountered before the end of the path
  */
 fn continue_browse<'a, T: Node<T>>(
-    path: &[&'a str],
+    path: &'a [&'a str],
     mut index: usize,
     mut starting: (Rc<RefCell<T>>, EObjectContent<T>),
 ) -> Result<BrowseResult<'a, T>, LinkingError> {
@@ -448,7 +446,7 @@ fn continue_browse<'a, T: Node<T>>(
                 return Ok(BrowseResult::OnExpression(
                     Rc::clone(context),
                     Rc::clone(expression),
-                    path[index - 1..].to_vec(),
+                    &path[index - 1..],
                 ));
             }
             MetaphorRef(metaphor) => {
@@ -472,7 +470,7 @@ fn continue_browse<'a, T: Node<T>>(
                 return Ok(BrowseResult::OnObjectType(
                     Rc::clone(context),
                     Rc::clone(object),
-                    path[index - 1..].to_vec(),
+                    &path[index - 1..],
                 ));
             }
             Definition(definition) => {

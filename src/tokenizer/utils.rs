@@ -99,8 +99,8 @@ impl TokenChain {
         F: FnOnce(&mut Self) -> Option<EToken>,
     {
         if let Some(Unparsed(Literal(maybe))) = pop_fn(self) {
-            return if maybe.eq(expected) {
-                Ok(maybe)
+            return if maybe == expected {
+                Ok(maybe.into_owned())
             } else {
                 Err(UnexpectedLiteral(
                     expected.to_string(),

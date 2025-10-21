@@ -24,6 +24,7 @@ use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::ValueType::{ObjectType, RangeType};
 use crate::typesystem::types::{Float, Integer, ToSchema, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
@@ -84,7 +85,8 @@ impl From<&str> for FormalParameter {
 pub enum EUnparsedToken {
     Comma,
     BracketOpen,
-    Literal(String),
+    Literal(Cow<'static, str>),
+    FunctionNameToken(VariableLink),
     Annotation(AnnotationEnum),
     FunctionDefinitionLiteral(Vec<AnnotationEnum>, String, Vec<FormalParameter>),
     TypeReferenceLiteral(ComplexTypeRef),
@@ -153,7 +155,7 @@ impl PartialEq for EToken {
 impl EToken {
     pub fn into_string_or_literal(self) -> Result<String, ParseErrorEnum> {
         match self {
-            Unparsed(Literal(text)) => Ok(text),
+            Unparsed(Literal(text)) => Ok(text.into_owned()),
             Expression(Value(StringValue(StringEnum::String(value)))) => Ok(value),
             ParseError(error) => Err(error),
             _ => Err(UnexpectedToken(Box::new(self), None)),
@@ -352,6 +354,7 @@ impl Display for EUnparsedToken {
             }
             TypeReferenceLiteral(r) => write!(f, "<{}>", r),
             Literal(value) => write!(f, "{}", value),
+            FunctionNameToken(value) => write!(f, "{}", value),
             Annotation(definition) => write!(f, "{}", definition),
             Comma => write!(f, ","),
             BracketOpen => write!(f, "["),

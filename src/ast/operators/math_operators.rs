@@ -100,19 +100,44 @@ impl MathOperatorEnum {
             Err(error) => EToken::ParseError(error),
         }
     }
+
+    pub fn build_from_char(operator: char) -> EToken {
+        match MathOperatorEnum::try_from(operator) {
+            Ok(operator) => operator.into(),
+            Err(error) => EToken::ParseError(error),
+        }
+    }
 }
 
 impl TryFrom<&str> for MathOperatorEnum {
     type Error = ParseErrorEnum;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut chars = value.chars();
+        if let Some(ch) = chars.next() {
+            if chars.next().is_none() {
+                return MathOperatorEnum::try_from(ch);
+            }
+        }
+
+        Err(ParseErrorEnum::UnknownParseError(format!(
+            "Unknown operator: {}",
+            value
+        )))
+    }
+}
+
+impl TryFrom<char> for MathOperatorEnum {
+    type Error = ParseErrorEnum;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            "+" => Ok(Addition),
-            "-" => Ok(Subtraction),
-            "*" | "×" => Ok(Multiplication),
-            "/" | "÷" => Ok(Division),
-            "^" => Ok(Power),
-            "%" => Ok(Modulus),
+            '+' => Ok(Addition),
+            '-' => Ok(Subtraction),
+            '*' | '×' => Ok(Multiplication),
+            '/' | '÷' => Ok(Division),
+            '^' => Ok(Power),
+            '%' => Ok(Modulus),
             _ => Err(ParseErrorEnum::UnknownParseError(format!(
                 "Unknown operator: {}",
                 value
