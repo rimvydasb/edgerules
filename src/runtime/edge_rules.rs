@@ -923,7 +923,10 @@ pub mod test {
             "    shift: 2",
             "    firstDay: start1(calendar).result",
             "}",
-        ]).expect_num("start1", Int(3));
+        ])
+            .expect_link_error(LinkingErrorEnum::OtherLinkingError(
+                "Cannot pass context `calendar` as argument to function `start1` defined in the same context".to_string(),
+            ));
     }
 
     #[test]

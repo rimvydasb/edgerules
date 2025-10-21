@@ -27,6 +27,41 @@
 - datetime("2016-12-09T15:37:00").time = time("15:37:00")
 - date("2018-10-11").weekday = 4 (number) // ISO-8601: Monday=1…Sunday=7
 
+## Object Properties
+
+### date object properties
+
+year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7)
+
+### time object properties
+
+hour (number), minute (number), second (number)
+
+### datetime object properties
+
+year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7), hour (number), minute (number), second (number), time (time)
+
+### duration object properties
+
+days (number), hours (number), minutes (number), seconds (number),
+totalSeconds (number), totalMinutes (number), totalHours (number)
+
+### period object properties
+
+days (number), months (number), years (number),
+totalMonths (number), totalDays (number)
+
+### normalization and clarifications
+
+- period or duration properties will return normalized values:
+  - period("P18M").years = 1
+  - period("P18M").months = 6
+  - duration("PT90M").hours = 1
+  - duration("PT90M").minutes = 30
+- period does not have totalYears, because existing property years is already normalized
+- duration does not have totalDays, because existing property days is already normalized
+- period and duration negative values are represented by negative properties (e.g. duration("-PT90M").minutes = -30)
+
 ## ISO 8601 Duration Support
 
 EdgeRules supports durations in the ISO 8601 format. The duration format is `P[n]Y[n]M[n]DT[n]H[n]M[n]S`, examples:
