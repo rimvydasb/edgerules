@@ -88,6 +88,9 @@ core-opt: core
 demo-node: node
     node examples/js/node-demo.mjs
 
+performance-node: node
+    node examples/js/node-performance.mjs
+
 demo-web: web
     npx -y http-server -p 8080 .
 
