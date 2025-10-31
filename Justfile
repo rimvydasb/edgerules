@@ -18,7 +18,8 @@ out_web_debug := "target/pkg-web-debug"
 out_node_debug := "target/pkg-node-debug"
 
 # External examples/public destination for showcasing web builds (sibling repo)
-examples_public := "../edgerules-page/public"
+edgerules_page_public := "../edgerules-page/public"
+edgerules_docs_public := "../edgerules-docs/public"
 
 # Shared wasm-opt flags to minimize output size. -Oz enables aggressive size optimizations, mutable globals unlock
 # further reductions across supported runtimes, and strip options remove debug metadata, DWARF sections, producers,
@@ -114,22 +115,26 @@ cli:
     target/{{PROFILE}}/{{BIN_NATIVE}} "{ value : 2 + 3 }" || true
 
 # --- release helpers ---
-# Copies web builds into the external examples page project under public/.
+# Copies web builds into the external edgerules-page page project under public/.
 # Excludes files not needed for serving (.gitignore, README.md).
-release-to-examples: web web-debug
-    echo "Releasing to: {{examples_public}}"
+release-to-edgerules-page: web web-debug
+    echo "Releasing to: {{edgerules_page_public}}"
     echo "Source (web): {{out_web}}" && ls -la "{{out_web}}" || true
     echo "Source (web-debug): {{out_web_debug}}" && ls -la "{{out_web_debug}}" || true
-    mkdir -p "{{examples_public}}/pkg-web" "{{examples_public}}/pkg-web-debug"
-    rsync -a --delete "{{out_web}}/" "{{examples_public}}/pkg-web/"
-    rsync -a --delete "{{out_web_debug}}/" "{{examples_public}}/pkg-web-debug/"
-    # Remove files not needed in examples
-    rm -f "{{examples_public}}/pkg-web/.gitignore" \
-          "{{examples_public}}/pkg-web/README.md" \
-          "{{examples_public}}/pkg-web/package.json" || true
-    rm -f "{{examples_public}}/pkg-web-debug/.gitignore" \
-          "{{examples_public}}/pkg-web-debug/README.md" \
-          "{{examples_public}}/pkg-web-debug/package.json" || true
-    echo "Contents (web):" && ls -la "{{examples_public}}/pkg-web" || true
-    echo "Contents (web-debug):" && ls -la "{{examples_public}}/pkg-web-debug" || true
-    echo "Released web assets to: {{examples_public}}"
+    mkdir -p "{{edgerules_page_public}}/pkg-web" "{{edgerules_page_public}}/pkg-web-debug"
+    rsync -a --delete "{{out_web}}/" "{{edgerules_page_public}}/pkg-web/"
+    rsync -a --delete "{{out_web_debug}}/" "{{edgerules_page_public}}/pkg-web-debug/"
+    # Remove files not needed in edgerules_page
+    rm -f "{{edgerules_page_public}}/pkg-web/.gitignore" \
+          "{{edgerules_page_public}}/pkg-web/README.md" \
+          "{{edgerules_page_public}}/pkg-web/package.json" || true
+    rm -f "{{edgerules_page_public}}/pkg-web-debug/.gitignore" \
+          "{{edgerules_page_public}}/pkg-web-debug/README.md" \
+          "{{edgerules_page_public}}/pkg-web-debug/package.json" || true
+    echo "Contents (web):" && ls -la "{{edgerules_page_public}}/pkg-web" || true
+    echo "Contents (web-debug):" && ls -la "{{edgerules_page_public}}/pkg-web-debug" || true
+    echo "Released web assets to: {{edgerules_page_public}}"
+
+# Copies web and node builds into the external edgerules-docs page project under public/.
+# Excludes files not needed for serving (.gitignore, README.md).
+release-to-edgerules-docs:

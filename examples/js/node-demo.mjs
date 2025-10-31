@@ -142,3 +142,16 @@ console.log('complexEval:', complexEval);
 if (JSON.stringify(complexEval) != `{"result":[{"name":"Alice","age":30,"tags":["engineer","manager"]},{"name":"Charlie","age":22,"tags":[]}]}`) {
     throw new Error('complexEval failed: ' + JSON.stringify(complexEval));
 }
+
+const eval_all = wasm.evaluate_all(`
+{
+    sales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
+    salesCount: count(sales)
+    func sales3(month, sales): { 
+        result: sales[month] + sales[month + 1] + sales[month + 2] 
+    }
+    acc: for m in 0..(salesCount - 3) return sales3(m, sales).result
+    best: max(acc)
+}
+`);
+console.log('eval_all:', eval_all);
