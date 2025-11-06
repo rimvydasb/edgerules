@@ -676,6 +676,21 @@ pub mod test {
     }
 
     #[test]
+    fn load_source_accepts_user_function_definition() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service.load_source("func inc(value): { result: value + 1 }")?;
+        service.load_source("{ value: inc(2).result }")?;
+
+        let runtime = service.to_runtime_snapshot()?;
+        let result = runtime.evaluate_expression_str("value")?;
+        assert_eq!(result, ValueEnum::NumberValue(Int(3)));
+
+        Ok(())
+    }
+
+    #[test]
     fn test_evaluate_expression_with_function_indirect() -> Result<(), EvalError> {
         init_logger();
 

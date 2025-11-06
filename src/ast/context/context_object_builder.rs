@@ -111,6 +111,8 @@ impl ContextObjectBuilder {
         self.context_type = Some(context_type);
     }
 
+    /// Appends another ContextObject into this builder.
+    /// - Fails if there are duplicate field names.
     pub fn append(
         &mut self,
         another: Rc<RefCell<ContextObject>>,
