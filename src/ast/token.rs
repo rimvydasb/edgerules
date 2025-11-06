@@ -310,26 +310,6 @@ impl From<bool> for ExpressionEnum {
     }
 }
 
-// impl From<Vec<ExpressionEnum>> for ExpressionEnum {
-//     fn from(values: Vec<ExpressionEnum>) -> Self {
-//         if values.is_empty() {
-//             Collection(Vec::new(), ValueType::AnyType)
-//         } else {
-//             let init_type = values.first().unwrap().get_type().clone();
-//
-//             Collection(values, init_type.clone())
-//         }
-//     }
-// }
-
-// pub fn unwrap_or(maybe_token: Option<EToken>, error: &str) -> Result<EToken, RuntimeError> {
-//     if let Some(token) = maybe_token {
-//         Ok(token)
-//     } else {
-//         Err(EvalError(error.to_string()))
-//     }
-// }
-
 //--------------------------------------------------------------------------------------------------
 // To Code
 //--------------------------------------------------------------------------------------------------
