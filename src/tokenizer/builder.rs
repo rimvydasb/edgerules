@@ -217,7 +217,6 @@ impl ASTBuilder {
 //--------------------------------------------------------------------------------------------------
 
 pub mod factory {
-    use crate::ast::annotations::AnnotationEnum;
     use crate::ast::context::context_object::ExpressionEntry;
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::context::context_object_type::FormalParameter;
@@ -227,7 +226,6 @@ pub mod factory {
         BUILT_IN_ALL_FUNCTIONS, MULTI_BUILT_IN_FUNCTIONS, UNARY_BUILT_IN_FUNCTIONS,
     };
     use crate::ast::ifthenelse::IfThenElseFunction;
-    use crate::ast::metaphors::decision_tables::DecisionTable;
     use crate::ast::metaphors::functions::FunctionDefinition;
     use crate::ast::operators::comparators::{ComparatorEnum, ComparatorOperator};
     use crate::ast::operators::logical_operators::{LogicalOperator, LogicalOperatorEnum};
@@ -351,34 +349,19 @@ pub mod factory {
                 Ok(Expression(ObjectField(field_name, Box::new(right))))
             }
             (
-                Unparsed(FunctionDefinitionLiteral(annotations, function_name, arguments)),
+                Unparsed(FunctionDefinitionLiteral(function_name, arguments)),
                 Expression(StaticObject(object)),
             ) => {
                 // let plain = SimpleObject::try_unwrap(object)
                 //     .map_err(|_err| UnknownError(format!("'{}' failed to construct", function_name)))?;
 
-                let function =
-                    FunctionDefinition::build(annotations, function_name, arguments, object)?;
+                let function = FunctionDefinition::build(function_name, arguments, object)?;
                 Ok(Definition(DefinitionEnum::Metaphor(function.into())))
             }
-            (
-                Unparsed(FunctionDefinitionLiteral(annotations, function_name, _arguments)),
-                Expression(Collection(_rows)),
-            ) => {
-                if AnnotationEnum::get_decision_table(&annotations).is_some() {
-                    let decision_table =
-                        DecisionTable::build(annotations, function_name, _arguments, _rows)?;
-                    Ok(Definition(DefinitionEnum::Metaphor(decision_table.into())))
-                } else {
-                    Err(UnknownError(format!(
-                        "function '{}' body is a collection. Must be a structure",
-                        function_name
-                    )))
-                }
-            }
-            (Unparsed(FunctionDefinitionLiteral(_annotations, name, _)), _) => Err(UnknownError(
-                format!("function '{}' body is not defined", name),
-            )),
+            (Unparsed(FunctionDefinitionLiteral(name, _)), _) => Err(UnknownError(format!(
+                "function '{}' body is not defined",
+                name
+            ))),
             (unexpected, Expression(_right)) => Err(UnknownError(format!(
                 "'{}' cannot be a variable name",
                 unexpected
@@ -518,25 +501,11 @@ pub mod factory {
 
     // create tokens chain
     pub fn build_function_definition(
-        left: &mut TokenChain,
+        _left: &mut TokenChain,
         token: EToken,
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
         let mut arguments = Vec::new();
-        let mut annotations = Vec::new();
-
-        while let Some(left_token) = left.pop_back() {
-            match left_token {
-                Unparsed(Annotation(annotation)) => {
-                    annotations.push(annotation);
-                }
-                _ => {
-                    left.push_back(left_token);
-                    break;
-                }
-            }
-        }
-
         while let Some(right_token) = right.pop_front() {
             match right_token {
                 Unparsed(Comma) => {
@@ -584,7 +553,6 @@ pub mod factory {
         };
 
         Ok(Unparsed(FunctionDefinitionLiteral(
-            annotations,
             function_name,
             arguments,
         )))

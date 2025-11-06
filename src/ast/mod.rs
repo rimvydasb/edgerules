@@ -1,6 +1,5 @@
 use crate::typesystem::errors::{ErrorStack, LinkingError, LinkingErrorEnum};
 
-pub mod annotations;
 pub mod context;
 pub mod expression;
 pub mod foreach;

@@ -190,13 +190,6 @@ mod test {
 
         // Complex structures
         is_equals("{ p : [{a:1},5] }", "{ p : [{a:1},5] }");
-
-        // Testing annotations:
-        is_equals(
-            "@Service func myFunc(x,y,z) : {a : 1}",
-            "@Service myFunc(x,y,z) : {a : 1}",
-        );
-        //is_equals("@DecisionTable myFunc(x,y) : [[x,y,z],[1,2,3]]", "@DecisionTable(\"\"first-hit\"\") myFunc(x:any,y:any) : [[x,y,z],[x=1,y=2,3]]");
     }
 
     #[test]

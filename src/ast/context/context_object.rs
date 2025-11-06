@@ -309,7 +309,6 @@ pub mod test {
             child.add_expression("y", expr("a + b")?)?;
             child.add_definition(DefinitionEnum::Metaphor(
                 FunctionDefinition::build(
-                    vec![],
                     "income".to_string(),
                     vec![],
                     ContextObjectBuilder::new().build(),

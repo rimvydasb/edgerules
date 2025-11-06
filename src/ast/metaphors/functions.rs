@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 
-use crate::ast::annotations::AnnotationEnum;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::FunctionContext;
@@ -19,7 +18,6 @@ use std::collections::HashSet;
 /// Non executable function definition holder. For an executable function definition see FunctionContext.
 #[derive(Debug)]
 pub struct FunctionDefinition {
-    pub annotations: Vec<AnnotationEnum>,
     pub name: String,
     pub arguments: Vec<FormalParameter>,
     /// Function body later is used as a context object for execution context so it is Rc.
@@ -29,7 +27,6 @@ pub struct FunctionDefinition {
 
 impl FunctionDefinition {
     pub fn build(
-        annotations: Vec<AnnotationEnum>,
         name: String,
         arguments: Vec<FormalParameter>,
         body: Rc<RefCell<ContextObject>>,
@@ -45,7 +42,6 @@ impl FunctionDefinition {
         }
 
         Ok(FunctionDefinition {
-            annotations,
             name,
             arguments,
             body,
@@ -59,8 +55,7 @@ impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}{}({}) {} {}",
-            array_to_code_sep(self.annotations.iter(), "\n"),
+            "{}({}) {} {}",
             self.name,
             array_to_code_sep(self.arguments.iter(), ", "),
             C_ASSIGN,

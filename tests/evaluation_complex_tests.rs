@@ -239,7 +239,6 @@ fn unhappy_unreachable_orphan_child_path() {
 #[test]
 #[ignore]
 fn incredibly_nested_vl_record_example() {
-
     // @Todo: deep nesting linking errors to be resolved
 
     init_logger();
@@ -336,7 +335,10 @@ fn incredibly_nested_vl_record_example() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse.applicantDecisions"), "0");
+    assert_eq!(
+        exe_field(&rt, "applicationResponse.applicantDecisions"),
+        "0"
+    );
 }
 
 mod utilities;

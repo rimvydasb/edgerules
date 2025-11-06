@@ -1,4 +1,3 @@
-use crate::ast::annotations::AnnotationEnum;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
@@ -87,8 +86,7 @@ pub enum EUnparsedToken {
     BracketOpen,
     Literal(Cow<'static, str>),
     FunctionNameToken(VariableLink),
-    Annotation(AnnotationEnum),
-    FunctionDefinitionLiteral(Vec<AnnotationEnum>, String, Vec<FormalParameter>),
+    FunctionDefinitionLiteral(String, Vec<FormalParameter>),
     TypeReferenceLiteral(ComplexTypeRef),
     MathOperatorToken(MathOperatorEnum),
     LogicalOperatorToken(LogicalOperatorEnum),
@@ -166,10 +164,6 @@ impl EToken {
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum DefinitionEnum {
-    // TypeDefinition(Vec<(String, ValueType)>),
-    //
-    // TypeField(String, ValueType),
-    /// Built-in metaphors (functions, decision tables, etc.)
     Metaphor(BuiltinMetaphor),
     UserType(UserTypeDefinition),
 }
@@ -343,19 +337,12 @@ impl From<bool> for ExpressionEnum {
 impl Display for EUnparsedToken {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionDefinitionLiteral(annotations, text, args) => {
-                write!(
-                    f,
-                    "{}{}({})",
-                    array_to_code_sep(annotations.iter(), "\n"),
-                    text,
-                    array_to_code_sep(args.iter(), ", ")
-                )
+            FunctionDefinitionLiteral(text, args) => {
+                write!(f, "{}({})", text, array_to_code_sep(args.iter(), ", "))
             }
             TypeReferenceLiteral(r) => write!(f, "<{}>", r),
             Literal(value) => write!(f, "{}", value),
             FunctionNameToken(value) => write!(f, "{}", value),
-            Annotation(definition) => write!(f, "{}", definition),
             Comma => write!(f, ","),
             BracketOpen => write!(f, "["),
             MathOperatorToken(value) => write!(f, "{}", value),

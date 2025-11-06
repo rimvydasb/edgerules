@@ -1,6 +1,5 @@
 use std::collections::vec_deque::VecDeque;
 
-use crate::ast::annotations::AnnotationEnum;
 use crate::ast::operators::comparators::ComparatorEnum;
 use crate::ast::operators::logical_operators::LogicalOperatorEnum;
 use crate::ast::operators::math_operators::MathOperatorEnum;
@@ -431,13 +430,6 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                 ast_builder.push_element(Expression(ExpressionEnum::from(literal)));
                 after_colon = false;
-            }
-            '@' => {
-                source.next();
-
-                let annotation = AnnotationEnum::parse(&mut source);
-
-                ast_builder.push_element(annotation);
             }
             _ => {
                 ast_builder.push_element(error_token!(
