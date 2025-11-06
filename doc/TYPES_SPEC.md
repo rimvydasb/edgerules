@@ -3,41 +3,6 @@
 EdgeRules has a standard type definition, as it is common in other software tools
 and **typed placeholders**.
 
-## EBNF Specification
-
-Validate: https://www.bottlecaps.de/rr/ui
-
-```ebnf
-Context ::= "{" ( Statement ( ";" Statement )* )? "}"
-
-ComplexTypeDefinition ::= "{" ( Field ( ";" Field )* )? "}"
-
-Field ::= Identifier ":" ( "<" ComplexType ">" | ComplexTypeDefinition | CastExpression )
-
-Statement ::=
-      "type" TypeAlias ":" ComplexTypeDefinition
-    | "type" TypeAlias ":" "<" ComplexType ">"
-    | "func" Identifier "(" ( Parameter ( "," Parameter )* )? ")" ":" ( CastExpression | Context )
-    // typed variable placeholder 
-    | Identifier ":" "<" ComplexType ">"
-    
-    // variable value assignment
-    | Identifier ":" ( CastExpression | Context )
-
-// --- Casting layer: only after an expression ---
-CastExpression ::= Expression ( "as" ComplexType )?
-
-// --- Types & Ids ---
-PrimitiveType ::= "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration"
-TypeAlias     ::= [A-Z][A-Za-z0-9_]*
-ComplexType   ::= (PrimitiveType | TypeAlias) ("[]")*
-
-Identifier  ::= [A-Za-z_][A-Za-z0-9_]*
-Parameter   ::= Identifier ( ":" (PrimitiveType | TypeAlias) ("[]")* )?
-
-// `Expression` is your existing (or to-be-defined) expression grammar.
-```
-
 ## Example
 
 ```edgerules

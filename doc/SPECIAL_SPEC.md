@@ -92,14 +92,14 @@ possible.
 `count([1,2,NotApplicable,4])` → `4`, `sum([1,2,NotApplicable,4])` → `7`, `max([1,2,Missing,4])` → `4`, 
 `mean([1,2,NotApplicable,4])` → `2.3333`
 
-## NotFound (will not be implemented as of now)
+## NotFound (is not implemented, @TBD)
 
 Has a high similarity to JavaScript `undefined`, but has fault-tolerant treatment. It is only assigned by the system
 and cannot be assigned by the user.
 
 > `NotFound` is treated same as `Missing` in all operations.
 
-### Occurrence (will not be implemented as of now)
+### Occurrence (is not implemented, @TBD)
 
 1. Array index is out of bounds: `[1,2,3,4][4]` → `NotFound`.
 2. `find` function does not find the value: `find([1,2,3], 4)` → `NotFound`.

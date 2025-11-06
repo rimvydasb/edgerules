@@ -117,7 +117,7 @@ cli:
 # --- release helpers ---
 # Copies web builds into the external edgerules-page page project under public/.
 # Excludes files not needed for serving (.gitignore, README.md).
-release-to-edgerules-page: web web-debug
+release-to-page: web web-debug
     echo "Releasing to: {{edgerules_page_public}}"
     echo "Source (web): {{out_web}}" && ls -la "{{out_web}}" || true
     echo "Source (web-debug): {{out_web_debug}}" && ls -la "{{out_web_debug}}" || true
@@ -135,6 +135,22 @@ release-to-edgerules-page: web web-debug
     echo "Contents (web-debug):" && ls -la "{{edgerules_page_public}}/pkg-web-debug" || true
     echo "Released web assets to: {{edgerules_page_public}}"
 
-# Copies web and node builds into the external edgerules-docs page project under public/.
+# Copies node builds into the external edgerules-docs page project under public/.
 # Excludes files not needed for serving (.gitignore, README.md).
-release-to-edgerules-docs:
+release-to-docs: node node-debug
+    echo "Releasing to: {{edgerules_docs_public}}"
+    echo "Source (node): {{out_node}}" && ls -la "{{out_node}}" || true
+    echo "Source (node-debug): {{out_node_debug}}" && ls -la "{{out_node_debug}}" || true
+    mkdir -p "{{edgerules_docs_public}}/pkg-node" "{{edgerules_docs_public}}/pkg-node-debug"
+    rsync -a --delete "{{out_node}}/" "{{edgerules_docs_public}}/pkg-node/"
+    rsync -a --delete "{{out_node_debug}}/" "{{edgerules_docs_public}}/pkg-node-debug/"
+    # Remove files not needed in edgerules_page
+    rm -f "{{edgerules_docs_public}}/pkg-node/.gitignore" \
+          "{{edgerules_docs_public}}/pkg-node/README.md" \
+          "{{edgerules_docs_public}}/pkg-node/package.json" || true
+    rm -f "{{edgerules_docs_public}}/pkg-node-debug/.gitignore" \
+          "{{edgerules_docs_public}}/pkg-node-debug/README.md" \
+          "{{edgerules_docs_public}}/pkg-node-debug/package.json" || true
+    echo "Contents (node):" && ls -la "{{edgerules_docs_public}}/pkg-node" || true
+    echo "Contents (node-debug):" && ls -la "{{edgerules_docs_public}}/pkg-node-debug" || true
+    echo "Released node assets to: {{edgerules_docs_public}}"

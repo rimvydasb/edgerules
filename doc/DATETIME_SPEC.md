@@ -178,7 +178,9 @@ lastDayOfMonth(date("2025-02-10"))  // 28 (number)
 calendarDiff(date("2024-01-15"), date("2025-03-10")) // period("P1Y1M23D")
 ```
 
-## Literal Duration Support (TBC, subject to change)
+# Not Implemented:
+
+## Literal Duration Support (is not implemented, @TBD)
 
 You can also create durations using a literal syntax:
 

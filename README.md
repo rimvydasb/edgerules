@@ -12,12 +12,8 @@ with safety features such as no nulls, no runtime exceptions, no side effects,
 cycle-prevention that comes with a small runtime and hardly matched interpretation performance
 of Pratt’s top‑down operator precedence.
 
-- Interactive playground / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
-- [Language Reference](REFERENCE.md)
-- For Stories and Epics check: [doc](doc)
-- [General ToDo](TODO.md)
+- Language Reference / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
 - [Development](AGENTS.md)
-- [Complex examples and problems with results](tests/EXAMPLES-output.md)
 - [License](LICENSE)
 
 ### Comparison to the similar projects:
