@@ -1,7 +1,7 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::{
-    ConstantValue, ExpressionRef, MetaphorRef,
+    ConstantValue, ExpressionRef, UserFunctionRef,
 };
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::{LinkingError, RuntimeError};
@@ -94,7 +94,7 @@ impl ContentHolder<ExecutionContext> for ExecutionContext {
             }
             ConstantValue(value) => Ok(ConstantValue(value)),
             ExpressionRef(value) => Ok(ExpressionRef(value)),
-            MetaphorRef(value) => Ok(MetaphorRef(value)),
+            UserFunctionRef(value) => Ok(UserFunctionRef(value)),
             EObjectContent::Definition(definition) => LinkingError::other_error(format!(
                 "Definition {} is not supported in execution context",
                 definition
@@ -251,7 +251,7 @@ impl ExecutionContext {
                                     .as_str(),
                             );
                         }
-                        MetaphorRef(_) => {
+                        UserFunctionRef(_) => {
                             // skip
                         }
                         EObjectContent::ObjectRef(ref object) => {
@@ -319,7 +319,7 @@ impl ExecutionContext {
 pub mod test {
     use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::metaphors::functions::FunctionDefinition;
-    use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
+    use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
     use crate::ast::token::ExpressionEnum;
     use log::info;
     use std::rc::Rc;
@@ -348,14 +348,11 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"))?;
             child.add_expression("y", expr("a + b")?)?;
-            child.add_definition(MetaphorDef(
-                FunctionDefinition::build(
-                    "income".to_string(),
-                    vec![],
-                    ContextObjectBuilder::new().build(),
-                )?
-                .into(),
-            ))?;
+            child.add_definition(UserFunctionDef(FunctionDefinition::build(
+                "income".to_string(),
+                vec![],
+                ContextObjectBuilder::new().build(),
+            )?))?;
             builder.add_expression("c", ExpressionEnum::StaticObject(child.build()))?;
         }
 

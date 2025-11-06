@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::FunctionContext;
-use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::Link;
 use crate::link::linker;
@@ -49,8 +49,6 @@ impl FunctionDefinition {
     }
 }
 
-// Conversions for BuiltinMetaphor are defined in builtin.rs
-
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -70,7 +68,7 @@ impl TypedValue for FunctionDefinition {
     }
 }
 
-impl Metaphor for FunctionDefinition {
+impl UserFunction for FunctionDefinition {
     fn get_name(&self) -> String {
         self.name.clone()
     }

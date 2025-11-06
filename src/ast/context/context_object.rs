@@ -1,5 +1,5 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
-use crate::ast::metaphors::builtin::BuiltinMetaphor;
+use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
 use crate::ast::Link;
@@ -36,14 +36,14 @@ impl From<ExpressionEntry> for Rc<RefCell<ExpressionEntry>> {
 
 #[derive(Debug)]
 pub struct MethodEntry {
-    pub metaphor: BuiltinMetaphor,
+    pub function_definition: FunctionDefinition,
     pub field_type: Link<ValueType>,
 }
 
-impl From<BuiltinMetaphor> for MethodEntry {
-    fn from(value: BuiltinMetaphor) -> Self {
+impl From<FunctionDefinition> for MethodEntry {
+    fn from(value: FunctionDefinition) -> Self {
         MethodEntry {
-            metaphor: value,
+            function_definition: value,
             field_type: LinkingError::not_linked().into(),
         }
     }
@@ -98,7 +98,7 @@ impl ContentHolder<ContextObject> for ContextObject {
         } else if let Some(ctx) = self.node().get_child(name) {
             Ok(EObjectContent::ObjectRef(ctx))
         } else if let Some(content) = self.metaphors.get(name) {
-            Ok(EObjectContent::MetaphorRef(Rc::clone(content)))
+            Ok(EObjectContent::UserFunctionRef(Rc::clone(content)))
         } else if let Some(parameter) = self.parameters.iter().find(|p| p.name == name) {
             Ok(EObjectContent::Definition(parameter.value_type.clone()))
         } else {
@@ -307,14 +307,11 @@ pub mod test {
             let mut child = ContextObjectBuilder::new();
             child.add_expression("x", E::from("Hello"))?;
             child.add_expression("y", expr("a + b")?)?;
-            child.add_definition(DefinitionEnum::Metaphor(
-                FunctionDefinition::build(
-                    "income".to_string(),
-                    vec![],
-                    ContextObjectBuilder::new().build(),
-                )?
-                .into(),
-            ))?;
+            child.add_definition(DefinitionEnum::UserFunction(FunctionDefinition::build(
+                "income".to_string(),
+                vec![],
+                ContextObjectBuilder::new().build(),
+            )?))?;
             let instance = child.build();
             child_instance = Rc::clone(&instance);
             builder.add_expression("c", ExpressionEnum::StaticObject(instance))?;

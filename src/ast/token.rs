@@ -1,13 +1,13 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::metaphors::builtin::BuiltinMetaphor;
+use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::operators::comparators::ComparatorEnum;
 use crate::ast::operators::logical_operators::LogicalOperatorEnum;
 use crate::ast::operators::math_operators::{MathOperatorEnum, Operator};
 use crate::ast::selections::{ExpressionFilter, FieldSelection};
 use crate::ast::sequence::CollectionExpression;
-use crate::ast::token::DefinitionEnum::Metaphor;
+use crate::ast::token::DefinitionEnum::UserFunction;
 use crate::ast::token::EToken::*;
 use crate::ast::token::EUnparsedToken::*;
 use crate::ast::token::ExpressionEnum::*;
@@ -164,14 +164,14 @@ impl EToken {
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum DefinitionEnum {
-    Metaphor(BuiltinMetaphor),
+    UserFunction(FunctionDefinition),
     UserType(UserTypeDefinition),
 }
 
 impl Display for DefinitionEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Metaphor(m) => write!(f, "{}", m),
+            UserFunction(m) => write!(f, "{}", m),
             DefinitionEnum::UserType(t) => write!(f, "type {}: {}", t.name, t.body),
         }
     }

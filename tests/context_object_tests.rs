@@ -2,7 +2,7 @@ mod utilities;
 
 use std::rc::Rc;
 
-use edge_rules::runtime::edge_rules::DefinitionEnum::Metaphor as MetaphorDef;
+use edge_rules::runtime::edge_rules::DefinitionEnum::UserFunction as UserFunctionDef;
 use edge_rules::runtime::{
     edge_rules::{
         expr, link_parts, ContextObjectBuilder, EvalError, ExpressionEnum, FunctionDefinition,
@@ -75,14 +75,11 @@ fn test_nesting() -> Result<(), EvalError> {
         let mut child = ContextObjectBuilder::new();
         child.add_expression("x", E::from("Hello"))?;
         child.add_expression("y", expr("a + b")?)?;
-        child.add_definition(MetaphorDef(
-            FunctionDefinition::build(
-                "income".to_string(),
-                vec![],
-                ContextObjectBuilder::new().build(),
-            )?
-            .into(),
-        ))?;
+        child.add_definition(UserFunctionDef(FunctionDefinition::build(
+            "income".to_string(),
+            vec![],
+            ContextObjectBuilder::new().build(),
+        )?))?;
         builder.add_expression("c", ExpressionEnum::StaticObject(child.build()))?;
     }
 

@@ -1,8 +1,7 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::function_context::FunctionContext;
 use crate::ast::expression::{CastCall, EvaluatableExpression, StaticLink};
-use crate::ast::metaphors::builtin::BuiltinMetaphor;
-use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::{ComplexTypeRef, ExpressionEnum};
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
@@ -72,11 +71,15 @@ impl StaticLink for UserFunctionCall {
             let definition = linker::find_implementation(Rc::clone(&ctx), self.name.clone())?;
 
             // Step 2: validate that we have the correct number of arguments.
-            if self.args.len() != definition.borrow().metaphor.get_parameters().len() {
+            let param_len = {
+                let method = definition.borrow();
+                method.function_definition.get_parameters().len()
+            };
+            if self.args.len() != param_len {
                 return LinkingError::other_error(format!(
                     "Function {} expects {} arguments, but {} were provided",
                     self.name,
-                    definition.borrow().metaphor.get_parameters().len(),
+                    param_len,
                     self.args.len()
                 ))
                 .into();
@@ -88,11 +91,8 @@ impl StaticLink for UserFunctionCall {
 
             let (declared_parameters, function_body_ctx) = {
                 let borrowed = definition.borrow();
-                let params = borrowed.metaphor.get_parameters().clone();
-                let body = match &borrowed.metaphor {
-                    BuiltinMetaphor::Function(func_def) => Some(Rc::clone(&func_def.body)),
-                    _ => None,
-                };
+                let params = borrowed.function_definition.get_parameters().clone();
+                let body = Rc::clone(&borrowed.function_definition.body);
                 (params, body)
             };
 
@@ -124,7 +124,7 @@ impl StaticLink for UserFunctionCall {
                 if let Some(tref) = parameter.declared_type() {
                     // Step 4: resolve the parameter's declared type (including aliases) and coerce when safe.
                     let expected_type =
-                        resolve_declared_type(tref, function_body_ctx.as_ref(), &ctx)?;
+                        resolve_declared_type(tref, Some(&function_body_ctx), &ctx)?;
 
                     // Alias parameters may need an explicit cast to resolve the correct runtime type.
                     if resolved_type != expected_type
@@ -154,7 +154,10 @@ impl StaticLink for UserFunctionCall {
             }
 
             // Step 5: build and cache the callable function context with all resolved parameter types.
-            self.definition = Ok(definition.borrow().metaphor.create_context(parameters)?);
+            self.definition = Ok(definition
+                .borrow()
+                .function_definition
+                .create_context(parameters)?);
         }
 
         match &self.definition {

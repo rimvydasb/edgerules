@@ -1,6 +1,6 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::EObjectContent::{
-    ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
+    ConstantValue, Definition, ExpressionRef, ObjectRef, UserFunctionRef,
 };
 use crate::ast::expression::StaticLink;
 use crate::ast::token::ComplexTypeRef;
@@ -70,7 +70,7 @@ impl Display for FormalParameter {
 pub enum EObjectContent<T: Node<T>> {
     ConstantValue(ValueEnum),
     ExpressionRef(Rc<RefCell<ExpressionEntry>>),
-    MetaphorRef(Rc<RefCell<MethodEntry>>),
+    UserFunctionRef(Rc<RefCell<MethodEntry>>),
     ObjectRef(Rc<RefCell<T>>),
     Definition(ValueType),
 }
@@ -102,8 +102,8 @@ impl StaticLink for EObjectContent<ContextObject> {
                     )))
                 }
             },
-            MetaphorRef(_metaphor) => {
-                todo!("MetaphorRef")
+            UserFunctionRef(_metaphor) => {
+                todo!("UserFunctionRef")
             }
             ObjectRef(value) => match link_parts(Rc::clone(value)) {
                 Ok(_) => Ok(ValueType::ObjectType(Rc::clone(value))),
@@ -119,7 +119,7 @@ impl<T: Node<T>> Display for EObjectContent<T> {
         match self {
             ConstantValue(value) => write!(f, "{}", value),
             ExpressionRef(value) => write!(f, "{}", value.borrow().expression),
-            MetaphorRef(value) => write!(f, "{}", value.borrow().metaphor),
+            UserFunctionRef(value) => write!(f, "{}", value.borrow().function_definition),
             ObjectRef(obj) => write!(f, "{}", obj.borrow()),
             Definition(definition) => write!(f, "{}", definition),
         }

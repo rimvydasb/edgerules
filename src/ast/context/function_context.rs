@@ -1,7 +1,7 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent::{
-    ConstantValue, Definition, ExpressionRef, MetaphorRef, ObjectRef,
+    ConstantValue, Definition, ExpressionRef, ObjectRef, UserFunctionRef,
 };
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::token::ExpressionEnum;
@@ -47,7 +47,7 @@ impl ContentHolder<ContextObject> for FunctionContext {
             ObjectRef(object) => Ok(ObjectRef(Rc::clone(&object))),
             ConstantValue(value) => Ok(ConstantValue(value)),
             ExpressionRef(value) => Ok(ExpressionRef(value)),
-            MetaphorRef(value) => Ok(MetaphorRef(value)),
+            UserFunctionRef(value) => Ok(UserFunctionRef(value)),
             Definition(definition) => Ok(Definition(definition)),
         }
     }

@@ -2,7 +2,7 @@ use crate::ast::context::context_object::{ContextObject, ExpressionEntry, Method
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
 use crate::ast::expression::StaticLink;
-use crate::ast::metaphors::metaphor::Metaphor;
+use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::ExecutionContext;
@@ -72,7 +72,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
                 references.push((name, reference));
             }
             _ => {
-                // Metaphors will be linked when the call will be detected
+                // User functions will be linked when the call will be detected
                 // Primitive definitions will not be linked at all
             }
         }
@@ -230,8 +230,8 @@ impl BrowseResultFound<ExecutionContext> {
                     .stack_insert(self.field_name, result.clone());
                 result
             }
-            MetaphorRef(_value) => {
-                todo!("MetaphorRef")
+            UserFunctionRef(_value) => {
+                todo!("UserFunctionRef")
             }
             ObjectRef(value) => {
                 NodeData::attach_child(&self.context, value);
@@ -495,15 +495,15 @@ fn continue_browse<'a, T: Node<T>>(
                     &path[index - 1..],
                 ));
             }
-            MetaphorRef(metaphor) => {
+            UserFunctionRef(metaphor) => {
                 error!(
-                    "Metaphor '{:?}' does not have '{}' item",
+                    "User function '{:?}' does not have '{}' item",
                     metaphor, current_search
                 );
                 return LinkingError::new(OtherLinkingError(format!(
-                    "Cannot access '{}' from '{}' metaphor",
+                    "Cannot access '{}' from '{}' user function",
                     current_search,
-                    metaphor.borrow().metaphor.get_name()
+                    metaphor.borrow().function_definition.get_name()
                 )))
                 .into();
             }

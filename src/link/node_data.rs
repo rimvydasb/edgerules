@@ -1,6 +1,6 @@
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::{
-    ConstantValue, ExpressionRef, MetaphorRef, ObjectRef,
+    ConstantValue, ExpressionRef, ObjectRef, UserFunctionRef,
 };
 use crate::link::node_data::NodeDataEnum::{Child, Internal, Isolated, Root};
 use crate::typesystem::errors::LinkingError;
@@ -101,8 +101,8 @@ pub trait ContentHolder<T: Node<T>> {
                     let value = bracket_unwrap(format!("{}", field.borrow().expression));
                     lines.push(format!("{}: {}", field_name, value));
                 }
-                Ok(MetaphorRef(definition)) => {
-                    lines.push(format!("{}", definition.borrow().metaphor));
+                Ok(UserFunctionRef(definition)) => {
+                    lines.push(format!("{}", definition.borrow().function_definition));
                 }
                 Ok(ObjectRef(obj)) => {
                     lines.push(format!("{}: {}", field_name, obj.borrow()));

@@ -45,7 +45,7 @@ and **typed placeholders**.
 represents a standard type definition. It defines a type alias `Customer` that can be used in the rest of the model.
 In `ContextObject` it will be in `defined_types` list (see how `metaphors` are implemented and stored).
 `TypeDefinition` will be implemented similarly to `FunctionDefinition`.
-Also, see `DefinitionEnum::Metaphor(BuiltinMetaphor)` - similar approach will be used for user-defined types.
+Also, see `DefinitionEnum::UserFunction(FunctionDefinition)` - similar approach will be used for user-defined types.
 
 > Everything what is under `type...` statement it is just a type definition. Within a type definition it is
 > not possible to have any functions definitions or typed placeholders. Only the nested type definitions are allowed.

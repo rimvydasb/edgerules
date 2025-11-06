@@ -20,13 +20,13 @@ classDiagram
     }
 
     class Node
-    class Metaphor
+    class UserFunction
 
 %% Inheritance
     Node <|-- FunctionContext
     Node <|-- ContextObject
     Node <|-- ExecutionContext
-    Metaphor <|-- FunctionDefinition
+    UserFunction <|-- FunctionDefinition
 
 %% Associations
     FunctionContext *-- ContextObject : body

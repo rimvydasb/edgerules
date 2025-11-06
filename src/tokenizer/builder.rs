@@ -232,7 +232,7 @@ pub mod factory {
     use crate::ast::operators::math_operators::{MathOperator, MathOperatorEnum, NegationOperator};
     use crate::ast::selections::{ExpressionFilter, FieldSelection};
     use crate::ast::sequence::CollectionExpression;
-    // use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
+    // use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
     use crate::ast::token::EToken;
     use crate::ast::token::EToken::*;
     use crate::ast::token::EUnparsedToken::*;
@@ -356,7 +356,7 @@ pub mod factory {
                 //     .map_err(|_err| UnknownError(format!("'{}' failed to construct", function_name)))?;
 
                 let function = FunctionDefinition::build(function_name, arguments, object)?;
-                Ok(Definition(DefinitionEnum::Metaphor(function.into())))
+                Ok(Definition(DefinitionEnum::UserFunction(function)))
             }
             (Unparsed(FunctionDefinitionLiteral(name, _)), _) => Err(UnknownError(format!(
                 "function '{}' body is not defined",

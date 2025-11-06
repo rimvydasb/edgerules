@@ -82,7 +82,7 @@ fn execution_context_to_js(
         } {
             Ok(EObjectContent::ConstantValue(value)) => value_to_js(&value)?,
             Ok(EObjectContent::ObjectRef(child)) => execution_context_to_js(child)?,
-            Ok(EObjectContent::MetaphorRef(_)) => continue,
+            Ok(EObjectContent::UserFunctionRef(_)) => continue,
             Ok(EObjectContent::Definition(_)) => continue,
             Ok(EObjectContent::ExpressionRef(_)) => {
                 return Err(RuntimeError::eval_error(format!(

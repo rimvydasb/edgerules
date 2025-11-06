@@ -1,8 +1,7 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::FormalParameter;
-use crate::ast::metaphors::builtin::BuiltinMetaphor;
-use crate::ast::metaphors::metaphor::Metaphor;
-use crate::ast::token::DefinitionEnum::Metaphor as MetaphorDef;
+use crate::ast::metaphors::metaphor::UserFunction;
+use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::ParseErrorEnum;
@@ -94,7 +93,7 @@ impl ContextObjectBuilder {
 
     pub fn add_definition(&mut self, field: DefinitionEnum) -> Result<&mut Self, ParseErrorEnum> {
         match field {
-            MetaphorDef(m) => {
+            UserFunctionDef(m) => {
                 let name = m.get_name();
                 trace!(">>> inserting function {:?}", name);
                 let interned = intern_field_name(name.as_str());
@@ -231,10 +230,11 @@ impl ContextObjectBuilder {
             let parent = Rc::downgrade(&ctx);
             let borrowed = ctx.borrow();
             for method in borrowed.metaphors.values() {
-                if let BuiltinMetaphor::Function(function_def) = &method.borrow().metaphor {
-                    function_def.body.borrow_mut().node.node_type =
-                        NodeDataEnum::Internal(parent.clone());
-                }
+                let body = {
+                    let method_ref = method.borrow();
+                    Rc::clone(&method_ref.function_definition.body)
+                };
+                body.borrow_mut().node.node_type = NodeDataEnum::Internal(parent.clone());
             }
         }
 
