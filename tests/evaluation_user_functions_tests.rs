@@ -1,6 +1,6 @@
 mod utilities;
-pub use utilities::*;
 use edge_rules::test_support::expr;
+pub use utilities::*;
 
 // Dedicated coverage for user-defined functions (custom functions)
 

@@ -302,8 +302,7 @@ impl ContextObject {
                 let method_ref = method_entry.borrow();
                 Rc::clone(&method_ref.function_definition.body)
             };
-            body.borrow_mut().node.node_type =
-                NodeDataEnum::Internal(Rc::downgrade(parent));
+            body.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(parent));
         }
 
         Ok(())
@@ -315,8 +314,7 @@ impl ContextObject {
         body: UserTypeBody,
     ) {
         if let UserTypeBody::TypeObject(obj) = &body {
-            obj.borrow_mut().node.node_type =
-                NodeDataEnum::Internal(Rc::downgrade(parent));
+            obj.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(parent));
         }
 
         parent
@@ -325,10 +323,7 @@ impl ContextObject {
             .insert(name.to_string(), body);
     }
 
-    pub fn remove_user_type_definition(
-        parent: &Rc<RefCell<ContextObject>>,
-        name: &str,
-    ) -> bool {
+    pub fn remove_user_type_definition(parent: &Rc<RefCell<ContextObject>>, name: &str) -> bool {
         parent.borrow_mut().defined_types.remove(name).is_some()
     }
 

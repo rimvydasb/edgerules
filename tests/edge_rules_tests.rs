@@ -3,13 +3,13 @@ use edge_rules::runtime::edge_rules::{
     ExpressionEnum, ParseErrors,
 };
 use edge_rules::runtime::ToSchema;
-use edge_rules::test_support::{
-    ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingError, LinkingErrorEnum,
-    NumberEnum, ParseErrorEnum, StaticLink, UserTypeBody, ValueEnum, ValueType, expr,
-};
 use edge_rules::test_support::NumberEnum::Int;
 use edge_rules::test_support::ParseErrorEnum::{UnexpectedToken, UnknownError};
 use edge_rules::test_support::SpecialValueEnum::Missing;
+use edge_rules::test_support::{
+    expr, ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingError,
+    LinkingErrorEnum, NumberEnum, ParseErrorEnum, StaticLink, UserTypeBody, ValueEnum, ValueType,
+};
 use edge_rules::utils::to_display;
 use log::error;
 use std::fmt::Display;

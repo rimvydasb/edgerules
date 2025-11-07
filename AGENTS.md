@@ -69,6 +69,17 @@ Follow this loop for every change:
 - WASM features: `wasm` is the lean baseline; `wasm_debug` enables `console_error_panic_hook` for better panic traces in dev. Use `web-debug`/`node-debug` to build debug artifacts in separate folders to avoid shipping debug hooks.
 - Treat clippy warnings as hard errors—keep builds clean by default.
 
+## Code Review Guidelines
+
+The project goal is small WASM size first, performance second.
+When reviewing code, consider the following:
+- Check lifetime clarity
+- Detect boilerplate that can be abstracted
+- Ensure error handling is idiomatic
+- Check maintainability and readability
+- Check the ownership model
+- Remove unnecessary derive annotations #[derive(...)] that bloat binary size
+
 ## Debugging & Verification Playbook
 
 - Run the equivalent Rust test whenever a WASM demo breaks; most demos mirror helpers in `tests/`.

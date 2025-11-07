@@ -60,6 +60,52 @@ impl From<DuplicateNameError> for ContextUpdateErrorEnum {
     }
 }
 
+#[derive(Debug)]
+struct FieldPath<'a> {
+    segments: Vec<&'a str>,
+}
+
+impl<'a> FieldPath<'a> {
+    fn parse(input: &'a str) -> Result<Self, ContextUpdateErrorEnum> {
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Err(ContextUpdateErrorEnum::WrongFieldPathError(None));
+        }
+
+        let segments: Vec<&str> = trimmed.split('.').map(|segment| segment.trim()).collect();
+        if segments.iter().any(|segment| segment.is_empty()) {
+            return Err(ContextUpdateErrorEnum::WrongFieldPathError(Some(
+                trimmed.to_string(),
+            )));
+        }
+
+        Ok(FieldPath { segments })
+    }
+
+    fn parse_optional(input: &'a str) -> Option<Self> {
+        Self::parse(input).ok()
+    }
+
+    fn is_root(&self) -> bool {
+        self.segments.len() == 1
+    }
+
+    fn leaf(&self) -> &'a str {
+        self.segments
+            .last()
+            .copied()
+            .expect("FieldPath always contains at least one segment")
+    }
+
+    fn parent_segments(&self) -> &[&'a str] {
+        debug_assert!(
+            !self.is_root(),
+            "parent_segments should not be called for root paths"
+        );
+        &self.segments[..self.segments.len() - 1]
+    }
+}
+
 impl ParsedItem {
     pub fn into_error(self) -> EvalError {
         match self {
@@ -247,54 +293,48 @@ impl EdgeRulesModel {
         field_path: &str,
         expression: ExpressionEnum,
     ) -> Result<(), ContextUpdateErrorEnum> {
-        let segments = Self::split_field_path(field_path)?;
-        if segments.len() == 1 {
-            self.ast_root
-                .set_expression(segments[0], expression)
-                .map_err(ContextUpdateErrorEnum::from)?;
-            return Ok(());
+        let path = FieldPath::parse(field_path)?;
+        let field_name = path.leaf();
+
+        if path.is_root() {
+            return self
+                .ast_root
+                .set_expression(field_name, expression)
+                .map_err(ContextUpdateErrorEnum::from);
         }
 
-        let (parent_segments, field_name) = segments.split_at(segments.len() - 1);
-        let parent = self
-            .ast_root
-            .resolve_context(parent_segments)
-            .ok_or_else(|| {
-                ContextUpdateErrorEnum::ContextNotFoundError(parent_segments.join("."))
-            })?;
-
+        let parent = self.resolve_context_or_error(path.parent_segments())?;
         {
-            parent.borrow_mut().remove_field(field_name[0]);
+            parent.borrow_mut().remove_field(field_name);
         }
 
-        ContextObject::add_expression_field(&parent, field_name[0], expression)
+        ContextObject::add_expression_field(&parent, field_name, expression)
             .map_err(ContextUpdateErrorEnum::from)
     }
 
     pub fn remove_expression(&mut self, field_path: &str) -> Result<(), ContextUpdateErrorEnum> {
-        let segments = Self::split_field_path(field_path)?;
-        if segments.len() == 1 {
-            self.ast_root.remove_field(segments[0]);
+        let path = FieldPath::parse(field_path)?;
+        let field_name = path.leaf();
+
+        if path.is_root() {
+            self.ast_root.remove_field(field_name);
             return Ok(());
         }
 
-        let (parent_segments, field_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.resolve_context_or_error(parent_segments)?;
+        let parent = self.resolve_context_or_error(path.parent_segments())?;
         parent.borrow_mut().remove_field(field_name);
         Ok(())
     }
 
-    pub fn get_expression(
-        &self,
-        field_path: &str,
-    ) -> Option<Rc<RefCell<ExpressionEntry>>> {
-        let segments = Self::split_field_path(field_path).ok()?;
-        if segments.len() == 1 {
-            return self.ast_root.get_expression(segments[0]);
+    pub fn get_expression(&self, field_path: &str) -> Option<Rc<RefCell<ExpressionEntry>>> {
+        let path = FieldPath::parse_optional(field_path)?;
+        let field_name = path.leaf();
+
+        if path.is_root() {
+            return self.ast_root.get_expression(field_name);
         }
 
-        let (parent_segments, field_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.ast_root.resolve_context(parent_segments)?;
+        let parent = self.ast_root.resolve_context(path.parent_segments())?;
         let expression = {
             let borrowed = parent.borrow();
             borrowed.expressions.get(field_name).cloned()
@@ -307,45 +347,45 @@ impl EdgeRulesModel {
         type_path: &str,
         type_definition: UserTypeBody,
     ) -> Result<(), ContextUpdateErrorEnum> {
-        let segments = Self::split_field_path(type_path)?;
-        if segments.len() == 1 {
-            self.ast_root.remove_user_type_definition(segments[0]);
+        let path = FieldPath::parse(type_path)?;
+        let type_name = path.leaf();
+
+        if path.is_root() {
+            self.ast_root.remove_user_type_definition(type_name);
             self.ast_root
-                .set_user_type_definition(segments[0].to_string(), type_definition);
+                .set_user_type_definition(type_name.to_string(), type_definition);
             return Ok(());
         }
 
-        let (parent_segments, type_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.resolve_context_or_error(parent_segments)?;
+        let parent = self.resolve_context_or_error(path.parent_segments())?;
         ContextObject::remove_user_type_definition(&parent, type_name);
         ContextObject::set_user_type_definition(&parent, type_name, type_definition);
         Ok(())
     }
 
-    pub fn remove_user_type(
-        &mut self,
-        type_path: &str,
-    ) -> Result<(), ContextUpdateErrorEnum> {
-        let segments = Self::split_field_path(type_path)?;
-        if segments.len() == 1 {
-            self.ast_root.remove_user_type_definition(segments[0]);
+    pub fn remove_user_type(&mut self, type_path: &str) -> Result<(), ContextUpdateErrorEnum> {
+        let path = FieldPath::parse(type_path)?;
+        let type_name = path.leaf();
+
+        if path.is_root() {
+            self.ast_root.remove_user_type_definition(type_name);
             return Ok(());
         }
 
-        let (parent_segments, type_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.resolve_context_or_error(parent_segments)?;
+        let parent = self.resolve_context_or_error(path.parent_segments())?;
         ContextObject::remove_user_type_definition(&parent, type_name);
         Ok(())
     }
 
     pub fn get_user_type(&self, type_path: &str) -> Option<UserTypeBody> {
-        let segments = Self::split_field_path(type_path).ok()?;
-        if segments.len() == 1 {
-            return self.ast_root.get_user_type(segments[0]);
+        let path = FieldPath::parse_optional(type_path)?;
+        let type_name = path.leaf();
+
+        if path.is_root() {
+            return self.ast_root.get_user_type(type_name);
         }
 
-        let (parent_segments, type_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.ast_root.resolve_context(parent_segments)?;
+        let parent = self.ast_root.resolve_context(path.parent_segments())?;
         let user_type = {
             let borrowed = parent.borrow();
             borrowed.get_user_type(type_name)
@@ -363,17 +403,10 @@ impl EdgeRulesModel {
                 return self.insert_root_user_function(definition);
             }
 
-            let parent = self
-                .ast_root
-                .resolve_context(path.as_slice())
-                .ok_or_else(|| {
-                    ContextUpdateErrorEnum::ContextNotFoundError(path.join("."))
-                })?;
+            let parent = self.resolve_context_or_error(path.as_slice())?;
 
             {
-                parent
-                    .borrow_mut()
-                    .remove_field(definition.name.as_str());
+                parent.borrow_mut().remove_field(definition.name.as_str());
             }
 
             return ContextObject::add_user_function(&parent, definition)
@@ -387,53 +420,33 @@ impl EdgeRulesModel {
         &mut self,
         function_path: &str,
     ) -> Result<(), ContextUpdateErrorEnum> {
-        let segments = Self::split_field_path(function_path)?;
-        if segments.len() == 1 {
-            self.ast_root.remove_field(segments[0]);
+        let path = FieldPath::parse(function_path)?;
+        let function_name = path.leaf();
+
+        if path.is_root() {
+            self.ast_root.remove_field(function_name);
             return Ok(());
         }
 
-        let (parent_segments, function_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.resolve_context_or_error(parent_segments)?;
+        let parent = self.resolve_context_or_error(path.parent_segments())?;
         parent.borrow_mut().remove_field(function_name);
         Ok(())
     }
 
-    pub fn get_user_function(
-        &self,
-        function_path: &str,
-    ) -> Option<Rc<RefCell<MethodEntry>>> {
-        let segments = Self::split_field_path(function_path).ok()?;
-        if segments.len() == 1 {
-            return self.ast_root.get_user_function(segments[0]);
+    pub fn get_user_function(&self, function_path: &str) -> Option<Rc<RefCell<MethodEntry>>> {
+        let path = FieldPath::parse_optional(function_path)?;
+        let function_name = path.leaf();
+
+        if path.is_root() {
+            return self.ast_root.get_user_function(function_name);
         }
 
-        let (parent_segments, function_name) = Self::split_parent_and_leaf(&segments);
-        let parent = self.ast_root.resolve_context(parent_segments)?;
+        let parent = self.ast_root.resolve_context(path.parent_segments())?;
         let function = {
             let borrowed = parent.borrow();
             borrowed.get_function(function_name)
         };
         function
-    }
-
-    fn split_field_path(field_path: &str) -> Result<Vec<&str>, ContextUpdateErrorEnum> {
-        let trimmed = field_path.trim();
-        if trimmed.is_empty() {
-            return Err(ContextUpdateErrorEnum::WrongFieldPathError(None));
-        }
-
-        let segments: Vec<&str> = trimmed.split('.').map(|segment| segment.trim()).collect();
-        if segments.iter().any(|segment| segment.is_empty()) {
-            return Err(ContextUpdateErrorEnum::WrongFieldPathError(Some(trimmed.to_string())));
-        }
-
-        Ok(segments)
-    }
-
-    fn split_parent_and_leaf<'a>(segments: &'a [&'a str]) -> (&'a [&'a str], &'a str) {
-        let (parent, leaf) = segments.split_at(segments.len() - 1);
-        (parent, leaf[0])
     }
 
     fn resolve_context_or_error(
@@ -443,9 +456,7 @@ impl EdgeRulesModel {
         debug_assert!(!path_segments.is_empty());
         self.ast_root
             .resolve_context(path_segments)
-            .ok_or_else(|| {
-                ContextUpdateErrorEnum::ContextNotFoundError(path_segments.join("."))
-            })
+            .ok_or_else(|| ContextUpdateErrorEnum::ContextNotFoundError(path_segments.join(".")))
     }
 
     fn insert_root_user_function(
