@@ -1,12 +1,14 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
+use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
 use crate::ast::Link;
 use crate::link::linker;
-use crate::link::node_data::{ContentHolder, Node, NodeData};
+use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::LinkingError;
 use crate::typesystem::types::{ToSchema, ValueType};
+use crate::utils::intern_field_name;
 use log::trace;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -232,6 +234,71 @@ impl ContextObject {
             ValueType::ListType(None) => "[]".to_string(),
             _ => value_type.to_string(),
         }
+    }
+
+    pub fn remove_field(&mut self, field_name: &str) -> bool {
+        let Some(&interned) = self.field_name_set.get(field_name) else {
+            return false;
+        };
+
+        self.field_name_set.remove(interned);
+        self.all_field_names.retain(|&field| field != interned);
+        self.expressions.remove(interned);
+        self.metaphors.remove(interned);
+        self.node().get_childs().borrow_mut().remove(interned);
+
+        true
+    }
+
+    pub fn add_expression_field(
+        parent: &Rc<RefCell<ContextObject>>,
+        field_name: &str,
+        expression: ExpressionEnum,
+    ) -> Result<(), DuplicateNameError> {
+        let interned = intern_field_name(field_name);
+        match expression {
+            ExpressionEnum::StaticObject(obj) => {
+                {
+                    let mut parent_mut = parent.borrow_mut();
+                    parent_mut.insert_field_name(interned, NameKind::Field)?;
+                    parent_mut.node().add_child(interned, Rc::clone(&obj));
+                }
+                obj.borrow_mut().mut_node().node_type =
+                    NodeDataEnum::Child(interned, Rc::downgrade(parent));
+                Ok(())
+            }
+            other => {
+                let mut parent_mut = parent.borrow_mut();
+                parent_mut.insert_field_name(interned, NameKind::Field)?;
+                parent_mut
+                    .expressions
+                    .insert(interned, ExpressionEntry::from(other).into());
+                Ok(())
+            }
+        }
+    }
+
+    fn ensure_name_unique(
+        &self,
+        field_name: &'static str,
+        kind: NameKind,
+    ) -> Result<(), DuplicateNameError> {
+        if self.field_name_set.contains(field_name) {
+            return Err(DuplicateNameError::new(kind, field_name));
+        }
+
+        Ok(())
+    }
+
+    fn insert_field_name(
+        &mut self,
+        field_name: &'static str,
+        kind: NameKind,
+    ) -> Result<(), DuplicateNameError> {
+        self.ensure_name_unique(field_name, kind)?;
+        self.field_name_set.insert(field_name);
+        self.all_field_names.push(field_name);
+        Ok(())
     }
 }
 

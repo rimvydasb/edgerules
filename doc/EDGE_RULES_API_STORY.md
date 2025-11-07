@@ -52,8 +52,8 @@ Clarifications:
 ### Expressions API
 
 ```
-set_expression(field_name: &str, expression: ExpressionEnum) -> Result<(), ParseErrorEnum>
-remove_expression(field_name: &str) -> Result<(), ParseErrorEnum>
+set_expression(field_name: &str, expression: ExpressionEnum) -> Result<(), ContextUpdateErrorEnum>
+remove_expression(field_name: &str) -> Result<(), ContextUpdateErrorEnum>
 get_expression(field_name: &str) -> Option<Rc<RefCell<ExpressionEntry>>>
 ```
 
@@ -94,8 +94,8 @@ an internal structure is:
 ### User Types API
 
 ```
-set_user_type(type_name: &str, type_definition: UserTypeBody) -> Result<(), ParseErrorEnum>
-remove_user_type(type_name: &str) -> Result<(), ParseErrorEnum>
+set_user_type(type_name: &str, type_definition: UserTypeBody) -> Result<(), ContextUpdateErrorEnum>
+remove_user_type(type_name: &str) -> Result<(), ContextUpdateErrorEnum>
 get_user_type(type_name: &str) -> Option<UserTypeBody>
 ```
 
@@ -115,8 +115,8 @@ an exception should be thrown because `other` context does not exist yet.
 ### User Functions API
 
 ```
-set_user_function(definition: FunctionDefinition, context_path: Option<Vec<&'static str>>) -> Result<(), ParseErrorEnum>
-remove_user_function(function_name: &str) -> Result<(), ParseErrorEnum>
+set_user_function(definition: FunctionDefinition, context_path: Option<Vec<&'static str>>) -> Result<(), ContextUpdateErrorEnum>
+remove_user_function(function_name: &str) -> Result<(), ContextUpdateErrorEnum>
 get_user_function(function_name: &str) -> Option<Rc<RefCell<MethodEntry>>>
 ```
 
@@ -144,7 +144,7 @@ the internal structure is:
 ### Context Objects & Source ingestion
 
 ```
-merge_context_object(object: Rc<RefCell<ContextObject>>) -> Result<(), ParseErrorEnum>
+merge_context_object(object: Rc<RefCell<ContextObject>>) -> Result<(), ContextUpdateErrorEnum>
 append_source(code: &str) -> Result<(), ParseErrors>
 ```
 
@@ -153,5 +153,6 @@ append_source(code: &str) -> Result<(), ParseErrors>
 
 # Todo:
 
-- [ ] Implement `set_expression`
-- [ ] Implement `set_expression` with nested context creation
+- [ ] Implement Expressions API
+- [ ] Implement User Types API
+- [ ] Implement User Functions API

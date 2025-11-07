@@ -91,6 +91,15 @@ impl ContextObjectBuilder {
         Ok(self)
     }
 
+    pub fn set_expression(
+        &mut self,
+        field_name: &str,
+        expression: ExpressionEnum,
+    ) -> Result<(), DuplicateNameError> {
+        self.remove_field(field_name);
+        self.add_expression(field_name, expression).map(|_| ())
+    }
+
     pub fn add_definition(
         &mut self,
         field: DefinitionEnum,
@@ -203,6 +212,44 @@ impl ContextObjectBuilder {
         }
 
         Ok(self)
+    }
+
+    pub fn get_child_context(&self, name: &str) -> Option<Rc<RefCell<ContextObject>>> {
+        self.childs.get(name).cloned()
+    }
+
+    pub fn resolve_context(&self, path_segments: &[&str]) -> Option<Rc<RefCell<ContextObject>>> {
+        if path_segments.is_empty() {
+            return None;
+        }
+
+        let mut current = self.get_child_context(path_segments[0])?;
+        for segment in path_segments.iter().skip(1) {
+            let next = {
+                let ctx_ref = current.borrow();
+                ctx_ref.node().get_child(segment)
+            };
+            match next {
+                Some(child) => current = child,
+                None => return None,
+            }
+        }
+
+        Some(current)
+    }
+
+    pub fn remove_field(&mut self, name: &str) -> bool {
+        let Some(&interned) = self.field_name_set.get(name) else {
+            return false;
+        };
+
+        self.field_name_set.remove(interned);
+        self.field_names.retain(|&field| field != interned);
+        self.fields.remove(interned);
+        self.metaphors.remove(interned);
+        self.childs.remove(interned);
+
+        true
     }
 
     pub fn get_field_names(&self) -> Vec<&'static str> {

@@ -42,6 +42,23 @@ pub enum ParsedItem {
     Definition(DefinitionEnum),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContextUpdateErrorEnum {
+    DuplicateNameError(DuplicateNameError),
+
+    // returns context path that was not found
+    ContextNotFoundError(String),
+
+    // returns wrong path or empty if path is empty
+    WrongFieldPathError(Option<String>),
+}
+
+impl From<DuplicateNameError> for ContextUpdateErrorEnum {
+    fn from(err: DuplicateNameError) -> Self {
+        ContextUpdateErrorEnum::DuplicateNameError(err)
+    }
+}
+
 impl ParsedItem {
     pub fn into_error(self) -> EvalError {
         match self {
@@ -224,6 +241,49 @@ impl EdgeRulesModel {
         }
     }
 
+    pub fn set_expression(
+        &mut self,
+        field_path: &str,
+        expression: ExpressionEnum,
+    ) -> Result<(), ContextUpdateErrorEnum> {
+        let segments = Self::split_field_path(field_path)?;
+        if segments.len() == 1 {
+            self.ast_root
+                .set_expression(segments[0], expression)
+                .map_err(ContextUpdateErrorEnum::from)?;
+            return Ok(());
+        }
+
+        let (parent_segments, field_name) = segments.split_at(segments.len() - 1);
+        let parent = self
+            .ast_root
+            .resolve_context(parent_segments)
+            .ok_or_else(|| {
+                ContextUpdateErrorEnum::ContextNotFoundError(parent_segments.join("."))
+            })?;
+
+        {
+            parent.borrow_mut().remove_field(field_name[0]);
+        }
+
+        ContextObject::add_expression_field(&parent, field_name[0], expression)
+            .map_err(ContextUpdateErrorEnum::from)
+    }
+
+    fn split_field_path(field_path: &str) -> Result<Vec<&str>, ContextUpdateErrorEnum> {
+        let trimmed = field_path.trim();
+        if trimmed.is_empty() {
+            return Err(ContextUpdateErrorEnum::WrongFieldPathError(None));
+        }
+
+        let segments: Vec<&str> = trimmed.split('.').map(|segment| segment.trim()).collect();
+        if segments.iter().any(|segment| segment.is_empty()) {
+            return Err(ContextUpdateErrorEnum::WrongFieldPathError(Some(trimmed.to_string())));
+        }
+
+        Ok(segments)
+    }
+
     pub fn load_source(&mut self, code: &str) -> Result<(), ParseErrors> {
         let parsed = Self::parse_item(code)?;
 
@@ -357,9 +417,12 @@ pub fn expr(code: &str) -> Result<ExpressionEnum, EvalError> {
 
 #[cfg(test)]
 pub mod test {
+    use crate::ast::context::context_object_builder::ContextObjectBuilder;
     use crate::ast::expression::StaticLink;
     use crate::ast::token::{EToken, EUnparsedToken, ExpressionEnum};
-    use crate::runtime::edge_rules::{EdgeRulesModel, EdgeRulesRuntime, EvalError, ParseErrors};
+    use crate::runtime::edge_rules::{
+        ContextUpdateErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, ParseErrors,
+    };
 
     use crate::typesystem::errors::ParseErrorEnum::{UnexpectedToken, UnknownError};
     use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
@@ -695,6 +758,123 @@ pub mod test {
         let runtime = service.to_runtime_snapshot()?;
         let result = runtime.evaluate_expression_str("value")?;
         assert_eq!(result, ValueEnum::NumberValue(Int(3)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn set_expression_adds_root_field() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service
+            .set_expression("enabled", ExpressionEnum::from(true))
+            .expect("set root expression");
+
+        let runtime = service.to_runtime_snapshot()?;
+        let result = runtime.evaluate_field("enabled")?;
+        assert_eq!(result.to_string(), "true");
+
+        Ok(())
+    }
+
+    #[test]
+    fn set_expression_overrides_existing_field() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service
+            .set_expression("enabled", ExpressionEnum::from(true))
+            .expect("set root expression");
+        service
+            .set_expression("enabled", ExpressionEnum::from(false))
+            .expect("override expression");
+
+        let runtime = service.to_runtime_snapshot()?;
+        let result = runtime.evaluate_field("enabled")?;
+        assert_eq!(result.to_string(), "false");
+
+        Ok(())
+    }
+
+    #[test]
+    fn set_expression_errors_when_context_missing() {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        let error = service
+            .set_expression("other.enabled", ExpressionEnum::from(true))
+            .expect_err("missing context should fail");
+
+        match error {
+            ContextUpdateErrorEnum::ContextNotFoundError(path) => {
+                assert_eq!(path, "other");
+            }
+            other => panic!("unexpected error: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn set_expression_updates_nested_context_when_present() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        let nested = ContextObjectBuilder::new().build();
+        service
+            .set_expression("other", ExpressionEnum::StaticObject(nested))
+            .expect("insert nested context");
+        service
+            .set_expression("other.enabled", ExpressionEnum::from(true))
+            .expect("set nested expression");
+
+        let runtime = service.to_runtime_snapshot()?;
+        let result = runtime.evaluate_field("other.enabled")?;
+        assert_eq!(result.to_string(), "true");
+
+        Ok(())
+    }
+
+    #[test]
+    fn set_expression_root_context_accepts_complex_expression() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        let value_expression = expr("2 + 3")?;
+        service
+            .set_expression("sum", value_expression)
+            .expect("set sum expression");
+
+        let runtime = service.to_runtime_snapshot()?;
+        let result = runtime.evaluate_field("sum")?;
+        assert_eq!(result.to_string(), "5");
+
+        Ok(())
+    }
+
+    #[test]
+    fn set_expression_supports_multi_segment_paths() -> Result<(), EvalError> {
+        init_logger();
+
+        let mut service = EdgeRulesModel::new();
+        service
+            .set_expression(
+                "settings",
+                ExpressionEnum::StaticObject(ContextObjectBuilder::new().build()),
+            )
+            .expect("create settings context");
+        service
+            .set_expression(
+                "settings.network",
+                ExpressionEnum::StaticObject(ContextObjectBuilder::new().build()),
+            )
+            .expect("create settings.network context");
+        service
+            .set_expression("settings.network.enabled", ExpressionEnum::from(true))
+            .expect("set nested flag");
+
+        let runtime = service.to_runtime_snapshot()?;
+        let result = runtime.evaluate_field("settings.network.enabled")?;
+        assert_eq!(result.to_string(), "true");
 
         Ok(())
     }
