@@ -9,6 +9,8 @@
 ## New EdgeRules API
 
 The goal is to bring a flexible full CRUD API for Edge Rules management.
+Later on, this API can be exposed via WASM bindings where user will be able to add required expression,
+user types, user functions, and context objects defined in JsValue format.
 
 Clarifications:
 1. set operations override existing entries if the name already exists.
@@ -25,6 +27,9 @@ field names are supported (e.g., "model.enabled", "model.settings.threshold").
 - get_expression(expression_name: &str) -> Option<Rc<RefCell<ExpressionEntry>>>
 
 Example: `...set_expression("model.enabled", ...)?`
+
+Questions:
+1. Do I need to use Box<ExpressionEnum> or ExpressionEnum?
 
 ### User Types API
 
@@ -43,4 +48,8 @@ Example: `...set_expression("model.enabled", ...)?`
 - merge_context_object(Rc<RefCell<ContextObject>>) -> Result<(), EdgeRulesError>
 - append_source(&str) -> Result<(), ParseErrors>
 
-> _append_source_ is renamed older _load_source_ method.
+> _append_source_ is renamed older _load_source_ method. append_source method is rewritten 
+> to use new API internally.
+
+Questions:
+1. 
