@@ -326,8 +326,9 @@ pub mod test {
 
     use crate::link::linker::link_parts;
     use crate::link::node_data::ContentHolder;
-    use crate::runtime::edge_rules::{expr, EvalError};
+    use crate::runtime::edge_rules::EvalError;
     use crate::runtime::execution_context::ExecutionContext;
+    use crate::test_support::expr;
     use crate::typesystem::types::TypedValue;
     use crate::typesystem::values::ValueEnum;
     use crate::utils::test::init_logger;

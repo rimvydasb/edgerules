@@ -1,5 +1,6 @@
 mod utilities;
 pub use utilities::*;
+use edge_rules::test_support::expr;
 
 // Dedicated coverage for user-defined functions (custom functions)
 
@@ -152,7 +153,7 @@ fn cannot_define_user_function_inside_list_literal() {
     // Parse as a pure expression to ensure the function definition token appears inside the sequence.
     // Expect: "Function definition is not allowed in sequence"
     let expr_str = "[ func myFunc(a): { out: a } ]";
-    match edge_rules::runtime::edge_rules::expr(expr_str) {
+    match expr(expr_str) {
         Ok(_) => panic!("expected parse error, but expression parsed successfully"),
         Err(e) => {
             let msg = format!("{}", e);

@@ -132,7 +132,7 @@ impl EvaluatableExpression for VariableLink {
                     let expected_type = self
                         .variable_type
                         .clone()
-                        .unwrap_or_else(|err| ValueType::UndefinedType);
+                        .unwrap_or_else(|_| ValueType::UndefinedType);
                     let missing = missing_for_type(&expected_type, Some(field.as_str()), &context)?;
                     return Ok(missing);
                 } else {

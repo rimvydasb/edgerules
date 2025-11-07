@@ -218,6 +218,26 @@ impl ContextObjectBuilder {
         self.childs.get(name).cloned()
     }
 
+    pub fn get_expression(&self, name: &str) -> Option<Rc<RefCell<ExpressionEntry>>> {
+        self.fields.get(name).cloned()
+    }
+
+    pub fn get_user_function(&self, name: &str) -> Option<Rc<RefCell<MethodEntry>>> {
+        self.metaphors.get(name).cloned()
+    }
+
+    pub fn get_user_type(&self, name: &str) -> Option<UserTypeBody> {
+        self.defined_types.get(name).cloned()
+    }
+
+    pub fn set_user_type_definition(&mut self, name: String, body: UserTypeBody) {
+        self.defined_types.insert(name, body);
+    }
+
+    pub fn remove_user_type_definition(&mut self, name: &str) -> bool {
+        self.defined_types.remove(name).is_some()
+    }
+
     pub fn resolve_context(&self, path_segments: &[&str]) -> Option<Rc<RefCell<ContextObject>>> {
         if path_segments.is_empty() {
             return None;

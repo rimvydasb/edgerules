@@ -4,11 +4,10 @@ use std::rc::Rc;
 
 use edge_rules::runtime::edge_rules::DefinitionEnum::UserFunction as UserFunctionDef;
 use edge_rules::runtime::{
-    edge_rules::{
-        expr, link_parts, ContextObjectBuilder, EvalError, ExpressionEnum, FunctionDefinition,
-    },
+    edge_rules::{link_parts, ContextObjectBuilder, EvalError, ExpressionEnum, FunctionDefinition},
     ToSchema,
 };
+use edge_rules::test_support::expr;
 use log::info;
 pub use utilities::*;
 

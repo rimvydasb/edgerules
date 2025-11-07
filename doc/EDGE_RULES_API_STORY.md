@@ -153,6 +153,6 @@ append_source(code: &str) -> Result<(), ParseErrors>
 
 # Todo:
 
-- [ ] Implement Expressions API
-- [ ] Implement User Types API
-- [ ] Implement User Functions API
+- [x] Implement Expressions API
+- [x] Implement User Types API
+- [x] Implement User Functions API

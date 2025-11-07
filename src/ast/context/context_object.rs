@@ -152,6 +152,10 @@ impl ContextObject {
         Some(Rc::clone(self.metaphors.get(name)?))
     }
 
+    pub fn get_user_type(&self, name: &str) -> Option<UserTypeBody> {
+        self.defined_types.get(name).cloned()
+    }
+
     pub fn resolve_type_ref(&self, tref: &ComplexTypeRef) -> Result<ValueType, LinkingError> {
         match tref {
             ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
@@ -278,6 +282,56 @@ impl ContextObject {
         }
     }
 
+    pub fn add_user_function(
+        parent: &Rc<RefCell<ContextObject>>,
+        definition: FunctionDefinition,
+    ) -> Result<(), DuplicateNameError> {
+        let interned = intern_field_name(definition.name.as_str());
+        let method_entry: Rc<RefCell<MethodEntry>> = MethodEntry::from(definition).into();
+
+        {
+            let mut parent_mut = parent.borrow_mut();
+            parent_mut.insert_field_name(interned, NameKind::Function)?;
+            parent_mut
+                .metaphors
+                .insert(interned, Rc::clone(&method_entry));
+        }
+
+        {
+            let body = {
+                let method_ref = method_entry.borrow();
+                Rc::clone(&method_ref.function_definition.body)
+            };
+            body.borrow_mut().node.node_type =
+                NodeDataEnum::Internal(Rc::downgrade(parent));
+        }
+
+        Ok(())
+    }
+
+    pub fn set_user_type_definition(
+        parent: &Rc<RefCell<ContextObject>>,
+        name: &str,
+        body: UserTypeBody,
+    ) {
+        if let UserTypeBody::TypeObject(obj) = &body {
+            obj.borrow_mut().node.node_type =
+                NodeDataEnum::Internal(Rc::downgrade(parent));
+        }
+
+        parent
+            .borrow_mut()
+            .defined_types
+            .insert(name.to_string(), body);
+    }
+
+    pub fn remove_user_type_definition(
+        parent: &Rc<RefCell<ContextObject>>,
+        name: &str,
+    ) -> bool {
+        parent.borrow_mut().defined_types.remove(name).is_some()
+    }
+
     fn ensure_name_unique(
         &self,
         field_name: &'static str,
@@ -351,7 +405,8 @@ pub mod test {
     use crate::ast::token::ExpressionEnum;
     use crate::link::linker::{get_till_root, link_parts};
     use crate::link::node_data::ContentHolder;
-    use crate::runtime::edge_rules::{expr, EvalError};
+    use crate::runtime::edge_rules::EvalError;
+    use crate::test_support::expr;
     use crate::typesystem::types::ToSchema;
 
     use crate::utils::test::init_logger;

@@ -343,5 +343,4 @@ fn incredibly_nested_vl_record_example() {
 
 mod utilities;
 
-use edge_rules::runtime::ToSchema;
 pub use utilities::*;
