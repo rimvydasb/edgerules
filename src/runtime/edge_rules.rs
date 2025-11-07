@@ -5,7 +5,6 @@ use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
 use crate::ast::user_function_call::UserFunctionCall;
 use crate::ast::utils::array_to_code_sep;
-use crate::link::linker;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::parser::tokenize;
 use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
@@ -248,23 +247,26 @@ impl EdgeRulesModel {
         Ok(())
     }
 
+    /// Converts the model into a runtime instance.
+    /// No further code modifications allowed after this call
     pub fn to_runtime(self) -> Result<EdgeRulesRuntime, LinkingError> {
         let static_context = self.ast_root.build();
-        link_parts(Rc::clone(&static_context))?;
-        Ok(EdgeRulesRuntime::new(static_context))
+        Ok(EdgeRulesRuntime::new(link_parts(static_context)?))
     }
 
+    /// Gets a runtime snapshot of the current model state.
+    /// Model can be further modified after this call
     pub fn to_runtime_snapshot(&mut self) -> Result<EdgeRulesRuntime, LinkingError> {
         let current_builder = std::mem::take(&mut self.ast_root);
         let static_context = current_builder.build();
-        let result = match linker::link_parts(Rc::clone(&static_context)) {
-            Ok(()) => Ok(EdgeRulesRuntime::new(Rc::clone(&static_context))),
-            Err(err) => Err(err),
-        };
+        let linked_context = link_parts(static_context)?;
+        let result = EdgeRulesRuntime::new(Rc::clone(&linked_context));
+        // @Todo: need to find a cheaper way to clone the AST tree
+        // @Todo: need to find a way to preserve already set links to speed up the next linking
         self.ast_root
-            .append(static_context)
+            .append(linked_context)
             .map_err(|err| LinkingError::other_error(err.to_string()))?;
-        result
+        Ok(result)
     }
 }
 

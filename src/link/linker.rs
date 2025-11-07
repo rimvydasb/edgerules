@@ -23,7 +23,7 @@ use std::rc::Rc;
 // - is responsible for linking all the expressions in the AST.
 
 // @Todo: is it possible or necessary to prevent re-execution of the same code?
-pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
+pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<ContextObject>>> {
     trace!("link_parts: {}(..)", context.borrow().node().node_type);
 
     let field_names = context.borrow().get_field_names();
@@ -31,7 +31,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
 
     for name in field_names {
         match context.borrow().get(name)? {
-            EObjectContent::ExpressionRef(expression) => {
+            ExpressionRef(expression) => {
                 context.borrow().node().lock_field(name)?;
 
                 let linked_type = {
@@ -65,10 +65,10 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
 
                 linked_type?;
             }
-            EObjectContent::ObjectRef(reference) => {
+            ObjectRef(reference) => {
                 references.push((name, reference));
             }
-            EObjectContent::Definition(ObjectType(reference)) => {
+            Definition(ObjectType(reference)) => {
                 references.push((name, reference));
             }
             _ => {
@@ -82,7 +82,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<()> {
         link_parts(Rc::clone(&reference))?;
     }
 
-    Ok(())
+    Ok(context)
 }
 
 pub fn find_implementation(
