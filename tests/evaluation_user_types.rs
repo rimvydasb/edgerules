@@ -18,7 +18,7 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
     .trim();
     let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
     service
-        .load_source(code1)
+        .append_source(code1)
         .expect("parse type with placeholders");
 
     // 2) Using a function in type body should fail
@@ -31,7 +31,7 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
     }
     "#
     .trim();
-    let err2 = service.load_source(code2).err().unwrap().to_string();
+    let err2 = service.append_source(code2).err().unwrap().to_string();
     assert!(
         err2.to_lowercase()
             .contains(&"Type definition cannot contain function definitions".to_lowercase()),
@@ -43,7 +43,7 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
     // Should parse and link with no errors
     let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
     service
-        .load_source(
+        .append_source(
             r#"
             {
                 type Person: {}
@@ -172,7 +172,7 @@ fn cast_primitive_to_number_changes_do_not_change_type() {
     "#
     .trim();
     let mut service = EdgeRulesModel::new();
-    service.load_source(code).unwrap();
+    service.append_source(code).unwrap();
     let runtime_snapshot = service.to_runtime_snapshot().expect("runtime snapshot");
     let value = runtime_snapshot
         .evaluate_field("y")
@@ -188,7 +188,7 @@ fn cast_primitive_to_number_changes_do_not_change_type() {
 fn cast_object_to_alias_shape_links_type() {
     let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
     service
-        .load_source(
+        .append_source(
             r#"
             {
                 type Point: { x: <number>; y: <number> }
@@ -208,7 +208,7 @@ fn cast_object_to_alias_shape_links_type() {
 fn cast_list_to_alias_of_number_list() {
     let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
     service
-        .load_source(
+        .append_source(
             r#"
             {
                 type NumList: <number[]>
@@ -227,7 +227,7 @@ fn cast_list_to_alias_of_number_list() {
 fn cast_to_nested_alias() {
     let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
     service
-        .load_source(
+        .append_source(
             r#"
             {
                 type Customer: {name: <string>; birthdate: <date>; income: <number>}
@@ -516,7 +516,7 @@ fn special_values_are_set_in_function_argument() {
 fn to_schema_lists_defined_types_and_fields() {
     let mut service = EdgeRulesModel::new();
     service
-        .load_source(
+        .append_source(
             r#"
             {
                 type Customer: {valid: <boolean>; name: <string>; birthdate: <date>; birthtime: <time>; birthdatetime: <datetime>; income: <number>}

@@ -5,7 +5,7 @@ pub use utilities::*;
 fn assert_type_string(lines: &[&str], expected: &str) {
     let code = format!("{{\n{}\n}}", lines.join("\n"));
     let mut service = EdgeRulesModel::new();
-    let _ = service.load_source(&code);
+    let _ = service.append_source(&code);
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_schema();
     assert_eq!(ty, expected);
@@ -14,7 +14,7 @@ fn assert_type_string(lines: &[&str], expected: &str) {
 fn assert_type_fields_unordered(lines: &[&str], expected_fields: &[&str]) {
     let code = format!("{{\n{}\n}}", lines.join("\n"));
     let mut service = EdgeRulesModel::new();
-    let _ = service.load_source(&code);
+    let _ = service.append_source(&code);
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_schema();
     assert!(ty.starts_with('{') && ty.ends_with('}'));

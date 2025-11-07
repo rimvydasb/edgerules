@@ -9,11 +9,11 @@ implementable.
 
 The current public API on `EdgeRulesModel` is limited to:
 
-- `load_source(&str) -> Result<(), ParseErrors>`
+- `append_source(&str) -> Result<(), ParseErrors>` (legacy: `load_source`)
 - `to_runtime(self) -> Result<EdgeRulesRuntime, LinkingError>`
 - `to_runtime_snapshot(&mut self) -> Result<EdgeRulesRuntime, LinkingError>`
 
-`load_source` tokenizes the provided string via `tokenizer::parser::tokenize` (which itself uses
+`append_source` tokenizes the provided string via `tokenizer::parser::tokenize` (which itself uses
 `ASTBuilder` to reduce the token stream) and feeds the resulting expressions or definitions into
 `ContextObjectBuilder`. Once the caller is ready to execute rules, the builder is turned into a
 `ContextObject` tree and linked (`link_parts`) to produce an `EdgeRulesRuntime`.
@@ -38,7 +38,7 @@ where user edits and executes code on the fly.
 4. Avoid introducing new error types unless absolutely required; reuse `ParseErrorEnum`,
    `ParseErrors`, and `LinkingError`.
 5. Do not silently mutate nested structures—the caller must intentionally provide nested
-   `ContextObject`s (exactly how `load_source` behaves today).
+   `ContextObject`s (exactly how `append_source` behaves today).
 
 ## Core Building Blocks
 
@@ -148,11 +148,9 @@ merge_context_object(object: Rc<RefCell<ContextObject>>) -> Result<(), ContextUp
 append_source(code: &str) -> Result<(), ParseErrors>
 ```
 
-> _append_source_ is renamed older _load_source_ method. append_source method is rewritten
-> to use new API internally.
+> _append_source_ replaces the older _load_source_ method (which remains temporarily as a thin wrapper).
+> The new append_source implementation routes through the CRUD APIs so behavior stays consistent.
 
 # Todo:
 
-- [x] Implement Expressions API
-- [x] Implement User Types API
-- [x] Implement User Functions API
+- [x] Context Objects & Source ingestion API

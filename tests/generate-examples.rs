@@ -59,7 +59,7 @@ fn main() -> std::io::Result<()> {
             // Not a placeholder: this is an example input block. Evaluate and store for the next placeholder.
             let code = block_lines.join("\n");
             let mut service = EdgeRulesModel::new();
-            let result = match service.load_source(&code) {
+            let result = match service.append_source(&code) {
                 Ok(()) => match service.to_runtime() {
                     Ok(runtime) => match runtime.eval_all() {
                         Ok(()) => runtime.context.borrow().to_code(),

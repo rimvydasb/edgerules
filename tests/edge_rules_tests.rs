@@ -42,7 +42,7 @@ impl TestServiceBuilder {
     pub fn build(code: &str) -> Self {
         let mut service = EdgeRulesModel::new();
 
-        match service.load_source(code) {
+        match service.append_source(code) {
             Ok(_model) => match service.to_runtime() {
                 Ok(runtime) => TestServiceBuilder {
                     original_code: code.to_string(),
@@ -181,18 +181,14 @@ fn test_service() -> Result<(), EvalError> {
 
     {
         let mut service = EdgeRulesModel::new();
-        service.load_source("value: 2 + 2")?;
-        let duplicate = service.load_source("value: 2 + 3");
-        let errors = duplicate.expect_err("duplicate field should fail");
-        let first_error = errors
-            .errors()
-            .first()
-            .expect("expected duplicate field error");
-        assert!(first_error.to_string().contains("value"));
+        service.append_source("value: 2 + 2")?;
+        service
+            .append_source("value: 2 + 3")
+            .expect("append second expression");
 
         let runtime = service.to_runtime()?;
         let result = runtime.evaluate_field("value")?;
-        assert_eq!(result, ValueEnum::NumberValue(Int(4)));
+        assert_eq!(result, ValueEnum::NumberValue(Int(5)));
     }
 
     test_code("value").expect_parse_error(UnexpectedToken(
@@ -212,27 +208,23 @@ fn test_service_evaluate_field_with_existing_state() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("{ value: 3 }")?;
+    service.append_source("{ value: 3 }")?;
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_field("value")?;
     assert_eq!(result.to_string(), "3");
 
-    let duplicate = service.load_source("value: 2 + 2");
-    let errors = duplicate.expect_err("duplicate field should fail");
-    let first_error = errors
-        .errors()
-        .first()
-        .expect("expected duplicate field error");
-    assert!(first_error.to_string().contains("value"));
+    service
+        .append_source("value: 2 + 2")
+        .expect("append new expression");
 
     let runtime = service.to_runtime_snapshot()?;
-    let still_three = runtime.evaluate_field("value")?;
-    assert_eq!(still_three.to_string(), "3");
+    let updated = runtime.evaluate_field("value")?;
+    assert_eq!(updated.to_string(), "4");
 
-    service.load_source("extra: value + 2")?;
+    service.append_source("extra: value + 2")?;
     let runtime = service.to_runtime_snapshot()?;
     let extra = runtime.evaluate_field("extra")?;
-    assert_eq!(extra.to_string(), "5");
+    assert_eq!(extra.to_string(), "6");
 
     Ok(())
 }
@@ -242,7 +234,8 @@ fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
+    service
+        .append_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
 
     let runtime = service.to_runtime_snapshot()?;
     let out1 = runtime.evaluate_field("calendar.config.start")?;
@@ -251,7 +244,7 @@ fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
     let out2 = runtime.evaluate_field("calendar.sub.inner.value")?;
     assert_eq!(out2.to_string(), "42");
 
-    let duplicate = service.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }");
+    let duplicate = service.append_source("{ calendar: { config: { start: 7; end: start + 5 } } }");
     let errors = duplicate.expect_err("duplicate calendar should fail");
     let first_error = errors
         .errors()
@@ -279,7 +272,7 @@ fn test_evaluate_expression_with_loaded_context() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("{ value: 3 }")?;
+    service.append_source("{ value: 3 }")?;
 
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_expression_str("2 + value")?;
@@ -319,16 +312,62 @@ fn test_evaluate_expression_unknown_variable_fails() {
 }
 
 #[test]
-fn load_source_accepts_user_function_definition() -> Result<(), EvalError> {
+fn append_source_accepts_user_function_definition() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("func inc(value): { result: value + 1 }")?;
-    service.load_source("{ value: inc(2).result }")?;
+    service.append_source("func inc(value): { result: value + 1 }")?;
+    service.append_source("{ value: inc(2).result }")?;
 
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_expression_str("value")?;
     assert_eq!(result, ValueEnum::NumberValue(Int(3)));
+
+    Ok(())
+}
+
+#[test]
+fn merge_context_object_appends_new_fields() -> Result<(), EvalError> {
+    init_logger();
+
+    let mut service = EdgeRulesModel::new();
+    let mut builder = ContextObjectBuilder::new();
+    builder
+        .set_expression("value", expr("1 + 1")?)
+        .expect("set expression");
+    let context = builder.build();
+
+    service
+        .merge_context_object(context)
+        .expect("merge context object");
+    let runtime = service.to_runtime()?;
+    let result = runtime.evaluate_field("value")?;
+    assert_eq!(result.to_string(), "2");
+
+    Ok(())
+}
+
+#[test]
+fn merge_context_object_rejects_duplicate_fields() -> Result<(), EvalError> {
+    init_logger();
+
+    let mut service = EdgeRulesModel::new();
+    service
+        .set_expression("value", expr("1")?)
+        .expect("set expression");
+
+    let mut builder = ContextObjectBuilder::new();
+    builder
+        .set_expression("value", expr("2")?)
+        .expect("set expression");
+    let context = builder.build();
+
+    match service.merge_context_object(context) {
+        Err(ContextUpdateErrorEnum::DuplicateNameError(err)) => {
+            assert_eq!(err.name, "value");
+        }
+        other => panic!("expected duplicate error, got {:?}", other),
+    }
 
     Ok(())
 }
@@ -604,7 +643,7 @@ fn test_evaluate_expression_with_function_indirect() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("{ func f(a): { result: a + 1 }; tmp: f(2).result }")?;
+    service.append_source("{ func f(a): { result: a + 1 }; tmp: f(2).result }")?;
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_expression_str("tmp")?;
     assert_eq!(result, ValueEnum::NumberValue(Int(3)));
@@ -617,7 +656,7 @@ fn call_method_errors_when_function_missing() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("{ value: 1 }")?;
+    service.append_source("{ value: 1 }")?;
     let runtime = service.to_runtime_snapshot()?;
 
     let err = runtime
@@ -638,7 +677,7 @@ fn call_method_errors_when_argument_count_mismatches() -> Result<(), EvalError> 
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source("{ func greet(name, age): { result: name } }")?;
+    service.append_source("{ func greet(name, age): { result: name } }")?;
     let runtime = service.to_runtime_snapshot()?;
 
     let err = runtime
@@ -659,7 +698,7 @@ fn call_method_happy_path_with_single_and_multiple_arguments() -> Result<(), Eva
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source(
+    service.append_source(
         "{ func inc(x): { result: x + 1 }; func add(left, right): { result: left + right } }",
     )?;
     let runtime = service.to_runtime_snapshot()?;
@@ -678,7 +717,7 @@ fn call_method_type_mismatch_does_not_poison_context() -> Result<(), EvalError> 
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source(
+    service.append_source(
             "{ type LoanOffer: { amount: <number> }; func inc(offer: LoanOffer): { result: offer.amount + 1 } }",
         )?;
     let runtime = service.to_runtime_snapshot()?;
@@ -706,7 +745,7 @@ fn call_method_list_iteration() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.load_source(
+    service.append_source(
         r#"
         {
             func interpolate(baseline: number[]) : {

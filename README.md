@@ -75,16 +75,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a model builder
     let mut model = EdgeRules::new();
 
-    // Load some code (can be called multiple times to extend/override)
-    model.load_source("{ value: 3 }")?;
+    // Append some code (can be called multiple times to extend/override)
+    model.append_source("{ value: 3 }")?;
 
     // Evaluate a pure expression using the loaded context without consuming the builder
     let runtime = model.to_runtime_snapshot()?;
     let val = runtime.evaluate_expression_str("2 + value")?;
     assert_eq!(val.to_string(), "5");
 
-    // Load more source and reuse the same builder
-    model.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
+    // Append more source and reuse the same builder
+    model.append_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
 
     // Build a fresh runtime snapshot to evaluate fields
     let runtime = model.to_runtime_snapshot()?;

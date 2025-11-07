@@ -27,7 +27,7 @@ pub fn run() {
         }
         _ => {
             let mut service = EdgeRulesModel::new();
-            match service.load_source(&code) {
+            match service.append_source(&code) {
                 Ok(()) => match service.to_runtime() {
                     Ok(runtime) => match runtime.eval_all() {
                         Ok(()) => println!("{}", runtime.context.borrow().to_code()),
@@ -43,7 +43,7 @@ pub fn run() {
 
 fn eval_value(code: &str) -> Result<Option<String>, String> {
     let mut service = EdgeRulesModel::new();
-    service.load_source(code).map_err(|e| e.to_string())?;
+    service.append_source(code).map_err(|e| e.to_string())?;
     let runtime = service.to_runtime().map_err(|e| e.to_string())?;
 
     match runtime.evaluate_field("value") {

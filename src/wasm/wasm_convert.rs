@@ -20,7 +20,7 @@ use wasm_bindgen::{JsCast, JsValue};
 
 pub fn evaluate_all_inner(code: &str) -> Result<JsValue, String> {
     let mut service = EdgeRulesModel::new();
-    service.load_source(code).map_err(|err| err.to_string())?;
+    service.append_source(code).map_err(|err| err.to_string())?;
     let runtime = service.to_runtime().map_err(|err| err.to_string())?;
     runtime.eval_all().map_err(|err| err.to_string())?;
     let context = Rc::clone(&runtime.context);
@@ -40,7 +40,7 @@ pub fn evaluate_expression_inner(code: &str) -> Result<JsValue, String> {
 
 pub fn evaluate_field_inner(code: &str, field: &str) -> Result<JsValue, String> {
     let mut service = EdgeRulesModel::new();
-    service.load_source(code).map_err(|err| err.to_string())?;
+    service.append_source(code).map_err(|err| err.to_string())?;
     let runtime = service.to_runtime().map_err(|err| err.to_string())?;
     let value = runtime
         .evaluate_field(field)
@@ -50,7 +50,7 @@ pub fn evaluate_field_inner(code: &str, field: &str) -> Result<JsValue, String> 
 
 pub fn evaluate_method_inner(code: &str, method: &str, args: &JsValue) -> Result<JsValue, String> {
     let mut service = EdgeRulesModel::new();
-    service.load_source(code).map_err(|err| err.to_string())?;
+    service.append_source(code).map_err(|err| err.to_string())?;
     let runtime = service.to_runtime().map_err(|err| err.to_string())?;
     let expr_args = js_args_to_expressions(args)?;
     let value = runtime

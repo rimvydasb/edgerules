@@ -60,6 +60,23 @@ impl From<DuplicateNameError> for ContextUpdateErrorEnum {
     }
 }
 
+impl From<ContextUpdateErrorEnum> for ParseErrorEnum {
+    fn from(err: ContextUpdateErrorEnum) -> Self {
+        match err {
+            ContextUpdateErrorEnum::DuplicateNameError(inner) => inner.into(),
+            ContextUpdateErrorEnum::ContextNotFoundError(path) => {
+                ParseErrorEnum::UnknownError(format!("[context] '{}' not found", path))
+            }
+            ContextUpdateErrorEnum::WrongFieldPathError(Some(path)) => {
+                ParseErrorEnum::UnknownError(format!("[context] invalid path '{}'", path))
+            }
+            ContextUpdateErrorEnum::WrongFieldPathError(None) => {
+                ParseErrorEnum::UnknownError("[context] field path is empty".to_string())
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 struct FieldPath<'a> {
     segments: Vec<&'a str>,
@@ -449,6 +466,15 @@ impl EdgeRulesModel {
         function
     }
 
+    pub fn merge_context_object(
+        &mut self,
+        object: Rc<RefCell<ContextObject>>,
+    ) -> Result<(), ContextUpdateErrorEnum> {
+        self.ast_root
+            .merge_context_object(object)
+            .map_err(ContextUpdateErrorEnum::from)
+    }
+
     fn resolve_context_or_error(
         &self,
         path_segments: &[&str],
@@ -470,25 +496,26 @@ impl EdgeRulesModel {
             .map_err(ContextUpdateErrorEnum::from)
     }
 
-    pub fn load_source(&mut self, code: &str) -> Result<(), ParseErrors> {
+    pub fn append_source(&mut self, code: &str) -> Result<(), ParseErrors> {
         let parsed = Self::parse_item(code)?;
 
         match parsed {
             ParsedItem::Expression(ObjectField(field, field_expression)) => {
-                self.ast_root
-                    .add_expression(field.as_str(), *field_expression)
-                    .map_err(|err| ParseErrors(vec![ParseErrorEnum::from(err)]))?;
+                self.set_expression(field.as_str(), *field_expression)
+                    .map_err(Self::context_update_error)?;
             }
             ParsedItem::Expression(ExpressionEnum::StaticObject(context_object)) => {
-                self.ast_root
-                    .append(context_object)
-                    .map_err(|err| ParseErrors(vec![ParseErrorEnum::from(err)]))?;
+                self.merge_context_object(context_object)
+                    .map_err(Self::context_update_error)?;
             }
-            ParsedItem::Definition(definition) => {
-                self.ast_root
-                    .add_definition(definition)
-                    .map_err(|err| ParseErrors(vec![ParseErrorEnum::from(err)]))?;
-            }
+            ParsedItem::Definition(definition) => match definition {
+                DefinitionEnum::UserFunction(definition) => self
+                    .set_user_function(definition, None)
+                    .map_err(Self::context_update_error)?,
+                DefinitionEnum::UserType(user_type) => self
+                    .set_user_type(user_type.name.as_str(), user_type.body)
+                    .map_err(Self::context_update_error)?,
+            },
             ParsedItem::Expression(unexpected) => {
                 return Err(ParseErrors::unexpected_token(
                     Expression(unexpected),
@@ -498,6 +525,14 @@ impl EdgeRulesModel {
         }
 
         Ok(())
+    }
+
+    pub fn load_source(&mut self, code: &str) -> Result<(), ParseErrors> {
+        self.append_source(code)
+    }
+
+    fn context_update_error(err: ContextUpdateErrorEnum) -> ParseErrors {
+        ParseErrors(vec![ParseErrorEnum::from(err)])
     }
 
     /// Converts the model into a runtime instance.

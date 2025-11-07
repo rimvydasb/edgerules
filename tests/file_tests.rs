@@ -9,7 +9,7 @@ fn process_file(input_file_name: &str) -> std::io::Result<()> {
     let output_file_name = format!("{}.out", input_file_name);
     let input = fs::read_to_string(input_file_name)?;
     let mut output_file = fs::File::create(output_file_name)?;
-    let result = match edgerules.load_source(&input) {
+    let result = match edgerules.append_source(&input) {
         Ok(()) => match edgerules.to_runtime() {
             Ok(runtime) => match runtime.eval_all() {
                 Ok(()) => runtime.context.borrow().to_code(),

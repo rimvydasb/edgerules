@@ -171,6 +171,13 @@ impl ContextObjectBuilder {
         Ok(self)
     }
 
+    pub fn merge_context_object(
+        &mut self,
+        object: Rc<RefCell<ContextObject>>,
+    ) -> Result<(), DuplicateNameError> {
+        self.append(object).map(|_| ())
+    }
+
     pub fn append_if_missing(
         &mut self,
         another: Rc<RefCell<ContextObject>>,

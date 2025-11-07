@@ -67,7 +67,7 @@ pub fn exe_field(runtime: &EdgeRulesRuntime, path: &str) -> String {
 
 pub fn get_runtime(code: &str) -> EdgeRulesRuntime {
     let mut service = EdgeRulesModel::new();
-    match service.load_source(&wrap_in_object(code)) {
+    match service.append_source(&wrap_in_object(code)) {
         Ok(()) => match service.to_runtime() {
             Ok(runtime) => runtime,
             Err(err) => panic!("link error: {err}\ncode:\n{code}"),
@@ -78,7 +78,7 @@ pub fn get_runtime(code: &str) -> EdgeRulesRuntime {
 
 pub fn eval_all(code: &str) -> String {
     let mut service = EdgeRulesModel::new();
-    match service.load_source(code) {
+    match service.append_source(code) {
         Ok(()) => match service.to_runtime() {
             Ok(runtime) => match runtime.eval_all() {
                 Ok(()) => runtime.context.borrow().to_code(),
@@ -92,7 +92,7 @@ pub fn eval_all(code: &str) -> String {
 
 pub fn eval_field(code: &str, field: &str) -> String {
     let mut service = EdgeRulesModel::new();
-    match service.load_source(&wrap_in_object(code)) {
+    match service.append_source(&wrap_in_object(code)) {
         Ok(()) => match service.to_runtime() {
             Ok(runtime) => match runtime.evaluate_field(field) {
                 Ok(value) => value.to_string(),
@@ -142,7 +142,7 @@ pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
 /// For tests that must assert link errors (e.g., cyclic/self ref, missing field).
 pub fn link_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
-    let _ = service.load_source(code);
+    let _ = service.append_source(code);
 
     match service.to_runtime() {
         Ok(ok_but_unexpected) => {
@@ -165,7 +165,7 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
 /// For tests that must assert parse errors (e.g., invalid syntax, duplicate fields).
 pub fn parse_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();
-    let err = service.load_source(code);
+    let err = service.append_source(code);
 
     match err.err().map(|e| e.to_string()) {
         None => {
