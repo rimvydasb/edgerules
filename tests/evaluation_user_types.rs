@@ -258,7 +258,7 @@ fn context_types_duplicate() {
     }
     "#;
 
-    parse_error_contains(model, &["duplicate type 'LoanOffer'"]);
+    parse_error_contains(model, &["Duplicate user type 'LoanOffer'"]);
 }
 
 #[test]

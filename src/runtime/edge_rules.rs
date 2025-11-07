@@ -1,4 +1,5 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::expression::StaticLink;
 use crate::ast::token::EToken;
 use crate::ast::token::EToken::{Definition, Expression};
@@ -82,6 +83,12 @@ impl From<ParseErrors> for EvalError {
 impl From<ParseErrorEnum> for EvalError {
     fn from(err: ParseErrorEnum) -> Self {
         EvalError::FailedParsing(ParseErrors(vec![err]))
+    }
+}
+
+impl From<DuplicateNameError> for EvalError {
+    fn from(err: DuplicateNameError) -> Self {
+        EvalError::FailedParsing(ParseErrors(vec![ParseErrorEnum::from(err)]))
     }
 }
 
@@ -224,17 +231,17 @@ impl EdgeRulesModel {
             ParsedItem::Expression(ObjectField(field, field_expression)) => {
                 self.ast_root
                     .add_expression(field.as_str(), *field_expression)
-                    .map_err(|err| ParseErrors(vec![err]))?;
+                    .map_err(|err| ParseErrors(vec![ParseErrorEnum::from(err)]))?;
             }
             ParsedItem::Expression(ExpressionEnum::StaticObject(context_object)) => {
                 self.ast_root
                     .append(context_object)
-                    .map_err(|err| ParseErrors(vec![err]))?;
+                    .map_err(|err| ParseErrors(vec![ParseErrorEnum::from(err)]))?;
             }
             ParsedItem::Definition(definition) => {
                 self.ast_root
                     .add_definition(definition)
-                    .map_err(|err| ParseErrors(vec![err]))?;
+                    .map_err(|err| ParseErrors(vec![ParseErrorEnum::from(err)]))?;
             }
             ParsedItem::Expression(unexpected) => {
                 return Err(ParseErrors::unexpected_token(

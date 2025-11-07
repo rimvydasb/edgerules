@@ -1,10 +1,10 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
-use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::types::ValueType;
 use crate::utils::intern_field_name;
 use log::trace;
@@ -74,7 +74,7 @@ impl ContextObjectBuilder {
         &mut self,
         field_name: &str,
         field: ExpressionEnum,
-    ) -> Result<&mut Self, ParseErrorEnum> {
+    ) -> Result<&mut Self, DuplicateNameError> {
         let field_name = intern_field_name(field_name);
         self.insert_field_name(field_name, NameKind::Field)?;
 
@@ -91,7 +91,10 @@ impl ContextObjectBuilder {
         Ok(self)
     }
 
-    pub fn add_definition(&mut self, field: DefinitionEnum) -> Result<&mut Self, ParseErrorEnum> {
+    pub fn add_definition(
+        &mut self,
+        field: DefinitionEnum,
+    ) -> Result<&mut Self, DuplicateNameError> {
         match field {
             UserFunctionDef(m) => {
                 let name = m.get_name();
@@ -116,7 +119,7 @@ impl ContextObjectBuilder {
     pub fn append(
         &mut self,
         another: Rc<RefCell<ContextObject>>,
-    ) -> Result<&mut Self, ParseErrorEnum> {
+    ) -> Result<&mut Self, DuplicateNameError> {
         let borrowed = another.borrow();
         let other_names = borrowed.get_field_names();
 
@@ -162,7 +165,7 @@ impl ContextObjectBuilder {
     pub fn append_if_missing(
         &mut self,
         another: Rc<RefCell<ContextObject>>,
-    ) -> Result<&mut Self, ParseErrorEnum> {
+    ) -> Result<&mut Self, DuplicateNameError> {
         let borrowed = another.borrow();
         let childs_ref = borrowed.node().get_childs();
         let childs_ref = childs_ref.borrow();
@@ -257,13 +260,9 @@ impl ContextObjectBuilder {
         &self,
         field_name: &'static str,
         kind: NameKind,
-    ) -> Result<(), ParseErrorEnum> {
+    ) -> Result<(), DuplicateNameError> {
         if self.field_name_set.contains(field_name) {
-            return Err(ParseErrorEnum::UnknownError(format!(
-                "Duplicate {} '{}'",
-                kind.as_str(),
-                field_name
-            )));
+            return Err(DuplicateNameError::new(kind, field_name));
         }
 
         Ok(())
@@ -273,7 +272,7 @@ impl ContextObjectBuilder {
         &mut self,
         field_name: &'static str,
         kind: NameKind,
-    ) -> Result<(), ParseErrorEnum> {
+    ) -> Result<(), DuplicateNameError> {
         self.ensure_name_unique(field_name, kind)?;
 
         self.field_name_set.insert(field_name);
@@ -286,30 +285,12 @@ impl ContextObjectBuilder {
         &mut self,
         name: String,
         body: UserTypeBody,
-    ) -> Result<(), ParseErrorEnum> {
+    ) -> Result<(), DuplicateNameError> {
         if self.defined_types.contains_key(&name) {
-            return Err(ParseErrorEnum::UnknownError(format!(
-                "Duplicate type '{}'",
-                name
-            )));
+            return Err(DuplicateNameError::new(NameKind::UserType, name));
         }
 
         self.defined_types.insert(name, body);
         Ok(())
-    }
-}
-
-#[derive(Copy, Clone)]
-enum NameKind {
-    Field,
-    Function,
-}
-
-impl NameKind {
-    fn as_str(&self) -> &'static str {
-        match self {
-            NameKind::Field => "field",
-            NameKind::Function => "function",
-        }
     }
 }

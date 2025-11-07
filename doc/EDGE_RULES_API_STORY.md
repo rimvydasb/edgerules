@@ -153,5 +153,7 @@ append_source(code: &str) -> Result<(), ParseErrors>
 
 # Todo:
 
-- [ ] ContextObjectBuilder should not produce ParseErrorEnum, because errors are related to duplicates only 
-so duplication related error should be returned and handled appropriately.
+- [x] ContextObjectBuilder should not produce ParseErrorEnum, because errors are related to duplicates only 
+so duplication related error should be returned and handled appropriately. Introduce `DuplicateNameError`
+with `NameKind` and `name: String` that is a duplicated name.
+- [x] NameKind must also have `UserType` variant and type duplication prevention.

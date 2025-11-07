@@ -1,3 +1,4 @@
+use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::functions::function_types::EFunctionType;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
@@ -248,6 +249,12 @@ impl Display for ParseErrorEnum {
     }
 }
 
+impl From<DuplicateNameError> for ParseErrorEnum {
+    fn from(error: DuplicateNameError) -> Self {
+        ParseErrorEnum::UnknownError(error.to_string())
+    }
+}
+
 impl ParseErrorEnum {
     // @todo: complete normal error stacking
     pub fn before(self, before_error: ParseErrorEnum) -> ParseErrorEnum {
@@ -462,6 +469,12 @@ impl From<LinkingError> for RuntimeError {
 
 impl From<ParseErrorEnum> for RuntimeError {
     fn from(err: ParseErrorEnum) -> Self {
+        RuntimeError::eval_error(err.to_string())
+    }
+}
+
+impl From<DuplicateNameError> for RuntimeError {
+    fn from(err: DuplicateNameError) -> Self {
         RuntimeError::eval_error(err.to_string())
     }
 }
