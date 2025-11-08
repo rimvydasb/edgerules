@@ -482,3 +482,5 @@ sequenceDiagram
 2. Decision service functions API do not support multiple arguments.
 3. EdgeRulesModel API do not support metadata so "@type" will be derived from the context
    and version, model_name will be lost.
+
+# Outstanding Questions
