@@ -181,6 +181,8 @@ const tAll1 = nowNs();
 const q = quantiles(samplesMs);
 console.log('\nIterations:', iterations, 'Warmup:', warmup);
 console.log('Total time:', nsToMs(tAll1 - tAll0).toFixed(3), 'ms');
+const tpsAvg = q.avg > 0 ? 1000 / q.avg : NaN;
+console.log('TPS (based on avg):', Number.isFinite(tpsAvg) ? tpsAvg.toFixed(2) : 'NaN');
 console.log('Per-iter (ms):');
 console.table({
     min: q.min.toFixed(3),

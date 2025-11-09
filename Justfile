@@ -88,13 +88,13 @@ core-opt: core
 # --- demo / test commands ---
 demo-node: node
     node examples/js/node-demo.mjs
-    node examples/js/decision-service.mjs
-
-decision-service: node
-    node examples/js/decision-service.mjs
+    node examples/js/ds-demo.mjs
 
 performance-node: node
     node examples/js/node-performance.mjs
+
+performance-ds: node
+    node examples/js/ds-performance.mjs
 
 demo-web: web
     npx -y http-server -p 8080 .
