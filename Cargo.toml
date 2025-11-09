@@ -23,7 +23,8 @@ name = "edgerules-wasi"
 path = "src/cli.rs"
 
 [features]
-default = ["native"]
+default = ["native", "mutable_decision_service"]
+mutable_decision_service = []
 # Native builds (CLI, tests) enable heavier optional functions
 native = ["regex_functions", "base64_functions"]
 
