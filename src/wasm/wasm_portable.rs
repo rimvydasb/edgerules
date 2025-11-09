@@ -15,7 +15,7 @@ use crate::tokenizer::parser;
 use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::values::ValueEnum;
-use js_sys::{Array, Function, Object, Reflect};
+use js_sys::{Array, Object, Reflect};
 use std::fmt::{Display, Formatter};
 use wasm_bindgen::JsCast;
 // for unchecked_into
@@ -127,9 +127,6 @@ impl DecisionServiceController {
             get_portable_entry(&borrowed, path)?
         };
         Ok(entry)
-    }
-    pub fn service(&mut self) -> &mut DecisionService {
-        &mut self.service
     }
 }
 

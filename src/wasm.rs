@@ -1,11 +1,11 @@
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
 mod wasm_convert;
+mod wasm_portable;
 
-// Use portable controller in all wasm builds with mutable_decision_service
-use crate::runtime::portable::{DecisionServiceController, PortableError};
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
+use wasm_portable::{DecisionServiceController, PortableError};
 
 // Inline JS glue to leverage host RegExp for regexReplace/regexSplit on Web/Node
 // without pulling in the Rust regex crate (keeps WASM small).
