@@ -78,7 +78,9 @@ When reviewing code, consider the following:
 - Ensure error handling is idiomatic
 - Check maintainability and readability
 - Check the ownership model
-- Remove unnecessary derive annotations #[derive(...)] that bloat binary size
+- Remove unnecessary derive annotations `#[derive(...)]` that bloat binary size
+- Check if `mut` can be avoided
+- Ensure no unused imports or needless borrows exist (clippy clean)
 
 ## Debugging & Verification Playbook
 

@@ -387,22 +387,37 @@ EdgeRules must expose decision service capabilities.
 - after each **decision service method** call, the decision service model must be reusable
   for the next call without any side effects from the previous execution
 - If **decision service method** has none or more than one argument, return an error with a proper message
+- Only one `DecisionService` instance that have only one `EdgeRulesModel` can be created in WASM at a time
 
 ## Decision Service API
 
+**Mutable Decision Service** API is more extensive to support EdgeRules Editor GUI.
+There will be another WASM release of **Immutable Decision Service** API only for rules execution on the edge.
+
+`#[cfg(feature = "mutable_decision_service")]` feature is enabled by default.
+
+Decision service is implemented in `decision_service.rs` and tests are in `tests/decision_service_tests.rs`.
+
 ### Rust API
 
-- TODO: make new, from_source, execute API specifications more clear
-- TODO: decide on returned error types
-
 ```
-let ds = DecisionService::new(service_name: &str, model: Rc<RefCell<ContextObject>>) -> Result<DecisionService, Error>
-let ds = DecisionService::from_source(service_name: &str, model: &str) -> Result<DecisionService, Error>
-ds.execute(service_method: &str, decision_request: ValueEnum) -> Result<ValueEnum, EvalError>
+struct DecisionService {
+    ... // holds EdgeRulesModel with AST inside it
+    ... // holds linked EdgeRulesRuntime that can be reused multiple times
+}
+...
+impl DecisionService {
+    pub fn from_context(ctx: Rc<RefCell<ContextObject>>) -> Result<Self, Error>
+    ...
+    pub fn from_source(source: &str) -> Result<Self, Error>
+    ...
+    pub fn execute(&mut self, service_method: &str, decision_request: ValueEnum) -> Result<ValueEnum, EvalError>
+    ...
+    #[cfg(feature = "mutable_decision_service")]
+    pub fn get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>>
+    ...
+}
 ```
-
-- `DecisionService` struct that holds `EdgeRulesModel` with AST inside it
-- `DecisionService` struct also holds linked `EdgeRulesRuntime` that can be reused multiple times
 
 ### WASM API
 
