@@ -1,6 +1,7 @@
 pub mod decision_service;
 pub mod edge_rules;
 pub mod execution_context;
+pub mod portable;
 
 pub use decision_service::DecisionService;
 

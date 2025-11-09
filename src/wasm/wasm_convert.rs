@@ -101,7 +101,7 @@ fn execution_context_to_js(
     Ok(JsValue::from(js_object))
 }
 
-fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
+pub(crate) fn value_to_js(value: &ValueEnum) -> Result<JsValue, RuntimeError> {
     match value {
         ValueEnum::BooleanValue(flag) => Ok(JsValue::from_bool(*flag)),
         ValueEnum::NumberValue(number) => match number {
@@ -202,7 +202,7 @@ fn js_args_to_expressions(args: &JsValue) -> Result<Vec<ExpressionEnum>, String>
     }
 }
 
-fn js_to_value(js_value: &JsValue) -> Result<ValueEnum, String> {
+pub(crate) fn js_to_value(js_value: &JsValue) -> Result<ValueEnum, String> {
     if js_value.is_undefined() || js_value.is_null() {
         return Err("null or undefined values are not supported".to_string());
     }

@@ -88,6 +88,10 @@ core-opt: core
 # --- demo / test commands ---
 demo-node: node
     node examples/js/node-demo.mjs
+    node examples/js/decision-service.mjs
+
+decision-service: node
+    node examples/js/decision-service.mjs
 
 performance-node: node
     node examples/js/node-performance.mjs

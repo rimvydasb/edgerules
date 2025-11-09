@@ -237,6 +237,13 @@ impl ContextObjectBuilder {
         self.defined_types.get(name).cloned()
     }
 
+    pub fn user_type_entries(&self) -> Vec<(String, UserTypeBody)> {
+        self.defined_types
+            .iter()
+            .map(|(name, body)| (name.clone(), body.clone()))
+            .collect()
+    }
+
     pub fn set_user_type_definition(&mut self, name: String, body: UserTypeBody) {
         self.defined_types.insert(name, body);
     }

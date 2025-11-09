@@ -72,7 +72,7 @@ impl DecisionService {
         Rc::clone(&self.model)
     }
 
-    fn from_model(mut model: EdgeRulesModel) -> Result<Self, EvalError> {
+    pub(crate) fn from_model(mut model: EdgeRulesModel) -> Result<Self, EvalError> {
         let runtime = model.to_runtime_snapshot()?;
         Ok(Self {
             model: Rc::new(RefCell::new(model)),
