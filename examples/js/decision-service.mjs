@@ -2,37 +2,29 @@ import wasm from '../../target/pkg-node/edge_rules.js';
 
 wasm.init_panic_hook();
 
-const buildDecisionFunction = (settingsOverride = {}) => {
-    const settings = {
-        maxAmount: settingsOverride.maxAmount ?? '20000',
-        minCreditScore: settingsOverride.minCreditScore ?? '680',
-        baseApr: settingsOverride.baseApr ?? '0.08',
-        vipDiscount: settingsOverride.vipDiscount ?? '0.02',
-        vipBonus: settingsOverride.vipBonus ?? '80'
-    };
-
-    return {
-        '@type': 'function',
-        '@parameters': {request: 'LoanRequest'},
-        settings,
-        requestedAmount: 'request.amount',
-        maxFinance: 'min(request.amount, settings.maxAmount)',
-        scoreValue: 'request.creditScore + (if request.vip then settings.vipBonus else 0)',
-        eligible: 'scoreValue >= settings.minCreditScore',
-        calculatedApr: `
-            settings.baseApr
-            - (if request.vip then settings.vipDiscount else 0)
-            - (if request.creditScore >= 750 then 0.01 else 0)
-        `,
-        result: `
-        {
-            approved: eligible;
-            approvedAmount: if eligible then maxFinance else 0;
-            apr: calculatedApr;
-            approvalScore: scoreValue
-        }
-        `
-    };
+const DECISION_FUNCTION = {
+    '@type': 'function',
+    '@parameters': {
+        request: 'LoanRequest'
+    },
+    settings: {
+        maxAmount: 20000,
+        minCreditScore: 680,
+        baseApr: 0.08,
+        vipDiscount: 0.02,
+        vipBonus: 80
+    },
+    requestedAmount: 'request.amount',
+    maxFinance: 'min(request.amount, settings.maxAmount)',
+    scoreValue: 'request.creditScore + (if request.vip then settings.vipBonus else 0)',
+    eligible: 'scoreValue >= settings.minCreditScore',
+    calculatedApr: `settings.baseApr - (if request.vip then settings.vipDiscount else 0) - (if request.creditScore >= 750 then 0.01 else 0)`,
+    result: {
+        approved: 'eligible',
+        approvedAmount: 'if eligible then maxFinance else 0',
+        apr: 'calculatedApr',
+        approvalScore: 'scoreValue'
+    }
 };
 
 const portableToObject = (value) => {
@@ -51,7 +43,7 @@ const portableToObject = (value) => {
     return value;
 };
 
-const portableModel = {
+const PORTABLE_MODEL = {
     '@version': 1,
     '@model_name': 'LoanDecisions',
     LoanRequest: {
@@ -60,7 +52,7 @@ const portableModel = {
         creditScore: '<number>',
         vip: '<boolean>'
     },
-    decideLoanOffer: buildDecisionFunction()
+    decideLoanOffer: DECISION_FUNCTION
 };
 
 const expect = (condition, message) => {
@@ -70,7 +62,7 @@ const expect = (condition, message) => {
 };
 
 console.log('Creating decision service example (mutable controller)...');
-const modelSnapshot = portableToObject(wasm.create_decision_service(portableModel));
+const modelSnapshot = portableToObject(wasm.create_decision_service(PORTABLE_MODEL));
 console.log('Initial portable snapshot entries:', Object.keys(modelSnapshot));
 
 const executeLoan = (request) => {
@@ -89,10 +81,15 @@ const capped = executeLoan(cappedRequest);
 expect(capped.result.approved === true, 'High amount request should still be approved');
 expect(capped.result.approvedAmount === 20000, 'High amount request must be capped by maxAmount');
 
-wasm.set_to_decision_service_model(
-    'decideLoanOffer',
-    buildDecisionFunction({maxAmount: '35000'})
-);
+const MODIFIED_DECISION_FUNCTION = {
+    ...DECISION_FUNCTION,
+    settings: {
+        ...DECISION_FUNCTION.settings,
+        maxAmount: 35000
+    }
+};
+
+wasm.set_to_decision_service_model('decideLoanOffer', MODIFIED_DECISION_FUNCTION);
 const limitRead = portableToObject(
     wasm.get_from_decision_service_model('decideLoanOffer')
 );
