@@ -23,13 +23,14 @@ name = "edgerules-wasi"
 path = "src/cli.rs"
 
 [features]
+# Default native build (no decision service portable API on CLI)
 default = ["native", "mutable_decision_service"]
 mutable_decision_service = []
 # Native builds (CLI, tests) enable heavier optional functions
 native = ["regex_functions", "base64_functions"]
 
-# WASM builds keep heavy functions off by default
-wasm = ["wasm-bindgen", "js-sys", "log/max_level_off", "serde-wasm-bindgen", "mutable_decision_service"]
+# WASM builds keep heavy functions off by default and use JsValue portable representation
+wasm = ["wasm-bindgen", "js-sys", "log/max_level_off", "mutable_decision_service"]
 wasm_debug = ["wasm", "console_error_panic_hook"]
 
 # Optional function groups
@@ -46,9 +47,6 @@ js-sys = { version = "0.3.81", optional = true }
 dlmalloc = { version = "0.2", features = ["global"] }
 regex = { version = "1.9.6", optional = true }
 base64 = { version = "0.22.1", optional = true }
-serde = { version = "1.0", features = ["derive"], optional = false }
-serde_json = { version = "1.0", optional = false }
-serde-wasm-bindgen = { version = "0.6", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11.8"
