@@ -1,6 +1,15 @@
 // benchmark.mjs
 import wasm from '../../target/pkg-node/edge_rules.js';
-import { argv, exit } from 'node:process';
+import { argv } from 'node:process';
+import {
+    parseBenchmarkArgs,
+    runSingle,
+    warmupLoop,
+    maybeTriggerGc,
+    measureIterations,
+    logPerformanceSummary,
+    logMemoryUsage,
+} from './utils.mjs';
 
 wasm.init_panic_hook();
 
@@ -124,77 +133,28 @@ const PROGRAM = `
 
 // ------ CLI args ------
 // Usage: node benchmark.mjs [iterations] [warmup]
-// defaults: iterations=100, warmup=10
-const iterations = Number(argv[2] ?? 1000);
-const warmup = Number(argv[3] ?? 10);
-
-// ------ helpers ------
-const nowNs = () => process.hrtime.bigint();
-const nsToMs = ns => Number(ns) / 1e6;
-
-function quantiles(ms) {
-    const a = [...ms].sort((x, y) => x - y);
-    const pick = p => {
-        if (a.length === 0) return NaN;
-        const idx = Math.floor((a.length - 1) * p);
-        return a[idx];
-    };
-    const sum = a.reduce((s, x) => s + x, 0);
-    return {
-        min: a[0],
-        p50: pick(0.50),
-        p95: pick(0.95),
-        p99: pick(0.99),
-        max: a[a.length - 1],
-        avg: sum / a.length,
-    };
-}
-
-// ------ single run (also proves it works) ------
-{
-    const t0 = nowNs();
-    const result = wasm.evaluate_field(PROGRAM, "applicationResponse");
-    const t1 = nowNs();
-    console.log('Single run result:', result, `(${nsToMs(t1 - t0).toFixed(3)} ms)`);
-}
-
-// ------ warmup ------
-for (let i = 0; i < warmup; i++) {
-    wasm.evaluate_field(PROGRAM, "applicationResponse");
-}
-
-// Optionally trigger GC between warmup and measured runs for more stability
-if (global.gc) { global.gc(); } // run with: node --expose-gc benchmark.mjs
-
-// ------ measured loop ------
-const samplesMs = [];
-const tAll0 = nowNs();
-for (let i = 0; i < iterations; i++) {
-    const t0 = nowNs();
-    const _ = wasm.evaluate_field(PROGRAM, "applicationResponse");
-    const t1 = nowNs();
-    samplesMs.push(nsToMs(t1 - t0));
-}
-const tAll1 = nowNs();
-
-// ------ stats ------
-const q = quantiles(samplesMs);
-console.log('\nIterations:', iterations, 'Warmup:', warmup);
-console.log('Total time:', nsToMs(tAll1 - tAll0).toFixed(3), 'ms');
-const tpsAvg = q.avg > 0 ? 1000 / q.avg : NaN;
-console.log('TPS (based on avg):', Number.isFinite(tpsAvg) ? tpsAvg.toFixed(2) : 'NaN');
-console.log('Per-iter (ms):');
-console.table({
-    min: q.min.toFixed(3),
-    p50: q.p50.toFixed(3),
-    p95: q.p95.toFixed(3),
-    p99: q.p99.toFixed(3),
-    avg: q.avg.toFixed(3),
-    max: q.max.toFixed(3),
+// defaults: iterations=1000, warmup=10
+const { iterations, warmup } = parseBenchmarkArgs(argv, {
+    defaultIterations: 1000,
+    defaultWarmup: 10,
 });
 
+const run = () => wasm.evaluate_field(PROGRAM, "applicationResponse");
+
+// ------ single run (also proves it works) ------
+runSingle(run);
+
+// ------ warmup ------
+warmupLoop(warmup, run);
+
+// Optionally trigger GC between warmup and measured runs for more stability
+maybeTriggerGc(); // run with: node --expose-gc benchmark.mjs
+
+// ------ measured loop ------
+const { samplesMs, totalNs } = measureIterations(iterations, run);
+
+// ------ stats ------
+logPerformanceSummary({ iterations, warmup, samplesMs, totalNs });
+
 // Optional memory snapshot
-const m = process.memoryUsage();
-console.log('Memory (MB): rss=', (m.rss/1e6).toFixed(1),
-    ' heapUsed=', (m.heapUsed/1e6).toFixed(1),
-    ' ext=', (m.external/1e6).toFixed(1));
+logMemoryUsage();
