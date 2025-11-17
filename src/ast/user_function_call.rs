@@ -173,7 +173,7 @@ fn resolve_declared_type(
     call_ctx: &Rc<RefCell<ContextObject>>,
 ) -> Link<ValueType> {
     match tref {
-        ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
+        ComplexTypeRef::BuiltinType(vt) => Ok(vt.clone()),
         ComplexTypeRef::List(inner) => {
             let inner_type = resolve_declared_type(inner, function_ctx, call_ctx)?;
             Ok(ValueType::ListType(Some(Box::new(inner_type))))
@@ -194,7 +194,7 @@ fn complex_type_ref_contains_alias(tref: &ComplexTypeRef) -> bool {
     match tref {
         ComplexTypeRef::Alias(_) => true,
         ComplexTypeRef::List(inner) => complex_type_ref_contains_alias(inner),
-        ComplexTypeRef::Primitive(_) => false,
+        ComplexTypeRef::BuiltinType(_) => false,
     }
 }
 

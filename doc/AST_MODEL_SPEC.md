@@ -78,7 +78,7 @@ classDiagram
 
     class ComplexTypeRef {
         <<enum>>
-        +Primitive(ValueType)
+        +BuiltinType(ValueType)
         +Alias(String)
         +List(ComplexTypeRef)
     }

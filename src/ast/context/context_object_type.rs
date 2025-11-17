@@ -19,48 +19,46 @@ use std::rc::Rc;
 #[derive(Debug, Clone, PartialEq)]
 pub struct FormalParameter {
     pub name: String,
-    pub type_ref: Option<ComplexTypeRef>,
-    pub value_type: ValueType,
+    pub parameter_type: ComplexTypeRef,
 }
 
 impl FormalParameter {
-    pub(crate) fn new(name: String, value_type: ValueType) -> FormalParameter {
+    pub(crate) fn with_type_ref(name: String, parameter_type: ComplexTypeRef) -> FormalParameter {
         FormalParameter {
             name,
-            type_ref: None,
-            value_type,
-        }
-    }
-
-    pub(crate) fn with_type_ref(name: String, type_ref: Option<ComplexTypeRef>) -> FormalParameter {
-        FormalParameter {
-            name,
-            type_ref,
-            value_type: ValueType::UndefinedType,
+            parameter_type,
         }
     }
 
     pub fn declared_type(&self) -> Option<&ComplexTypeRef> {
-        self.type_ref.as_ref()
+        if self.parameter_type.is_undefined() {
+            None
+        } else {
+            Some(&self.parameter_type)
+        }
     }
 
     pub fn with_runtime_type(&self, value_type: ValueType) -> FormalParameter {
         FormalParameter {
             name: self.name.clone(),
-            type_ref: self.type_ref.clone(),
-            value_type,
+            parameter_type: ComplexTypeRef::from_value_type(value_type),
+        }
+    }
+
+    pub fn runtime_value_type(&self) -> Option<ValueType> {
+        match &self.parameter_type {
+            ComplexTypeRef::BuiltinType(value_type) => Some(value_type.clone()),
+            _ => None,
         }
     }
 }
 
 impl Display for FormalParameter {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if self.value_type != ValueType::UndefinedType {
-            write!(f, "{}: {}", self.name, self.value_type)
-        } else if let Some(type_ref) = &self.type_ref {
-            write!(f, "{}: {}", self.name, type_ref)
-        } else {
+        if self.parameter_type.is_undefined() {
             write!(f, "{}", self.name)
+        } else {
+            write!(f, "{}: {}", self.name, self.parameter_type)
         }
     }
 }

@@ -501,13 +501,13 @@ pub fn parse_type(name: &str) -> ComplexTypeRef {
     }
 
     let mut return_type = match string {
-        "number" => ComplexTypeRef::Primitive(ValueType::NumberType),
-        "string" => ComplexTypeRef::Primitive(ValueType::StringType),
-        "boolean" => ComplexTypeRef::Primitive(ValueType::BooleanType),
-        "date" => ComplexTypeRef::Primitive(ValueType::DateType),
-        "time" => ComplexTypeRef::Primitive(ValueType::TimeType),
-        "datetime" => ComplexTypeRef::Primitive(ValueType::DateTimeType),
-        "duration" => ComplexTypeRef::Primitive(ValueType::DurationType),
+        "number" => ComplexTypeRef::BuiltinType(ValueType::NumberType),
+        "string" => ComplexTypeRef::BuiltinType(ValueType::StringType),
+        "boolean" => ComplexTypeRef::BuiltinType(ValueType::BooleanType),
+        "date" => ComplexTypeRef::BuiltinType(ValueType::DateType),
+        "time" => ComplexTypeRef::BuiltinType(ValueType::TimeType),
+        "datetime" => ComplexTypeRef::BuiltinType(ValueType::DateTimeType),
+        "duration" => ComplexTypeRef::BuiltinType(ValueType::DurationType),
         _ => ComplexTypeRef::Alias(string.to_owned()),
     };
 

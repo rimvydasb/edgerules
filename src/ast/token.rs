@@ -60,22 +60,6 @@ pub enum EPriorities {
     ErrorPriority = 99,
 }
 
-impl From<&str> for FormalParameter {
-    fn from(name: &str) -> Self {
-        let mut split = name.split(':');
-        let name = split.next().unwrap();
-        let arg_type = split.next().unwrap_or("unknown");
-
-        let parsed_type = ValueType::try_from(arg_type.trim()).ok();
-
-        FormalParameter {
-            name: name.trim().to_string(),
-            type_ref: parsed_type.clone().map(ComplexTypeRef::Primitive),
-            value_type: parsed_type.unwrap_or(ValueType::UndefinedType),
-        }
-    }
-}
-
 // @Todo implementation of Display
 /// constrains can be applied in:
 /// Constraint(EComparator, Box<EExpression>),
@@ -95,15 +79,29 @@ pub enum EUnparsedToken {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ComplexTypeRef {
-    Primitive(ValueType),
+    BuiltinType(ValueType),
     Alias(String),
     List(Box<ComplexTypeRef>),
+}
+
+impl ComplexTypeRef {
+    pub fn undefined() -> Self {
+        ComplexTypeRef::BuiltinType(ValueType::UndefinedType)
+    }
+
+    pub fn is_undefined(&self) -> bool {
+        matches!(self, ComplexTypeRef::BuiltinType(ValueType::UndefinedType))
+    }
+
+    pub fn from_value_type(value_type: ValueType) -> Self {
+        ComplexTypeRef::BuiltinType(value_type)
+    }
 }
 
 impl Display for ComplexTypeRef {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ComplexTypeRef::Primitive(vt) => write!(f, "{}", vt),
+            ComplexTypeRef::BuiltinType(vt) => write!(f, "{}", vt),
             ComplexTypeRef::Alias(name) => write!(f, "{}", name),
             ComplexTypeRef::List(inner) => write!(f, "list of {}", inner),
         }

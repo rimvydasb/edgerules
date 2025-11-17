@@ -40,7 +40,10 @@ impl<B: PartialEq + Debug> PartialEq for AbstractFunctionContext<B> {
 impl ContentHolder<ContextObject> for FunctionContext {
     fn get(&self, name: &str) -> Result<EObjectContent<ContextObject>, LinkingError> {
         if let Some(finding) = self.parameters.iter().find(|field| field.name == name) {
-            return Ok(Definition(finding.value_type.clone()));
+            let runtime_type = finding
+                .runtime_value_type()
+                .unwrap_or(ValueType::UndefinedType);
+            return Ok(Definition(runtime_type));
         }
 
         match self.body.borrow().get(name)? {

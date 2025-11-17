@@ -156,16 +156,20 @@ fn throw_portable_error(err: PortableError) -> ! {
     wasm_convert::throw_js_error(err.into_message())
 }
 
-fn js_request_to_value(js: &JsValue) -> Result<crate::typesystem::values::ValueEnum, PortableError> {
+fn js_request_to_value(
+    js: &JsValue,
+) -> Result<crate::typesystem::values::ValueEnum, PortableError> {
     wasm_convert::js_to_value(js).map_err(PortableError::new)
 }
 
 #[cfg(feature = "console_error_panic_hook")]
 #[wasm_bindgen]
-pub fn init_panic_hook() { console_error_panic_hook::set_once(); }
+pub fn init_panic_hook() {
+    console_error_panic_hook::set_once();
+}
 #[cfg(all(not(feature = "console_error_panic_hook")))]
 #[wasm_bindgen]
-pub fn init_panic_hook() { }
+pub fn init_panic_hook() {}
 
 #[wasm_bindgen]
 pub fn evaluate_all(code: &str) -> JsValue {

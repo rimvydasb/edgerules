@@ -102,7 +102,10 @@ impl ContentHolder<ContextObject> for ContextObject {
         } else if let Some(content) = self.metaphors.get(name) {
             Ok(EObjectContent::UserFunctionRef(Rc::clone(content)))
         } else if let Some(parameter) = self.parameters.iter().find(|p| p.name == name) {
-            Ok(EObjectContent::Definition(parameter.value_type.clone()))
+            let runtime_type = parameter
+                .runtime_value_type()
+                .unwrap_or(ValueType::UndefinedType);
+            Ok(EObjectContent::Definition(runtime_type))
         } else {
             LinkingError::field_not_found(self.node.node_type.to_string().as_str(), name).into()
         }
@@ -158,7 +161,7 @@ impl ContextObject {
 
     pub fn resolve_type_ref(&self, tref: &ComplexTypeRef) -> Result<ValueType, LinkingError> {
         match tref {
-            ComplexTypeRef::Primitive(vt) => Ok(vt.clone()),
+            ComplexTypeRef::BuiltinType(vt) => Ok(vt.clone()),
             ComplexTypeRef::Alias(name) => {
                 let resolve_in = |ctx: &ContextObject| -> Link<Option<ValueType>> {
                     if let Some(def) = ctx.defined_types.get(name) {

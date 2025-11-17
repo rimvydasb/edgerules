@@ -287,7 +287,10 @@ fn parse_function_definition(
         }
         for (param_name, param_type) in object_field_iter(&params) {
             let tref = match param_type.as_string() {
-                Some(text) => Some(parser::parse_type(&text)),
+                Some(text) => parser::parse_type(&text),
+                None if param_type.is_null() || param_type.is_undefined() => {
+                    ComplexTypeRef::undefined()
+                }
                 None => {
                     return Err(PortableError::new(format!(
                         "Invalid parameter type for '{}': {:?}",

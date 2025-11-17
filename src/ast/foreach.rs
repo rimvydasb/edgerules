@@ -4,8 +4,8 @@ use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::function_context::{FunctionContext, RETURN_EXPRESSION};
 use crate::ast::expression::missing_for_type;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::token::ExpressionEnum;
 use crate::ast::token::ExpressionEnum::Value;
+use crate::ast::token::{ComplexTypeRef, ExpressionEnum};
 use crate::ast::{is_linked, Link};
 use crate::link::linker::link_parts;
 use crate::link::node_data::{NodeData, NodeDataEnum};
@@ -268,7 +268,9 @@ impl StaticLink for ForFunction {
                 }
             };
 
-            let for_parameter = FormalParameter::new(self.in_loop_variable.clone(), item_type);
+            let parameter_type = ComplexTypeRef::from_value_type(item_type);
+            let for_parameter =
+                FormalParameter::with_type_ref(self.in_loop_variable.clone(), parameter_type);
 
             self.return_expression
                 .borrow_mut()

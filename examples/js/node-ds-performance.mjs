@@ -30,7 +30,7 @@ const PORTABLE_MODEL = {
         '@type': 'function',
         '@parameters': {
             applicant: 'Applicant',
-            applicationRecord: 'any'
+            applicationRecord: null
         },
 
         // Nested function: CreditScore
@@ -41,9 +41,9 @@ const PORTABLE_MODEL = {
                 income: 'number'
             },
             bins: [
-                {name: "AGE_BIN", score: 20, condition: 'if age <= 25 then score else 0'},
-                {name: "AGE_BIN", score: 30, condition: 'if age > 25 then score else 0'},
-                {name: "INC_BIN", score: 30, condition: 'if income >= 1500 then score else 0'}
+                {name: '"AGE_BIN"', score: 20, condition: 'if age <= 25 then score else 0'},
+                {name: '"AGE_BIN"', score: 30, condition: 'if age > 25 then score else 0'},
+                {name: '"INC_BIN"', score: 30, condition: 'if income >= 1500 then score else 0'}
             ],
             totalScore: 'sum(for bin in bins return bin.condition)'
         },
@@ -52,14 +52,14 @@ const PORTABLE_MODEL = {
         EligibilityDecision: {
             '@type': 'function',
             '@parameters': {
-                applicantRecord: 'any',
-                creditScore: 'any'
+                applicantRecord: null,
+                creditScore: null
             },
             rules: [
-                {name: "INC_CHECK", rule: 'applicantRecord.data.income > applicantRecord.data.expense * 2'},
-                {name: "MIN_INCOM", rule: 'applicantRecord.data.income > 1000'},
-                {name: "AGE_CHECK", rule: 'applicantRecord.age >= 18'},
-                {name: "SCREDIT_S", rule: 'creditScore.totalScore > 10'}
+                {name: '"INC_CHECK"', rule: 'applicantRecord.data.income > applicantRecord.data.expense * 2'},
+                {name: '"MIN_INCOM"', rule: 'applicantRecord.data.income > 1000'},
+                {name: '"AGE_CHECK"', rule: 'applicantRecord.age >= 18'},
+                {name: '"SCREDIT_S"', rule: 'creditScore.totalScore > 10'}
             ],
             firedRules: 'for invalid in rules[rule = false] return invalid.name',
             status: 'if count(firedRules) = 0 then "ELIGIBLE" else "INELIGIBLE"'

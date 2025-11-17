@@ -570,11 +570,15 @@ pub mod factory {
                     )));
                 }
 
-                Ok(FormalParameter::with_type_ref(variable.get_name(), None))
+                Ok(FormalParameter::with_type_ref(
+                    variable.get_name(),
+                    ComplexTypeRef::undefined(),
+                ))
             }
             ObjectField(name, boxed_expression) => {
                 let annotation = extract_type_annotation(*boxed_expression)?;
-                Ok(FormalParameter::with_type_ref(name, annotation))
+                let parameter_type = annotation.unwrap_or_else(ComplexTypeRef::undefined);
+                Ok(FormalParameter::with_type_ref(name, parameter_type))
             }
             _ => Err(UnknownError(format!(
                 "Unsupported expression `{}` in function parameter list",

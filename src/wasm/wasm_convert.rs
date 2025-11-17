@@ -15,7 +15,7 @@ use crate::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use js_sys::{Array, Date as JsDate, Object, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
-use time::Month;
+use time::{Month, PrimitiveDateTime, Time};
 use wasm_bindgen::{JsCast, JsValue};
 
 pub fn evaluate_all_inner(code: &str) -> Result<JsValue, String> {
@@ -299,7 +299,23 @@ fn js_date_to_value(date: JsDate) -> Result<ValueEnum, String> {
     let feel_date = time::Date::from_calendar_date(year, month, day_u8)
         .map_err(|err| format!("Invalid date: {}", err))?;
 
-    Ok(ValueEnum::DateValue(ValueOrSv::Value(feel_date)))
+    let hour = u8::try_from(date.get_utc_hours() as u32)
+        .map_err(|_| "Invalid hour value for Date".to_string())?;
+    let minute = u8::try_from(date.get_utc_minutes() as u32)
+        .map_err(|_| "Invalid minute value for Date".to_string())?;
+    let second = u8::try_from(date.get_utc_seconds() as u32)
+        .map_err(|_| "Invalid second value for Date".to_string())?;
+    let millisecond = u16::try_from(date.get_utc_milliseconds() as u32)
+        .map_err(|_| "Invalid millisecond value for Date".to_string())?;
+
+    if hour == 0 && minute == 0 && second == 0 && millisecond == 0 {
+        return Ok(ValueEnum::DateValue(ValueOrSv::Value(feel_date)));
+    }
+
+    let feel_time = Time::from_hms_milli(hour, minute, second, millisecond)
+        .map_err(|err| format!("Invalid time: {}", err))?;
+    let datetime = PrimitiveDateTime::new(feel_date, feel_time);
+    Ok(ValueEnum::DateTimeValue(ValueOrSv::Value(datetime)))
 }
 
 fn js_object_to_value(object: Object) -> Result<ValueEnum, String> {
