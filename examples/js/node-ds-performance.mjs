@@ -105,8 +105,13 @@ const PORTABLE_MODEL = {
     }
 };
 
-// create decision service in WASM
-wasm.create_decision_service(PORTABLE_MODEL);
+// create decision service in WASM (measure once)
+{
+    const start = process.hrtime.bigint();
+    wasm.create_decision_service(PORTABLE_MODEL);
+    const end = process.hrtime.bigint();
+    console.log('Decision service creation took', (Number(end - start) / 1e6).toFixed(3), 'ms');
+}
 
 // Example input data (passed as runtime request)
 const REQUEST = {
