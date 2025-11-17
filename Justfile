@@ -94,7 +94,7 @@ performance-node: node
     node examples/js/node-performance.mjs
 
 performance-ds: node
-    node examples/js/ds-performance.mjs
+    node examples/js/node-ds-performance.mjs
 
 demo-web: web
     npx -y http-server -p 8080 .
