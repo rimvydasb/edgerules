@@ -85,7 +85,7 @@ const PROGRAM = `
 
     // Example Input Data
 
-    applicationResponse: applicationDecisions({
+    applicationResponse: applicationDecisions({ 
         applicationDate: datetime("2025-01-01T15:43:56")
         propertyValue: 100000
         loanAmount: 80000

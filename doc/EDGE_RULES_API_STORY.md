@@ -457,6 +457,120 @@ get_from_decision_service_model(path: &str) -> JsValue {
 }
 ```
 
+## Decision Service Invocation API
+
+EdgeRules should expose a small API to store invocations on the model so editors do not need to hand-craft
+EdgeRules DSL strings. Each invocation follows `[instance]: [method]([arguments])`, for example
+`applicationResponse: applicationDecisions(input.application)`.
+
+**Model API (Rust)**
+
+- Introduce `InvocationSpec { method_path: String, arguments: Vec<ExpressionEnum> }`.
+- `EdgeRulesModel::set_invocation(path: &str, spec: InvocationSpec) -> Result<(), ContextUpdateErrorEnum>` stores
+  an invocation as `ExpressionEnum::from(UserFunctionCall::new(spec.method_path, spec.arguments))` in the context,
+  creating intermediate contexts like `set_expression`.
+- `remove_invocation`/`get_invocation` can remain thin aliases over expression helpers; insertion validates method
+  existence and argument count eagerly to fail fast in the editor.
+
+**WASM / Portable API**
+
+- `set_to_decision_service_model` / `get_from_decision_service_model` accept invocations with payload:
+
+  ```json
+  {
+    "@type": "invocation",
+    "@method": "applicationDecisions", // fully qualified names allowed
+    "@arguments": ["input.application"] // portable value or expression strings
+  }
+  ```
+
+- Optional helper: `set_invocation(path: &str, invocation: &JsValue) -> JsValue` as a convenience wrapper that
+  returns the updated portable snippet; `remove_from_decision_service_model` removes the invocation like any
+  expression entry.
+- `@arguments` defaults to the provided decision request when omitted for single-parameter methods to mirror the
+  current `execute_decision_service` contract.
+
+**Execution semantics (open options)**
+
+- _Option A (preferred)_: add `execute_invocation(invocation_name, decision_request)` in Rust/WASM that binds a
+  reserved `input` variable to the provided request so argument expressions such as `input.application` link and
+  reuse the cached runtime without relinking.
+- _Option B_: allow `execute_decision_service` to accept invocation names; when the name resolves to an invocation
+  entry, evaluate the stored call expression instead of looking up a function definition.
+
+**Example**
+
+```js
+// adds applicationResponse: applicationDecisions(input.application)
+set_to_decision_service_model("applicationResponse", {
+  "@type": "invocation",
+  "@method": "applicationDecisions",
+  "@arguments": ["input.application"]
+});
+```
+
+### Example
+
+A valid model in EdgeRules Portable format:
+```json
+{
+  "input": {
+    "application": {
+      "age": 22
+    }
+  },
+  "applicationDecisions": {
+    "@type": "function",
+    "@parameters": {
+      "application": null
+    },
+    "isEligible": "application.age >= 18"
+  },
+  "applicationResponse": {
+    "@type": "invocation",
+    "@method": "applicationDecisions",
+    "@arguments": [
+      "input.application"
+    ]
+  }
+}
+```
+
+Injecting new function and invocation in `applicationDecisions`:
+
+```javascript
+wasm.set_to_decision_service_model("applicationDecisions.scholarshipCalc", {
+    "@type": "function",
+    "@parameters": {
+        "age": "number"
+    },
+    "result": "if (age < 25) { 1000 } else { 500 }"
+});
+
+wasm.set_to_decision_service_model("applicationDecisions.scholarship", {
+  "@type": "invocation",
+  "@method": "applicationDecisions",
+  "@arguments": [
+    "input.application"
+  ]
+});
+
+wasm.execute_decision_service("applicationResponse", {
+    "application": {
+        "age": 22
+    }
+});
+```
+
+output:
+
+```json
+{
+  "isEligible": true,
+  "scholarship": 1000
+}
+```
+
 # Execution Sequence inside Editor Editor GUI
 
 ## Simple Node Update
