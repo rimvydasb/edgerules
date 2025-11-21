@@ -149,7 +149,8 @@ get_user_function(function_name: &str) -> Option<Rc<RefCell<MethodEntry>>>
 
 **Example 3**
 
-After applying `model.set_user_function("other.newFunction", definition)?;` where already existing model looks like this:
+After applying `model.set_user_function("other.newFunction", definition)?;` where already existing model looks like
+this:
 
 ```
 {
@@ -344,8 +345,19 @@ export interface PortableFunctionDefinition {
     [k: string]: PortableValue | PortableExpressionString;
 }
 
+export interface PortableInvocationDefinition {
+    "@type": "invocation";
+    "@method": string;
+    "@arguments"?: (PortableValue | PortableExpressionString)[];
+}
+
 export interface PortableObject {
-    [key: string]: PortableValue | PortableExpressionString | PortableTypeDefinition | PortableFunctionDefinition;
+    [key: string]:
+        | PortableValue
+        | PortableExpressionString
+        | PortableTypeDefinition
+        | PortableFunctionDefinition
+        | PortableInvocationDefinition;
 }
 
 export interface PortableContext extends PortableObject {
@@ -459,9 +471,19 @@ get_from_decision_service_model(path: &str) -> JsValue {
 
 ## Decision Service Invocation API
 
-EdgeRules should expose a small API to store invocations on the model so editors do not need to hand-craft
-EdgeRules DSL strings. Each invocation follows `[instance]: [method]([arguments])`, for example
+EdgeRules will support adding invocation expressions that simply calls already defined user functions.
+Each invocation follows `[instance]: [method]([arguments])`, for example
 `applicationResponse: applicationDecisions(input.application)`.
+
+- `instance` is ContextObject expression
+- `method` is expression with `UserFunctionCall`
+- `arguments` can be one or more arguments that are `UserFunctionCall` `args`.
+
+**Limitations:**
+
+- only user functions can be invoked, as of now built-in functions are not supported
+- argument expressions must be valid `VariableLink` expressions or values.
+  As of now, complex expressions are not supported.
 
 **Model API (Rust)**
 
@@ -469,8 +491,7 @@ EdgeRules DSL strings. Each invocation follows `[instance]: [method]([arguments]
 - `EdgeRulesModel::set_invocation(path: &str, spec: InvocationSpec) -> Result<(), ContextUpdateErrorEnum>` stores
   an invocation as `ExpressionEnum::from(UserFunctionCall::new(spec.method_path, spec.arguments))` in the context,
   creating intermediate contexts like `set_expression`.
-- `remove_invocation`/`get_invocation` can remain thin aliases over expression helpers; insertion validates method
-  existence and argument count eagerly to fail fast in the editor.
+- Invocation can be removed with existing `remove_expression`
 
 **WASM / Portable API**
 
@@ -479,7 +500,7 @@ EdgeRules DSL strings. Each invocation follows `[instance]: [method]([arguments]
   ```json
   {
     "@type": "invocation",
-    "@method": "applicationDecisions", // fully qualified names allowed
+    "@method": "applicationDecisions", // fully qualified names allowed to call nested functions
     "@arguments": ["input.application"] // portable value or expression strings
   }
   ```
@@ -490,28 +511,10 @@ EdgeRules DSL strings. Each invocation follows `[instance]: [method]([arguments]
 - `@arguments` defaults to the provided decision request when omitted for single-parameter methods to mirror the
   current `execute_decision_service` contract.
 
-**Execution semantics (open options)**
-
-- _Option A (preferred)_: add `execute_invocation(invocation_name, decision_request)` in Rust/WASM that binds a
-  reserved `input` variable to the provided request so argument expressions such as `input.application` link and
-  reuse the cached runtime without relinking.
-- _Option B_: allow `execute_decision_service` to accept invocation names; when the name resolves to an invocation
-  entry, evaluate the stored call expression instead of looking up a function definition.
-
-**Example**
-
-```js
-// adds applicationResponse: applicationDecisions(input.application)
-set_to_decision_service_model("applicationResponse", {
-  "@type": "invocation",
-  "@method": "applicationDecisions",
-  "@arguments": ["input.application"]
-});
-```
-
 ### Example
 
 A valid model in EdgeRules Portable format:
+
 ```json
 {
   "input": {
@@ -539,6 +542,7 @@ A valid model in EdgeRules Portable format:
 Injecting new function and invocation in `applicationDecisions`:
 
 ```javascript
+// Inserting scholarshipCalc function inside applicationDecisions function
 wasm.set_to_decision_service_model("applicationDecisions.scholarshipCalc", {
     "@type": "function",
     "@parameters": {
@@ -547,12 +551,13 @@ wasm.set_to_decision_service_model("applicationDecisions.scholarshipCalc", {
     "result": "if (age < 25) { 1000 } else { 500 }"
 });
 
+// Modifying applicationDecisions to include scholarship calculation
 wasm.set_to_decision_service_model("applicationDecisions.scholarship", {
-  "@type": "invocation",
-  "@method": "applicationDecisions",
-  "@arguments": [
-    "input.application"
-  ]
+    "@type": "invocation",
+    "@method": "applicationDecisions",
+    "@arguments": [
+        "input.application"
+    ]
 });
 
 wasm.execute_decision_service("applicationResponse", {
@@ -570,6 +575,21 @@ output:
   "scholarship": 1000
 }
 ```
+
+**Todo:**
+
+- [ ] Decision Service Invocation API
+- [ ] Add Example to the `ds-demo.mjs` as a separate example
+- [ ] Run tests with `just demo-node` and fix any errors
+- [ ] Add required Rust tests with happy and unhappy paths
+- [ ] `set_to_decision_service_model` should also return linking errors if any
+- [ ] Update `ds-demo.mjs` with unhappy linkin error scenario
+
+**Notes:**
+
+No performance considerations should be made for `set_to_decision_service_model`,
+because this method will be used in EdgeRules Editor GUI only for model manipulation.
+However, all code must be maintained with best coding practices.
 
 # Execution Sequence inside Editor Editor GUI
 
