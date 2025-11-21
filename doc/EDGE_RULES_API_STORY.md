@@ -517,24 +517,12 @@ A valid model in EdgeRules Portable format:
 
 ```json
 {
-  "input": {
-    "application": {
-      "age": 22
-    }
-  },
   "applicationDecisions": {
     "@type": "function",
     "@parameters": {
       "application": null
     },
     "isEligible": "application.age >= 18"
-  },
-  "applicationResponse": {
-    "@type": "invocation",
-    "@method": "applicationDecisions",
-    "@arguments": [
-      "input.application"
-    ]
   }
 }
 ```
@@ -556,11 +544,11 @@ wasm.set_to_decision_service_model("applicationDecisions.scholarship", {
     "@type": "invocation",
     "@method": "applicationDecisions",
     "@arguments": [
-        "input.application"
+        "application.age"
     ]
 });
 
-wasm.execute_decision_service("applicationResponse", {
+wasm.execute_decision_service("applicationDecisions", {
     "application": {
         "age": 22
     }
@@ -572,13 +560,15 @@ output:
 ```json
 {
   "isEligible": true,
-  "scholarship": 1000
+  "scholarship": {
+    "result": 1000
+  }
 }
 ```
 
 **Todo:**
 
-- [ ] Decision Service Invocation API
+- [ ] Implement Decision Service Invocation API
 - [ ] Add Example to the `ds-demo.mjs` as a separate example
 - [ ] Run tests with `just demo-node` and fix any errors
 - [ ] Add required Rust tests with happy and unhappy paths
