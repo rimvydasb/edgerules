@@ -6,6 +6,7 @@ use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
 use crate::ast::user_function_call::UserFunctionCall;
 use crate::ast::utils::array_to_code_sep;
+use crate::link::node_data::Node;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::parser::tokenize;
 use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
@@ -41,6 +42,12 @@ pub struct EvalResult(Rc<RefCell<ExecutionContext>>, ValueEnum);
 pub enum ParsedItem {
     Expression(ExpressionEnum),
     Definition(DefinitionEnum),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InvocationSpec {
+    pub method_path: String,
+    pub arguments: Vec<ExpressionEnum>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -305,6 +312,26 @@ impl EdgeRulesModel {
         }
     }
 
+    pub fn set_invocation(
+        &mut self,
+        field_path: &str,
+        spec: InvocationSpec,
+    ) -> Result<(), ContextUpdateErrorEnum> {
+        let method_path = Self::validate_invocation_method(&spec.method_path)?;
+        let expression = ExpressionEnum::from(UserFunctionCall::new(method_path, spec.arguments));
+        self.set_expression(field_path, expression)
+    }
+
+    fn validate_invocation_method(method_path: &str) -> Result<String, ContextUpdateErrorEnum> {
+        let trimmed = method_path.trim();
+        if trimmed.is_empty() {
+            return Err(ContextUpdateErrorEnum::WrongFieldPathError(Some(
+                method_path.to_string(),
+            )));
+        }
+        Ok(trimmed.to_string())
+    }
+
     pub fn set_expression(
         &mut self,
         field_path: &str,
@@ -351,7 +378,7 @@ impl EdgeRulesModel {
             return self.ast_root.get_expression(field_name);
         }
 
-        let parent = self.ast_root.resolve_context(path.parent_segments())?;
+        let parent = self.resolve_context_any(path.parent_segments())?;
         let expression = {
             let borrowed = parent.borrow();
             borrowed.expressions.get(field_name).cloned()
@@ -402,7 +429,7 @@ impl EdgeRulesModel {
             return self.ast_root.get_user_type(type_name);
         }
 
-        let parent = self.ast_root.resolve_context(path.parent_segments())?;
+        let parent = self.resolve_context_any(path.parent_segments())?;
         let user_type = {
             let borrowed = parent.borrow();
             borrowed.get_user_type(type_name)
@@ -458,7 +485,7 @@ impl EdgeRulesModel {
             return self.ast_root.get_user_function(function_name);
         }
 
-        let parent = self.ast_root.resolve_context(path.parent_segments())?;
+        let parent = self.resolve_context_any(path.parent_segments())?;
         let function = {
             let borrowed = parent.borrow();
             borrowed.get_function(function_name)
@@ -480,9 +507,44 @@ impl EdgeRulesModel {
         path_segments: &[&str],
     ) -> Result<Rc<RefCell<ContextObject>>, ContextUpdateErrorEnum> {
         debug_assert!(!path_segments.is_empty());
+        if let Some(ctx) = self.ast_root.resolve_context(path_segments) {
+            return Ok(ctx);
+        }
+        if let Some(ctx) = self.resolve_function_context(path_segments) {
+            return Ok(ctx);
+        }
+        Err(ContextUpdateErrorEnum::ContextNotFoundError(
+            path_segments.join("."),
+        ))
+    }
+
+    fn resolve_context_any(&self, path_segments: &[&str]) -> Option<Rc<RefCell<ContextObject>>> {
+        if path_segments.is_empty() {
+            return None;
+        }
         self.ast_root
             .resolve_context(path_segments)
-            .ok_or_else(|| ContextUpdateErrorEnum::ContextNotFoundError(path_segments.join(".")))
+            .or_else(|| self.resolve_function_context(path_segments))
+    }
+
+    fn resolve_function_context(
+        &self,
+        path_segments: &[&str],
+    ) -> Option<Rc<RefCell<ContextObject>>> {
+        let function_name = path_segments.first()?;
+        let function = self.ast_root.get_user_function(function_name)?;
+        let mut current = Rc::clone(&function.borrow().function_definition.body);
+        for segment in path_segments.iter().skip(1) {
+            let next = {
+                let borrowed = current.borrow();
+                borrowed.node().get_child(segment)
+            };
+            match next {
+                Some(child) => current = child,
+                None => return None,
+            }
+        }
+        Some(current)
     }
 
     fn insert_root_user_function(

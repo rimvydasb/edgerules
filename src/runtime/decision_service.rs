@@ -92,6 +92,11 @@ impl DecisionService {
         Ok(EdgeRulesRuntime::new(Rc::clone(&self.static_context)))
     }
 
+    #[cfg_attr(not(all(target_arch = "wasm32", feature = "wasm")), allow(dead_code))]
+    pub(crate) fn ensure_linked(&mut self) -> Result<(), EvalError> {
+        self.ensure_runtime().map(|_| ())
+    }
+
     fn resolve_method_entry(
         &self,
         method_path: &str,

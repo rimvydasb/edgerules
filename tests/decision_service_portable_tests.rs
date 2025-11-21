@@ -143,3 +143,148 @@ fn portable_controller_serializes_snapshot() {
     let feature = js_sys::Reflect::get(&config, &JsValue::from_str("featureEnabled")).unwrap();
     assert_eq!(feature.as_bool(), Some(true));
 }
+
+#[test]
+fn portable_controller_sets_nested_entries() {
+    let portable = {
+        let root = obj();
+        let decide = obj();
+        set(&decide, "@type", &JsValue::from_str("function"));
+        let params = obj();
+        set(&params, "input", &JsValue::from_str("Input"));
+        set(&decide, "@parameters", &JsValue::from(params));
+        set(&decide, "flag", &JsValue::from_str("input.enabled"));
+        set(&root, "decide", &JsValue::from(decide));
+        let input = obj();
+        set(&input, "@type", &JsValue::from_str("type"));
+        set(&input, "enabled", &JsValue::from_str("<boolean>"));
+        set(&root, "Input", &JsValue::from(input));
+        JsValue::from(root)
+    };
+
+    let mut controller =
+        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+
+    // Expression nested under function context
+    let nested_expr = controller
+        .set_entry("decide.settings.threshold", &JsValue::from_f64(10.0))
+        .expect("set nested expression");
+    assert_eq!(nested_expr.as_f64(), Some(10.0));
+
+    // Function nested under function body
+    let helper = obj();
+    set(&helper, "@type", &JsValue::from_str("function"));
+    set(
+        &helper,
+        "@parameters",
+        &JsValue::from(js_sys::Object::new()),
+    );
+    set(&helper, "value", &JsValue::from_str("42"));
+    controller
+        .set_entry("decide.helper", &JsValue::from(helper))
+        .expect("set nested function");
+
+    // Type nested under function body
+    let nested_type = obj();
+    set(&nested_type, "@type", &JsValue::from_str("type"));
+    set(&nested_type, "amount", &JsValue::from_str("<number>"));
+    controller
+        .set_entry("decide.Result", &JsValue::from(nested_type))
+        .expect("set nested type");
+
+    let request = build_request_value("{ input: { enabled: true } }");
+    let response = controller
+        .execute_value("decide", request)
+        .expect("execute decide with nested additions");
+    assert!(
+        value_to_string(&response).contains("flag:true"),
+        "flag should evaluate under nested additions"
+    );
+}
+
+#[test]
+fn portable_controller_set_entry_errors_on_invalid_paths() {
+    let portable = {
+        let root = obj();
+        let ctx = obj();
+        set(&ctx, "value", &JsValue::from_str("1"));
+        set(&root, "config", &JsValue::from(ctx));
+        JsValue::from(root)
+    };
+    let mut controller =
+        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+
+    let err = controller
+        .set_entry("", &JsValue::from_str("2"))
+        .unwrap_err();
+    assert!(
+        err.to_string()
+            .to_lowercase()
+            .contains("path cannot be empty"),
+        "empty path should error, got {}",
+        err
+    );
+
+    let err = controller
+        .set_entry("missing.path", &JsValue::from_str("2"))
+        .unwrap_err();
+    assert!(
+        err.to_string().to_lowercase().contains("not found"),
+        "missing parent should error, got {}",
+        err
+    );
+}
+
+#[test]
+fn portable_controller_removes_nested_entries_and_rejects_invalid() {
+    let portable = {
+        let root = obj();
+        let inner = obj();
+        set(&inner, "value", &JsValue::from_str("5"));
+        set(&root, "config", &JsValue::from(inner));
+        let func = obj();
+        set(&func, "@type", &JsValue::from_str("function"));
+        set(&func, "@parameters", &JsValue::from(js_sys::Object::new()));
+        set(&func, "result", &JsValue::from_str("config.value"));
+        set(&root, "decide", &JsValue::from(func));
+        JsValue::from(root)
+    };
+
+    let mut controller =
+        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+
+    controller
+        .remove_entry("config.value")
+        .expect("remove nested expression");
+    let err = controller.get_entry("config.value").unwrap_err();
+    assert!(
+        err.to_string().to_lowercase().contains("not found"),
+        "removed entry should not be readable"
+    );
+
+    let err = controller.remove_entry("config.missing").unwrap_err();
+    assert!(
+        err.to_string().to_lowercase().contains("not found"),
+        "missing nested removal should error"
+    );
+
+    let invalid = controller.remove_entry("").unwrap_err();
+    assert!(
+        invalid
+            .to_string()
+            .to_lowercase()
+            .contains("cannot be empty"),
+        "empty path removal should error, got {}",
+        invalid
+    );
+
+    // Removing required config should surface during execution.
+    let request = build_request_value("{}");
+    let err = controller.execute_value("decide", request).unwrap_err();
+    assert!(
+        err.to_string().to_lowercase().contains("not found")
+            || err.to_string().to_lowercase().contains("missing"),
+        "execution should fail after removing required entry, got {}",
+        err
+    );
+}

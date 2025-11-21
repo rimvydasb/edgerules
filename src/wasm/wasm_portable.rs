@@ -5,12 +5,14 @@ use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::sequence::CollectionExpression;
-use crate::ast::token::ExpressionEnum;
-use crate::ast::token::{ComplexTypeRef, DefinitionEnum, UserTypeBody};
+use crate::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
+use crate::ast::user_function_call::UserFunctionCall;
 use crate::link::node_data::Node;
 // for node()
 use crate::runtime::decision_service::DecisionService;
-use crate::runtime::edge_rules::{ContextUpdateErrorEnum, EdgeRulesModel, EvalError, ParseErrors};
+use crate::runtime::edge_rules::{
+    ContextUpdateErrorEnum, EdgeRulesModel, EvalError, InvocationSpec, ParseErrors,
+};
 use crate::tokenizer::parser;
 use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
@@ -106,11 +108,24 @@ impl DecisionServiceController {
             let mut borrowed = model.borrow_mut();
             apply_portable_entry(&mut borrowed, path, payload)?;
         }
+        self.service.ensure_linked()?;
         let updated = {
             let borrowed = model.borrow();
             get_portable_entry(&borrowed, path)?
         };
         Ok(updated)
+    }
+    pub fn set_invocation(
+        &mut self,
+        path: &str,
+        payload: &JsValue,
+    ) -> Result<JsValue, PortableError> {
+        match classify_entry(payload) {
+            PortableKind::Invocation(_) => self.set_entry(path, payload),
+            _ => Err(PortableError::new(
+                "Invocation payload must include \"@type\": \"invocation\"",
+            )),
+        }
     }
     pub fn remove_entry(&mut self, path: &str) -> Result<(), PortableError> {
         let model = self.service.get_model();
@@ -118,6 +133,7 @@ impl DecisionServiceController {
             let mut borrowed = model.borrow_mut();
             remove_portable_entry(&mut borrowed, path)?;
         }
+        self.service.ensure_linked()?;
         Ok(())
     }
     pub fn get_entry(&mut self, path: &str) -> Result<JsValue, PortableError> {
@@ -157,6 +173,10 @@ pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, Portabl
                 let definition = parse_function_definition(&name, &def_obj)?;
                 apply_function(&mut model, definition)?;
             }
+            PortableKind::Invocation(inv_obj) => {
+                let spec = parse_invocation_spec(&inv_obj)?;
+                model.set_invocation(&name, spec)?;
+            }
             PortableKind::Type(def_obj) => {
                 let body = parse_type_definition(&def_obj)?;
                 model.set_user_type(&name, body)?;
@@ -188,6 +208,10 @@ pub fn apply_portable_entry(
             let (context_path, function_name) = split_path(path)?;
             let definition = parse_function_definition(&function_name, &def_obj)?;
             apply_function_with_path(model, context_path, definition)?;
+        }
+        PortableKind::Invocation(inv_obj) => {
+            let spec = parse_invocation_spec(&inv_obj)?;
+            model.set_invocation(path, spec)?;
         }
         PortableKind::Type(def_obj) => {
             let body = parse_type_definition(&def_obj)?;
@@ -243,6 +267,7 @@ pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue,
 enum PortableKind {
     Function(JsValue),
     Type(JsValue),
+    Invocation(JsValue),
     Context(JsValue),
     Expression(JsValue),
 }
@@ -252,6 +277,7 @@ fn classify_entry(value: &JsValue) -> PortableKind {
             match kind.as_str() {
                 "function" => return PortableKind::Function(value.clone()),
                 "type" => return PortableKind::Type(value.clone()),
+                "invocation" => return PortableKind::Invocation(value.clone()),
                 _ => {}
             }
         }
@@ -331,6 +357,9 @@ fn parse_type_body(obj: &JsValue) -> Result<ContextObjectBuilder, PortableError>
                 builder
                     .add_expression(&name, ExpressionEnum::StaticObject(nested_builder.build()))?;
             }
+            PortableKind::Invocation(_) => {
+                return Err(PortableError::new("Invocations are not supported in types"));
+            }
             PortableKind::Context(nested_ctx) => {
                 let nested_expr = parse_static_object(&nested_ctx)?;
                 builder.add_expression(&name, nested_expr)?;
@@ -369,6 +398,10 @@ fn parse_context_builder(
             PortableKind::Function(def_obj) => {
                 let definition = parse_function_definition(&name, &def_obj)?;
                 builder.add_definition(DefinitionEnum::UserFunction(definition))?;
+            }
+            PortableKind::Invocation(inv_obj) => {
+                let expr = parse_invocation_expression(&inv_obj)?;
+                builder.add_expression(&name, expr)?;
             }
             PortableKind::Type(def_obj) => {
                 let body = parse_type_definition(&def_obj)?;
@@ -419,6 +452,55 @@ fn parse_expression_value(value: &JsValue) -> Result<ExpressionEnum, PortableErr
         return parse_static_object(value);
     }
     Err(PortableError::new("Unsupported portable expression value"))
+}
+
+fn parse_invocation_spec(obj: &JsValue) -> Result<InvocationSpec, PortableError> {
+    if !is_object(obj) {
+        return Err(PortableError::new(
+            "Invocation definition must be an object with @method",
+        ));
+    }
+    let Some(method) = get_prop(obj, "@method").and_then(|v| v.as_string()) else {
+        return Err(PortableError::new("@method is required for invocation"));
+    };
+    let trimmed_method = method.trim();
+    if trimmed_method.is_empty() {
+        return Err(PortableError::new("@method cannot be empty"));
+    }
+    let arguments = match get_prop(obj, "@arguments") {
+        None => default_invocation_arguments()?,
+        Some(arg_list) => parse_invocation_arguments(&arg_list)?,
+    };
+    Ok(InvocationSpec {
+        method_path: trimmed_method.to_string(),
+        arguments,
+    })
+}
+
+fn parse_invocation_arguments(args: &JsValue) -> Result<Vec<ExpressionEnum>, PortableError> {
+    if !Array::is_array(args) {
+        return Err(PortableError::new(
+            "@arguments must be an array when provided",
+        ));
+    }
+    let arr: Array = args.clone().unchecked_into();
+    let mut out = Vec::with_capacity(arr.length() as usize);
+    for i in 0..arr.length() {
+        out.push(parse_expression_value(&arr.get(i))?);
+    }
+    Ok(out)
+}
+
+fn default_invocation_arguments() -> Result<Vec<ExpressionEnum>, PortableError> {
+    Ok(vec![EdgeRulesModel::parse_expression("request")?])
+}
+
+fn parse_invocation_expression(obj: &JsValue) -> Result<ExpressionEnum, PortableError> {
+    let spec = parse_invocation_spec(obj)?;
+    Ok(ExpressionEnum::from(UserFunctionCall::new(
+        spec.method_path,
+        spec.arguments,
+    )))
 }
 
 fn parse_angle_type(text: &str) -> Result<ComplexTypeRef, PortableError> {
@@ -477,8 +559,38 @@ fn serialize_expression(expr: &ExpressionEnum) -> Result<JsValue, PortableError>
     match expr {
         ExpressionEnum::Value(value) => serialize_value(value),
         ExpressionEnum::StaticObject(ctx) => context_to_object(&ctx.borrow()),
-        _ => Ok(JsValue::from_str(&expr.to_string())),
+        _ => {
+            if let Some(call) = expr.as_user_function_call() {
+                return serialize_invocation_call(call);
+            }
+            Ok(JsValue::from_str(&expr.to_string()))
+        }
     }
+}
+
+fn serialize_invocation_call(call: &UserFunctionCall) -> Result<JsValue, PortableError> {
+    let obj = Object::new();
+    Reflect::set(
+        &obj,
+        &JsValue::from_str("@type"),
+        &JsValue::from_str("invocation"),
+    )
+    .map_err(|_| PortableError::new("Failed to serialize invocation type"))?;
+    Reflect::set(
+        &obj,
+        &JsValue::from_str("@method"),
+        &JsValue::from_str(&call.name),
+    )
+    .map_err(|_| PortableError::new("Failed to serialize invocation method"))?;
+    if !call.args.is_empty() {
+        let args = Array::new();
+        for arg in &call.args {
+            args.push(&serialize_expression(arg)?);
+        }
+        Reflect::set(&obj, &JsValue::from_str("@arguments"), &args)
+            .map_err(|_| PortableError::new("Failed to serialize invocation arguments"))?;
+    }
+    Ok(JsValue::from(obj))
 }
 fn serialize_value(value: &ValueEnum) -> Result<JsValue, PortableError> {
     match value {

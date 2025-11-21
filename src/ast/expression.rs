@@ -3,6 +3,7 @@ use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::*;
+use crate::ast::user_function_call::UserFunctionCall;
 use crate::ast::variable::VariableLink;
 use crate::ast::Link;
 use crate::link::node_data::ContentHolder;
@@ -15,6 +16,7 @@ use crate::typesystem::values::{ArrayValue, ValueEnum};
 use crate::utils::intern_field_name;
 use crate::*;
 use log::{error, trace};
+use std::any::Any;
 use std::cell::RefCell;
 use std::fmt::{Debug, Display};
 use std::ops::Range;
@@ -344,7 +346,7 @@ impl Display for CastCall {
     }
 }
 
-pub trait EvaluatableExpression: StaticLink {
+pub trait EvaluatableExpression: StaticLink + Any + 'static {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError>;
 }
 
@@ -446,6 +448,16 @@ impl ExpressionEnum {
             .map(|segment| intern_field_name(segment))
             .collect();
         Variable(VariableLink::new_interned_path(path))
+    }
+
+    pub fn as_user_function_call(&self) -> Option<&UserFunctionCall> {
+        match self {
+            FunctionCall(function) => {
+                let any_ref = function.as_ref() as &dyn Any;
+                any_ref.downcast_ref::<UserFunctionCall>()
+            }
+            _ => None,
+        }
     }
 }
 

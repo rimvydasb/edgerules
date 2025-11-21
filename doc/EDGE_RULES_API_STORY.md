@@ -323,32 +323,32 @@ Portable version is simplified JSON like structure to transfer or persist EdgeRu
 ### TypeScript Interface:
 
 ```typescript
-export type TypeAtom = "string" | "number" | "boolean" | "date" | "time" | "datetime" | "duration";
 export type PortableScalar = string | number | boolean;
-export type PortableValue = PortableScalar | PortableScalar[] | PortableObject | PortableObject[];
+
 export type PortableExpressionString = string;
 
-export type AngleTypeRef = `<${TypeAtom}>` | `<${TypeAtom}[]>` | `<${string}>` | `<${string}[]>`;
+export type PortableValue =
+    | PortableScalar
+    | PortableScalar[]
+    | PortableObject
+    | PortableObject[];
 
 export interface PortableTypeDefinition {
-    "@type": "type";
-
-    [fieldName: string]: AngleTypeRef | PortableTypeDefinition;
+    '@type': 'type';
+    '@ref'?: string;
+    [key: string]: PortableValue | PortableExpressionString | undefined;
 }
 
-export type ParamTypeRef = TypeAtom | `${TypeAtom}[]` | string | `${string}[]`;
-
 export interface PortableFunctionDefinition {
-    "@type": "function";
-    "@parameters": Record<string, ParamTypeRef>;
-
-    [k: string]: PortableValue | PortableExpressionString;
+    '@type': 'function';
+    '@parameters': Record<string, string | null | undefined>;
+    [key: string]: PortableValue | PortableExpressionString;
 }
 
 export interface PortableInvocationDefinition {
-    "@type": "invocation";
-    "@method": string;
-    "@arguments"?: (PortableValue | PortableExpressionString)[];
+    '@type': 'invocation';
+    '@method': string;
+    '@arguments'?: (PortableValue | PortableExpressionString)[];
 }
 
 export interface PortableObject {
@@ -361,8 +361,8 @@ export interface PortableObject {
 }
 
 export interface PortableContext extends PortableObject {
-    "@version"?: string | number;
-    "@model_name"?: string;
+    '@version'?: string | number;
+    '@model_name'?: string;
 }
 ```
 
@@ -568,12 +568,24 @@ output:
 
 **Todo:**
 
-- [ ] Implement Decision Service Invocation API
-- [ ] Add Example to the `ds-demo.mjs` as a separate example
-- [ ] Run tests with `just demo-node` and fix any errors
-- [ ] Add required Rust tests with happy and unhappy paths
-- [ ] `set_to_decision_service_model` should also return linking errors if any
-- [ ] Update `ds-demo.mjs` with unhappy linkin error scenario
+- [x] Analyze EDGE_RULES_API_STORY.md and Implement Decision Service Invocation API
+- [x] Update TypeScript Interface
+- [x] Add Example to the `ds-demo.mjs` as a separate example
+- [x] Run tests with `just demo-node` and fix any errors
+- [x] Add required Rust tests with happy and unhappy paths
+- [x] `set_to_decision_service_model` should also return linking errors if any
+- [x] Update `ds-demo.mjs` with unhappy linkin error scenario
+- [ ] Improve `decision_service_tests` by adding nested path in `set_to_decision_service_model` tests:
+  - [ ] For expressions
+  - [ ] For functions
+  - [ ] For types
+  - [ ] Add unhappy path tests for non-existing and invalid paths
+- [ ] Improve `decision_service_tests` by adding remove tests for nested paths in `remove_from_decision_service_model` tests:
+  - [ ] For expressions
+  - [ ] For functions
+  - [ ] For types
+  - [ ] Add unhappy path tests for non-existing and invalid paths
+  - [ ] Add unhappy tests that try calling `execute_decision_service` after removing required items
 
 **Notes:**
 

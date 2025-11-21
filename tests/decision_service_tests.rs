@@ -1,5 +1,5 @@
 use edge_rules::runtime::decision_service::DecisionService;
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, ExpressionEnum, InvocationSpec};
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
 
@@ -17,6 +17,42 @@ fn build_request_value(source: &str) -> ValueEnum {
 
 fn value_to_string(value: &ValueEnum) -> String {
     value.to_string().replace('\n', "").replace(' ', "")
+}
+
+#[cfg(feature = "mutable_decision_service")]
+#[test]
+fn set_invocation_invokes_function() {
+    let mut model = EdgeRulesModel::new();
+    model
+        .append_source(
+            r#"
+        {
+            func compute(input): {
+                doubled: input * 2
+            }
+        }
+        "#,
+        )
+        .expect("seed compute function");
+
+    let spec = InvocationSpec {
+        method_path: "compute".to_string(),
+        arguments: vec![ExpressionEnum::Value(ValueEnum::from(7_i32))],
+    };
+    model
+        .set_invocation("result", spec)
+        .expect("store invocation entry");
+
+    let runtime = model.to_runtime().expect("link invocation model");
+    let value = runtime
+        .evaluate_field("result")
+        .expect("evaluate invocation field");
+    let rendered = value_to_string(&value);
+    assert!(
+        rendered.contains("doubled:14"),
+        "expected invocation to call compute(), got {}",
+        rendered
+    );
 }
 
 #[test]
@@ -74,6 +110,42 @@ fn execute_errors_when_method_has_wrong_arity() {
             .to_lowercase()
             .contains("exactly one argument"),
         "expected arity error, got: {}",
+        err
+    );
+}
+
+#[cfg(feature = "mutable_decision_service")]
+#[test]
+fn invalid_invocation_surfaces_link_error() {
+    let model = r#"
+    {
+        func helper(value): { outcome: value }
+        func decide(request): {
+            ok: true
+        }
+    }
+    "#;
+
+    let mut service = DecisionService::from_source(model).expect("service from model");
+    {
+        let model_ref = service.get_model();
+        let mut borrowed = model_ref.borrow_mut();
+        let spec = InvocationSpec {
+            method_path: "helper".to_string(),
+            arguments: Vec::new(),
+        };
+        borrowed
+            .set_invocation("broken", spec)
+            .expect("invocation stored");
+    }
+
+    let request = build_request_value("{ value: 10 }");
+    let err = service.execute("decide", request).unwrap_err();
+    assert!(
+        err.to_string()
+            .to_lowercase()
+            .contains("expects 1 arguments"),
+        "expected link error about argument count, got {}",
         err
     );
 }

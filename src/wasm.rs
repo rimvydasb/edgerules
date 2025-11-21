@@ -251,6 +251,15 @@ pub fn set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue {
 }
 
 #[wasm_bindgen]
+pub fn set_invocation(path: &str, invocation: &JsValue) -> JsValue {
+    let updated = match with_decision_service(|svc| svc.set_invocation(path, invocation)) {
+        Ok(value) => value,
+        Err(err) => throw_portable_error(err),
+    };
+    updated
+}
+
+#[wasm_bindgen]
 pub fn remove_from_decision_service_model(path: &str) -> JsValue {
     match with_decision_service(|svc| svc.remove_entry(path)) {
         Ok(_) => JsValue::from_bool(true),
