@@ -104,9 +104,9 @@ impl EvaluatableExpression for VariableLink {
                     let mut cursor = Some(Rc::clone(&context));
                     let mut found = None;
                     while let Some(ctx) = cursor {
-                        trace!("variable.eval climb: at {:?}", ctx.borrow().node.node_type);
+                        //trace!("variable.eval climb: at {:?}", ctx.borrow().node.node_type);
                         let assigned = ctx.borrow().node.get_assigned_to_field();
-                        trace!("assigned: {:?}", assigned);
+                        //trace!("assigned: {:?}", assigned);
                         if assigned == Some(first) {
                             found = Some(ctx);
                             break;

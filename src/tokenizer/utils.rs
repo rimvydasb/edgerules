@@ -9,7 +9,7 @@ use crate::typesystem::errors::ParseErrorEnum::{
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::{Float, Integer};
 use std::collections::vec_deque::VecDeque;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::iter::Peekable;
 use std::ops;
 use std::str::Chars;
@@ -123,6 +123,13 @@ impl TokenChain {
         }
 
         Ok(arguments)
+    }
+}
+
+impl Display for TokenChain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tokens: Vec<String> = self.0.iter().map(|t| format!("{}", t)).collect();
+        write!(f, "TokenChain[{}]", tokens.join(", "))
     }
 }
 

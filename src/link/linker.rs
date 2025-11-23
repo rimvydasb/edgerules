@@ -24,7 +24,7 @@ use std::rc::Rc;
 
 // @Todo: is it possible or necessary to prevent re-execution of the same code?
 pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<ContextObject>>> {
-    trace!("link_parts: {}(..)", context.borrow().node().node_type);
+    //trace!("link_parts: {}(..)", context.borrow().node().node_type);
 
     let field_names = context.borrow().get_field_names();
     let mut references = Vec::new();
@@ -60,7 +60,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
 
                 if let Ok(field_type) = &linked_type {
                     let context_name = context.borrow().node().node_type.to_string();
-                    trace!("expression: {}.{} -> {}", context_name, name, field_type);
+                    //trace!("expression: {}.{} -> {}", context_name, name, field_type);
                 }
 
                 linked_type?;
@@ -101,11 +101,11 @@ pub fn find_implementation(
         let implementation = (*ctx).borrow().get_function(function_name.as_str());
 
         if let Some(definition) = implementation {
-            trace!(
-                "find_implementation: found {} in {} ",
-                function_name,
-                ctx.borrow().node().node_type
-            );
+            // trace!(
+            //     "find_implementation: found {} in {} ",
+            //     function_name,
+            //     ctx.borrow().node().node_type
+            // );
             return Ok(Rc::clone(&definition));
         } else {
             let maybe_parent = (*ctx).borrow().node().node_type.get_parent();
@@ -178,7 +178,7 @@ pub fn get_till_root<T: Node<T>>(
             ..
         }) => match ctx.borrow().node().node_type.get_parent() {
             None => {
-                error!("get_till_root: Cannot find {} in {} and object upgrade is not possible for `{:?}`", field, obj_name, ctx.borrow().node().node_type);
+                //error!("get_till_root: Cannot find {} in {} and object upgrade is not possible for `{:?}`", field, obj_name, ctx.borrow().node().node_type);
                 result = Err(LinkingError::new(FieldNotFound(obj_name, field)));
             }
             Some(parent) => {
@@ -294,7 +294,7 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
             &[&'a str],
         ) -> Result<EObjectContent<T>, LinkingError>,
     {
-        trace!("on_incomplete: {:?}", self);
+        //trace!("on_incomplete: {:?}", self);
         match self {
             BrowseResult::Found(result) => Ok(result),
             BrowseResult::OnExpression(ctx, content, path) => {
@@ -385,7 +385,7 @@ fn continue_browse<'a, T: Node<T>>(
     mut index: usize,
     mut starting: (Rc<RefCell<T>>, EObjectContent<T>),
 ) -> Result<BrowseResult<'a, T>, LinkingError> {
-    trace!("continue_browse(path[{}..], {:?})", index, starting);
+    //trace!("continue_browse(path[{}..], {:?})", index, starting);
     let mut current_search_end: Option<&str> = None;
 
     #[allow(irrefutable_let_patterns)]

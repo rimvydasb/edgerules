@@ -12,15 +12,15 @@ This story gradually unfolds the ideal error handling strategy for EdgeRules.
 
 ## Tasks
 
-### unclear or unneeded parts
+### Reduce Debug usage and eliminate Debug usage in WASM to reduce WASM size
 
-All existing tests, while run with coverage, do not touch this part of the code.
-Try to find out why it is needed and either cover with test case or remove it.
+It is important to reduce the size of the WASM binary and eliminate internal
+structures (Enums) exposure in the error messages and WASM itself.
 
-```rust
-other => {
-    // @Todo: why this part is even needed?
-    let literal = other.into_string_or_literal()?;
-    ComparatorEnum::try_from(literal.as_str())?
-}
-```
+[ ] Find out where {:?} is used in trace and comment out those trace functions
+[ ] Remove Debug derivation from those structures that are not used in tests
+[ ] Include Debug derivation only in non WASM builds
+[ ] Run all tests at the end and fix compilation errors
+[ ] Run `just demo-node` and check the error messages
+
+The goal is very important to reduce the size of the WASM binary.

@@ -6,15 +6,15 @@ use crate::link::node_data::NodeDataEnum::{Child, Internal, Isolated, Root};
 use crate::typesystem::errors::LinkingError;
 use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
 use crate::utils::bracket_unwrap;
-use log::trace;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
+use log::trace;
 
 #[derive(Debug, Clone)]
-pub enum NodeDataEnum<T: Debug + Node<T>> {
+pub enum NodeDataEnum<T: Node<T>> {
     /// This is a normal context child. Child can access parent context and parent context can access child. Used in:
     /// 1. Context child
     Child(&'static str, Weak<RefCell<T>>),
@@ -29,7 +29,7 @@ pub enum NodeDataEnum<T: Debug + Node<T>> {
     Root(),
 }
 
-impl<T: Debug + Node<T>> Display for NodeDataEnum<T> {
+impl<T: Node<T>> Display for NodeDataEnum<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Child(name, parent) => match parent.upgrade() {
@@ -57,7 +57,7 @@ impl<T: Debug + Node<T>> Display for NodeDataEnum<T> {
     }
 }
 
-impl<T: Debug + Node<T>> NodeDataEnum<T> {
+impl<T: Node<T>> NodeDataEnum<T> {
     pub fn get_parent(&self) -> Option<Rc<RefCell<T>>> {
         match self {
             Child(_, parent) => parent.upgrade(),
@@ -76,7 +76,7 @@ impl<T: Debug + Node<T>> NodeDataEnum<T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeData<T: Debug + Node<T>> {
+pub struct NodeData<T: Node<T>> {
     /// The type of node: root, isolated, internal or child
     pub node_type: NodeDataEnum<T>,
     /// Simple placeholder to lock object fields from modification
@@ -118,7 +118,7 @@ pub trait ContentHolder<T: Node<T>> {
     }
 }
 
-pub trait Node<T: Node<T>>: Display + Debug + Clone + ContentHolder<T> {
+pub trait Node<T: Node<T>>: Display + Clone + ContentHolder<T> {
     fn node(&self) -> &NodeData<T>;
 
     fn mut_node(&mut self) -> &mut NodeData<T>;

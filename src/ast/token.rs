@@ -218,7 +218,7 @@ impl StaticLink for ExpressionEnum {
         let trace_context = Rc::clone(&ctx);
 
         // @Todo: remove it for performance reasons
-        let trace_string = format!("{:?}", self);
+        let trace_string = format!("{}", self.to_string());
 
         let linking_result = match self {
             Variable(variable) => variable.link(ctx),

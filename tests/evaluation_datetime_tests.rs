@@ -225,7 +225,7 @@ fn duration_comparator_operators() {
 fn period_comparator_equality_only() {
     assert_value!("period('P1Y') = period('P12M')", "true");
     assert_value!("period('P1Y') <> period('P13M')", "true");
-    link_error_contains("value: period('P1M') < period('P2M')", &["Comparator"]);
+    link_error_contains("value: period('P1M') < period('P2M')", &["'<'"]);
 }
 
 #[test]
