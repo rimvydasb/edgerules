@@ -9,14 +9,15 @@ use crate::typesystem::errors::ParseErrorEnum::{
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::{Float, Integer};
 use std::collections::vec_deque::VecDeque;
-use std::fmt::{Debug, Display};
+use std::fmt::Display;
 use std::iter::Peekable;
 use std::ops;
 use std::str::Chars;
 //----------------------------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Either<L: Debug, R: Debug> {
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
+pub enum Either<L, R> {
     Left(L),
     Right(R),
 }
@@ -25,7 +26,7 @@ pub enum Either<L: Debug, R: Debug> {
 // TokenChain
 //----------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct TokenChain(pub VecDeque<EToken>);
 
 impl TokenChain {

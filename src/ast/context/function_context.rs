@@ -11,15 +11,15 @@ use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::utils::intern_field_name;
-use log::trace;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 /// Function context can be created as an internally scoped: that means no upper context browse is possible.
-#[derive(Debug, Clone)]
-pub struct AbstractFunctionContext<B: PartialEq + Debug> {
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
+pub struct AbstractFunctionContext<B: PartialEq> {
     /// The access to the parent context if available - it is available for an inline functions
     pub node: NodeData<ContextObject>,
     /// It can be a body of a function or a sinle expression for an inline function such as a loop
@@ -31,7 +31,7 @@ pub struct AbstractFunctionContext<B: PartialEq + Debug> {
 pub type FunctionContext = AbstractFunctionContext<ContextObject>;
 //pub type InlineFunctionContext = AbstractFunctionContext<ExpressionEnum>;
 
-impl<B: PartialEq + Debug> PartialEq for AbstractFunctionContext<B> {
+impl<B: PartialEq> PartialEq for AbstractFunctionContext<B> {
     fn eq(&self, other: &Self) -> bool {
         self.body == other.body && self.node == other.node && self.parameters == other.parameters
     }

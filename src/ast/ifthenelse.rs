@@ -9,10 +9,10 @@ use crate::typesystem::values::ValueEnum;
 use crate::utils::bracket_unwrap;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct IfThenElseFunction {
     pub condition: ExpressionEnum,
     pub then_expression: ExpressionEnum,

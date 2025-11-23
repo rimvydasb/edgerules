@@ -26,7 +26,7 @@ use crate::typesystem::values::ValueEnum;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 //--------------------------------------------------------------------------------------------------
 
@@ -63,7 +63,8 @@ pub enum EPriorities {
 // @Todo implementation of Display
 /// constrains can be applied in:
 /// Constraint(EComparator, Box<EExpression>),
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum EUnparsedToken {
     Comma,
@@ -77,7 +78,8 @@ pub enum EUnparsedToken {
     ComparatorToken(ComparatorEnum),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum ComplexTypeRef {
     BuiltinType(ValueType),
     Alias(String),
@@ -128,7 +130,7 @@ impl TryInto<ExpressionEnum> for EToken {
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum EToken {
     ParseError(ParseErrorEnum),
     Unparsed(EUnparsedToken),
@@ -160,7 +162,7 @@ impl EToken {
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum DefinitionEnum {
     UserFunction(FunctionDefinition),
     UserType(UserTypeDefinition),
@@ -176,7 +178,7 @@ impl Display for DefinitionEnum {
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum ExpressionEnum {
     Value(ValueEnum),
 
@@ -217,8 +219,11 @@ impl StaticLink for ExpressionEnum {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         let trace_context = Rc::clone(&ctx);
 
-        // @Todo: remove it for performance reasons
-        let trace_string = format!("{}", self.to_string());
+        #[cfg(target_arch = "wasm32")]
+        let trace_string = "<trace omitted>".to_string();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let trace_string = self.to_string();
 
         let linking_result = match self {
             Variable(variable) => variable.link(ctx),
@@ -366,7 +371,8 @@ impl Display for ExpressionEnum {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum UserTypeBody {
     TypeRef(ComplexTypeRef),
     TypeObject(Rc<RefCell<ContextObject>>),
@@ -390,7 +396,8 @@ impl ToSchema for UserTypeBody {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub struct UserTypeDefinition {
     pub name: String,
     pub body: UserTypeBody,

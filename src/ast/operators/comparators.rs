@@ -14,16 +14,16 @@ use crate::typesystem::values::ValueEnum::{
     PeriodValue as PeriodVariant, StringValue, TimeValue,
 };
 use crate::typesystem::values::ValueOrSv;
-use log::trace;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 //----------------------------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum ComparatorEnum {
     Equals,
     NotEquals,
@@ -69,7 +69,8 @@ impl ComparatorEnum {
 
 //----------------------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct ComparatorOperator {
     pub data: OperatorData<ComparatorEnum>,
 }

@@ -10,10 +10,9 @@ use crate::typesystem::errors::ParseErrorEnum::WrongFormat;
 use crate::typesystem::errors::{
     ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
 };
-use log::trace;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 use crate::typesystem::types::number::NumberEnum as Num;
@@ -34,7 +33,7 @@ fn flatten_list_type(value_type: ValueType) -> ValueType {
 
 //--------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct ExpressionFilter {
     pub source: ExpressionEnum,
     pub method: ExpressionEnum,
@@ -276,7 +275,7 @@ impl EvaluatableExpression for ExpressionFilter {
 
 //--------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct FieldSelection {
     pub source: ExpressionEnum,
     pub method: VariableLink,

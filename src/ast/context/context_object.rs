@@ -9,13 +9,13 @@ use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::LinkingError;
 use crate::typesystem::types::{ToSchema, ValueType};
 use crate::utils::intern_field_name;
-use log::trace;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display};
+use std::fmt::Display;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct ExpressionEntry {
     pub expression: ExpressionEnum,
     pub field_type: Link<ValueType>,
@@ -36,7 +36,7 @@ impl From<ExpressionEntry> for Rc<RefCell<ExpressionEntry>> {
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct MethodEntry {
     pub function_definition: FunctionDefinition,
     pub field_type: Link<ValueType>,
@@ -60,7 +60,8 @@ impl From<MethodEntry> for Rc<RefCell<MethodEntry>> {
 /// *Main considerations:*
 /// - Context Object can have an instance that holds the data into stack: this one is ExecutionContext.
 /// - Context Object is a Type itself
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub struct ContextObject {
     /// fields can also be referenced by variables in various places in AST. This is why it is Rc.
     pub expressions: HashMap<&'static str, Rc<RefCell<ExpressionEntry>>>,
@@ -366,22 +367,23 @@ impl ToSchema for ContextObject {
         }
 
         for name in self.all_field_names.iter() {
-            let content = self.get(name).unwrap();
-            match content {
-                EObjectContent::ExpressionRef(entry) => {
-                    let entry_ref = entry.borrow();
-                    match &entry_ref.field_type {
-                        Ok(field_type) => {
-                            let formatted = self.format_value_type(field_type);
-                            lines.push(format!("{}: {}", name, formatted));
+            if let Ok(content) = self.get(name) {
+                match content {
+                    EObjectContent::ExpressionRef(entry) => {
+                        let entry_ref = entry.borrow();
+                        match &entry_ref.field_type {
+                            Ok(field_type) => {
+                                let formatted = self.format_value_type(field_type);
+                                lines.push(format!("{}: {}", name, formatted));
+                            }
+                            Err(err) => lines.push(format!("{}: {}", name, err)),
                         }
-                        Err(err) => lines.push(format!("{}: {}", name, err)),
                     }
+                    EObjectContent::ObjectRef(entry) => {
+                        lines.push(format!("{}: {}", name, entry.borrow().to_schema()));
+                    }
+                    _ => {}
                 }
-                EObjectContent::ObjectRef(entry) => {
-                    lines.push(format!("{}: {}", name, entry.borrow().to_schema()));
-                }
-                _ => {}
             }
         }
 

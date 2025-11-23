@@ -15,14 +15,22 @@ use crate::typesystem::values::ValueEnum::{NumberValue, RangeValue, Reference};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
 use crate::utils::intern_field_name;
 use crate::*;
-use log::{error, trace};
+use log::error;
 use std::any::Any;
 use std::cell::RefCell;
-use std::fmt::{Debug, Display};
+#[cfg(not(target_arch = "wasm32"))]
+use std::fmt::Debug;
+use std::fmt::Display;
 use std::ops::Range;
 use std::rc::Rc;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub trait StaticLink: Display + Debug {
+    fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType>;
+}
+
+#[cfg(target_arch = "wasm32")]
+pub trait StaticLink: Display {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType>;
 }
 
@@ -314,7 +322,7 @@ fn cast_value_to_type(
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct CastCall {
     expression: ExpressionEnum,
     target_ref: ComplexTypeRef,
@@ -427,8 +435,7 @@ impl ExpressionEnum {
         };
 
         if let Err(error) = eval_result {
-            //let error_str = error.get_error_type().to_string();
-            error!(">                   `{:?}`", error.get_error_type());
+            error!(">                   `{}`", error.get_error_type());
             let with_context = error.with_context(|| {
                 format!(
                     "Error evaluating `{}.{}`",

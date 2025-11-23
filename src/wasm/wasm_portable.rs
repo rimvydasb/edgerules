@@ -23,7 +23,7 @@ use wasm_bindgen::JsCast;
 // for unchecked_into
 use wasm_bindgen::JsValue;
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct PortableError {
     message: String,
 }
@@ -319,8 +319,8 @@ fn parse_function_definition(
                 }
                 None => {
                     return Err(PortableError::new(format!(
-                        "Invalid parameter type for '{}': {:?}",
-                        param_name, param_type
+                        "Invalid parameter type for '{}'",
+                        param_name
                     )))
                 }
             };

@@ -7,8 +7,9 @@ use crate::ast::variable::VariableLink;
 use crate::tokenizer::utils::TokenChain;
 use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::values::ValueEnum;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::utils::to_string;
-use log::{error, trace};
+use log::error;
 use std::collections::vec_deque::VecDeque;
 use std::fmt;
 
@@ -108,6 +109,7 @@ impl ASTBuilder {
                 }
             } else {
                 if let Some(token) = self.result.get(check_build_task.position) {
+                    #[cfg(not(target_arch = "wasm32"))]
                     trace!(
                         "no merge: position={} item={} lvl={} lastPriorityList={}",
                         check_build_task.position,
@@ -115,6 +117,8 @@ impl ASTBuilder {
                         current_level,
                         to_string(&mut self.last_priority_list.clone())
                     );
+                    #[cfg(target_arch = "wasm32")]
+                    let _ = token;
                 } else {
                     trace!(
                         "no merge: position={} left={:?}",
@@ -245,7 +249,6 @@ pub mod factory {
     use crate::typesystem::errors::ParseErrorEnum::{
         FunctionWrongNumberOfArguments, UnexpectedToken, WrongFormat,
     };
-    use log::trace;
     use std::cell::RefCell;
     use std::collections::vec_deque::VecDeque;
     use std::rc::Rc;

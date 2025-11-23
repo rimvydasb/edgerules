@@ -18,7 +18,7 @@ use crate::typesystem::values::{ArrayValue, ValueEnum};
 use crate::utils::context_unwrap;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::ops::Range;
 use std::rc::Rc;
 fn flatten_list_type_for_for(value_type: ValueType) -> ValueType {
@@ -31,7 +31,7 @@ fn flatten_list_type_for_for(value_type: ValueType) -> ValueType {
 /// for in_loop_variable in in_expression return return_expression
 /// in_expression.map(in_loop_variable -> return_expression)
 /// map(in_expression,(in_loop_variable) return_expression)
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct ForFunction {
     pub in_loop_variable: String,
     pub in_expression: ExpressionEnum,

@@ -12,7 +12,7 @@ use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::ValueType::ObjectType;
 use crate::typesystem::values::{number_value_from_i128, ValueEnum};
 use crate::utils::intern_field_name;
-use log::{error, trace};
+use log::error;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Display;
@@ -58,8 +58,8 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
 
                 context.borrow().node().unlock_field(name);
 
-                if let Ok(field_type) = &linked_type {
-                    let context_name = context.borrow().node().node_type.to_string();
+                if let Ok(_field_type) = &linked_type {
+                    let _context_name = context.borrow().node().node_type.to_string();
                     //trace!("expression: {}.{} -> {}", context_name, name, field_type);
                 }
 
@@ -193,7 +193,8 @@ pub fn get_till_root<T: Node<T>>(
     result
 }
 
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub struct BrowseResultFound<T: Node<T>> {
     pub context: Rc<RefCell<T>>,
     pub field_name: &'static str,
@@ -257,7 +258,8 @@ impl<T: Node<T>> Display for BrowseResultFound<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub enum BrowseResult<'a, T: Node<T>> {
     Found(BrowseResultFound<T>),
 
@@ -496,14 +498,14 @@ fn continue_browse<'a, T: Node<T>>(
                 ));
             }
             UserFunctionRef(metaphor) => {
+                let metaphor_name = metaphor.borrow().function_definition.get_name();
                 error!(
-                    "User function '{:?}' does not have '{}' item",
-                    metaphor, current_search
+                    "User function '{}' does not have '{}' item",
+                    metaphor_name, current_search
                 );
                 return LinkingError::new(OtherLinkingError(format!(
                     "Cannot access '{}' from '{}' user function",
-                    current_search,
-                    metaphor.borrow().function_definition.get_name()
+                    current_search, metaphor_name
                 )))
                 .into();
             }
@@ -568,7 +570,7 @@ fn continue_browse<'a, T: Node<T>>(
                     starting = (Rc::clone(context), Definition(def));
                 } else {
                     error!(
-                        "Definition '{:?}' does not have '{}' item",
+                        "Definition '{}' does not have '{}' item",
                         definition, current_search
                     );
                     return LinkingError::new(OtherLinkingError(format!(

@@ -11,9 +11,9 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
-use log::trace;
 
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub enum NodeDataEnum<T: Node<T>> {
     /// This is a normal context child. Child can access parent context and parent context can access child. Used in:
     /// 1. Context child
@@ -75,7 +75,8 @@ impl<T: Node<T>> NodeDataEnum<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub struct NodeData<T: Node<T>> {
     /// The type of node: root, isolated, internal or child
     pub node_type: NodeDataEnum<T>,

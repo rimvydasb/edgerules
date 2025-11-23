@@ -1,7 +1,7 @@
 use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::functions::function_types::EFunctionType;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 
 use crate::ast::token::EToken;
 use crate::ast::Link;
@@ -59,7 +59,8 @@ pub trait ErrorStack<T: Display>: Sized {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub struct GeneralStackedError<T: Display> {
     pub error: T,
     pub context: Vec<String>,
@@ -127,7 +128,8 @@ impl RuntimeError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub enum ParseErrorEnum {
     UnexpectedToken(Box<EToken>, Option<String>),
     UnexpectedLiteral(String, Option<String>),
@@ -283,7 +285,8 @@ impl ParseErrorEnum {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub enum RuntimeErrorEnum {
     // message
     EvalError(String),
@@ -324,7 +327,8 @@ impl Display for RuntimeErrorEnum {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum LinkingErrorEnum {
     // subject, unexpected, expected
     TypesNotCompatible(Option<String>, ValueType, Option<Vec<ValueType>>),
@@ -588,7 +592,8 @@ impl Display for LinkingErrorEnum {
 // @Todo: implement global usage
 // @Todo: implement normal error stacking
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub struct LinkingErrors {
     pub errors: Vec<LinkingError>,
 }

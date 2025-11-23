@@ -1,6 +1,19 @@
 extern crate core;
 extern crate log;
 
+// Logging traces are helpful while developing and testing, but we do not want
+// to pay the cost (or expose internals) in WASM builds. Use this macro instead
+// of `log::trace!` directly so the calls compile to nothing on WASM targets.
+#[macro_export]
+macro_rules! trace {
+    ($($arg:tt)*) => {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            log::trace!($($arg)*);
+        }
+    };
+}
+
 #[cfg(target_arch = "wasm32")]
 #[global_allocator]
 static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;

@@ -1,7 +1,10 @@
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg(not(target_arch = "wasm32"))]
+use std::error::Error;
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum NameKind {
     Field,
     Function,
@@ -18,7 +21,8 @@ impl NameKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DuplicateNameError {
     pub kind: NameKind,
     pub name: String,
@@ -39,4 +43,5 @@ impl Display for DuplicateNameError {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Error for DuplicateNameError {}

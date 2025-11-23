@@ -31,7 +31,8 @@ impl ExtremaOrder {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum ExtremaKind {
     Number,
     Date,

@@ -14,12 +14,13 @@ use crate::typesystem::values::ValueEnum;
 use log::error;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 use phf::phf_map;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct FunctionHolder<T, V, R> {
     pub name: &'static str,
     pub function: T,
@@ -478,7 +479,8 @@ pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinit
     },
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub enum EFunctionType {
     Unary,
     Binary,
@@ -557,7 +559,7 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "padEnd" => EFunctionType::Multi,
 };
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct BinaryFunction {
     pub left: ExpressionEnum,
     pub right: ExpressionEnum,
@@ -610,7 +612,7 @@ impl StaticLink for BinaryFunction {
 
 //--------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct UnaryFunction {
     pub arg: ExpressionEnum,
     pub definition: UnaryFunctionDefinition,
@@ -659,7 +661,7 @@ impl EvaluatableExpression for UnaryFunction {
 /// 1. Must have at least one argument
 /// 2. All arguments must be of the same type
 /// 3. Return type is the same as the argument type
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct MultiFunction {
     pub args: Vec<ExpressionEnum>,
     pub definition: MultiFunctionDefinition,

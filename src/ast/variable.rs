@@ -9,7 +9,6 @@ use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, RuntimeError, Ru
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::utils::intern_field_name;
-use log::trace;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -19,7 +18,8 @@ use std::rc::Rc;
 /// - linking variable from a function return value, for example func1().a
 /// - linking variable from a field, for example field1.a
 /// - linking variable within another expression: x = 1 + b.a
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub struct VariableLink {
     pub path: Vec<&'static str>,
     pub variable_type: Link<ValueType>,

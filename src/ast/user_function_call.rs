@@ -13,11 +13,11 @@ use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::Reference;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 /// User function is a function that is defined in the code by user with a custom name. This is kind of non-built-in function
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct UserFunctionCall {
     pub name: String,
     pub args: Vec<ExpressionEnum>,

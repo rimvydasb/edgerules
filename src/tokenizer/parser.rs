@@ -14,7 +14,6 @@ use crate::tokenizer::builder::factory::*;
 use crate::tokenizer::builder::ASTBuilder;
 use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
-use log::trace;
 
 const RANGE_LITERAL: &str = "..";
 const ASSIGN_LITERAL: &str = ":";

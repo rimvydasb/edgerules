@@ -10,7 +10,6 @@ use crate::typesystem::types::ValueType::{BooleanType, ListType, NumberType, Str
 use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
-use log::trace;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::rc::Rc;

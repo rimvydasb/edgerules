@@ -14,7 +14,6 @@ use crate::typesystem::errors::ParseErrorEnum::{
 };
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::values::ValueEnum;
-use log::trace;
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -28,7 +27,8 @@ pub use crate::link::linker::link_parts;
 // Errors
 //--------------------------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub enum EvalError {
     // Parse errors returned from tokenizer
     FailedParsing(ParseErrors),
@@ -37,22 +37,25 @@ pub enum EvalError {
     FailedExecution(RuntimeError),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub struct EvalResult(Rc<RefCell<ExecutionContext>>, ValueEnum);
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum ParsedItem {
     Expression(ExpressionEnum),
     Definition(DefinitionEnum),
 }
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct InvocationSpec {
     pub method_path: String,
     pub arguments: Vec<ExpressionEnum>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum ContextUpdateErrorEnum {
     DuplicateNameError(DuplicateNameError),
 
@@ -86,7 +89,7 @@ impl From<ContextUpdateErrorEnum> for ParseErrorEnum {
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 struct FieldPath<'a> {
     segments: Vec<&'a str>,
 }
@@ -145,7 +148,8 @@ impl ParsedItem {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct ParseErrors(Vec<ParseErrorEnum>);
 
 impl ParseErrors {

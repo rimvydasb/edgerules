@@ -18,14 +18,16 @@ use crate::typesystem::values::ValueEnum::{
     Array, BooleanValue, NumberValue, RangeValue, Reference, StringValue,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, Eq, PartialEq)]
 pub enum ValueOrSv<OkValue, SpecialValue> {
     Value(OkValue),
     Sv(SpecialValue),
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub enum ValueEnum {
     /// Primitive values
     /// @Todo: move to PrimitiveValue {...} and have Primitive(PrimitiveValue) inside ValueEnum
@@ -56,7 +58,8 @@ pub enum ValueEnum {
 }
 
 #[allow(non_snake_case)]
-#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
 pub enum ArrayValue {
     EmptyUntyped,
 
@@ -214,7 +217,8 @@ fn format_datetime_value(value: &PrimitiveDateTime) -> String {
     )
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, Eq, PartialEq)]
 pub struct DurationValue {
     seconds: u64,
     is_negative: bool,
@@ -414,7 +418,8 @@ impl PartialOrd for DurationValue {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, Eq, PartialEq)]
 pub struct PeriodValue {
     months: u32,
     days: u32,

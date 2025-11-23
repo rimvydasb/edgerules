@@ -24,7 +24,8 @@ pub trait TypedValue {
 
 /// FEEL related documentation:
 /// https://docs.camunda.io/docs/components/modeler/feel/language-guide/feel-data-types/
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 #[allow(clippy::enum_variant_names)]
 pub enum ValueType {
     NumberType,
@@ -143,7 +144,8 @@ impl Display for ValueType {
 
 // 1 - Not Applicable -> value is marked as optional and is not necessary. Functions will ignore it if possible.
 // 2 - Missing -> value is mandatory, but not present. Functions will not be applied for this value and result will be Missing
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, Eq, PartialEq)]
 pub enum SpecialValueEnum {
     Missing(String),
     NotApplicable(String),
@@ -209,11 +211,12 @@ pub mod number {
     use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
     use std::cmp::Ordering;
     use std::fmt;
-    use std::fmt::{Debug, Display, Formatter};
+    use std::fmt::{Display, Formatter};
     use std::ops::{Add, Div, Mul, Rem, Sub};
 
     #[allow(non_snake_case)]
-    #[derive(Debug, PartialEq, Clone)]
+    #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+    #[derive(PartialEq, Clone)]
     pub enum NumberEnum {
         Real(Float),
         Int(Integer),
@@ -389,7 +392,8 @@ pub mod string {
     use std::fmt::Display;
 
     #[allow(non_snake_case)]
-    #[derive(Debug, PartialEq, Clone)]
+    #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+    #[derive(PartialEq, Clone)]
     pub enum StringEnum {
         String(String),
         Char(char),

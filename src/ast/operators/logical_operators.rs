@@ -13,10 +13,13 @@ use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::BooleanValue;
 use std::cell::RefCell;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+#[cfg(not(target_arch = "wasm32"))]
+use std::fmt::Debug;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum LogicalOperatorEnum {
     Not = EPriorities::GateNot as isize,
     And = EPriorities::GateAnd as isize,
@@ -59,6 +62,7 @@ pub struct LogicalOperator {
     pub function: fn(a: &bool, b: &bool) -> bool,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Debug for LogicalOperator {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("LogicalOperator")

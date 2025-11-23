@@ -26,7 +26,9 @@ use crate::typesystem::values::{
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+#[cfg(not(target_arch = "wasm32"))]
+use std::fmt::Debug;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use time::Duration as TDuration;
 
@@ -36,9 +38,14 @@ use time::Duration as TDuration;
 pub type BinaryNumberFunction =
     fn(a: NumberEnum, b: NumberEnum) -> Result<NumberEnum, RuntimeError>;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub trait Operator: Display + Debug + EvaluatableExpression {}
 
-#[derive(Debug, PartialEq)]
+#[cfg(target_arch = "wasm32")]
+pub trait Operator: Display + EvaluatableExpression {}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct OperatorData<T: Display> {
     pub operator: T,
     pub left: ExpressionEnum,
@@ -72,7 +79,8 @@ impl<T: Display> OperatorData<T> {
 
 //----------------------------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub enum MathOperatorEnum {
     Addition,
     Subtraction,
@@ -169,7 +177,7 @@ impl From<MathOperatorEnum> for EToken {
 
 //----------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct MathOperator {
     pub data: OperatorData<MathOperatorEnum>,
     pub function: BinaryNumberFunction,
@@ -791,7 +799,8 @@ impl Display for OperatorData<MathOperatorEnum> {
 
 //--------------------------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct NegationOperator {
     pub left: ExpressionEnum,
 }

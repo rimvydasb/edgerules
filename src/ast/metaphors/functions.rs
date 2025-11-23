@@ -9,14 +9,14 @@ use crate::ast::Link;
 use crate::link::linker;
 use crate::tokenizer::C_ASSIGN;
 use crate::typesystem::errors::ParseErrorEnum;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 use crate::typesystem::types::{TypedValue, ValueType};
 use std::collections::HashSet;
 
 /// Non executable function definition holder. For an executable function definition see FunctionContext.
-#[derive(Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct FunctionDefinition {
     pub name: String,
     pub arguments: Vec<FormalParameter>,

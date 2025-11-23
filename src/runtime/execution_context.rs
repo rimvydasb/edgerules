@@ -9,16 +9,16 @@ use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::Reference;
 use crate::utils::{intern_field_name, Line, Lines};
-use log::trace;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
 
 /// ---
 /// @TODO: https://doc.rust-lang.org/book/ch15-04-rc.html
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub struct ExecutionContext {
     pub node: NodeData<ExecutionContext>,
     /// There could be multiple execution contexts that wrap a single object at a given time.

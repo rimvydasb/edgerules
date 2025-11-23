@@ -13,10 +13,11 @@ use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use core::fmt;
 use std::cell::RefCell;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
 pub struct FormalParameter {
     pub name: String,
     pub parameter_type: ComplexTypeRef,
@@ -64,7 +65,8 @@ impl Display for FormalParameter {
 }
 
 /// ---
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone)]
 pub enum EObjectContent<T: Node<T>> {
     ConstantValue(ValueEnum),
     ExpressionRef(Rc<RefCell<ExpressionEntry>>),
