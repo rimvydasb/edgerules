@@ -248,10 +248,9 @@ impl StaticLink for ExpressionEnum {
 
         if let Err(error) = linking_result {
             let field_name = trace_context.borrow().node.node_type.to_string();
-            let error_type = error.get_error_type().clone();
             return error
                 .with_context(|| {
-                    format!("Error in `{}.{}`: {}", field_name, trace_string, error_type)
+                    format!("Error in:`{}`\nTrace:`{}`", field_name, trace_string)
                 })
                 .into();
         }

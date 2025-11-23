@@ -1,7 +1,5 @@
 use crate::ast::context::context_object::ContextObject;
-use crate::typesystem::errors::ParseErrorEnum;
 use std::cell::RefCell;
-use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
@@ -71,46 +69,46 @@ impl ValueType {
     }
 }
 
-impl TryFrom<&str> for ValueType {
-    type Error = ParseErrorEnum;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let trimmed = value.trim();
-
-        if trimmed.is_empty() {
-            return Err(ParseErrorEnum::UnknownType(trimmed.to_string()));
-        }
-
-        if trimmed == "[]" {
-            return Ok(ValueType::ListType(None));
-        }
-
-        if let Some(stripped) = trimmed.strip_suffix("[]") {
-            if stripped.is_empty() {
-                return Ok(ValueType::ListType(None));
-            }
-            let inner = ValueType::try_from(stripped)?;
-            return Ok(ValueType::list_of(inner));
-        }
-
-        if let Some(rest) = trimmed.strip_prefix("list of ") {
-            let inner = ValueType::try_from(rest)?;
-            return Ok(ValueType::list_of(inner));
-        }
-
-        match trimmed {
-            "number" => Ok(ValueType::NumberType),
-            "string" => Ok(ValueType::StringType),
-            "boolean" => Ok(ValueType::BooleanType),
-            "date" => Ok(ValueType::DateType),
-            "time" => Ok(ValueType::TimeType),
-            "datetime" => Ok(ValueType::DateTimeType),
-            "period" => Ok(ValueType::PeriodType),
-            "duration" => Ok(ValueType::DurationType),
-            _ => Err(ParseErrorEnum::UnknownType(trimmed.to_string())),
-        }
-    }
-}
+// impl TryFrom<&str> for ValueType {
+//     type Error = ParseErrorEnum;
+//
+//     fn try_from(value: &str) -> Result<Self, Self::Error> {
+//         let trimmed = value.trim();
+//
+//         if trimmed.is_empty() {
+//             return Err(ParseErrorEnum::UnknownType(trimmed.to_string()));
+//         }
+//
+//         if trimmed == "[]" {
+//             return Ok(ValueType::ListType(None));
+//         }
+//
+//         if let Some(stripped) = trimmed.strip_suffix("[]") {
+//             if stripped.is_empty() {
+//                 return Ok(ValueType::ListType(None));
+//             }
+//             let inner = ValueType::try_from(stripped)?;
+//             return Ok(ValueType::list_of(inner));
+//         }
+//
+//         if let Some(rest) = trimmed.strip_prefix("list of ") {
+//             let inner = ValueType::try_from(rest)?;
+//             return Ok(ValueType::list_of(inner));
+//         }
+//
+//         match trimmed {
+//             "number" => Ok(ValueType::NumberType),
+//             "string" => Ok(ValueType::StringType),
+//             "boolean" => Ok(ValueType::BooleanType),
+//             "date" => Ok(ValueType::DateType),
+//             "time" => Ok(ValueType::TimeType),
+//             "datetime" => Ok(ValueType::DateTimeType),
+//             "period" => Ok(ValueType::PeriodType),
+//             "duration" => Ok(ValueType::DurationType),
+//             _ => Err(ParseErrorEnum::UnknownType(trimmed.to_string())),
+//         }
+//     }
+// }
 
 impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

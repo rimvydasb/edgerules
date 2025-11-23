@@ -12,7 +12,7 @@ use std::fmt::Debug;
 use std::iter::Peekable;
 use std::ops;
 use std::str::Chars;
-
+use crate::test_support::EToken::Definition;
 //----------------------------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
@@ -46,7 +46,7 @@ impl TokenChain {
         F: FnOnce(&mut Self) -> Option<EToken>,
     {
         if let Some(token) = pop_fn(self) {
-            if let EToken::ParseError(error) = token {
+            if let ParseError(error) = token {
                 Err(error)
             } else {
                 Ok(token)
@@ -70,12 +70,12 @@ impl TokenChain {
     {
         match pop_fn(self) {
             None => Err(Empty),
-            Some(EToken::Expression(expression)) => Ok(expression),
-            Some(EToken::ParseError(error)) => Err(error),
-            Some(EToken::Unparsed(token)) => {
-                Err(UnexpectedToken(Box::new(EToken::Unparsed(token)), None))
+            Some(Expression(expression)) => Ok(expression),
+            Some(ParseError(error)) => Err(error),
+            Some(Unparsed(token)) => {
+                Err(UnexpectedToken(Box::new(Unparsed(token)), None))
             }
-            Some(EToken::Definition(_definition)) => Err(ParseErrorEnum::InvalidType(
+            Some(Definition(_definition)) => Err(ParseErrorEnum::InvalidType(
                 "Expected expression, got definition".to_string(),
             )),
         }

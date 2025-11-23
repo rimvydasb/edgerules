@@ -189,7 +189,7 @@ const runInvocationExample = () => {
     try {
         wasm.set_invocation('brokenInvocation', {
             '@type': 'invocation',
-            '@method': 'missingFunction'
+            '@method': 'someKindOfFunction'
         });
     } catch (err) {
         linkErrored = true;

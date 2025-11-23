@@ -11,7 +11,7 @@ use crate::typesystem::errors::LinkingErrorEnum::{
 };
 use crate::typesystem::errors::ParseErrorEnum::{
     FunctionWrongNumberOfArguments, InvalidType, MissingLiteral, UnexpectedLiteral,
-    UnexpectedToken, UnknownError, UnknownParseError, UnknownType,
+    UnexpectedToken, UnknownError, UnknownParseError,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
     EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
@@ -129,23 +129,29 @@ impl RuntimeError {
 
 #[derive(Debug, PartialEq)]
 pub enum ParseErrorEnum {
-    UnknownType(String),
     UnexpectedToken(Box<EToken>, Option<String>),
     UnexpectedLiteral(String, Option<String>),
     MissingLiteral(String),
     /// function_name, type, got
     FunctionWrongNumberOfArguments(String, EFunctionType, usize),
 
-    // @todo: InvalidType(current, expected), also same as TypeNotSupported
+    // @todo: InvalidType is used only with `Expected expression, got definition` - use WrongFormat instead
+    // also, "Expected expression, got definition" is not even covered with tests - is it even possible to reach that error?
     InvalidType(String),
 
-    // @todo: remove this - all parse errors must be known
+    // @todo: UnknownParseError must be split to OtherError and WrongFormat
     UnknownParseError(String),
 
-    // @Todo: remove this, same crap as UnknownParseError
+    // @Todo: use WrongFormat where possible instead of UnknownParseError if issue is format related
+    // expected format description
+    // WrongFormat {
+    //     expected_format: String,
+    // },
+
+    // @Todo: UnknownError must be removed, use UnknownParseError instead
     UnknownError(String),
 
-    // @Todo: remove this as well, there should be EmptyError(expected) instead
+    // @Todo: rename to UnexpectedEnd
     Empty,
 }
 
@@ -161,7 +167,6 @@ impl Display for ParseErrorEnum {
         };
 
         match self {
-            UnknownType(maybe_type) => write!(f, "{}", prefix_parse(maybe_type)),
             UnknownParseError(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
@@ -174,6 +179,7 @@ impl Display for ParseErrorEnum {
                     write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
                 }
             }
+            // @Todo: print "unexpected end"
             ParseErrorEnum::Empty => f.write_str("[parse] -Empty-"),
             UnknownError(message) => write!(f, "{}", prefix_parse(message)),
             InvalidType(error) => write!(f, "{}", prefix_parse(error)),
