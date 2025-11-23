@@ -12,45 +12,15 @@ This story gradually unfolds the ideal error handling strategy for EdgeRules.
 
 ## Tasks
 
-### complete normal error stacking
+### unclear or unneeded parts
 
-It is not good that previous errors is simply formatted as string.
-Find out a better way to stack errors.
+All existing tests, while run with coverage, do not touch this part of the code.
+Try to find out why it is needed and either cover with test case or remove it.
 
 ```rust
-impl ParseErrorEnum {
-    // @todo: complete normal error stacking
-    pub fn before(self, before_error: ParseErrorEnum) -> ParseErrorEnum {
-        if before_error == ParseErrorEnum::Empty {
-            return self;
-        }
-
-        UnknownError(format!("{} → {}", before_error, self))
-    }
+other => {
+    // @Todo: why this part is even needed?
+    let literal = other.into_string_or_literal()?;
+    ComparatorEnum::try_from(literal.as_str())?
 }
-```
-
-### enums fixes
-
-Review all `@todo` in the error enums and fix them gradually.
-
-```rust
-    // @todo: InvalidType is used only with `Expected expression, got definition` - use WrongFormat instead
-    // also, "Expected expression, got definition" is not even covered with tests - is it even possible to reach that error?
-    InvalidType(String),
-
-    // @todo: UnknownParseError must be split to OtherError and WrongFormat
-    UnknownParseError(String),
-
-    // @Todo: use WrongFormat where possible instead of UnknownParseError if issue is format related
-    // expected format description
-    // WrongFormat {
-    //     expected_format: String,
-    // },
-
-    // @Todo: UnknownError must be removed, use UnknownParseError instead
-    UnknownError(String),
-
-    // @Todo: rename to UnexpectedEnd
-    Empty,
 ```

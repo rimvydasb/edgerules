@@ -6,7 +6,7 @@ use crate::ast::token::ExpressionEnum::Variable;
 use crate::ast::variable::VariableLink;
 use crate::ast::{is_linked, Link};
 use crate::runtime::execution_context::*;
-use crate::typesystem::errors::ParseErrorEnum::UnknownError;
+use crate::typesystem::errors::ParseErrorEnum::WrongFormat;
 use crate::typesystem::errors::{
     ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
 };
@@ -291,7 +291,7 @@ impl FieldSelection {
                 method: variable,
                 return_type: LinkingError::not_linked().into(),
             }),
-            _ => Err(UnknownError(
+            _ => Err(WrongFormat(
                 "Selection must be variable or variable path".to_string(),
             )),
         }

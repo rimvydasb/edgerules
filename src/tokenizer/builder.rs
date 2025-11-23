@@ -242,9 +242,7 @@ pub mod factory {
     use crate::tokenizer::parser::parse_type;
     use crate::tokenizer::utils::*;
     use crate::typesystem::errors::ParseErrorEnum;
-    use crate::typesystem::errors::ParseErrorEnum::{
-        FunctionWrongNumberOfArguments, UnknownError, UnknownParseError,
-    };
+    use crate::typesystem::errors::ParseErrorEnum::{FunctionWrongNumberOfArguments, WrongFormat};
     use log::trace;
     use std::cell::RefCell;
     use std::collections::vec_deque::VecDeque;
@@ -266,11 +264,11 @@ pub mod factory {
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
         let left_token = left.pop_left().map_err(|err| {
-            UnknownError("Left assignment side is not complete".to_string()).before(err)
+            WrongFormat("Left assignment side is not complete".to_string()).before(err)
         })?;
 
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError(format!("'{}' assignment side is not complete", left_token)).before(err)
+            WrongFormat(format!("'{}' assignment side is not complete", left_token)).before(err)
         })?;
 
         // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
@@ -300,7 +298,7 @@ pub mod factory {
                 let field_entries: Vec<(&'static str, Rc<RefCell<ExpressionEntry>>)> = {
                     let obj_ref = object.borrow();
                     if !obj_ref.metaphors.is_empty() {
-                        return Err(UnknownError(
+                        return Err(WrongFormat(
                             "Type definition cannot contain function definitions".to_string(),
                         ));
                     }
@@ -321,7 +319,7 @@ pub mod factory {
                                 TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name()));
                         }
                         _ => {
-                            return Err(UnknownError(format!(
+                            return Err(WrongFormat(format!(
                                 "Type definition contains non-type field '{}'",
                                 fname
                             )));
@@ -353,20 +351,20 @@ pub mod factory {
                 Expression(StaticObject(object)),
             ) => {
                 // let plain = SimpleObject::try_unwrap(object)
-                //     .map_err(|_err| UnknownError(format!("'{}' failed to construct", function_name)))?;
+                //     .map_err(|_err| WrongFormat(format!("'{}' failed to construct", function_name)))?;
 
                 let function = FunctionDefinition::build(function_name, arguments, object)?;
                 Ok(Definition(DefinitionEnum::UserFunction(function)))
             }
-            (Unparsed(FunctionDefinitionLiteral(name, _)), _) => Err(UnknownError(format!(
+            (Unparsed(FunctionDefinitionLiteral(name, _)), _) => Err(WrongFormat(format!(
                 "function '{}' body is not defined",
                 name
             ))),
-            (unexpected, Expression(_right)) => Err(UnknownError(format!(
+            (unexpected, Expression(_right)) => Err(WrongFormat(format!(
                 "'{}' cannot be a variable name",
                 unexpected
             ))),
-            (a, b) => Err(UnknownError(format!(
+            (a, b) => Err(WrongFormat(format!(
                 "'{}' is not proper variable name to assign '{}'",
                 a, b
             ))),
@@ -398,7 +396,7 @@ pub mod factory {
 
                 // @Todo: need to accumulate errors instead of just returning - same applies for an array
                 Unparsed(unparsed) => {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "'{}' is not a proper context element",
                         unparsed
                     )));
@@ -407,7 +405,7 @@ pub mod factory {
                     return Err(error);
                 }
                 _ => {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "'{}' is not a proper object field",
                         right_token
                     )));
@@ -465,7 +463,7 @@ pub mod factory {
                         arguments,
                     )))))
                 } else {
-                    Err(UnknownError(format!(
+                    Err(WrongFormat(format!(
                         "{} function does not have any arguments",
                         name
                     )))
@@ -484,18 +482,18 @@ pub mod factory {
         _token: EToken,
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
-        let left_expr = left.pop_left_expression().map_err(|err| {
-            UnknownError("Left 'as' side is not complete".to_string()).before(err)
-        })?;
+        let left_expr = left
+            .pop_left_expression()
+            .map_err(|err| WrongFormat("Left 'as' side is not complete".to_string()).before(err))?;
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError("Type after 'as' is not complete".to_string()).before(err)
+            WrongFormat("Type after 'as' is not complete".to_string()).before(err)
         })?;
 
         match right_token {
             Unparsed(TypeReferenceLiteral(tref)) => Ok(Expression(FunctionCall(Box::new(
                 crate::ast::expression::CastCall::new(left_expr, tref),
             )))),
-            _ => Err(UnknownError("Invalid type after 'as'".to_string())),
+            _ => Err(WrongFormat("Invalid type after 'as'".to_string())),
         }
     }
 
@@ -510,7 +508,7 @@ pub mod factory {
             match right_token {
                 Unparsed(Comma) => {
                     if arguments.is_empty() {
-                        return Err(UnknownError(
+                        return Err(WrongFormat(
                             "Very first function argument is missing".to_string(),
                         ));
                     }
@@ -521,7 +519,7 @@ pub mod factory {
                     arguments.push(parameter);
                 }
                 other => {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "Unsupported token `{}` in function parameter list",
                         other
                     )));
@@ -532,7 +530,7 @@ pub mod factory {
         let function_name = match token {
             Unparsed(FunctionNameToken(variable)) => {
                 if variable.path.len() != 1 {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "Function name must be a simple identifier, got `{}`",
                         variable
                     )));
@@ -542,7 +540,7 @@ pub mod factory {
             }
             Expression(Variable(variable)) => {
                 if variable.path.len() != 1 {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "Function name must be a simple identifier, got `{}`",
                         variable
                     )));
@@ -564,7 +562,7 @@ pub mod factory {
         match expression {
             Variable(variable) => {
                 if variable.path.len() != 1 {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "Function parameter must be a simple identifier, got `{}`",
                         variable
                     )));
@@ -580,7 +578,7 @@ pub mod factory {
                 let parameter_type = annotation.unwrap_or_else(ComplexTypeRef::undefined);
                 Ok(FormalParameter::with_type_ref(name, parameter_type))
             }
-            _ => Err(UnknownError(format!(
+            _ => Err(WrongFormat(format!(
                 "Unsupported expression `{}` in function parameter list",
                 expression
             ))),
@@ -594,7 +592,7 @@ pub mod factory {
             TypePlaceholder(tref) => Ok(Some(tref)),
             Variable(variable) => {
                 if variable.path.len() != 1 {
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "Type annotation must be a simple identifier, got `{}`",
                         variable
                     )));
@@ -603,10 +601,10 @@ pub mod factory {
                 let type_name = variable.get_name();
                 Ok(Some(parse_type(&type_name)))
             }
-            Value(_) => Err(UnknownError(
+            Value(_) => Err(WrongFormat(
                 "Default values for function parameters are not supported".to_string(),
             )),
-            other => Err(UnknownError(format!(
+            other => Err(WrongFormat(format!(
                 "Unsupported type annotation expression `{}`",
                 other
             ))),
@@ -627,7 +625,7 @@ pub mod factory {
                 Unparsed(Comma) => {
                     if args.is_empty() {
                         right.clear(); // forgets all possible other errors
-                        return Err(UnknownError(
+                        return Err(WrongFormat(
                             "Very first sequence element is missing".to_string(),
                         ));
                     }
@@ -638,14 +636,14 @@ pub mod factory {
                 }
                 Unparsed(_) => {
                     right.clear(); // forgets all possible other errors
-                    return Err(UnknownError(format!(
+                    return Err(WrongFormat(format!(
                         "'{}' is not a proper sequence element",
                         right_token
                     )));
                 }
                 Definition(_) => {
                     right.clear(); // forgets all possible other errors
-                    return Err(UnknownError(
+                    return Err(WrongFormat(
                         "Function definition is not allowed in sequence".to_string(),
                     ));
                 }
@@ -665,10 +663,10 @@ pub mod factory {
 
         let left_token = left
             .pop_left()
-            .map_err(|err| UnknownError("Filter not applicable".to_string()).before(err))?;
+            .map_err(|err| WrongFormat("Filter not applicable".to_string()).before(err))?;
 
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError(format!("Filter '{}' not applicable", left_token)).before(err)
+            WrongFormat(format!("Filter '{}' not applicable", left_token)).before(err)
         })?;
 
         match (left_token, right_token) {
@@ -679,7 +677,7 @@ pub mod factory {
                 }
             }
             (_left_unknown, _right_unknown) => {
-                Err(UnknownError(format!("Filter not completed '{}'", token)))
+                Err(WrongFormat(format!("Filter not completed '{}'", token)))
             }
         }
     }
@@ -694,20 +692,19 @@ pub mod factory {
 
         let left_token = left
             .pop_left()
-            .map_err(|err| UnknownError("Range not applicable".to_string()).before(err))?;
+            .map_err(|err| WrongFormat("Range not applicable".to_string()).before(err))?;
 
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError(format!("Range '{}' not applicable", left_token)).before(err)
+            WrongFormat(format!("Range '{}' not applicable", left_token)).before(err)
         })?;
 
         match (left_token, right_token) {
             (Expression(left_expression), Expression(right_expression)) => Ok(Expression(
                 RangeExpression(Box::new(left_expression), Box::new(right_expression)),
             )),
-            (_left_unknown, _right_unknown) => Err(UnknownParseError(format!(
-                "Range not completed '{}'",
-                token
-            ))),
+            (_left_unknown, _right_unknown) => {
+                Err(WrongFormat(format!("Range not completed '{}'", token)))
+            }
         }
     }
 
@@ -721,10 +718,10 @@ pub mod factory {
 
         let left_token = left
             .pop_left()
-            .map_err(|_| UnknownError("Field not applicable".to_string()))?;
+            .map_err(|_| WrongFormat("Field not applicable".to_string()))?;
         let right_token = right
             .pop_right()
-            .map_err(|_| UnknownError(format!("Field '{}' not applicable", left_token)))?;
+            .map_err(|_| WrongFormat(format!("Field '{}' not applicable", left_token)))?;
 
         match (left_token, right_token) {
             (Expression(left_expression), Expression(right_expression)) => {
@@ -733,10 +730,9 @@ pub mod factory {
                     Err(error) => Err(error),
                 }
             }
-            (_left_unknown, _right_unknown) => Err(UnknownParseError(format!(
-                "Selection not completed '{}'",
-                token
-            ))),
+            (_left_unknown, _right_unknown) => {
+                Err(WrongFormat(format!("Selection not completed '{}'", token)))
+            }
         }
     }
 
@@ -750,19 +746,19 @@ pub mod factory {
 
         let then_content = left
             .pop_left_expression()
-            .map_err(|err| UnknownError("Error in then... part".to_string()).before(err))?;
+            .map_err(|err| WrongFormat("Error in then... part".to_string()).before(err))?;
 
         let _then = left.pop_left_as_expected("then")?;
 
         let if_condition = left
             .pop_left_expression()
-            .map_err(|err| UnknownError("Error in if... part".to_string()).before(err))?;
+            .map_err(|err| WrongFormat("Error in if... part".to_string()).before(err))?;
 
         let _if_part = left.pop_left_as_expected("if")?;
 
         let else_content = right
             .pop_right_expression()
-            .map_err(|err| UnknownError("Error in else... part".to_string()).before(err))?;
+            .map_err(|err| WrongFormat("Error in else... part".to_string()).before(err))?;
 
         let func = IfThenElseFunction::build(if_condition, then_content, else_content)?;
 
@@ -788,21 +784,19 @@ pub mod factory {
                                 return_expression,
                             )?)))
                         } else {
-                            return Err(UnknownParseError("??? ... in ... return ...".to_string()));
+                            return Err(WrongFormat("??? ... in ... return ...".to_string()));
                         }
                     } else {
-                        return Err(UnknownParseError("for [???] in ... return ...".to_string()));
+                        return Err(WrongFormat("for [???] in ... return ...".to_string()));
                     }
                 } else {
-                    return Err(UnknownParseError(
-                        "for ... [in?] ... return ...".to_string(),
-                    ));
+                    return Err(WrongFormat("for ... [in?] ... return ...".to_string()));
                 }
             } else {
-                return Err(UnknownParseError("for ... in [???] return ...".to_string()));
+                return Err(WrongFormat("for ... in [???] return ...".to_string()));
             }
         } else {
-            return Err(UnknownParseError("for ... in ... return [???]".to_string()));
+            return Err(WrongFormat("for ... in ... return [???]".to_string()));
         };
 
         Ok(new_token)
@@ -815,10 +809,10 @@ pub mod factory {
     ) -> Result<EToken, ParseErrorEnum> {
         let op = MathOperatorEnum::try_from(token)?;
         let left_token = left.pop_left().map_err(|err| {
-            UnknownError(format!("Left '{}' operator side is not complete", op)).before(err)
+            WrongFormat(format!("Left '{}' operator side is not complete", op)).before(err)
         })?;
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError(format!("{} {} - not completed", left_token, op)).before(err)
+            WrongFormat(format!("{} {} - not completed", left_token, op)).before(err)
         })?;
 
         match (left_token, right_token) {
@@ -833,12 +827,12 @@ pub mod factory {
                         _right,
                     )))))
                 } else {
-                    Err(UnknownError(format!("Not completed '{}'", op)))
+                    Err(WrongFormat(format!("Not completed '{}'", op)))
                 }
             }
             (_left, _right) => {
                 trace!("left={:?} right={:?}", _left, _right);
-                Err(UnknownError(format!("Not completed '{}'", op)))
+                Err(WrongFormat(format!("Not completed '{}'", op)))
             }
         }
     }
@@ -851,13 +845,14 @@ pub mod factory {
         let comparator = match token {
             Unparsed(ComparatorToken(comp)) => comp,
             other => {
+                // @Todo: why this part is even needed?
                 let literal = other.into_string_or_literal()?;
                 ComparatorEnum::try_from(literal.as_str())?
             }
         };
 
         let left_token = left.pop_left().map_err(|err| {
-            UnknownError(format!(
+            WrongFormat(format!(
                 "Left '{}' comparator side is not complete",
                 comparator
             ))
@@ -865,7 +860,7 @@ pub mod factory {
         })?;
 
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError(format!("{} {} - not completed", left_token, comparator)).before(err)
+            WrongFormat(format!("{} {} - not completed", left_token, comparator)).before(err)
         })?;
 
         match (left_token, right_token) {
@@ -880,7 +875,7 @@ pub mod factory {
                     ComparatorOperator::build(comparator, ContextVariable, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))
             }
-            (_left, _right) => Err(UnknownError(format!("Not completed '{}'", comparator))),
+            (_left, _right) => Err(WrongFormat(format!("Not completed '{}'", comparator))),
         }
     }
 
@@ -894,7 +889,7 @@ pub mod factory {
         // Support unary prefix: `not <expr>`
         if let LogicalOperatorEnum::Not = operator {
             let right_token = right.pop_right().map_err(|err| {
-                UnknownError("'not' right side is not complete".to_string()).before(err)
+                WrongFormat("'not' right side is not complete".to_string()).before(err)
             })?;
 
             match right_token {
@@ -907,17 +902,17 @@ pub mod factory {
                     )?;
                     return Ok(Expression(Operator(Box::new(function))));
                 }
-                _ => return Err(UnknownError("Not completed 'not'".to_string())),
+                _ => return Err(WrongFormat("Not completed 'not'".to_string())),
             }
         }
 
         // Binary logical operators: and, or, xor
         let left_token = left.pop_left().map_err(|err| {
-            UnknownError(format!("Left '{}' operator side is not complete", operator)).before(err)
+            WrongFormat(format!("Left '{}' operator side is not complete", operator)).before(err)
         })?;
 
         let right_token = right.pop_right().map_err(|err| {
-            UnknownError(format!("{} {} - not completed", left_token, operator)).before(err)
+            WrongFormat(format!("{} {} - not completed", left_token, operator)).before(err)
         })?;
 
         match (left_token, right_token) {
@@ -925,7 +920,7 @@ pub mod factory {
                 let function = LogicalOperator::build(operator, left_token, right_token)?;
                 Ok(Expression(Operator(Box::new(function))))
             }
-            (_left, _right) => Err(UnknownError(format!("Not completed '{}'", operator))),
+            (_left, _right) => Err(WrongFormat(format!("Not completed '{}'", operator))),
         }
     }
 }

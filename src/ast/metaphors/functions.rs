@@ -34,7 +34,7 @@ impl FunctionDefinition {
         let mut seen: HashSet<&str> = HashSet::new();
         for argument in &arguments {
             if !seen.insert(argument.name.as_str()) {
-                return Err(ParseErrorEnum::UnknownError(format!(
+                return Err(ParseErrorEnum::OtherError(format!(
                     "Duplicate function argument name '{}'",
                     argument.name
                 )));

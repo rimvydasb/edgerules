@@ -8,7 +8,7 @@ static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 mod ast;
 mod link;
 pub mod runtime;
-mod tokenizer;
+pub mod tokenizer;
 mod typesystem;
 pub mod utils;
 

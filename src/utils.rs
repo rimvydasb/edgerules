@@ -173,7 +173,7 @@ impl Default for Line {
 #[macro_export]
 macro_rules! error_token {
     ($($arg:tt)*) => {{
-        EToken::ParseError($crate::typesystem::errors::ParseErrorEnum::UnknownParseError(format!($($arg)*)))
+        EToken::ParseError($crate::typesystem::errors::ParseErrorEnum::WrongFormat(format!($($arg)*)))
     }}
 }
 

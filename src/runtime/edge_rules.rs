@@ -9,7 +9,9 @@ use crate::ast::utils::array_to_code_sep;
 use crate::link::node_data::Node;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::parser::tokenize;
-use crate::typesystem::errors::ParseErrorEnum::{Empty, UnexpectedToken, UnknownParseError};
+use crate::typesystem::errors::ParseErrorEnum::{
+    OtherError, UnexpectedEnd, UnexpectedToken, WrongFormat,
+};
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::values::ValueEnum;
 use log::trace;
@@ -72,13 +74,13 @@ impl From<ContextUpdateErrorEnum> for ParseErrorEnum {
         match err {
             ContextUpdateErrorEnum::DuplicateNameError(inner) => inner.into(),
             ContextUpdateErrorEnum::ContextNotFoundError(path) => {
-                ParseErrorEnum::UnknownError(format!("[context] '{}' not found", path))
+                OtherError(format!("[context] '{}' not found", path))
             }
             ContextUpdateErrorEnum::WrongFieldPathError(Some(path)) => {
-                ParseErrorEnum::UnknownError(format!("[context] invalid path '{}'", path))
+                OtherError(format!("[context] invalid path '{}'", path))
             }
             ContextUpdateErrorEnum::WrongFieldPathError(None) => {
-                ParseErrorEnum::UnknownError("[context] field path is empty".to_string())
+                OtherError("[context] field path is empty".to_string())
             }
         }
     }
@@ -261,7 +263,7 @@ impl EdgeRulesModel {
                     errors.push(error);
                 }
                 EToken::Unparsed(unparsed) => {
-                    errors.push(UnknownParseError(unparsed.to_string()));
+                    errors.push(WrongFormat(unparsed.to_string()));
                 }
                 other => {
                     failed_tokens.push(other);
@@ -275,7 +277,7 @@ impl EdgeRulesModel {
             }
 
             if errors.is_empty() {
-                errors.push(Empty);
+                errors.push(UnexpectedEnd);
             }
         }
 

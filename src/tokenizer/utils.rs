@@ -1,9 +1,10 @@
 use crate::ast::token::EToken::{Expression, ParseError, Unparsed};
 use crate::ast::token::EUnparsedToken::Literal;
 use crate::ast::token::{EToken, ExpressionEnum};
+use crate::test_support::EToken::Definition;
 use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::errors::ParseErrorEnum::{
-    Empty, MissingLiteral, UnexpectedLiteral, UnexpectedToken,
+    MissingLiteral, UnexpectedEnd, UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::{Float, Integer};
@@ -12,7 +13,6 @@ use std::fmt::Debug;
 use std::iter::Peekable;
 use std::ops;
 use std::str::Chars;
-use crate::test_support::EToken::Definition;
 //----------------------------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +52,7 @@ impl TokenChain {
                 Ok(token)
             }
         } else {
-            Err(Empty)
+            Err(UnexpectedEnd)
         }
     }
 
@@ -69,13 +69,11 @@ impl TokenChain {
         F: FnOnce(&mut Self) -> Option<EToken>,
     {
         match pop_fn(self) {
-            None => Err(Empty),
+            None => Err(UnexpectedEnd),
             Some(Expression(expression)) => Ok(expression),
             Some(ParseError(error)) => Err(error),
-            Some(Unparsed(token)) => {
-                Err(UnexpectedToken(Box::new(Unparsed(token)), None))
-            }
-            Some(Definition(_definition)) => Err(ParseErrorEnum::InvalidType(
+            Some(Unparsed(token)) => Err(UnexpectedToken(Box::new(Unparsed(token)), None)),
+            Some(Definition(_definition)) => Err(WrongFormat(
                 "Expected expression, got definition".to_string(),
             )),
         }

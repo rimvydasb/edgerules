@@ -4,7 +4,7 @@ use edge_rules::runtime::edge_rules::{
 };
 use edge_rules::runtime::ToSchema;
 use edge_rules::test_support::NumberEnum::Int;
-use edge_rules::test_support::ParseErrorEnum::{UnexpectedToken, UnknownError};
+use edge_rules::test_support::ParseErrorEnum::{Stacked, UnexpectedToken, WrongFormat};
 use edge_rules::test_support::SpecialValueEnum::Missing;
 use edge_rules::test_support::{
     expr, ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingError,
@@ -93,11 +93,26 @@ impl TestServiceBuilder {
 
     pub fn expect_parse_error(&self, expected: ParseErrorEnum) -> &Self {
         if let Some(errors) = &self.parse_errors {
-            for error in errors.errors() {
-                if discriminant(error) == discriminant(&expected) {
-                    return self;
+            fn matches_error(found: &ParseErrorEnum, expected: &ParseErrorEnum) -> bool {
+                if discriminant(found) == discriminant(expected) {
+                    return true;
                 }
+
+                if let Stacked(inner) = found {
+                    return inner.iter().any(|err| matches_error(err, expected));
+                }
+
+                false
             }
+
+            if errors
+                .errors()
+                .iter()
+                .any(|err| matches_error(err, &expected))
+            {
+                return self;
+            }
+
             panic!(
                 "Expected parse error `{}`, but got: `{:?}`",
                 expected, errors
@@ -196,7 +211,7 @@ fn test_service() -> Result<(), EvalError> {
         None,
     ));
     test_code("value: 2 + 2").expect_num("value", Int(4));
-    test_code("value: 2 + ").expect_parse_error(UnknownError("any".to_string()));
+    test_code("value: 2 + ").expect_parse_error(WrongFormat("any".to_string()));
     test_code("{ value: 2 + 2 }").expect_num("value", Int(4));
     test_code("{ v1: 100; value: v1 + v1 }").expect_num("value", Int(200));
 

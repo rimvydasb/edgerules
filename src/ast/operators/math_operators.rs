@@ -120,7 +120,7 @@ impl TryFrom<&str> for MathOperatorEnum {
             }
         }
 
-        Err(ParseErrorEnum::UnknownParseError(format!(
+        Err(ParseErrorEnum::WrongFormat(format!(
             "Unknown operator: {}",
             value
         )))
@@ -138,7 +138,7 @@ impl TryFrom<char> for MathOperatorEnum {
             '/' | '÷' => Ok(Division),
             '^' => Ok(Power),
             '%' => Ok(Modulus),
-            _ => Err(ParseErrorEnum::UnknownParseError(format!(
+            _ => Err(ParseErrorEnum::WrongFormat(format!(
                 "Unknown operator: {}",
                 value
             ))),
@@ -153,7 +153,7 @@ impl TryFrom<EToken> for MathOperatorEnum {
         if let Unparsed(EUnparsedToken::MathOperatorToken(operator)) = value {
             Ok(operator)
         } else {
-            Err(ParseErrorEnum::UnknownParseError(format!(
+            Err(ParseErrorEnum::WrongFormat(format!(
                 "Unknown operator: {}",
                 value
             )))

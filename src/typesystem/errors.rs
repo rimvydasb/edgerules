@@ -10,8 +10,8 @@ use crate::typesystem::errors::LinkingErrorEnum::{
     OtherLinkingError, TypesNotCompatible,
 };
 use crate::typesystem::errors::ParseErrorEnum::{
-    FunctionWrongNumberOfArguments, InvalidType, MissingLiteral, UnexpectedLiteral,
-    UnexpectedToken, UnknownError, UnknownParseError,
+    FunctionWrongNumberOfArguments, MissingLiteral, OtherError, Stacked, UnexpectedEnd,
+    UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
     EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
@@ -135,24 +135,16 @@ pub enum ParseErrorEnum {
     /// function_name, type, got
     FunctionWrongNumberOfArguments(String, EFunctionType, usize),
 
-    // @todo: InvalidType is used only with `Expected expression, got definition` - use WrongFormat instead
-    // also, "Expected expression, got definition" is not even covered with tests - is it even possible to reach that error?
-    InvalidType(String),
+    /// Expected format description
+    WrongFormat(String),
 
-    // @todo: UnknownParseError must be split to OtherError and WrongFormat
-    UnknownParseError(String),
+    /// Other parsing errors that are not strictly format-related
+    OtherError(String),
 
-    // @Todo: use WrongFormat where possible instead of UnknownParseError if issue is format related
-    // expected format description
-    // WrongFormat {
-    //     expected_format: String,
-    // },
+    /// Ordered stack of errors to preserve context
+    Stacked(Vec<ParseErrorEnum>),
 
-    // @Todo: UnknownError must be removed, use UnknownParseError instead
-    UnknownError(String),
-
-    // @Todo: rename to UnexpectedEnd
-    Empty,
+    UnexpectedEnd,
 }
 
 impl Display for ParseErrorEnum {
@@ -167,7 +159,7 @@ impl Display for ParseErrorEnum {
         };
 
         match self {
-            UnknownParseError(message) => write!(f, "{}", prefix_parse(message)),
+            WrongFormat(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
                     write!(
@@ -179,10 +171,16 @@ impl Display for ParseErrorEnum {
                     write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
                 }
             }
-            // @Todo: print "unexpected end"
-            ParseErrorEnum::Empty => f.write_str("[parse] -Empty-"),
-            UnknownError(message) => write!(f, "{}", prefix_parse(message)),
-            InvalidType(error) => write!(f, "{}", prefix_parse(error)),
+            UnexpectedEnd => f.write_str("[parse] Unexpected end"),
+            OtherError(message) => write!(f, "{}", prefix_parse(message)),
+            Stacked(errors) => {
+                let formatted = errors
+                    .iter()
+                    .map(|err| err.to_string())
+                    .collect::<Vec<String>>()
+                    .join(" → ");
+                f.write_str(&formatted)
+            }
             UnexpectedLiteral(literal, expected) => {
                 if let Some(expected) = expected {
                     write!(
@@ -257,18 +255,31 @@ impl Display for ParseErrorEnum {
 
 impl From<DuplicateNameError> for ParseErrorEnum {
     fn from(error: DuplicateNameError) -> Self {
-        ParseErrorEnum::UnknownError(error.to_string())
+        ParseErrorEnum::OtherError(error.to_string())
     }
 }
 
 impl ParseErrorEnum {
-    // @todo: complete normal error stacking
     pub fn before(self, before_error: ParseErrorEnum) -> ParseErrorEnum {
-        if before_error == ParseErrorEnum::Empty {
+        if before_error == UnexpectedEnd {
             return self;
         }
 
-        UnknownError(format!("{} → {}", before_error, self))
+        let mut previous_errors = match before_error {
+            Stacked(errors) => errors,
+            other => vec![other],
+        };
+
+        match self {
+            Stacked(mut errors) => {
+                previous_errors.append(&mut errors);
+                Stacked(previous_errors)
+            }
+            other => {
+                previous_errors.push(other);
+                Stacked(previous_errors)
+            }
+        }
     }
 }
 
