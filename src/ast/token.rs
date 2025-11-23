@@ -219,12 +219,6 @@ impl StaticLink for ExpressionEnum {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         let trace_context = Rc::clone(&ctx);
 
-        #[cfg(target_arch = "wasm32")]
-        let trace_string = "<trace omitted>".to_string();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let trace_string = self.to_string();
-
         let linking_result = match self {
             Variable(variable) => variable.link(ctx),
             FunctionCall(function) => function.link(ctx),
@@ -254,7 +248,7 @@ impl StaticLink for ExpressionEnum {
         if let Err(error) = linking_result {
             let field_name = trace_context.borrow().node.node_type.to_string();
             return error
-                .with_context(|| format!("Error in:`{}`\nTrace:`{}`", field_name, trace_string))
+                .with_context(|| format!("Error in:`{}`\nTrace:`{}`", field_name, self.to_string()))
                 .into();
         }
 
