@@ -6,7 +6,6 @@ use crate::ast::token::ExpressionEnum;
 use crate::ast::Link;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::utils::CharStream;
-use crate::typesystem::errors::ParseErrorEnum::WrongFormat;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
@@ -32,23 +31,6 @@ pub enum ComparatorEnum {
     Greater,
     LessEquals,
     GreaterEquals,
-}
-
-// @Todo: is it even needed?
-impl TryFrom<&str> for ComparatorEnum {
-    type Error = ParseErrorEnum;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "=" => Ok(Equals),
-            "<>" => Ok(NotEquals),
-            "<" => Ok(Less),
-            ">" => Ok(Greater),
-            "<=" => Ok(LessEquals),
-            ">=" => Ok(GreaterEquals),
-            _ => Err(WrongFormat(format!("Unknown comparator: {}", value))),
-        }
-    }
 }
 
 impl ComparatorEnum {

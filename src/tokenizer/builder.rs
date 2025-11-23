@@ -227,7 +227,7 @@ pub mod factory {
     };
     use crate::ast::ifthenelse::IfThenElseFunction;
     use crate::ast::metaphors::functions::FunctionDefinition;
-    use crate::ast::operators::comparators::{ComparatorEnum, ComparatorOperator};
+    use crate::ast::operators::comparators::ComparatorOperator;
     use crate::ast::operators::logical_operators::{LogicalOperator, LogicalOperatorEnum};
     use crate::ast::operators::math_operators::{MathOperator, MathOperatorEnum, NegationOperator};
     use crate::ast::selections::{ExpressionFilter, FieldSelection};
@@ -242,7 +242,9 @@ pub mod factory {
     use crate::tokenizer::parser::parse_type;
     use crate::tokenizer::utils::*;
     use crate::typesystem::errors::ParseErrorEnum;
-    use crate::typesystem::errors::ParseErrorEnum::{FunctionWrongNumberOfArguments, WrongFormat};
+    use crate::typesystem::errors::ParseErrorEnum::{
+        FunctionWrongNumberOfArguments, UnexpectedToken, WrongFormat,
+    };
     use log::trace;
     use std::cell::RefCell;
     use std::collections::vec_deque::VecDeque;
@@ -844,11 +846,7 @@ pub mod factory {
     ) -> Result<EToken, ParseErrorEnum> {
         let comparator = match token {
             Unparsed(ComparatorToken(comp)) => comp,
-            other => {
-                // @Todo: why this part is even needed?
-                let literal = other.into_string_or_literal()?;
-                ComparatorEnum::try_from(literal.as_str())?
-            }
+            other => return Err(UnexpectedToken(Box::new(other), Some("comparator".into()))),
         };
 
         let left_token = left.pop_left().map_err(|err| {
