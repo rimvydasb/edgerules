@@ -430,17 +430,31 @@ fn accessing_function_inner_field_is_link_error() {
 
 #[test]
 fn accessing_definition_inner_field_is_link_error() {
-    let err = eval_field(
+    link_error_contains(
         r#"
         {
             func takeDate(d: date): { year: d.nonexistent }
             value: takeDate(date('2024-01-01')).year
         }
         "#,
-        "value",
+        &["Field 'nonexistent' not found in date"],
     );
+}
 
-    assert_string_contains!("Field 'nonexistent' not found in date", &err);
+#[test]
+fn accessing_definition_inner_field_is_deep_link_error() {
+    link_error_contains(
+        r#"
+        {
+            calculations: {
+                func takeDate(d: date): { year: d.nonexistent }
+                result: takeDate(date('2024-01-01')).year
+            }
+            value : calculations.result
+        }
+        "#,
+        &["Field 'nonexistent' not found in date"],
+    );
 }
 
 #[test]
