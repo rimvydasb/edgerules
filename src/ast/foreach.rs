@@ -277,7 +277,7 @@ impl StaticLink for ForFunction {
                 .parameters
                 .push(for_parameter);
             self.return_expression.borrow_mut().node =
-                NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&ctx)));
+                NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&ctx), None));
 
             // @Todo: link_parts will fail with unknown field if return_expression refers list item field, for example:
             // for item in [{a:1},{}] return item.a

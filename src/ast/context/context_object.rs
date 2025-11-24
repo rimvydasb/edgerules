@@ -306,7 +306,8 @@ impl ContextObject {
                 let method_ref = method_entry.borrow();
                 Rc::clone(&method_ref.function_definition.body)
             };
-            body.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(parent));
+            body.borrow_mut().node.node_type =
+                NodeDataEnum::Internal(Rc::downgrade(parent), Some(interned));
         }
 
         Ok(())
@@ -318,7 +319,9 @@ impl ContextObject {
         body: UserTypeBody,
     ) {
         if let UserTypeBody::TypeObject(obj) = &body {
-            obj.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(parent));
+            let alias = intern_field_name(name);
+            obj.borrow_mut().node.node_type =
+                NodeDataEnum::Internal(Rc::downgrade(parent), Some(alias));
         }
 
         parent

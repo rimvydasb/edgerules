@@ -55,7 +55,7 @@ impl ContextObjectBuilder {
             field_names: Vec::new(),
             field_name_set: HashSet::new(),
             context_type: None,
-            node_type: NodeDataEnum::Internal(Rc::downgrade(&parent)),
+            node_type: NodeDataEnum::Internal(Rc::downgrade(&parent), None),
             parameters: Vec::new(),
             defined_types: HashMap::new(),
         }
@@ -315,20 +315,25 @@ impl ContextObjectBuilder {
             let parent = Rc::downgrade(&ctx);
             let borrowed = ctx.borrow();
             for method in borrowed.metaphors.values() {
-                let body = {
+                let (body, alias) = {
                     let method_ref = method.borrow();
-                    Rc::clone(&method_ref.function_definition.body)
+                    (
+                        Rc::clone(&method_ref.function_definition.body),
+                        intern_field_name(method_ref.function_definition.name.as_str()),
+                    )
                 };
-                body.borrow_mut().node.node_type = NodeDataEnum::Internal(parent.clone());
+                body.borrow_mut().node.node_type =
+                    NodeDataEnum::Internal(parent.clone(), Some(alias));
             }
         }
 
         {
             let type_defs = ctx.borrow();
-            for body in type_defs.defined_types.values() {
+            for (name, body) in type_defs.defined_types.iter() {
                 if let UserTypeBody::TypeObject(type_ctx) = body {
+                    let alias = intern_field_name(name.as_str());
                     type_ctx.borrow_mut().node.node_type =
-                        NodeDataEnum::Internal(Rc::downgrade(&ctx));
+                        NodeDataEnum::Internal(Rc::downgrade(&ctx), Some(alias));
                 }
             }
         }

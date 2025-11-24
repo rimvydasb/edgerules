@@ -18,6 +18,13 @@ use crate::typesystem::errors::RuntimeErrorEnum::{
 };
 use crate::typesystem::types::ValueType;
 
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
+pub enum ErrorStage {
+    Linking,
+    Runtime,
+}
+
 /// Error Stacking
 /// Other libraries:
 /// - https://crates.io/crates/anyhow
@@ -47,15 +54,13 @@ pub trait ErrorStack<T: Display>: Sized {
     //     new
     // }
 
-    fn with_context<C, F>(self, context: F) -> Self
+    fn with_context<C, F>(mut self, context: F) -> Self
     where
         C: Display + Send + Sync + 'static,
         F: FnOnce() -> C,
     {
-        let mut new = self;
-        new.update_context(format!("{}", context()));
-
-        new
+        self.update_context(format!("{}", context()));
+        self
     }
 }
 
@@ -64,6 +69,9 @@ pub trait ErrorStack<T: Display>: Sized {
 pub struct GeneralStackedError<T: Display> {
     pub error: T,
     pub context: Vec<String>,
+    pub location: Vec<String>,
+    pub expression: Option<String>,
+    pub stage: Option<ErrorStage>,
 }
 
 impl<T: Display> ErrorStack<T> for GeneralStackedError<T> {
@@ -82,8 +90,7 @@ impl<T: Display> ErrorStack<T> for GeneralStackedError<T> {
 
 impl<T: Display> Display for GeneralStackedError<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.error)?;
-
+        write!(f, "{}", self.error.to_string())?;
         let mut index = 0;
         if !self.context.is_empty() {
             write!(f, "\nContext:\n")?;
@@ -105,6 +112,9 @@ impl RuntimeError {
         RuntimeError {
             error,
             context: vec![],
+            location: vec![],
+            expression: None,
+            stage: Some(ErrorStage::Runtime),
         }
     }
 
@@ -371,6 +381,9 @@ impl LinkingError {
         LinkingError {
             error,
             context: vec![],
+            location: vec![],
+            expression: None,
+            stage: Some(ErrorStage::Linking)
         }
     }
 
@@ -517,6 +530,9 @@ impl RuntimeError {
         };
 
         runtime_error.context = error.context.clone();
+        runtime_error.location = error.location.clone();
+        runtime_error.expression = error.expression.clone();
+        runtime_error.stage = Some(ErrorStage::Runtime);
 
         runtime_error
     }

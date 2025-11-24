@@ -111,3 +111,12 @@ Add multiple tests that will cover various location scenarios:
 - Errors inside loop bodies
 - Errors in the root scope
 - Combination of the above
+
+**Next:** do the same with runtime errors in `evaluation_runtime_errors_tests.rs`.
+
+## Current implementation notes
+
+- `GeneralStackedError` now stores `stage`, `location`, `expression`, and `message` alongside the underlying error enum. Linking/runtime constructors populate these fields automatically.
+- `NodeDataEnum::Internal` carries an optional alias (function/type name) so in-structure paths can be reconstructed instead of `#child`.
+- `link_parts` decorates linking failures with `location` and `expression` derived from the owning context/field. `context` strings remain only for legacy compatibility.
+- Added `tests/evaluation_linking_errors_tests.rs` to assert locations and expressions for root, nested objects, and function-body errors.

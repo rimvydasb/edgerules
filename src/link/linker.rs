@@ -7,7 +7,7 @@ use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::ExecutionContext;
 use crate::typesystem::errors::LinkingErrorEnum::*;
-use crate::typesystem::errors::{LinkingError, RuntimeError};
+use crate::typesystem::errors::{ErrorStage, LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::ValueType::ObjectType;
 use crate::typesystem::values::{number_value_from_i128, ValueEnum};
@@ -37,13 +37,23 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                 let linked_type = {
                     match expression.try_borrow_mut() {
                         Ok(mut entry) => {
+                            let expression_display = entry.expression.to_string();
                             let result = entry.expression.link(Rc::clone(&context));
                             match result {
                                 Ok(field_type) => {
                                     entry.field_type = Ok(field_type.clone());
                                     Ok(field_type)
                                 }
-                                Err(err) => Err(err),
+                                Err(mut err) => {
+                                    if err.location.is_empty() {
+                                        err.location = build_location_from_context(&context, name);
+                                    }
+                                    if err.expression.is_none() {
+                                        err.expression = Some(expression_display);
+                                    }
+                                    err.stage = Some(ErrorStage::Linking);
+                                    Err(err)
+                                }
                             }
                         }
                         Err(_) => {
@@ -160,6 +170,32 @@ pub fn collect_known_implementations(context: Rc<RefCell<ContextObject>>) -> Vec
     implementations.sort();
 
     implementations
+}
+
+fn build_location_from_context(
+    context: &Rc<RefCell<ContextObject>>,
+    field_name: &'static str,
+) -> Vec<String> {
+    let mut location = vec![field_name.to_string()];
+    let mut current = Some(Rc::clone(context));
+
+    while let Some(ctx) = current {
+        let (parent, assigned) = {
+            let borrowed = ctx.borrow();
+            (
+                borrowed.node().node_type.get_parent(),
+                borrowed.node().node_type.get_assigned_name(),
+            )
+        };
+
+        if let Some(name) = assigned {
+            location.insert(0, name.to_string());
+        }
+
+        current = parent;
+    }
+
+    location
 }
 
 pub fn get_till_root<T: Node<T>>(

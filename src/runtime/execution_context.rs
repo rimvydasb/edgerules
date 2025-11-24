@@ -179,7 +179,7 @@ impl ExecutionContext {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
             context_variable: None,
-            node: NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&parent))),
+            node: NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&parent), None)),
             promise_eval_all: false,
             self_ref: Weak::new(),
         }
@@ -220,8 +220,8 @@ impl ExecutionContext {
                 NodeDataEnum::Child(name, _) => {
                     line.add(name).add(": {");
                 }
-                NodeDataEnum::Internal(_) => {
-                    line.add("#child").add(": {");
+                NodeDataEnum::Internal(_, alias) => {
+                    line.add(alias.unwrap_or("#child")).add(": {");
                 }
                 NodeDataEnum::Isolated() | NodeDataEnum::Root() => {
                     line.add("{");

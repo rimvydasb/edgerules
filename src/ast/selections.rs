@@ -5,16 +5,12 @@ use crate::ast::token::ExpressionEnum;
 use crate::ast::token::ExpressionEnum::Variable;
 use crate::ast::variable::VariableLink;
 use crate::ast::{is_linked, Link};
+use crate::link::node_data::Node;
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::ParseErrorEnum::WrongFormat;
 use crate::typesystem::errors::{
     ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
 };
-use std::cell::RefCell;
-use std::fmt;
-use std::fmt::{Display, Formatter};
-use std::rc::Rc;
-
 use crate::typesystem::types::number::NumberEnum as Num;
 use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::{TypedValue, ValueType};
@@ -23,6 +19,10 @@ use crate::typesystem::values::ValueEnum::{
     PeriodValue as PeriodVariant, Reference, TimeValue,
 };
 use crate::typesystem::values::{number_value_from_i128, ArrayValue, ValueEnum, ValueOrSv};
+use std::cell::RefCell;
+use std::fmt;
+use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 fn flatten_list_type(value_type: ValueType) -> ValueType {
     match value_type {
@@ -389,7 +389,15 @@ impl StaticLink for FieldSelection {
                 }
                 Err(error) => {
                     return error
-                        .with_context(|| format!("While looking at source '{}'", self.source))
+                        .with_context(|| {
+                            format!(
+                                "While looking at source '{}'",
+                                ctx.borrow()
+                                    .node()
+                                    .get_assigned_to_field()
+                                    .unwrap_or("<root>")
+                            )
+                        })
                         .into();
                 }
                 Ok(other) => {

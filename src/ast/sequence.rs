@@ -37,7 +37,8 @@ impl StaticLink for CollectionExpression {
                     if let ExpressionEnum::StaticObject(obj) = arg {
                         {
                             let mut object = obj.borrow_mut();
-                            object.node.node_type = NodeDataEnum::Internal(Rc::downgrade(&ctx));
+                            object.node.node_type =
+                                NodeDataEnum::Internal(Rc::downgrade(&ctx), None);
                         }
                         linker::link_parts(Rc::clone(obj))?;
                     }

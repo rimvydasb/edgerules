@@ -162,6 +162,36 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
     }
 }
 
+pub fn link_error_location(
+    code: &str,
+    expected_location: &[&str],
+    expected_expression: &str,
+) -> Vec<String> {
+    let mut service = EdgeRulesModel::new();
+    let _ = service.append_source(code);
+
+    match service.to_runtime() {
+        Ok(_) => panic!("expected link error, got none\ncode:\n{code}"),
+        Err(err) => {
+            let expected = expected_location
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                err.location, expected,
+                "location mismatch for code:\n{code}"
+            );
+            assert_eq!(
+                err.expression.as_deref(),
+                Some(expected_expression),
+                "expression mismatch for code:\n{code}"
+            );
+            assert!(err.stage.is_some());
+            err.location
+        }
+    }
+}
+
 /// For tests that must assert parse errors (e.g., invalid syntax, duplicate fields).
 pub fn parse_error_contains(code: &str, needles: &[&str]) {
     let mut service = EdgeRulesModel::new();

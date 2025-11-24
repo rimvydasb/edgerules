@@ -21,7 +21,8 @@ pub enum NodeDataEnum<T: Node<T>> {
     /// internal content can reach parent context. Used in:
     /// 1. Loops
     /// 2. Inline functions (if supported)
-    Internal(Weak<RefCell<T>>),
+    /// 3. User function bodies (alias stores the function name)
+    Internal(Weak<RefCell<T>>, Option<&'static str>),
     /// Fully isolated - parent cannot access internals, and internals cannot access parent. Used in:
     /// 1. Function bodies
     Isolated(),
@@ -42,14 +43,15 @@ impl<T: Node<T>> Display for NodeDataEnum<T> {
                 }
             },
             Isolated() => write!(f, "Isolated"),
-            Internal(parent) => match parent.upgrade() {
+            Internal(parent, alias) => match parent.upgrade() {
                 None => {
                     // this situation should enver happen:
                     write!(f, "OrphanedChild(#child)")
                 }
                 Some(parent) => {
                     // @Todo: run tests with coverage and see if this path is ever hit
-                    write!(f, "{}.{}", parent.borrow().node().node_type, "#child")
+                    let name = alias.unwrap_or("#child");
+                    write!(f, "{}.{}", parent.borrow().node().node_type, name)
                 }
             },
             Root() => write!(f, "Root"),
@@ -61,7 +63,7 @@ impl<T: Node<T>> NodeDataEnum<T> {
     pub fn get_parent(&self) -> Option<Rc<RefCell<T>>> {
         match self {
             Child(_, parent) => parent.upgrade(),
-            Internal(parent) => parent.upgrade(),
+            Internal(parent, _) => parent.upgrade(),
             _ => None,
         }
     }
@@ -70,7 +72,15 @@ impl<T: Node<T>> NodeDataEnum<T> {
         match self {
             Child(name, _parent) => (*name).to_string(),
             Isolated() | Root() => String::new(),
-            Internal(_) => "#child".to_string(),
+            Internal(_, alias) => alias.unwrap_or("#child").to_string(),
+        }
+    }
+
+    pub fn get_assigned_name(&self) -> Option<&'static str> {
+        match self {
+            Child(name, _) => Some(*name),
+            Internal(_, Some(name)) => Some(*name),
+            _ => None,
         }
     }
 }
@@ -167,10 +177,7 @@ impl<T: Node<T>> NodeData<T> {
     }
 
     pub fn get_assigned_to_field(&self) -> Option<&'static str> {
-        match self.node_type {
-            Child(name, _) => Some(name),
-            _ => None,
-        }
+        self.node_type.get_assigned_name()
     }
 
     pub fn lock_field(&self, field: &'static str) -> Result<(), LinkingError> {
