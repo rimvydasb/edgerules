@@ -86,3 +86,21 @@ and specify below in ERRORS_STORY.md. Produced specification will be used to imp
   - `stage`: `linking`.
 - Runtime errors should follow the same shape, but build the location from the execution context (stack of `ExecutionContext` parents + current field).
 - The old `context: Vec<String>` stack can be kept temporarily for debugging but should be deprecated once all call sites populate the structured fields.
+
+**In-structure location testing**
+
+Similar to `evaluation_common_tests.rs`, create `evaluation_linking_errors_tests.rs` that will 
+contain tests that will verify that produced linking errors contain correct in-structure location and expression fields.
+Similar to `link_error_contains` a required helpers can be created to verify produced errors and `location`.
+
+Add multiple tests that will cover various location scenarios:
+- Simple field access errors
+- Function call errors
+- Nested function calls
+- Errors inside deep contexts
+- Errors inside array elements
+- Errors inside function bodies
+- Errors inside if-else bodies
+- Errors inside loop bodies
+- Errors in the root scope
+- Combination of the above
