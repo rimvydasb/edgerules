@@ -383,7 +383,7 @@ impl LinkingError {
             context: vec![],
             location: vec![],
             expression: None,
-            stage: Some(ErrorStage::Linking)
+            stage: Some(ErrorStage::Linking),
         }
     }
 

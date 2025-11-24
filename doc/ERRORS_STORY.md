@@ -112,7 +112,7 @@ Add multiple tests that will cover various location scenarios:
 - Errors in the root scope
 - Combination of the above
 
-**Next:** do the same with runtime errors in `evaluation_runtime_errors_tests.rs`.
+**Next:** write tests for testing location in runtime errors. Create `evaluation_runtime_errors_tests.rs`.
 
 ## Current implementation notes
 
