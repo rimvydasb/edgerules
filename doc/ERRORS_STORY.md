@@ -12,7 +12,7 @@ This story gradually unfolds the ideal error handling strategy for EdgeRules.
 
 ## Tasks
 
-Example error:
+Example bad code:
 
 ```edgerules
 {
@@ -24,8 +24,9 @@ Example error:
 }
 ```
 
-Will produce linking error:
+This story will focus on improving `LinkingError` to provide in-structure location and expression:
 
+**Updated GeneralStackedError:**
 ```json
 {
   "stage": "linking",
@@ -38,8 +39,10 @@ Will produce linking error:
 }
 ```
 
-Currently, `LinkingError` is able to collect `context`m that is a call trace instead of in-structure location:
+Currently, `LinkingError` is able to collect `context`m that is a call trace instead of in-structure location.
+Old style below:
 
+**Old (current) GeneralStackedError:**
 ```json
 {
   "error": {
@@ -57,6 +60,10 @@ Currently, `LinkingError` is able to collect `context`m that is a call trace ins
   ]
 }
 ```
+
+Examples above are illustrative only - we're targeting Rust structures, not JSON.
+Later on we will work with WASM, and we will produce JSON errors for the clients, but this
+is out of scope for this story.
 
 Investigate what is needed to build in-structure location instead of call trace context
 and specify below in ERRORS_STORY.md. Produced specification will be used to implement in-structure location handling.
