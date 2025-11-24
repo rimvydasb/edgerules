@@ -400,6 +400,7 @@ fn continue_browse<'a, T: Node<T>>(
                     item.clone(),
                 ))
             } else {
+                // @Todo: check if this can ever happen and cover with tests if so
                 LinkingError::other_error(format!("Stuck on {}", context.borrow().node().node_type))
                     .into()
             };
@@ -575,6 +576,7 @@ fn continue_browse<'a, T: Node<T>>(
                         "Definition '{}' does not have '{}' item",
                         definition, current_search
                     );
+                    // @Todo: cover with tests: try accessing definition inner field
                     return LinkingError::new(OtherLinkingError(format!(
                         "Cannot access '{}' from '{}' definition",
                         current_search, definition
@@ -587,6 +589,7 @@ fn continue_browse<'a, T: Node<T>>(
         current_search_end = Some(current_search);
     }
 
+    // @Todo: I have no idea how to reach this point, cover with tests if possible or make it more clear why it is unreachable
     Ok(BrowseResult::found(
         starting.0,
         "this should not happen",
