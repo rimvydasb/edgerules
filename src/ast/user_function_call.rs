@@ -53,10 +53,7 @@ impl EvaluatableExpression for UserFunctionCall {
                 Ok(Reference(eval_context))
             }
             Err(error) => {
-                let error = error
-                    .clone()
-                    .with_context(|| format!("Evaluating function `{}`", self.name));
-                Err(RuntimeError::from(error))
+                Err(RuntimeError::unexpected(format!("{}: {}", self.name, error)))
             }
         }
     }

@@ -13,9 +13,7 @@ use crate::typesystem::errors::ParseErrorEnum::{
     FunctionWrongNumberOfArguments, MissingLiteral, OtherError, Stacked, UnexpectedEnd,
     UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
-use crate::typesystem::errors::RuntimeErrorEnum::{
-    EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
-};
+use crate::typesystem::errors::RuntimeErrorEnum::{EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError};
 use crate::typesystem::types::ValueType;
 
 /// Error Stacking
@@ -32,20 +30,20 @@ pub trait ErrorStack<T: Display>: Sized {
 
     fn get_error_type(&self) -> &T;
 
-    #[allow(dead_code)]
-    fn before_happened<O>(self, other: O) -> Self
-    where
-        O: ErrorStack<T>,
-    {
-        let mut new = self;
-        for context in other.get_context().iter() {
-            new.update_context(context.clone());
-        }
-
-        new.update_context(format!("{}", other.get_error_type()));
-
-        new
-    }
+    // #[allow(dead_code)]
+    // fn before_happened<O>(self, other: O) -> Self
+    // where
+    //     O: ErrorStack<T>,
+    // {
+    //     let mut new = self;
+    //     for context in other.get_context().iter() {
+    //         new.update_context(context.clone());
+    //     }
+    //
+    //     new.update_context(format!("{}", other.get_error_type()));
+    //
+    //     new
+    // }
 
     fn with_context<C, F>(self, context: F) -> Self
     where
@@ -106,6 +104,10 @@ impl RuntimeError {
             error,
             context: vec![],
         }
+    }
+
+    pub fn unexpected(message: String) -> Self {
+        RuntimeError::new(UnexpectedError(message))
     }
 
     pub fn eval_error(message: String) -> Self {
@@ -303,8 +305,9 @@ pub enum RuntimeErrorEnum {
     /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
     TypeNotSupported(ValueType),
 
-    // @Todo: remove this, it's not a runtime error (remove RuntimeError::into_runtime as well)
-    Unlinked,
+    /// This error never appears in normal runtime, but used as a guard for maybe unlinked references.
+    /// This error also means development mistake and will not be covered by tests.
+    UnexpectedError(String),
 }
 
 impl Display for RuntimeErrorEnum {
@@ -322,7 +325,9 @@ impl Display for RuntimeErrorEnum {
             RuntimeFieldNotFound(object, field) => {
                 write!(f, "[runtime] Field '{}' not found in {}", field, object)
             }
-            RuntimeErrorEnum::Unlinked => f.write_str("[runtime] Unlinked"),
+            UnexpectedError(message) => {
+                write!(f, "[runtime] Unexpected error: {}", message)
+            },
         }
     }
 }
@@ -505,7 +510,7 @@ impl RuntimeError {
         let mut runtime_error = match &error.error {
             FieldNotFound(object, field) => RuntimeError::field_not_found(object, field),
             CyclicReference(object, field) => RuntimeError::cyclic_reference(object, field),
-            NotLinkedYet => RuntimeError::new(RuntimeErrorEnum::Unlinked),
+            NotLinkedYet => RuntimeError::unexpected(format!("{}", error)),
             _ => RuntimeError::eval_error(error.error.to_string()),
         };
 
@@ -587,13 +592,4 @@ impl Display for LinkingErrorEnum {
             }
         }
     }
-}
-
-// @Todo: implement global usage
-// @Todo: implement normal error stacking
-#[allow(dead_code)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[derive(PartialEq, Clone)]
-pub struct LinkingErrors {
-    pub errors: Vec<LinkingError>,
 }

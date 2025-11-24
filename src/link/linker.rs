@@ -478,6 +478,7 @@ fn continue_browse<'a, T: Node<T>>(
                     // Step into the computed property value and continue browsing
                     starting = (Rc::clone(context), ConstantValue(next_value));
                 } else {
+                    // @Todo: cover with tests: try accessing constant inner field
                     let label = constant_value_label(value);
                     error!(
                         "{} '{}' does not have '{}' item",
@@ -498,6 +499,7 @@ fn continue_browse<'a, T: Node<T>>(
                 ));
             }
             UserFunctionRef(metaphor) => {
+                // @Todo: cover with tests: try accessing user function inner field
                 let metaphor_name = metaphor.borrow().function_definition.get_name();
                 error!(
                     "User function '{}' does not have '{}' item",
