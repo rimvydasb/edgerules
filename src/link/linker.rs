@@ -400,9 +400,12 @@ fn continue_browse<'a, T: Node<T>>(
                     item.clone(),
                 ))
             } else {
-                // @Todo: check if this can ever happen and cover with tests if so
-                LinkingError::other_error(format!("Stuck on {}", context.borrow().node().node_type))
-                    .into()
+                // Path is empty so there is nothing to resolve for this context.
+                return LinkingError::field_not_found(
+                    &context.borrow().node().node_type.to_string(),
+                    "<empty>",
+                )
+                .into();
             };
         }
 
@@ -479,17 +482,8 @@ fn continue_browse<'a, T: Node<T>>(
                     // Step into the computed property value and continue browsing
                     starting = (Rc::clone(context), ConstantValue(next_value));
                 } else {
-                    // @Todo: cover with tests: try accessing constant inner field
                     let label = constant_value_label(value);
-                    error!(
-                        "{} '{}' does not have '{}' item",
-                        label, value, current_search
-                    );
-                    return LinkingError::new(OtherLinkingError(format!(
-                        "{} does not have '{}' item",
-                        label, current_search
-                    )))
-                    .into();
+                    return LinkingError::field_not_found(label, current_search).into();
                 }
             }
             ExpressionRef(expression) => {
@@ -500,17 +494,9 @@ fn continue_browse<'a, T: Node<T>>(
                 ));
             }
             UserFunctionRef(metaphor) => {
-                // @Todo: cover with tests: try accessing user function inner field
                 let metaphor_name = metaphor.borrow().function_definition.get_name();
-                error!(
-                    "User function '{}' does not have '{}' item",
-                    metaphor_name, current_search
-                );
-                return LinkingError::new(OtherLinkingError(format!(
-                    "Cannot access '{}' from '{}' user function",
-                    current_search, metaphor_name
-                )))
-                .into();
+                let object_name = format!("function {}", metaphor_name);
+                return LinkingError::field_not_found(&object_name, current_search).into();
             }
             ObjectRef(object) => {
                 NodeData::attach_child(context, object);
@@ -572,16 +558,8 @@ fn continue_browse<'a, T: Node<T>>(
                 if let Some(def) = next_def {
                     starting = (Rc::clone(context), Definition(def));
                 } else {
-                    error!(
-                        "Definition '{}' does not have '{}' item",
-                        definition, current_search
-                    );
-                    // @Todo: cover with tests: try accessing definition inner field
-                    return LinkingError::new(OtherLinkingError(format!(
-                        "Cannot access '{}' from '{}' definition",
-                        current_search, definition
-                    )))
-                    .into();
+                    return LinkingError::field_not_found(&definition.to_string(), current_search)
+                        .into();
                 }
             }
         }
@@ -589,7 +567,8 @@ fn continue_browse<'a, T: Node<T>>(
         current_search_end = Some(current_search);
     }
 
-    // @Todo: I have no idea how to reach this point, cover with tests if possible or make it more clear why it is unreachable
+    // Path iteration is exhausted; this branch should be unreachable because we return earlier
+    // once `index >= path.len()`. Keep a defensive fallback to avoid panics.
     Ok(BrowseResult::found(
         starting.0,
         "this should not happen",

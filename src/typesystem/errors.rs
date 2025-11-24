@@ -13,7 +13,9 @@ use crate::typesystem::errors::ParseErrorEnum::{
     FunctionWrongNumberOfArguments, MissingLiteral, OtherError, Stacked, UnexpectedEnd,
     UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
-use crate::typesystem::errors::RuntimeErrorEnum::{EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError};
+use crate::typesystem::errors::RuntimeErrorEnum::{
+    EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError,
+};
 use crate::typesystem::types::ValueType;
 
 /// Error Stacking
@@ -327,7 +329,7 @@ impl Display for RuntimeErrorEnum {
             }
             UnexpectedError(message) => {
                 write!(f, "[runtime] Unexpected error: {}", message)
-            },
+            }
         }
     }
 }

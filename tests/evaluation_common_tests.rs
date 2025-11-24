@@ -399,6 +399,89 @@ fn variable_linkin_test() {
 }
 
 #[test]
+fn accessing_constant_inner_field_is_link_error() {
+    let err = eval_field(
+        r#"
+        {
+            dateVal: date('2024-01-01')
+            value: dateVal.nonexistent
+        }
+        "#,
+        "value",
+    );
+
+    assert_string_contains!("Field 'nonexistent' not found in date", &err);
+}
+
+#[test]
+fn accessing_function_inner_field_is_link_error() {
+    let err = eval_field(
+        r#"
+        {
+            func helper(): { result: 1 }
+            value: helper.nonexistent
+        }
+        "#,
+        "value",
+    );
+
+    assert_string_contains!("Missing('nonexistent')", &err);
+}
+
+#[test]
+fn accessing_definition_inner_field_is_link_error() {
+    let err = eval_field(
+        r#"
+        {
+            func takeDate(d: date): { year: d.nonexistent }
+            value: takeDate(date('2024-01-01')).year
+        }
+        "#,
+        "value",
+    );
+
+    assert_string_contains!("Field 'nonexistent' not found in date", &err);
+}
+
+#[test]
+fn duration_constant_inner_fields_are_accessible() {
+    assert_value!(
+        r#"
+        {
+            d: duration('P1DT2H3M4S')
+            days: d.days
+            hours: d.hours
+            minutes: d.minutes
+            seconds: d.seconds
+            totalSeconds: d.totalSeconds
+            totalMinutes: d.totalMinutes
+            totalHours: d.totalHours
+            value: [days, hours, minutes, seconds, totalSeconds, totalMinutes, totalHours]
+        }
+        "#,
+        "[1, 2, 3, 4, 93784, 1563.0666666666666, 26.051111111111112]"
+    );
+}
+
+#[test]
+fn period_constant_inner_fields_are_accessible() {
+    assert_value!(
+        r#"
+        {
+            p: period('P1Y2M10D')
+            years: p.years
+            months: p.months
+            days: p.days
+            totalMonths: p.totalMonths
+            totalDays: p.totalDays
+            value: [years, months, days, totalMonths, totalDays]
+        }
+        "#,
+        "[1, 2, 10, 14, 10]"
+    );
+}
+
+#[test]
 fn order_test() {
     let result = eval_all(
         r#"

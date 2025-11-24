@@ -7,7 +7,7 @@ use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
 use crate::link::linker;
 use crate::runtime::execution_context::*;
-use crate::typesystem::errors::{ErrorStack, LinkingError, RuntimeError};
+use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::Reference;
@@ -52,9 +52,10 @@ impl EvaluatableExpression for UserFunctionCall {
                 ExecutionContext::eval_all_fields(&eval_context)?;
                 Ok(Reference(eval_context))
             }
-            Err(error) => {
-                Err(RuntimeError::unexpected(format!("{}: {}", self.name, error)))
-            }
+            Err(error) => Err(RuntimeError::unexpected(format!(
+                "{}: {}",
+                self.name, error
+            ))),
         }
     }
 }
