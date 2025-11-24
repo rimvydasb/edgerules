@@ -31,9 +31,8 @@ Will produce linking error:
   "stage": "linking",
   "error": {
     "type": "FieldNotFound",
-    "data": ["date", "nonexistent"]
+    "fields": ["date", "nonexistent"]
   },
-  "message": "Field 'nonexistent' not found in date",
   "location": "calculations.takeDate.year",
   "expression": "d.nonexistent"
 }
@@ -60,7 +59,7 @@ Currently, `LinkingError` is able to collect `context`m that is a call trace ins
 ```
 
 Investigate what is needed to build in-structure location instead of call trace context
-and specify below. Produced specification will be used to implement in-structure location handling.
+and specify below in ERRORS_STORY.md. Produced specification will be used to implement in-structure location handling.
 
 # In-structure location specification
 
@@ -68,7 +67,22 @@ and specify below. Produced specification will be used to implement in-structure
 
 - `location: Vec<String>` field that will represent in-structure location.
 - `expression: String` field that will represent the expression that caused the error (Optional).
-- `stage` field that will represent the stage of the error: `linking`, `runtime`.
-- `message` that is Display representation of the error enum.
+- `stage` field that will represent the stage of the error: `linking`, `runtime` - it can be Rust enum.
 
 **In-structure location**
+
+- Current call-trace contexts are built with `with_context` calls during linking. They rely on `NodeDataEnum::to_string()` which emits `Root.calculations.#child` etc. (`#child` comes from `NodeDataEnum::Internal` that is used for function bodies). The trace mixes "what we were doing" with "where this expression lives", producing the verbose context array shown above.
+- To build an in-structure location we need a deterministic path inside the model (root → child → expression field). That path must not depend on where the linker recursed from, only on the owning AST nodes.
+- Each `ContextObject` already knows its parent via `NodeDataEnum::get_parent()` and (for normal children) its assigned field name via `get_assigned_to_field()`. Function bodies and type objects, however, are marked as `Internal` and lose the name (`#child`), so we must carry an explicit alias for them:
+  - When registering a user function (`ContextObject::add_user_function` / `FunctionDefinition`), store the function name alongside the body (e.g., in `NodeDataEnum::Internal(String, Weak<...>)` or a sibling field) so the body can report `"takeDate"` instead of `#child`.
+  - Do the same for inline/internal contexts (type objects, foreach/if bodies if they use `Internal`) so every `ContextObject` can tell "what name am I under in my parent".
+- With that alias in place, add a helper to compute `Vec<String>` location segments from any node:
+  - Start from the failing expression’s context and field; push the field name that is being linked/evaluated (`year` in the example).
+  - Walk parents via `get_parent()`, prepending each known alias/field name; stop at root. The result for the example becomes `["calculations", "takeDate", "year"]`.
+  - For expressions that live in the root scope, the location is just the field being linked (`value` or similar).
+- When producing a `LinkingError` (or wrapping it via `with_context`), populate the new `location` and `expression` fields instead of stacking human strings:
+  - `location`: the vector built above.
+  - `expression`: `Display` of the expression being linked that triggered the error (`d.nonexistent` in the example).
+  - `stage`: `linking`.
+- Runtime errors should follow the same shape, but build the location from the execution context (stack of `ExecutionContext` parents + current field).
+- The old `context: Vec<String>` stack can be kept temporarily for debugging but should be deprecated once all call sites populate the structured fields.
