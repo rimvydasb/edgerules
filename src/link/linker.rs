@@ -31,24 +31,25 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
 
     for name in field_names {
         match context.borrow().get(name)? {
-            ExpressionRef(expression) => {
-                context.borrow().node().lock_field(name)?;
+                ExpressionRef(expression) => {
+                    context.borrow().node().lock_field(name)?;
 
-                let linked_type = {
-                    match expression.try_borrow_mut() {
-                        Ok(mut entry) => {
-                            let expression_display = entry.expression.to_string();
-                            let result = entry.expression.link(Rc::clone(&context));
-                            match result {
-                                Ok(field_type) => {
-                                    entry.field_type = Ok(field_type.clone());
-                                    Ok(field_type)
-                                }
-                                Err(mut err) => {
-                                    if err.location.is_empty() {
-                                        err.location = build_location_from_context(&context, name);
+                    let linked_type = {
+                        match expression.try_borrow_mut() {
+                            Ok(mut entry) => {
+                                let expression_display = entry.expression.to_string();
+                                let result = entry.expression.link(Rc::clone(&context));
+                                match result {
+                                    Ok(field_type) => {
+                                        entry.field_type = Ok(field_type.clone());
+                                        Ok(field_type)
                                     }
-                                    if err.expression.is_none() {
+                                    Err(mut err) => {
+                                        if err.location.is_empty() {
+                                            err.location =
+                                                build_location_from_context(&context, name);
+                                        }
+                                        if err.expression.is_none() {
                                         err.expression = Some(expression_display);
                                     }
                                     err.stage = Some(ErrorStage::Linking);
@@ -172,9 +173,9 @@ pub fn collect_known_implementations(context: Rc<RefCell<ContextObject>>) -> Vec
     implementations
 }
 
-fn build_location_from_context(
+pub(crate) fn build_location_from_context(
     context: &Rc<RefCell<ContextObject>>,
-    field_name: &'static str,
+    field_name: &str,
 ) -> Vec<String> {
     let mut location = vec![field_name.to_string()];
     let mut current = Some(Rc::clone(context));
@@ -424,7 +425,7 @@ fn continue_browse<'a, T: Node<T>>(
     mut starting: (Rc<RefCell<T>>, EObjectContent<T>),
 ) -> Result<BrowseResult<'a, T>, LinkingError> {
     //trace!("continue_browse(path[{}..], {:?})", index, starting);
-    let mut current_search_end: Option<&str> = None;
+    let mut current_search_end: Option<&str> = path.first().copied();
 
     #[allow(irrefutable_let_patterns)]
     while let (ref context, ref item) = starting {
@@ -594,7 +595,10 @@ fn continue_browse<'a, T: Node<T>>(
                 if let Some(def) = next_def {
                     starting = (Rc::clone(context), Definition(def));
                 } else {
-                    return LinkingError::field_not_found(&definition.to_string(), current_search)
+                    let object_name = current_search_end
+                        .map(|name| name.to_string())
+                        .unwrap_or_else(|| definition.to_string());
+                    return LinkingError::field_not_found(object_name.as_str(), current_search)
                         .into();
                 }
             }

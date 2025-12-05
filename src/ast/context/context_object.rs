@@ -108,7 +108,15 @@ impl ContentHolder<ContextObject> for ContextObject {
                 .unwrap_or(ValueType::UndefinedType);
             Ok(EObjectContent::Definition(runtime_type))
         } else {
-            LinkingError::field_not_found(self.node.node_type.to_string().as_str(), name).into()
+            let object_name = {
+                let code = self.node.node_type.to_code();
+                if code.is_empty() {
+                    self.node.node_type.to_string()
+                } else {
+                    code
+                }
+            };
+            LinkingError::field_not_found(object_name.as_str(), name).into()
         }
     }
 

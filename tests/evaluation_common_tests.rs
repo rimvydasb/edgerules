@@ -437,7 +437,7 @@ fn accessing_definition_inner_field_is_link_error() {
             value: takeDate(date('2024-01-01')).year
         }
         "#,
-        &["Field 'nonexistent' not found in date"],
+        &["Field 'nonexistent' not found in d"],
     );
 }
 
@@ -453,7 +453,7 @@ fn accessing_definition_inner_field_is_deep_link_error() {
             value : calculations.result
         }
         "#,
-        &["Field 'nonexistent' not found in date"],
+        &["Field 'nonexistent' not found in d"],
     );
 }
 
