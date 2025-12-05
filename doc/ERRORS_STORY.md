@@ -120,3 +120,36 @@ Add multiple tests that will cover various location scenarios:
 - `NodeDataEnum::Internal` carries an optional alias (function/type name) so in-structure paths can be reconstructed instead of `#child`.
 - `link_parts` decorates linking failures with `location` and `expression` derived from the owning context/field. `context` strings remain only for legacy compatibility.
 - Added `tests/evaluation_linking_errors_tests.rs` to assert locations and expressions for root, nested objects, and function-body errors.
+
+## WASM Error API
+
+- **PortableError** must capture ParseErrors, LinkingErrors, and RuntimeErrors in a unified way.
+- WASM API must throw **PortableError** as JSON.
+- **PortableError** matches the structure of GeneralStackedError, that contains `stage`, `type`, `fields`, `location`, `expression`, and `message`.
+
+**Example 1:**
+
+Example below comes from `wasm_portable.rs` that converts JSON objects to EdgeRules structures.
+
+```json
+{
+    "stage": "parse",
+    "type": "WrongStructure",
+    "location": ["applicationDecisions"],
+    "message": "@parameters must be an object"
+}
+```
+
+**Example 2:**
+
+```json
+{
+  "stage": "linking",
+  "error": {
+    "type": "FieldNotFound",
+    "fields": ["d", "nonexistent"]
+  },
+  "location": "calculations.takeDate.year",
+  "expression": "d.nonexistent"
+}
+```

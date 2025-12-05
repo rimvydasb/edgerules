@@ -139,7 +139,7 @@ const complexEval = wasm.evaluate_field(
 `, "adults")
 console.log('complexEval:', complexEval);
 
-if (JSON.stringify(complexEval) != `{"result":[{"name":"Alice","age":30,"tags":["engineer","manager"]},{"name":"Charlie","age":22,"tags":[]}]}`) {
+if (JSON.stringify(complexEval) !== `{"result":[{"name":"Alice","age":30,"tags":["engineer","manager"]},{"name":"Charlie","age":22,"tags":[]}]}`) {
     throw new Error('complexEval failed: ' + JSON.stringify(complexEval));
 }
 

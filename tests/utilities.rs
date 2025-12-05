@@ -2,6 +2,7 @@ use std::sync::Once;
 
 use edge_rules::runtime::edge_rules::{EdgeRulesModel, EdgeRulesRuntime};
 use env_logger::Builder;
+use edge_rules::test_support::LinkingErrorEnum;
 
 pub fn inline<S: AsRef<str>>(code: S) -> String {
     code.as_ref().replace('\n', " ").replace(" ", "")
@@ -162,11 +163,7 @@ pub fn link_error_contains(code: &str, needles: &[&str]) {
     }
 }
 
-pub fn link_error_location(
-    code: &str,
-    expected_location: &[&str],
-    expected_expression: &str,
-) -> Vec<String> {
+pub fn link_error_location(code: &str, expected_location: &[&str], expected_expression: &str, error: LinkingErrorEnum) -> Vec<String> {
     let mut service = EdgeRulesModel::new();
     let _ = service.append_source(code);
 
@@ -187,6 +184,7 @@ pub fn link_error_location(
                 "expression mismatch for code:\n{code}"
             );
             assert!(err.stage.is_some());
+            assert_eq!(err.error, error);
             err.location
         }
     }

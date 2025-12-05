@@ -231,8 +231,22 @@ const runNestedFunctionInsertionExample = () => {
     );
 };
 
+
+const runUnhappyErrorExample = () => {
+    const result = wasm.create_decision_service({
+        applicationDecisions: {
+            '@type': 'function',
+            '@parameters': {age: 'number'},
+            isEligible: 'age >= 18 + "invalid_string"'
+        }
+    });
+
+    console.log('Nested function unhappyError:', result);
+}
+
 runLoanDecisionExample();
 runInvocationExample();
 runNestedFunctionInsertionExample();
+runUnhappyErrorExample();
 
 console.log('Decision service WASM examples completed without errors.');
