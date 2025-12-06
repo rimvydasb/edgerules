@@ -186,6 +186,113 @@ fn reports_location_for_loop_body_errors() {
     );
 }
 
+#[test]
+fn reports_location_for_mismatched_if_branches() {
+    let code = r#"
+{
+    checks: { verdict: if true then 1 else 'nope' }
+}
+"#;
+
+    link_error_location(
+        code,
+        &["checks", "verdict"],
+        "if true then 1 else 'nope'",
+        LinkingErrorEnum::DifferentTypesDetected(
+            Some("`then` and `else` expressions".to_string()),
+            ValueType::NumberType,
+            ValueType::StringType,
+        ),
+    );
+}
+
+#[test]
+fn reports_location_for_missing_user_function() {
+    let code = r#"
+{
+    calculations: { answer: missingFunction(1) }
+}
+"#;
+
+    link_error_location(
+        code,
+        &["calculations", "answer"],
+        "missingFunction(1)",
+        LinkingErrorEnum::FunctionNotFound {
+            name: "missingFunction".to_string(),
+            known_metaphors: vec![],
+        },
+    );
+}
+
+#[test]
+fn reports_location_for_self_referencing_fields() {
+    let code = r#"
+{
+    outer: { loop: loop }
+}
+"#;
+
+    link_error_location(
+        code,
+        &["outer", "loop"],
+        "loop",
+        LinkingErrorEnum::CyclicReference("Root.outer".to_string(), "loop".to_string()),
+    );
+}
+
+#[test]
+fn reports_location_for_unsupported_operations() {
+    let code = r#"
+{
+    nested: { compare: true < false }
+}
+"#;
+
+    link_error_location(
+        code,
+        &["nested", "compare"],
+        "true < false",
+        LinkingErrorEnum::OperationNotSupported(
+            "<".to_string(),
+            ValueType::BooleanType,
+            ValueType::BooleanType,
+        ),
+    );
+}
+
+#[test]
+fn reports_location_for_other_linking_errors() {
+    let code = r#"
+{
+    user: { profile: { short: substring("abc") } }
+}
+"#;
+
+    link_error_location(
+        code,
+        &["user", "profile", "short"],
+        "substring('abc')",
+        LinkingErrorEnum::OtherLinkingError("substring expects 2 or 3 arguments".to_string()),
+    );
+}
+
+#[test]
+fn reports_location_for_unset_it_binding() {
+    let code = r#"
+{
+    wrapper: { inner: { value: it } }
+}
+"#;
+
+    link_error_location(
+        code,
+        &["wrapper", "inner", "value"],
+        "it",
+        LinkingErrorEnum::NotLinkedYet,
+    );
+}
+
 mod utilities;
 
 use edge_rules::test_support::{LinkingErrorEnum, ValueType};
