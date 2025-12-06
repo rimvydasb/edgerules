@@ -103,16 +103,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 WASM exported methods via `wasm_bindgen`:
 
 - `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
-- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript
-  value.
+- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
 - `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
-- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
-  with given `args`.
+- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method with
+    given `args`.
 
-All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors
-instead of encoding everything as strings. `evaluate_method` accepts primitives, arrays, dates, or plain JavaScript
-objects
-as arguments, and context outputs are surfaced as plain objects.
+Decision-service lifecycle (all functions throw JavaScript exceptions when the model or invocation is invalid):
+
+- `create_decision_service(model: &JsValue) -> JsValue` – consumes a portable model object, initializes a single
+    `DecisionServiceController`, stores it in a thread-local slot, and returns the normalized model snapshot. Subsequent
+    lifecycle calls reuse this single instance until the next `create_decision_service` replaces it.
+- `execute_decision_service(service_method: &str, decision_request: &JsValue) -> JsValue` – executes `service_method` against
+    the stored controller using a portable request value and returns the response as a plain JavaScript object.
+- `get_decision_service_model() -> JsValue` – returns the current normalized model snapshot from the stored controller.
+
+Decision-service mutation helpers (operate on the same stored controller):
+
+- `set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue` – sets or replaces a model entry at `path` with a
+    portable object and returns the updated snapshot.
+- `set_invocation(path: &str, invocation: &JsValue) -> JsValue` – updates the invocation payload at `path` and returns the
+    updated snapshot.
+- `remove_from_decision_service_model(path: &str) -> JsValue` – removes an entry at `path` and returns `true` on success.
+- `get_from_decision_service_model(path: &str) -> JsValue` – fetches the portable model entry stored at `path`.
+
+All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors instead of
+encoding everything as strings. `evaluate_method` and decision-service inputs accept primitives, arrays, dates, or plain
+JavaScript objects as arguments, and context outputs are surfaced as plain objects. The thread-local controller in
+`src/wasm.rs` enforces single-instance behavior per WASM module instance so that concurrent calls reuse shared state without
+passing handles through JavaScript.
 
 ### Optional Function Groups for WASM
 
