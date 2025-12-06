@@ -69,11 +69,11 @@ EdgeRules is ready for four options based on your requirements:
 EdgeRules exposes a small, stateful API for loading source and evaluating expressions/fields. The typical flow is:
 
 ```rust
-use edge_rules::runtime::edge_rules::EdgeRules;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), EvalError> {
     // Create a model builder
-    let mut model = EdgeRules::new();
+    let mut model = EdgeRulesModel::new();
 
     // Append some code (can be called multiple times to extend/override)
     model.append_source("{ value: 3 }")?;
