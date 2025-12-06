@@ -368,7 +368,7 @@ pub enum LinkingErrorEnum {
     // e.g., "+" operation not supported for types Integer and String
     OperationNotSupported(String, ValueType, ValueType),
 
-    // @todo: remove this, it's not a linking error
+    // @Todo: this one must be split to multiple other enums
     OtherLinkingError(String),
 
     NotLinkedYet,
