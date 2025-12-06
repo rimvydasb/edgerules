@@ -288,7 +288,7 @@ impl EdgeRulesModel {
         Err(ParseErrors(errors))
     }
 
-    pub(crate) fn parse_expression(code: &str) -> Result<ExpressionEnum, ParseErrors> {
+    pub fn parse_expression(code: &str) -> Result<ExpressionEnum, ParseErrors> {
         match Self::parse_item(code) {
             Ok(ParsedItem::Expression(expression)) => Ok(expression),
             Ok(ParsedItem::Definition(definition)) => Err(ParseErrors::unexpected_token(

@@ -72,7 +72,7 @@ impl DecisionService {
         Rc::clone(&self.model)
     }
 
-    pub(crate) fn from_model(mut model: EdgeRulesModel) -> Result<Self, EvalError> {
+    pub fn from_model(mut model: EdgeRulesModel) -> Result<Self, EvalError> {
         let runtime = model.to_runtime_snapshot()?;
         Ok(Self {
             model: Rc::new(RefCell::new(model)),
@@ -93,7 +93,7 @@ impl DecisionService {
     }
 
     #[cfg_attr(not(all(target_arch = "wasm32", feature = "wasm")), allow(dead_code))]
-    pub(crate) fn ensure_linked(&mut self) -> Result<(), EvalError> {
+    pub fn ensure_linked(&mut self) -> Result<(), EvalError> {
         self.ensure_runtime().map(|_| ())
     }
 

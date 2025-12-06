@@ -229,74 +229,73 @@ impl StaticLink for VariableLink {
                 }
             };
 
-        let result = browse(start_ctx, path_vec, find_root).and_then(|r| {
-            r.on_incomplete(
-                |ctx, result, remaining| {
-                    let expression_display = result.borrow().expression.to_string();
-                    let field_name = remaining.first().copied();
-                    match result.borrow_mut().expression.link(Rc::clone(&ctx)) {
-                        Ok(linked_type) => Ok(EObjectContent::Definition(linked_type)),
+            let result = browse(start_ctx, path_vec, find_root).and_then(|r| {
+                r.on_incomplete(
+                    |ctx, result, remaining| {
+                        let expression_display = result.borrow().expression.to_string();
+                        let field_name = remaining.first().copied();
+                        match result.borrow_mut().expression.link(Rc::clone(&ctx)) {
+                            Ok(linked_type) => Ok(EObjectContent::Definition(linked_type)),
+                            Err(mut err) => {
+                                if err.location.is_empty() {
+                                    if let Some(name) = field_name {
+                                        err.location = build_location_from_context(&ctx, name);
+                                    }
+                                }
+                                if err.expression.is_none() {
+                                    err.expression = Some(expression_display);
+                                }
+                                if err.stage.is_none() {
+                                    err.stage = Some(ErrorStage::Linking);
+                                }
+                                Err(err)
+                            }
+                        }
+                    },
+                    |_ctx, result, _remaining| Ok(EObjectContent::ObjectRef(result)),
+                )
+            });
+
+            match result {
+                Ok(mut value_type) => {
+                    let linked = value_type.content.link(Rc::clone(&value_type.context));
+                    match linked {
+                        Ok(resolved) => {
+                            self.variable_type = Ok(resolved);
+                        }
                         Err(mut err) => {
                             if err.location.is_empty() {
-                                if let Some(name) = field_name {
-                                    err.location =
-                                        build_location_from_context(&ctx, name);
-                                }
+                                err.location = build_location_from_context(
+                                    &value_type.context,
+                                    value_type.field_name,
+                                );
                             }
                             if err.expression.is_none() {
-                                err.expression = Some(expression_display);
+                                err.expression = Some(value_type.content.to_string());
                             }
                             if err.stage.is_none() {
                                 err.stage = Some(ErrorStage::Linking);
                             }
-                            Err(err)
+                            return Err(err).into();
                         }
-                    }
-                },
-                |_ctx, result, _remaining| Ok(EObjectContent::ObjectRef(result)),
-            )
-        });
-
-        match result {
-            Ok(mut value_type) => {
-                let linked = value_type.content.link(Rc::clone(&value_type.context));
-                match linked {
-                    Ok(resolved) => {
-                        self.variable_type = Ok(resolved);
-                    }
-                    Err(mut err) => {
-                        if err.location.is_empty() {
-                            err.location = build_location_from_context(
-                                &value_type.context,
-                                value_type.field_name,
-                            );
-                        }
-                        if err.expression.is_none() {
-                            err.expression = Some(value_type.content.to_string());
-                        }
-                        if err.stage.is_none() {
-                            err.stage = Some(ErrorStage::Linking);
-                        }
-                        return Err(err).into();
                     }
                 }
-            }
-            Err(error) => {
-                // Defer linking for qualified paths inside unattached inline objects
-                let is_unattached_root = matches!(
-                    context.borrow().node.node_type,
-                    crate::link::node_data::NodeDataEnum::Root()
-                        | crate::link::node_data::NodeDataEnum::Isolated()
-                );
+                Err(error) => {
+                    // Defer linking for qualified paths inside unattached inline objects
+                    let is_unattached_root = matches!(
+                        context.borrow().node.node_type,
+                        crate::link::node_data::NodeDataEnum::Root()
+                            | crate::link::node_data::NodeDataEnum::Isolated()
+                    );
 
-                // @Todo: must return LinkingErrorEnum::FieldNotFound or the other even better linking error
-                if self.path.len() > 1 && is_unattached_root {
-                    self.variable_type = LinkingError::not_linked().into();
-                    return Ok(ValueType::UndefinedType);
+                    // @Todo: must return LinkingErrorEnum::FieldNotFound or the other even better linking error
+                    if self.path.len() > 1 && is_unattached_root {
+                        self.variable_type = LinkingError::not_linked().into();
+                        return Ok(ValueType::UndefinedType);
+                    }
+                    return error.into();
                 }
-                return error.into();
             }
-        }
         }
 
         self.variable_type.clone()

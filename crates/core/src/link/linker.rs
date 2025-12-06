@@ -31,25 +31,24 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
 
     for name in field_names {
         match context.borrow().get(name)? {
-                ExpressionRef(expression) => {
-                    context.borrow().node().lock_field(name)?;
+            ExpressionRef(expression) => {
+                context.borrow().node().lock_field(name)?;
 
-                    let linked_type = {
-                        match expression.try_borrow_mut() {
-                            Ok(mut entry) => {
-                                let expression_display = entry.expression.to_string();
-                                let result = entry.expression.link(Rc::clone(&context));
-                                match result {
-                                    Ok(field_type) => {
-                                        entry.field_type = Ok(field_type.clone());
-                                        Ok(field_type)
+                let linked_type = {
+                    match expression.try_borrow_mut() {
+                        Ok(mut entry) => {
+                            let expression_display = entry.expression.to_string();
+                            let result = entry.expression.link(Rc::clone(&context));
+                            match result {
+                                Ok(field_type) => {
+                                    entry.field_type = Ok(field_type.clone());
+                                    Ok(field_type)
+                                }
+                                Err(mut err) => {
+                                    if err.location.is_empty() {
+                                        err.location = build_location_from_context(&context, name);
                                     }
-                                    Err(mut err) => {
-                                        if err.location.is_empty() {
-                                            err.location =
-                                                build_location_from_context(&context, name);
-                                        }
-                                        if err.expression.is_none() {
+                                    if err.expression.is_none() {
                                         err.expression = Some(expression_display);
                                     }
                                     err.stage = Some(ErrorStage::Linking);

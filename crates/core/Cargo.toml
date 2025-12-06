@@ -1,0 +1,40 @@
+[package]
+name = "edge-rules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[lib]
+name = "edge_rules"
+crate-type = ["rlib", "cdylib"]
+
+[features]
+# Default native build (no decision service portable API on CLI)
+default = ["native", "mutable_decision_service"]
+mutable_decision_service = []
+# Native builds (CLI, tests) enable heavier optional functions
+native = ["regex_functions", "base64_functions"]
+
+# WASM builds keep heavy functions off by default and use JsValue portable representation
+wasm = ["log/max_level_off", "mutable_decision_service", "dep:wasm-bindgen"]
+wasm_debug = ["wasm", "console_error_panic_hook"]
+
+# Optional function groups
+regex_functions = ["dep:regex"]
+base64_functions = ["dep:base64"]
+
+[dependencies]
+log = { workspace = true }
+console_error_panic_hook = { workspace = true, optional = true }
+time = { workspace = true }
+phf = { workspace = true }
+dlmalloc = { workspace = true }
+regex = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+regex = { workspace = true }

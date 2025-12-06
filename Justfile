@@ -3,11 +3,16 @@ export PATH := env_var("HOME") + "/.cargo/bin:" + env_var("PATH")
 
 # Feature flags and target names
 FEATURES := "wasm"
-CRATE := "edge-rules"
+CRATE_CORE := "edge-rules"
+CRATE_WASM := "edge-rules-wasi"
+CRATE_CLI := "edge-rules-cli"
 BIN_WASI := "edgerules-wasi"
 BIN_NATIVE := "edgerules"
 PROFILE := "release"
 PKG_NAME := "edge_rules"
+CORE_MANIFEST := "crates/core/Cargo.toml"
+CLI_MANIFEST := "crates/cli/Cargo.toml"
+WASM_MANIFEST := "crates/wasm/Cargo.toml"
 
 # Output dirs for separate web/node packages under target/
 out_web := "target/pkg-web"
@@ -43,12 +48,12 @@ build-pkg platform out_dir features:
     feats="{{features}}"; \
     if [ "${ENABLE_REGEX:-}" = "1" ]; then feats="$feats,regex_functions"; fi; \
     if [ "${ENABLE_BASE64:-}" = "1" ]; then feats="$feats,base64_functions"; fi; \
-    echo "Using features: $feats"; \
-    wasm-pack build --release --target {{platform}} --out-dir {{out_dir}} --out-name {{PKG_NAME}} -- --no-default-features --features "$feats"; \
-    if [ -f {{out_dir}}/{{PKG_NAME}}_bg.wasm ]; then ls -lh {{out_dir}}/{{PKG_NAME}}_bg.wasm; fi; \
+    echo "Using features: $feats"; cd crates/wasm && \
+    wasm-pack build --release --target {{platform}} --out-dir ../../{{out_dir}} --out-name {{PKG_NAME}} -- --no-default-features --features "$feats"; \
+    if [ -f ../../{{out_dir}}/{{PKG_NAME}}_bg.wasm ]; then ls -lh ../../{{out_dir}}/{{PKG_NAME}}_bg.wasm; fi; \
     if command -v wasm-opt >/dev/null; then \
-      wasm-opt {{WASM_OPT_FLAGS}} {{out_dir}}/{{PKG_NAME}}_bg.wasm -o {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; \
-      if [ -f {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm ]; then ls -lh {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; fi; \
+      wasm-opt {{WASM_OPT_FLAGS}} ../../{{out_dir}}/{{PKG_NAME}}_bg.wasm -o ../../{{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; \
+      if [ -f ../../{{out_dir}}/{{PKG_NAME}}_bg.opt.wasm ]; then ls -lh ../../{{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; fi; \
     else \
       echo "Skipping wasm-opt (not installed)"; \
     fi
@@ -69,21 +74,21 @@ node-debug: ensure
     node examples/js/node-demo.mjs
 
 wasi: ensure
-    cargo build --release --target wasm32-wasip1 -p {{CRATE}} --bin {{BIN_WASI}}
+    cargo build --release --target wasm32-wasip1 -p {{CRATE_CLI}} --bin {{BIN_WASI}} --manifest-path {{CLI_MANIFEST}}
     ls -lh target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm || true
     # Always run demo-wasi after wasi build
     wasmtime target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm "{ value : 2 + 2 }" || true
 
 core: ensure
-    cargo build --release --target wasm32-unknown-unknown -p {{CRATE}} --no-default-features --features wasm
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm || true
+    cargo build --release --target wasm32-unknown-unknown -p {{CRATE_CORE}} --no-default-features --features wasm --manifest-path {{CORE_MANIFEST}}
+    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm || true
 
 core-opt: core
     # Apply shared size-focused flags and remove unnecessary metadata.
     wasm-opt {{WASM_OPT_FLAGS}} \
-      target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm \
-      -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.min.wasm
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.min.wasm || true
+      target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm \
+      -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm
+    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm || true
 
 # --- demo / test commands ---
 demo-node: node
@@ -113,7 +118,7 @@ test:
 
 # --- native CLI build & quick check ---
 cli:
-    cargo build --release -p {{CRATE}} --bin {{BIN_NATIVE}}
+    cargo build --release -p {{CRATE_CLI}} --bin {{BIN_NATIVE}} --manifest-path {{CLI_MANIFEST}}
     ls -lh target/{{PROFILE}}/{{BIN_NATIVE}} || true
     echo "Running arithmetic sanity check:"
     target/{{PROFILE}}/{{BIN_NATIVE}} "{ value : 2 + 3 }" || true

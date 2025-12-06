@@ -18,14 +18,14 @@ macro_rules! trace {
 #[global_allocator]
 static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 
-mod ast;
-mod link;
+pub mod ast;
+pub mod link;
 pub mod runtime;
 pub mod tokenizer;
-mod typesystem;
+pub mod typesystem;
 pub mod utils;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 pub mod wasm;
 
 pub mod test_support;

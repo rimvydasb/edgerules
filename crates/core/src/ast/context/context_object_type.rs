@@ -24,7 +24,7 @@ pub struct FormalParameter {
 }
 
 impl FormalParameter {
-    pub(crate) fn with_type_ref(name: String, parameter_type: ComplexTypeRef) -> FormalParameter {
+    pub fn with_type_ref(name: String, parameter_type: ComplexTypeRef) -> FormalParameter {
         FormalParameter {
             name,
             parameter_type,
@@ -118,12 +118,10 @@ impl<T: Node<T>> Display for EObjectContent<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ConstantValue(value) => write!(f, "{}", value),
-            ExpressionRef(value) => {
-                match value.try_borrow() {
-                    Ok(expr) => write!(f, "{}", expr.expression),
-                    Err(_) => write!(f, "<expression>"),
-                }
-            }
+            ExpressionRef(value) => match value.try_borrow() {
+                Ok(expr) => write!(f, "{}", expr.expression),
+                Err(_) => write!(f, "<expression>"),
+            },
             UserFunctionRef(value) => write!(f, "{}", value.borrow().function_definition),
             ObjectRef(obj) => write!(f, "{}", obj.borrow()),
             Definition(definition) => write!(f, "{}", definition),

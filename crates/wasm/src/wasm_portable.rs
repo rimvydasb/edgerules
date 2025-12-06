@@ -1,22 +1,23 @@
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
-use crate::ast::context::context_object::ContextObject;
-use crate::ast::context::context_object_builder::ContextObjectBuilder;
-use crate::ast::context::duplicate_name_error::DuplicateNameError;
-use crate::ast::metaphors::functions::FunctionDefinition;
-use crate::ast::sequence::CollectionExpression;
-use crate::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
-use crate::ast::user_function_call::UserFunctionCall;
-use crate::link::node_data::Node;
+use edge_rules::ast::context::context_object::ContextObject;
+use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
+use edge_rules::ast::context::context_object_type::FormalParameter;
+use edge_rules::ast::context::duplicate_name_error::DuplicateNameError;
+use edge_rules::ast::metaphors::functions::FunctionDefinition;
+use edge_rules::ast::sequence::CollectionExpression;
+use edge_rules::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
+use edge_rules::ast::user_function_call::UserFunctionCall;
+use edge_rules::link::node_data::Node;
 // for node()
-use crate::runtime::decision_service::DecisionService;
-use crate::runtime::edge_rules::{
+use edge_rules::runtime::decision_service::DecisionService;
+use edge_rules::runtime::edge_rules::{
     ContextUpdateErrorEnum, EdgeRulesModel, EvalError, InvocationSpec, ParseErrors,
 };
-use crate::tokenizer::parser;
-use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
-use crate::typesystem::types::number::NumberEnum;
-use crate::typesystem::values::ValueEnum;
+use edge_rules::tokenizer::parser;
+use edge_rules::typesystem::errors::{ParseErrorEnum, RuntimeError};
+use edge_rules::typesystem::types::number::NumberEnum;
+use edge_rules::typesystem::values::ValueEnum;
 use js_sys::{Array, Object, Reflect};
 use std::fmt::{Display, Formatter};
 use wasm_bindgen::JsCast;
@@ -324,12 +325,7 @@ fn parse_function_definition(
                     )))
                 }
             };
-            parameters.push(
-                crate::ast::context::context_object_type::FormalParameter::with_type_ref(
-                    param_name.to_string(),
-                    tref,
-                ),
-            );
+            parameters.push(FormalParameter::with_type_ref(param_name.to_string(), tref));
         }
     }
     let body_builder = parse_context_builder(obj, true)?;
