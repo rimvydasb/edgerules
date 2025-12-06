@@ -1,25 +1,14 @@
 use std::env;
 use std::fs;
 use std::io::{self, Read};
+use std::process;
 
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 
-pub fn run() {
+pub fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    let code = if let Some(first) = args.first() {
-        if let Some(path) = first.strip_prefix('@') {
-            fs::read_to_string(path).expect("Failed to read file")
-        } else {
-            args.join(" ")
-        }
-    } else {
-        let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .expect("Failed to read stdin");
-        buf
-    };
+    let code = read_code(&args)?;
 
     match eval_value(&code) {
         Ok(Some(output)) => {
@@ -39,6 +28,8 @@ pub fn run() {
             }
         }
     }
+
+    Ok(())
 }
 
 fn eval_value(code: &str) -> Result<Option<String>, String> {
@@ -52,6 +43,26 @@ fn eval_value(code: &str) -> Result<Option<String>, String> {
     }
 }
 
+fn read_code(args: &[String]) -> Result<String, String> {
+    if let Some(first) = args.first() {
+        if let Some(path) = first.strip_prefix('@') {
+            fs::read_to_string(path)
+                .map_err(|error| format!("Failed to read file '{}': {}", path, error))
+        } else {
+            Ok(args.join(" "))
+        }
+    } else {
+        let mut buffer = String::new();
+        io::stdin()
+            .read_to_string(&mut buffer)
+            .map_err(|error| format!("Failed to read stdin: {}", error))?;
+        Ok(buffer)
+    }
+}
+
 fn main() {
-    run();
+    if let Err(error) = run() {
+        eprintln!("{}", error);
+        process::exit(1);
+    }
 }

@@ -51,7 +51,7 @@ EdgeRules is ready for four options based on your requirements:
 - [x] Immutable by default
 - [x] Statically typed
 - [x] ~ Traceable
-- [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables
+- [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables; CLI I/O errors surface as readable messages
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
 - [ ] Hard to fail: no infinite loops (TBA: optimistic limits strategy)
 - [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
