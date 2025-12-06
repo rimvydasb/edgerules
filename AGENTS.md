@@ -44,6 +44,7 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - `just demo-web`: Serve at http://localhost:8080 (expects `target/pkg-web/`).
 - `just demo-node`: Run Node demo (expects `target/pkg-node/`).
 - `just demo-wasi`: Run WASI demo via wasmtime.
+- `wasm-pack test --node crates/wasm`: Run WASM tests in Node.
 
 ### Daily Workflow Checklist
 
