@@ -39,21 +39,6 @@ pub trait ErrorStack<T: Display>: Sized {
 
     fn get_error_type(&self) -> &T;
 
-    // #[allow(dead_code)]
-    // fn before_happened<O>(self, other: O) -> Self
-    // where
-    //     O: ErrorStack<T>,
-    // {
-    //     let mut new = self;
-    //     for context in other.get_context().iter() {
-    //         new.update_context(context.clone());
-    //     }
-    //
-    //     new.update_context(format!("{}", other.get_error_type()));
-    //
-    //     new
-    // }
-
     fn with_context<C, F>(mut self, context: F) -> Self
     where
         C: Display + Send + Sync + 'static,
@@ -442,13 +427,6 @@ impl LinkingError {
             .into(),
         }
     }
-
-    // pub fn expect_object_type(subject: &str, expression_type: ValueType) -> Result<(), LinkingError> {
-    //     if expression_type.is_object_type() {
-    //         return Ok(());
-    //     }
-    //     LinkingError::types_not_compatible(Some(subject.to_string()), expression_type, None).into()
-    // }
 
     pub fn expect_single_type(
         subject: &str,

@@ -820,12 +820,6 @@ impl Display for NegationOperator {
     }
 }
 
-// impl TypedValue for NegationOperator {
-//     fn get_type(&self) -> ValueType {
-//         self.left.get_type()
-//     }
-// }
-
 impl StaticLink for NegationOperator {
     fn link(&mut self, ctx: Rc<RefCell<ContextObject>>) -> Link<ValueType> {
         let result = self.left.link(Rc::clone(&ctx))?;
