@@ -183,8 +183,9 @@ should be the minimal, immutable one intended for edge execution.
 
 ### Abstract WASM Data Conversion
 
-**Explanation:** Refactor the `wasm_convert.rs` module to reduce boilerplate. Consider using macros or a more
-generic approach to handle the conversion between `ValueEnum` and `JsValue`.
+**Explanation:** Refactor the `wasm_convert.rs` module to reduce boilerplate. Consider using more
+generic approach to handle the conversion between `ValueEnum` and `JsValue`. Try not using macros.
+Check if all tests pass after the refactor. Stop refactoring if there's a risk to increase WASM size.
 
 **Targets:** Boilerplate Reduction, Maintainability, DRY/KISS Balance.
 
