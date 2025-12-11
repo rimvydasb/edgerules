@@ -70,47 +70,6 @@ impl ValueType {
     }
 }
 
-// impl TryFrom<&str> for ValueType {
-//     type Error = ParseErrorEnum;
-//
-//     fn try_from(value: &str) -> Result<Self, Self::Error> {
-//         let trimmed = value.trim();
-//
-//         if trimmed.is_empty() {
-//             return Err(ParseErrorEnum::UnknownType(trimmed.to_string()));
-//         }
-//
-//         if trimmed == "[]" {
-//             return Ok(ValueType::ListType(None));
-//         }
-//
-//         if let Some(stripped) = trimmed.strip_suffix("[]") {
-//             if stripped.is_empty() {
-//                 return Ok(ValueType::ListType(None));
-//             }
-//             let inner = ValueType::try_from(stripped)?;
-//             return Ok(ValueType::list_of(inner));
-//         }
-//
-//         if let Some(rest) = trimmed.strip_prefix("list of ") {
-//             let inner = ValueType::try_from(rest)?;
-//             return Ok(ValueType::list_of(inner));
-//         }
-//
-//         match trimmed {
-//             "number" => Ok(ValueType::NumberType),
-//             "string" => Ok(ValueType::StringType),
-//             "boolean" => Ok(ValueType::BooleanType),
-//             "date" => Ok(ValueType::DateType),
-//             "time" => Ok(ValueType::TimeType),
-//             "datetime" => Ok(ValueType::DateTimeType),
-//             "period" => Ok(ValueType::PeriodType),
-//             "duration" => Ok(ValueType::DurationType),
-//             _ => Err(ParseErrorEnum::UnknownType(trimmed.to_string())),
-//         }
-//     }
-// }
-
 impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
@@ -131,8 +90,6 @@ impl Display for ValueType {
             // Todo: remove it
             ValueType::RangeType => f.write_str("range"),
 
-            // Todo: remove it
-            //ValueType::AnyType => f.write_str("any"),
             ValueType::UndefinedType => f.write_str("undefined"),
         }
     }
@@ -222,7 +179,6 @@ pub mod number {
         Int(Integer),
 
         // @Todo: fraction mathematics is not implemented yet (Fraction(numerator, denominator))
-        //Fraction(Integer, Integer),
         SV(SpecialValueEnum),
     }
 
@@ -240,7 +196,6 @@ pub mod number {
         pub fn has_remaining(&self) -> bool {
             match self {
                 Real(value) => value.fract() != 0.0,
-                //Fraction(_, denominator) => denominator != &NumberEnum::ZERO,
                 _ => false,
             }
         }
@@ -258,7 +213,6 @@ pub mod number {
                 Real(value) => write!(f, "{}", value),
                 Int(value) => write!(f, "{}", value),
                 SV(value) => write!(f, "{}", value),
-                //Fraction(numerator, denominator) => write!(f, "{}/{}", numerator, denominator),
             }
         }
     }
