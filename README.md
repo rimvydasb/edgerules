@@ -155,6 +155,13 @@ Usage examples:
 - `edgerules @path/to/file.txt` → loads code from file
 - `echo "{ value : 2 * 3 }" | edgerules` → reads from stdin
 
+## Known Design Exceptions
+
+- WASM contains `DECISION_SERVICE` instance that is not designed to work in multithreaded environments.
+  It is intended for single-threaded usage in web or Node.js contexts where each WASM module instance
+  is isolated per thread or request. This design choice simplifies state management and avoids
+  concurrency issues in typical web scenarios.
+
 ## Resources
 
 - For developer: https://rust-unofficial.github.io/patterns/idioms/index.html
