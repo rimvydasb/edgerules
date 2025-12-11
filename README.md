@@ -162,6 +162,10 @@ Usage examples:
   is isolated per thread or request. This design choice simplifies state management and avoids
   concurrency issues in typical web scenarios.
 
+- Due to requirement to have small WASM size, serde is not used for JSON (de)serialization.
+  Custom lightweight JSON parser and serializer is implemented instead to keep small WASM size.
+  Do not introduce serde dependencies in the core runtime!
+
 ## Resources
 
 - For developer: https://rust-unofficial.github.io/patterns/idioms/index.html

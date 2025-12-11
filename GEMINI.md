@@ -59,12 +59,12 @@ The project uses `just` as a command runner to simplify the build process. The m
     `DecisionServiceController`. This is an important architectural detail to be aware of when working with the WASM
     bindings.
 
-## Codebase Analysis
+# Codebase Analysis
 
 This analysis covers inconsistencies, design issues, and abstraction levels, focusing on their impact on AI-driven
 development, maintainability, and performance.
 
-### Inconsistencies
+## Inconsistencies
 
 Several inconsistencies were identified between the project's documentation, stated goals, and implementation.
 
@@ -76,20 +76,24 @@ Several inconsistencies were identified between the project's documentation, sta
         severely limiting parallelism and scalability. For an AI agent, this global state is a major source of
         confusion, as it's not clear from a function's signature that it will be modifying a hidden, shared object.
 
-*   **Inconsistency: Default API vs. Stated Intent**
-    *   **Finding:** The documentation mentions a plan for a lightweight, immutable DecisionService for edge
-        execution. However, the `mutable_decision_service` feature, which provides an extensive API for an editor GUI,
-        is enabled by default.
-    *   **Impact:** This makes the default API surface larger and more complex than necessary for many use cases. An AI
-        agent trying to use the library for a simple evaluation task might be exposed to a confusing array of mutation
-        methods, increasing the risk of incorrect usage.
+### Inconsistency: Default API vs. Stated Intent
 
-*   **Inconsistency: Data Portability vs. Metadata Loss**
-    *   **Finding:** The "Known Limitations" in EDGE_RULES_API_STORY.md explicitly state that the EdgeRulesModel API
-        loses metadata like `@version` and `@model_name`.
-    *   **Impact:** This undermines the purpose of the "EdgeRules Portable" format, which is designed for persistence
-        and lossless transfer of models. When an agent saves and reloads a model, it will unexpectedly lose data,
-        leading to subtle bugs.
+**Finding:** The documentation mentions a plan for a lightweight, immutable DecisionService for edge
+execution. However, the `mutable_decision_service` feature, which provides an extensive API for an editor GUI,
+is enabled by default.
+
+**Impact:** This makes the default API surface larger and more complex than necessary for many use cases. An AI
+agent trying to use the library for a simple evaluation task might be exposed to a confusing array of mutation
+methods, increasing the risk of incorrect usage.
+
+### Inconsistency: Data Portability vs. Metadata Loss
+
+**Finding:** The "Known Limitations" in EDGE_RULES_API_STORY.md explicitly state that the EdgeRulesModel API
+loses metadata like `@version` and `@model_name`.
+
+**Impact:** This undermines the purpose of the "EdgeRules Portable" format, which is designed for persistence
+and lossless transfer of models. When an agent saves and reloads a model, it will unexpectedly lose data,
+leading to subtle bugs.
 
 ### Design Issues
 
@@ -142,40 +146,55 @@ Here are 10 actionable recommendations to address these issues, prioritized by t
 performance, and AI-driven development.
 
 ### Eliminate Global State in WASM
-*   **Explanation:** Refactor the WASM API to be stateless. The `create_decision_service` function should return a
-    handle (e.g., a `JsValue` wrapping a pointer or an index) to the DecisionService instance. Subsequent calls
-    (`execute_decision_service`, etc.) should take this handle as an argument.
-*   **Targets:** Maintainability, Performance, Readability.
+
+**Explanation:** Refactor the WASM API to be stateless. The `create_decision_service` function should return a
+handle (e.g., a `JsValue` wrapping a pointer or an index) to the DecisionService instance. Subsequent calls
+(`execute_decision_service`, etc.) should take this handle as an argument.
+
+**Targets:** Maintainability, Performance, Readability.
 
 ### Decouple Core and WASM Crates
-*   **Explanation:** Move all WASM-specific code from `crates/core/src/wasm.rs` into the `crates/wasm` crate. The core
-    crate should be completely agnostic of its consumers (WASM, CLI, etc.).
-*   **Targets:** Maintainability, Readability.
+
+**Explanation:** Move all WASM-specific code from `crates/core/src/wasm.rs` into the `crates/wasm` crate. The core
+crate should be completely agnostic of its consumers (WASM, CLI, etc.).
+
+**Targets:** Maintainability, Readability.
 
 ### Introduce a High-Level Builder API
-*   **Explanation:** Create a fluent "builder" API for programmatically constructing EdgeRulesModel instances. This
-    will abstract away the low-level AST manipulation and provide a more ergonomic and stable API.
-*   **Targets:** Boilerplate Reduction, Maintainability, Readability.
+
+**Explanation:** Create a fluent "builder" API for programmatically constructing EdgeRulesModel instances. This
+will abstract away the low-level AST manipulation and provide a more ergonomic and stable API.
+
+**Targets:** Boilerplate Reduction, Maintainability, Readability.
 
 ### Preserve Metadata in Portable Format
-*   **Explanation:** Fix the EdgeRulesModel API to correctly handle metadata (`@version`, `@model_name`) when
-    serializing and deserializing the "EdgeRules Portable" format.
-*   **Targets:** Maintainability, Correctness.
+
+**Explanation:** Fix the EdgeRulesModel API to correctly handle metadata (`@version`, `@model_name`) when
+serializing and deserializing the "EdgeRules Portable" format.
+
+**Targets:** Maintainability, Correctness.
 
 ### Make mutable_decision_service Opt-In
-*   **Explanation:** Change the `mutable_decision_service` feature to be opt-in rather than opt-out. The default API
-    should be the minimal, immutable one intended for edge execution.
-*   **Targets:** Readability, Maintainability.
+
+**Explanation:** Change the `mutable_decision_service` feature to be opt-in rather than opt-out. The default API
+should be the minimal, immutable one intended for edge execution.
+
+**Targets:** Readability, Maintainability.
 
 ### Abstract WASM Data Conversion
-*   **Explanation:** Refactor the `wasm_convert.rs` module to reduce boilerplate. Consider using macros or a more
-    generic approach to handle the conversion between `ValueEnum` and `JsValue`.
-*   **Targets:** Boilerplate Reduction, Maintainability, DRY/KISS Balance.
+
+**Explanation:** Refactor the `wasm_convert.rs` module to reduce boilerplate. Consider using macros or a more
+generic approach to handle the conversion between `ValueEnum` and `JsValue`.
+
+**Targets:** Boilerplate Reduction, Maintainability, DRY/KISS Balance.
+
+Next Steps: review `wasm_convert.rs` and related tests. Propose a refactored design.
 
 ### Improve Error Handling in WASM
 
 **Explanation:** The current error handling in WASM throws JavaScript errors with simple string messages. Use
 custom JavaScript Error subclasses to provide more structured error information (e.g., error codes, context).
+
 **Targets:** Maintainability, Testability.
 
 ### Add Comprehensive Benchmarks
