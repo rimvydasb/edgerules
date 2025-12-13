@@ -23,7 +23,7 @@ regex_functions = ["edge-rules/regex_functions"]
 base64_functions = ["edge-rules/base64_functions"]
 
 [dependencies]
-edge-rules = { path = "../core", package = "edge-rules", default-features = false, features = ["wasm"] }
+edge-rules = { path = "../core", default-features = false, features = ["wasm"] }
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }
