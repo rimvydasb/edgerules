@@ -112,6 +112,9 @@ test:
 test-node: node
     node --test tests/wasm/*.mjs
 
+wasm-test: node
+    node --test tests/wasm/*.mjs
+
 # --- native CLI build & quick check ---
 cli:
     cargo build --release -p {{CRATE_CLI}} --bin {{BIN_NATIVE}} --manifest-path {{CLI_MANIFEST}}

@@ -135,7 +135,9 @@ describe('Decision Service', () => {
 
             assert.throws(() => {
                 wasm.get_from_decision_service_model('auditNote');
-            }, /Entry 'auditNote' not found/);
+            }, (err) => {
+                return /Entry 'auditNote' not found/.test(err.message);
+            });
         });
 
         it('verifies global state persistence and effect', () => {

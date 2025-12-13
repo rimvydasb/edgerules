@@ -19,6 +19,10 @@ pub fn throw_js_error(message: impl Into<String>) -> ! {
     wasm_bindgen::throw_str(&message.into());
 }
 
+pub fn throw_js_value(value: JsValue) -> ! {
+    wasm_bindgen::throw_val(value);
+}
+
 pub fn js_to_object(v: &JsValue) -> Result<Object, String> {
     v.clone()
         .dyn_into()

@@ -36,7 +36,7 @@ fn with_decision_service<R>(
 }
 
 fn throw_portable_error(err: PortableError) -> ! {
-    utils::throw_js_error(err.into_message())
+    utils::throw_js_value(err.to_js())
 }
 
 fn js_request_to_value(js: &JsValue) -> Result<ValueEnum, PortableError> {
@@ -56,7 +56,7 @@ pub fn init_panic_hook() {}
 pub fn evaluate_all(code: &str) -> JsValue {
     match wasm_convert::evaluate_all_inner(code) {
         Ok(value) => value,
-        Err(err) => utils::throw_js_error(err),
+        Err(err) => throw_portable_error(err),
     }
 }
 
@@ -64,7 +64,7 @@ pub fn evaluate_all(code: &str) -> JsValue {
 pub fn evaluate_expression(code: &str) -> JsValue {
     match wasm_convert::evaluate_expression_inner(code) {
         Ok(value) => value,
-        Err(err) => utils::throw_js_error(err),
+        Err(err) => throw_portable_error(err),
     }
 }
 
@@ -72,7 +72,7 @@ pub fn evaluate_expression(code: &str) -> JsValue {
 pub fn evaluate_field(code: &str, field: &str) -> JsValue {
     match wasm_convert::evaluate_field_inner(code, field) {
         Ok(value) => value,
-        Err(err) => utils::throw_js_error(err),
+        Err(err) => throw_portable_error(err),
     }
 }
 
@@ -80,7 +80,7 @@ pub fn evaluate_field(code: &str, field: &str) -> JsValue {
 pub fn evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue {
     match wasm_convert::evaluate_method_inner(code, method, args) {
         Ok(value) => value,
-        Err(err) => utils::throw_js_error(err),
+        Err(err) => throw_portable_error(err),
     }
 }
 
