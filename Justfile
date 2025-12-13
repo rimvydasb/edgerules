@@ -91,10 +91,6 @@ core-opt: core
     ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm || true
 
 # --- demo / test commands ---
-demo-node: node
-    node examples/js/node-demo.mjs
-    node examples/js/node-ds-demo.mjs
-
 performance-node: node
     node examples/js/node-performance.mjs
 
