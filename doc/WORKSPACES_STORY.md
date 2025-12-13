@@ -16,5 +16,5 @@ Justfile alignment for full functionality
 - [x] Point wasm pack builders (web/node/web-debug/node-debug) to crates/wasm with the same out dirs and wasm-opt flow; ensure PKG_NAME stays edge_rules.
 - [x] Point native builds (cli) to crates/cli while keeping binary names and the arithmetic sanity check.
 - [x] Point wasi/core/core-opt targets to crates/wasm or crates/core as appropriate, preserving optimization flags and output locations.
-- [x] Keep demo/release tasks (demo-node, demo-web, demo-wasi, release-to-page, release-to-docs) wired to the new outputs; confirm rsync paths remain correct.
+- [x] Keep demo/release tasks (demo-web, demo-wasi, release-to-page, release-to-docs) wired to the new outputs; confirm rsync paths remain correct.
 - [x] Retain fmt/clippy/test tasks at the workspace level (`cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all`); AGENTS loop update still pending.

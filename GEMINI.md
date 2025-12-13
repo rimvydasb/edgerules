@@ -38,6 +38,7 @@ The project uses `just` as a command runner to simplify the build process. The m
 
 * **Run tests:**
     * `cargo test --all` or `just test`
+    * `just wasm-test`
 
 * **Run linters:**
     * `just clippy`

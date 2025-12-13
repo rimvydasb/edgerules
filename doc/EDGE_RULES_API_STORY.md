@@ -571,7 +571,7 @@ output:
 - [x] Analyze EDGE_RULES_API_STORY.md and Implement Decision Service Invocation API
 - [x] Update TypeScript Interface
 - [x] Add Example to the `node-ds-demo.mjs` as a separate example
-- [x] Run tests with `just demo-node` and fix any errors
+- [x] Run tests with `just wasm-test` and fix any errors
 - [x] Add required Rust tests with happy and unhappy paths
 - [x] `set_to_decision_service_model` should also return linking errors if any
 - [x] Update `node-ds-demo.mjs` with unhappy linkin error scenario

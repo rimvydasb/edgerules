@@ -42,9 +42,9 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - `just core`: Build core library for wasm32-unknown-unknown.
 - `just core-opt`: Minify core output to .min.wasm.
 - `just demo-web`: Serve at http://localhost:8080 (expects `target/pkg-web/`).
-- `just demo-node`: Run Node demo (expects `target/pkg-node/`).
+- `just performance-node`: Run Node performance benchmarks (expects `target/pkg-node/`).
 - `just demo-wasi`: Run WASI demo via wasmtime.
-- `wasm-pack test --node crates/wasm`: Run WASM tests in Node.
+- `just wasm-test`: Run WASM tests in Node.
 
 ### Daily Workflow Checklist
 
@@ -54,7 +54,8 @@ Follow this loop for every change:
 2. `cargo clippy --all-targets --all-features -- -D warnings`
 3. Reproduce the scenario you are touching:
    - Rust: `cargo test <suite>` / `cargo test <path>::<name>`
-   - WASM demos: rebuild first (`just node` or `just web`), then run `just demo-node` / `just demo-web`
+   - WASM demos: rebuild first (`just node` or `just web`), then run `just performance-node` / `just demo-web`
+   - WASM tests: `just wasm-test`
 4. If something fails, use the **Debugging & Verification Playbook** below before guessing.
 
 ## Coding Style & Naming Conventions
