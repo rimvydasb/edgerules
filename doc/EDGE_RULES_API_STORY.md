@@ -635,3 +635,32 @@ sequenceDiagram
    and version, model_name will be lost.
 
 # Outstanding Questions
+
+1. Should `EdgeRulesModel` support arbitrary metadata (e.g., `@author`, `@description`) or just specific fields?
+   Currently, the Portable format specification allows `[key: string]: ...` but the implementation logic often
+   skips keys starting with `@`.
+
+## Story Completion Review
+
+## Missing Features
+
+1.  **Metadata Persistence**: The "Known Limitations" state that metadata like `@version` and `@model_name` are lost.
+    However, the "EdgeRules Portable" format specification explicitly includes them. This is a gap for a format
+    intended for persistent storage.
+
+## Changes Needed
+
+1.  **Remove `evaluate_method`**: The function `evaluate_method` in WASM is marked for deprecation/removal
+    in the story (`@Todo: deprecate and remove evaluate_method`) but is still present in the implementation.
+2.  **Support Metadata**: Update `EdgeRulesModel` to store optional `version` and `model_name`.
+    Update `model_from_portable` and `serialize_model` to handle these fields during conversion.
+
+## Outstanding questions
+
+1.  Should `EdgeRulesModel` support arbitrary metadata (e.g., `@author`, `@description`) or just specific fields?
+    Currently, the Portable format specification allows `[key: string]: ...` but the implementation logic often
+    skips keys starting with `@`.
+
+## Completion Status
+
+The approximate percentage of completion: 95%
