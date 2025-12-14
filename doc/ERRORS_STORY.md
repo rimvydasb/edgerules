@@ -155,3 +155,26 @@ Example below comes from `wasm_portable.rs` that converts JSON objects to EdgeRu
 ```
 
 # Identified Problems and Todos
+
+## Implementation Review Appendix
+
+**Missing Features:**
+1.  **[Runtime Error Location]**: The logic to populate `location` and `expression` for `RuntimeError` is completely missing. `EdgeRulesRuntime` and `ExecutionContext` do not attempt to decorate errors with their location in the execution tree.
+2.  **[Runtime Error Tests]**: `evaluation_runtime_errors_tests.rs` exists but explicitly asserts that `location` is empty (`assert!(err.location.is_empty(), "location should be empty for now")`). These tests need to be updated to assert actual paths once feature #1 is implemented.
+3.  **[Anonymous Context Naming]**: Linking tests for arrays and loops (`evaluation_linking_errors_tests.rs`) have `@Todo` comments indicating that the generated location paths are "not ideal" (e.g., missing parent field names for inner scopes).
+
+**Changes Needed:**
+1.  **[Implement Runtime Location Helper]**: Create a helper function `build_location_from_execution_context` (similar to `linker::build_location_from_context`) that walks up the `ExecutionContext` parent chain to build the `Vec<String>` path.
+2.  **[Decorate Runtime Errors]**: Update `ExecutionContext::eval_all_fields` and `EdgeRulesRuntime::evaluate_field` (and potentially `evaluate_expression`) to catch `RuntimeError`, check if `location` is empty, and populate it using the helper from #1.
+3.  **[Enable Runtime Tests]**: Update `evaluation_runtime_errors_tests.rs` to assert correct `location` paths instead of empty ones.
+4.  **[Refine Anonymous Paths]**: Investigate and fix the naming/aliasing for anonymous contexts (loops, array items) so that linking errors report a more complete path (e.g., `value[0].bad` or `value._return` instead of just `bad`).
+
+**Outstanding Questions:**
+1.  **Runtime Recursion**: How should `EvalError` propagate location when deep recursion is involved? (Proposed solution: Catch at the nearest field evaluation boundary in `eval_all_fields` and decorate if missing).
+2.  **Execution Context Parents**: Does `ExecutionContext` structure fully mirror `ContextObject` structure regarding `Internal` aliases? (Review `create_orphan_context` and `create_temp_child_context` to ensure aliases are preserved).
+
+**Completion Status:**
+- Linking Errors: 90% (Implemented, minor path improvements needed).
+- Runtime Errors: 20% (Structs defined, population logic missing).
+- WASM API: 90% (PortableError implemented, dependent on core logic).
+- **Overall: ~70%**
