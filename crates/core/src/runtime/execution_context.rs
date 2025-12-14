@@ -300,7 +300,21 @@ impl ExecutionContext {
                 EObjectContent::ExpressionRef(expression) => {
                     ctx.borrow().node().lock_field(name)?;
                     let value = expression.borrow().expression.eval(Rc::clone(ctx));
-                    ctx.borrow().stack_insert(name, value);
+
+                    let result = match value {
+                        Ok(v) => Ok(v),
+                        Err(mut err) => {
+                            if err.location.is_empty() {
+                                err.location = build_location_from_execution_context(ctx, name);
+                            }
+                            if err.expression.is_none() {
+                                err.expression = Some(expression.borrow().expression.to_string());
+                            }
+                            Err(err)
+                        }
+                    };
+
+                    ctx.borrow().stack_insert(name, result);
                     ctx.borrow().node().unlock_field(name);
                 }
                 EObjectContent::ObjectRef(reference) => {
@@ -313,6 +327,32 @@ impl ExecutionContext {
 
         Ok(())
     }
+}
+
+pub(crate) fn build_location_from_execution_context(
+    context: &Rc<RefCell<ExecutionContext>>,
+    field_name: &str,
+) -> Vec<String> {
+    let mut location = vec![field_name.to_string()];
+    let mut current = Some(Rc::clone(context));
+
+    while let Some(ctx) = current {
+        let (parent, assigned) = {
+            let borrowed = ctx.borrow();
+            (
+                borrowed.node().node_type.get_parent(),
+                borrowed.node().node_type.get_assigned_name(),
+            )
+        };
+
+        if let Some(name) = assigned {
+            location.insert(0, name.to_string());
+        }
+
+        current = parent;
+    }
+
+    location
 }
 
 #[cfg(test)]

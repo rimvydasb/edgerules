@@ -91,4 +91,76 @@ describe('Unhappy Paths & Error Handling', () => {
             stage: 'linking'
         });
     });
+
+    describe('Runtime Location Errors', () => {
+        it('reports location for root field runtime error', () => {
+            const code = `
+            {
+                value: date('invalid')
+            }
+            `;
+
+            const error = getError(() => wasm.evaluate_field(code, 'value'));
+            delete error.message;
+
+            assert.deepEqual(error, {
+                error: {
+                    type: 'EvalError',
+                    message: 'Invalid date string'
+                },
+                location: 'value',
+                expression: "date('invalid')",
+                stage: 'runtime'
+            });
+        });
+
+        it('reports location for nested field runtime error', () => {
+            const code = `
+            {
+                nested: { bad: date('invalid') }
+                value: nested.bad
+            }
+            `;
+
+            const error = getError(() => wasm.evaluate_field(code, 'value'));
+            delete error.message;
+
+            assert.deepEqual(error, {
+                error: {
+                    type: 'EvalError',
+                    message: 'Invalid date string'
+                },
+                location: 'nested.bad',
+                expression: "date('invalid')",
+                stage: 'runtime'
+            });
+        });
+
+        it('reports deep dependency chain location', () => {
+            const code = `
+            {
+                source: {
+                    value: date('invalid')
+                }
+                intermediate: {
+                    calc: source.value
+                }
+                result: intermediate.calc
+            }
+            `;
+
+            const error = getError(() => wasm.evaluate_field(code, 'result'));
+            delete error.message;
+
+            assert.deepEqual(error, {
+                error: {
+                    type: 'EvalError',
+                    message: 'Invalid date string'
+                },
+                location: 'source.value',
+                expression: "date('invalid')",
+                stage: 'runtime'
+            });
+        });
+    });
 });

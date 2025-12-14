@@ -5,7 +5,7 @@ use crate::ast::expression::StaticLink;
 use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
-use crate::runtime::execution_context::ExecutionContext;
+use crate::runtime::execution_context::{build_location_from_execution_context, ExecutionContext};
 use crate::typesystem::errors::LinkingErrorEnum::*;
 use crate::typesystem::errors::{ErrorStage, LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
@@ -260,12 +260,26 @@ impl BrowseResultFound<ExecutionContext> {
             ConstantValue(value) => Ok(value.clone()),
             ExpressionRef(value) => {
                 // since linking did it's work, no need to lock again
-                let result = value.borrow_mut().expression.eval(Rc::clone(&self.context));
+                let result = match value.borrow().expression.eval(Rc::clone(&self.context)) {
+                    Ok(v) => Ok(v),
+                    Err(mut err) => {
+                        if err.location.is_empty() {
+                            err.location =
+                                build_location_from_execution_context(&self.context, self.field_name);
+                        }
+                        if err.expression.is_none() {
+                            err.expression = Some(value.borrow().expression.to_string());
+                        }
+                        Err(err)
+                    }
+                };
+                let final_result = result?;
+
                 // no need to check if in stack, if it was already acquired as expression, it is not in stack
                 self.context
                     .borrow()
-                    .stack_insert(self.field_name, result.clone());
-                result
+                    .stack_insert(self.field_name, Ok(final_result.clone()));
+                Ok(final_result)
             }
             UserFunctionRef(_value) => {
                 todo!("UserFunctionRef")
