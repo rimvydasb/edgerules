@@ -47,13 +47,17 @@ const DECISION_FUNCTION = {
 };
 
 const PORTABLE_MODEL = {
-    '@version': 1,
+    '@version': '1',
     '@model_name': 'LoanDecisions',
     LoanRequest: {
         '@type': 'type',
         amount: '<number>',
         creditScore: '<number>',
         vip: '<boolean>'
+    },
+    LoanRequestAlias: {
+        '@type': 'type',
+        '@ref': '<LoanRequest>'
     },
     decideLoanOffer: DECISION_FUNCTION
 };
@@ -97,6 +101,17 @@ describe('Decision Service', () => {
             const modelSnapshot = portableToObject(wasm.get_decision_service_model());
             assert.strictEqual(modelSnapshot['@version'], '1', 'Snapshot should contain version metadata');
             assert.strictEqual(modelSnapshot['@model_name'], 'LoanDecisions', 'Snapshot should contain model_name metadata');
+            
+            // Function metadata
+            assert.strictEqual(modelSnapshot.decideLoanOffer['@type'], 'function', 'Function should have @type');
+            assert.ok(modelSnapshot.decideLoanOffer['@parameters'], 'Function should have @parameters');
+            
+            // Type definition metadata
+            assert.strictEqual(modelSnapshot.LoanRequest['@type'], 'type', 'Type definition should have @type');
+            
+            // Type reference metadata (testing the fix)
+            assert.strictEqual(modelSnapshot.LoanRequestAlias['@type'], 'type', 'Type alias should have @type');
+            assert.strictEqual(modelSnapshot.LoanRequestAlias['@ref'], '<LoanRequest>', 'Type alias should have @ref');
         });
 
         it('evaluates baseline request', () => {
@@ -181,6 +196,7 @@ describe('Decision Service', () => {
                 })
             );
             assert.strictEqual(invocationEcho['@method'], 'evaluateEligibility', 'set_invocation should return the stored invocation snippet');
+            assert.strictEqual(invocationEcho['@type'], 'invocation', 'set_invocation should return the stored invocation type');
         });
 
         it('handles link errors', () => {

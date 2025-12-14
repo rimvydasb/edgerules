@@ -69,9 +69,6 @@ fn extract_metadata(obj: &JsValue) -> Metadata {
     let mut m = Metadata::default();
     if let Some(v) = get_prop(obj, "@version").and_then(|v| v.as_string()) {
         m.version = Some(v);
-    } else if let Some(v) = get_prop(obj, "@version").and_then(|v| v.as_f64()) {
-        // @Todo: not needed! version must be always a string!
-        m.version = Some(v.to_string());
     }
     if let Some(v) = get_prop(obj, "@model_name").and_then(|v| v.as_string()) {
         m.model_name = Some(v);
@@ -506,7 +503,18 @@ fn serialize_value(value: &ValueEnum) -> Result<JsValue, PortableError> {
 }
 fn serialize_type_body(body: &UserTypeBody) -> Result<JsValue, PortableError> {
     match body {
-        UserTypeBody::TypeRef(reference) => Ok(JsValue::from_str(&format!("<{}>", reference))),
+        UserTypeBody::TypeRef(reference) => {
+            let obj = Object::new();
+            set_prop(&obj, "@type", &JsValue::from_str("type"))
+                .map_err(|_| PortableError::new("Failed to set type metadata"))?;
+            set_prop(
+                &obj,
+                "@ref",
+                &JsValue::from_str(&format!("<{}>", reference)),
+            )
+            .map_err(|_| PortableError::new("Failed to set type reference"))?;
+            Ok(JsValue::from(obj))
+        }
         UserTypeBody::TypeObject(ctx) => {
             let obj = context_to_object(&ctx.borrow())?;
             set_prop(&obj, "@type", &JsValue::from_str("type"))
