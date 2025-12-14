@@ -36,13 +36,18 @@ impl ToJs for ValueEnum {
                 let js_range = Object::new();
                 set_prop(&js_range, "start", &JsValue::from_f64(range.start as f64))
                     .map_err(RuntimeError::eval_error)?;
-                set_prop(&js_range, "endExclusive", &JsValue::from_f64(range.end as f64))
-                    .map_err(RuntimeError::eval_error)?;
+                set_prop(
+                    &js_range,
+                    "endExclusive",
+                    &JsValue::from_f64(range.end as f64),
+                )
+                .map_err(RuntimeError::eval_error)?;
                 Ok(JsValue::from(js_range))
             }
             ValueEnum::DurationValue(inner) => match inner {
                 ValueOrSv::Value(duration) => {
-                    let text = ValueEnum::DurationValue(ValueOrSv::Value(duration.clone())).to_string();
+                    let text =
+                        ValueEnum::DurationValue(ValueOrSv::Value(duration.clone())).to_string();
                     Ok(JsValue::from_str(&text))
                 }
                 ValueOrSv::Sv(sv) => Ok(JsValue::from_str(&sv.to_string())),

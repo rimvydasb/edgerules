@@ -285,6 +285,7 @@ Portable version is simplified JSON like structure to transfer or persist EdgeRu
   },
   "customerDetails": {
     "@type": "function",
+    "@description": "Returns detailed customer information including financial data and status.",
     "@parameters": {
       "customer": "Customer"
     },
@@ -365,6 +366,18 @@ export interface PortableContext extends PortableObject {
     '@model_name'?: string;
 }
 ```
+
+## Allowed Metadata Fields
+
+- `@version` - model version
+- `@model_name` - model name
+- `@type` - "type", "function, "invocation"
+- `@parameters` - function parameters
+- `@ref` - type reference for user-defined types
+- `@method` - method name for invocation
+- `@arguments` - arguments array for invocation
+
+Other fields, such as `@description`, are simply ignored by the EdgeRules engine.
 
 ## Helper Methods
 
@@ -663,4 +676,4 @@ sequenceDiagram
 
 ## Completion Status
 
-The approximate percentage of completion: 95%
+The approximate percentage of completion: 100%

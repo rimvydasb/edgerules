@@ -1,5 +1,6 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
+use crate::ast::context::metadata::Metadata;
 use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
@@ -79,6 +80,8 @@ pub struct ContextObject {
     pub node: NodeData<ContextObject>,
 
     pub context_type: Option<ValueType>,
+
+    pub metadata: Option<Metadata>,
 }
 
 impl Node<ContextObject> for ContextObject {
@@ -401,6 +404,3 @@ impl ToSchema for ContextObject {
         format!("{{{}}}", lines.join("; "))
     }
 }
-
-
-

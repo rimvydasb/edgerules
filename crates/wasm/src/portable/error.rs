@@ -64,7 +64,7 @@ impl From<ParseErrorEnum> for PortableError {
         let obj = Object::new();
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("parse"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
-        
+
         PortableError {
             js_value: obj.into(),
             message: err.to_string(),
@@ -77,7 +77,7 @@ impl From<ParseErrors> for PortableError {
         let obj = Object::new();
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("parse"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
-        
+
         PortableError {
             js_value: obj.into(),
             message: err.to_string(),
@@ -98,10 +98,10 @@ impl From<RuntimeError> for PortableError {
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
         if !err.location.is_empty() {
-             let loc_str = err.location.join(".");
-             let _ = utils::set_prop(&obj, "location", &JsValue::from_str(&loc_str));
+            let loc_str = err.location.join(".");
+            let _ = utils::set_prop(&obj, "location", &JsValue::from_str(&loc_str));
         }
-        
+
         if let Some(expr) = &err.expression {
             let _ = utils::set_prop(&obj, "expression", &JsValue::from_str(expr));
         }
@@ -109,26 +109,31 @@ impl From<RuntimeError> for PortableError {
         let error_obj = Object::new();
         match &err.error {
             RuntimeErrorEnum::RuntimeFieldNotFound(object, field) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FieldNotFound"));
-                 let fields = Array::new();
-                 fields.push(&JsValue::from_str(object));
-                 fields.push(&JsValue::from_str(field));
-                 let _ = utils::set_prop(&error_obj, "fields", &fields);
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FieldNotFound"));
+                let fields = Array::new();
+                fields.push(&JsValue::from_str(object));
+                fields.push(&JsValue::from_str(field));
+                let _ = utils::set_prop(&error_obj, "fields", &fields);
             }
             RuntimeErrorEnum::RuntimeCyclicReference(object, field) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("CyclicReference"));
-                 let fields = Array::new();
-                 fields.push(&JsValue::from_str(object));
-                 fields.push(&JsValue::from_str(field));
-                 let _ = utils::set_prop(&error_obj, "fields", &fields);
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("CyclicReference"));
+                let fields = Array::new();
+                fields.push(&JsValue::from_str(object));
+                fields.push(&JsValue::from_str(field));
+                let _ = utils::set_prop(&error_obj, "fields", &fields);
             }
-             RuntimeErrorEnum::EvalError(msg) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("EvalError"));
-                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(msg));
+            RuntimeErrorEnum::EvalError(msg) => {
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("EvalError"));
+                let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(msg));
             }
             _ => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherRuntimeError"));
-                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&err.error.to_string()));
+                let _ =
+                    utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherRuntimeError"));
+                let _ = utils::set_prop(
+                    &error_obj,
+                    "message",
+                    &JsValue::from_str(&err.error.to_string()),
+                );
             }
         }
         let _ = utils::set_prop(&obj, "error", &error_obj);
@@ -145,12 +150,12 @@ impl From<LinkingError> for PortableError {
         let obj = Object::new();
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("linking"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
-        
+
         if !err.location.is_empty() {
-             let loc_str = err.location.join(".");
-             let _ = utils::set_prop(&obj, "location", &JsValue::from_str(&loc_str));
+            let loc_str = err.location.join(".");
+            let _ = utils::set_prop(&obj, "location", &JsValue::from_str(&loc_str));
         }
-        
+
         if let Some(expr) = &err.expression {
             let _ = utils::set_prop(&obj, "expression", &JsValue::from_str(expr));
         }
@@ -158,48 +163,62 @@ impl From<LinkingError> for PortableError {
         let error_obj = Object::new();
         match &err.error {
             LinkingErrorEnum::FieldNotFound(object, field) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FieldNotFound"));
-                 let fields = Array::new();
-                 fields.push(&JsValue::from_str(object));
-                 fields.push(&JsValue::from_str(field));
-                 let _ = utils::set_prop(&error_obj, "fields", &fields);
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FieldNotFound"));
+                let fields = Array::new();
+                fields.push(&JsValue::from_str(object));
+                fields.push(&JsValue::from_str(field));
+                let _ = utils::set_prop(&error_obj, "fields", &fields);
             }
-             LinkingErrorEnum::TypesNotCompatible(subject, unexpected, expected) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("TypesNotCompatible"));
-                 if let Some(sub) = subject {
+            LinkingErrorEnum::TypesNotCompatible(subject, unexpected, expected) => {
+                let _ =
+                    utils::set_prop(&error_obj, "type", &JsValue::from_str("TypesNotCompatible"));
+                if let Some(sub) = subject {
                     let _ = utils::set_prop(&error_obj, "subject", &JsValue::from_str(sub));
-                 }
-                 let _ = utils::set_prop(&error_obj, "unexpected", &JsValue::from_str(&unexpected.to_string()));
-                 if let Some(exp) = expected {
-                     let exp_arr = Array::new();
-                     for ex in exp {
-                         exp_arr.push(&JsValue::from_str(&ex.to_string()));
-                     }
-                     let _ = utils::set_prop(&error_obj, "expected", &exp_arr);
-                 }
+                }
+                let _ = utils::set_prop(
+                    &error_obj,
+                    "unexpected",
+                    &JsValue::from_str(&unexpected.to_string()),
+                );
+                if let Some(exp) = expected {
+                    let exp_arr = Array::new();
+                    for ex in exp {
+                        exp_arr.push(&JsValue::from_str(&ex.to_string()));
+                    }
+                    let _ = utils::set_prop(&error_obj, "expected", &exp_arr);
+                }
             }
             LinkingErrorEnum::DifferentTypesDetected(subject, t1, t2) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("DifferentTypesDetected"));
-                 if let Some(sub) = subject {
+                let _ = utils::set_prop(
+                    &error_obj,
+                    "type",
+                    &JsValue::from_str("DifferentTypesDetected"),
+                );
+                if let Some(sub) = subject {
                     let _ = utils::set_prop(&error_obj, "subject", &JsValue::from_str(sub));
-                 }
-                 let _ = utils::set_prop(&error_obj, "type1", &JsValue::from_str(&t1.to_string()));
-                 let _ = utils::set_prop(&error_obj, "type2", &JsValue::from_str(&t2.to_string()));
+                }
+                let _ = utils::set_prop(&error_obj, "type1", &JsValue::from_str(&t1.to_string()));
+                let _ = utils::set_prop(&error_obj, "type2", &JsValue::from_str(&t2.to_string()));
             }
             LinkingErrorEnum::FunctionNotFound { name, .. } => {
                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FunctionNotFound"));
                 let _ = utils::set_prop(&error_obj, "name", &JsValue::from_str(name));
             }
             LinkingErrorEnum::CyclicReference(object, field) => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("CyclicReference"));
-                 let fields = Array::new();
-                 fields.push(&JsValue::from_str(object));
-                 fields.push(&JsValue::from_str(field));
-                 let _ = utils::set_prop(&error_obj, "fields", &fields);
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("CyclicReference"));
+                let fields = Array::new();
+                fields.push(&JsValue::from_str(object));
+                fields.push(&JsValue::from_str(field));
+                let _ = utils::set_prop(&error_obj, "fields", &fields);
             }
             _ => {
-                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherLinkingError"));
-                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&err.error.to_string()));
+                let _ =
+                    utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherLinkingError"));
+                let _ = utils::set_prop(
+                    &error_obj,
+                    "message",
+                    &JsValue::from_str(&err.error.to_string()),
+                );
             }
         }
         let _ = utils::set_prop(&obj, "error", &error_obj);

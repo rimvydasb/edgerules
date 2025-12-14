@@ -264,8 +264,10 @@ impl BrowseResultFound<ExecutionContext> {
                     Ok(v) => Ok(v),
                     Err(mut err) => {
                         if err.location.is_empty() {
-                            err.location =
-                                build_location_from_execution_context(&self.context, self.field_name);
+                            err.location = build_location_from_execution_context(
+                                &self.context,
+                                self.field_name,
+                            );
                         }
                         if err.expression.is_none() {
                             err.expression = Some(value.borrow().expression.to_string());

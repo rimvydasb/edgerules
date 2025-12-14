@@ -22,6 +22,7 @@ const portableToObject = (value) => {
 
 const DECISION_FUNCTION = {
     '@type': 'function',
+    '@description': 'Main decision function',
     '@parameters': {
         request: 'LoanRequest'
     },
@@ -90,6 +91,12 @@ describe('Decision Service', () => {
         it('initializes decision service', () => {
             const modelSnapshot = portableToObject(wasm.create_decision_service(PORTABLE_MODEL));
             assert.ok(modelSnapshot.decideLoanOffer, 'Model snapshot should contain decideLoanOffer');
+        });
+
+        it('verifies metadata persistence', () => {
+            const modelSnapshot = portableToObject(wasm.get_decision_service_model());
+            assert.strictEqual(modelSnapshot['@version'], '1', 'Snapshot should contain version metadata');
+            assert.strictEqual(modelSnapshot['@model_name'], 'LoanDecisions', 'Snapshot should contain model_name metadata');
         });
 
         it('evaluates baseline request', () => {

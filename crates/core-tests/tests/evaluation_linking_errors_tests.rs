@@ -36,7 +36,7 @@ fn reports_location_for_function_body_errors() {
     link_error_location(
         code,
         &["calculations", "takeDate", "year"], // perfect resolution!
-        "d.nonexistent", // also very good expression capture!
+        "d.nonexistent",                       // also very good expression capture!
         LinkingErrorEnum::FieldNotFound("d".to_string(), "nonexistent".to_string()),
     );
 }

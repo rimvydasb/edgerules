@@ -105,8 +105,6 @@ WASM exported methods via `wasm_bindgen`:
 - `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
 - `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
 - `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
-- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method with
-    given `args`.
 
 Decision-service lifecycle (all functions throw JavaScript exceptions when the model or invocation is invalid):
 
@@ -127,7 +125,7 @@ Decision-service mutation helpers (operate on the same stored controller):
 - `get_from_decision_service_model(path: &str) -> JsValue` – fetches the portable model entry stored at `path`.
 
 All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors instead of
-encoding everything as strings. `evaluate_method` and decision-service inputs accept primitives, arrays, dates, or plain
+encoding everything as strings. Decision-service inputs accept primitives, arrays, dates, or plain
 JavaScript objects as arguments, and context outputs are surfaced as plain objects. The thread-local controller in
 `src/wasm.rs` enforces single-instance behavior per WASM module instance so that concurrent calls reuse shared state without
 passing handles through JavaScript.

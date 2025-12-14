@@ -3,6 +3,7 @@ use crate::utils::{get_prop, is_object, set_prop};
 use edge_rules::ast::context::context_object::ContextObject;
 use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
 use edge_rules::ast::context::context_object_type::FormalParameter;
+use edge_rules::ast::context::metadata::Metadata;
 use edge_rules::ast::metaphors::functions::FunctionDefinition;
 use edge_rules::ast::sequence::CollectionExpression;
 use edge_rules::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
@@ -22,6 +23,12 @@ pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, Portabl
     let mut model = EdgeRulesModel::new();
     let object: Object = portable.clone().unchecked_into();
     let keys = Object::keys(&object);
+
+    let metadata = extract_metadata(portable);
+    if !metadata.is_empty() {
+        model.ast_root.set_metadata(metadata);
+    }
+
     for i in 0..keys.length() {
         let name = keys.get(i).as_string().unwrap_or_default();
         if name.starts_with('@') {
@@ -56,6 +63,32 @@ pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, Portabl
 
 pub fn serialize_model(model: &EdgeRulesModel) -> Result<JsValue, PortableError> {
     serialize_builder(&model.ast_root)
+}
+
+fn extract_metadata(obj: &JsValue) -> Metadata {
+    let mut m = Metadata::default();
+    if let Some(v) = get_prop(obj, "@version").and_then(|v| v.as_string()) {
+        m.version = Some(v);
+    } else if let Some(v) = get_prop(obj, "@version").and_then(|v| v.as_f64()) {
+        // @Todo: not needed! version must be always a string!
+        m.version = Some(v.to_string());
+    }
+    if let Some(v) = get_prop(obj, "@model_name").and_then(|v| v.as_string()) {
+        m.model_name = Some(v);
+    }
+    m
+}
+
+fn attach_metadata(obj: &JsValue, metadata: Option<&Metadata>) -> Result<(), PortableError> {
+    if let Some(m) = metadata {
+        if let Some(v) = &m.version {
+            let _ = set_prop(obj, "@version", &JsValue::from_str(v));
+        }
+        if let Some(v) = &m.model_name {
+            let _ = set_prop(obj, "@model_name", &JsValue::from_str(v));
+        }
+    }
+    Ok(())
 }
 
 pub fn apply_portable_entry(
@@ -202,6 +235,12 @@ fn parse_type_definition(obj: &JsValue) -> Result<UserTypeBody, PortableError> {
 
 fn parse_type_body(obj: &JsValue) -> Result<ContextObjectBuilder, PortableError> {
     let mut builder = ContextObjectBuilder::new();
+
+    let metadata = extract_metadata(obj);
+    if !metadata.is_empty() {
+        builder.set_metadata(metadata);
+    }
+
     for (name, value) in object_field_iter(obj) {
         if name.starts_with('@') {
             continue;
@@ -245,10 +284,21 @@ fn parse_context_builder(
     skip_metadata: bool,
 ) -> Result<ContextObjectBuilder, PortableError> {
     let mut builder = ContextObjectBuilder::new();
+
+    let metadata = extract_metadata(obj);
+    if !metadata.is_empty() {
+        builder.set_metadata(metadata);
+    }
+
     for (name, value) in object_field_iter(obj) {
         if skip_metadata && name.starts_with('@') {
             continue;
         }
+        // Also skip metadata fields if we just extracted them
+        if !skip_metadata && (name == "@version" || name == "@model_name") {
+            continue;
+        }
+
         match classify_entry(&value) {
             PortableKind::Function(def_obj) => {
                 let definition = parse_function_definition(&name, &def_obj)?;
@@ -408,8 +458,10 @@ fn apply_function_with_path(
 
 fn serialize_builder(builder: &ContextObjectBuilder) -> Result<JsValue, PortableError> {
     let map = context_builder_to_object(builder)?;
+    attach_metadata(&map, builder.get_metadata())?;
     Ok(map)
 }
+
 fn serialize_expression(expr: &ExpressionEnum) -> Result<JsValue, PortableError> {
     match expr {
         ExpressionEnum::Value(value) => serialize_value(value),
@@ -470,12 +522,8 @@ fn serialize_function(definition: &FunctionDefinition) -> Result<JsValue, Portab
     if !definition.arguments.is_empty() {
         let params = Object::new();
         for param in &definition.arguments {
-            set_prop(
-                &params,
-                &param.name,
-                &JsValue::from_str(&param.to_string()),
-            )
-            .map_err(|_| PortableError::new("Failed to set parameter"))?;
+            set_prop(&params, &param.name, &JsValue::from_str(&param.to_string()))
+                .map_err(|_| PortableError::new("Failed to set parameter"))?;
         }
         set_prop(&obj, "@parameters", &params)
             .map_err(|_| PortableError::new("Failed to attach parameters"))?;
@@ -518,6 +566,9 @@ fn context_builder_to_object(builder: &ContextObjectBuilder) -> Result<JsValue, 
 
 fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
     let obj = Object::new();
+
+    attach_metadata(&obj, ctx.metadata.as_ref())?;
+
     for &name in ctx.get_field_names().iter() {
         if let Some(expr) = ctx.expressions.get(name) {
             set_prop(

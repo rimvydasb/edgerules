@@ -39,7 +39,6 @@
 - Fix Casting: Throw exception for invalid type casting instead of allowing it.
 - Implement Flatten: Implement `flatten` for lists.
 - CLI Tests: Add integration test harness for `crates/cli`.
-- Deprecate `evaluate_method`: Remove `evaluate_method` from WASM API.
 - Decision Service Tests: Add nested path tests for decision service model updates.
 - Special Value Literals: Add support for literals for special values.
 - Duration Literals: Add support for literal durations.

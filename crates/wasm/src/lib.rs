@@ -77,14 +77,6 @@ pub fn evaluate_field(code: &str, field: &str) -> JsValue {
 }
 
 #[wasm_bindgen]
-pub fn evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue {
-    match wasm_convert::evaluate_method_inner(code, method, args) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    }
-}
-
-#[wasm_bindgen]
 pub fn create_decision_service(model: &JsValue) -> JsValue {
     let controller = match DecisionServiceController::from_portable(model) {
         Ok(ctrl) => ctrl,

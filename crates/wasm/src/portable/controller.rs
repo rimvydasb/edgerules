@@ -1,9 +1,6 @@
 use crate::portable::error::PortableError;
 use crate::portable::model::{
-    apply_portable_entry,
-    get_portable_entry,
-    model_from_portable,
-    remove_portable_entry,
+    apply_portable_entry, get_portable_entry, model_from_portable, remove_portable_entry,
     serialize_model,
 };
 use crate::utils::{get_prop, is_object};
