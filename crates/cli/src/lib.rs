@@ -1,7 +1,6 @@
 use std::env;
 use std::fs;
 use std::io::{self, Read};
-use std::process;
 
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 
@@ -60,9 +59,4 @@ fn read_code(args: &[String]) -> Result<String, String> {
     }
 }
 
-fn main() {
-    if let Err(error) = run() {
-        eprintln!("{}", error);
-        process::exit(1);
-    }
-}
+

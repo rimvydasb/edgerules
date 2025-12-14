@@ -8,15 +8,3 @@ description = "Command-line interface for EdgeRules."
 
 [dependencies]
 edge-rules = { path = "../core", package = "edge-rules" }
-
-[[bin]]
-name = "edgerules"
-path = "src/main.rs"
-
-[[bin]]
-name = "er"
-path = "src/main.rs"
-
-[[bin]]
-name = "edgerules-wasi"
-path = "src/main.rs"
