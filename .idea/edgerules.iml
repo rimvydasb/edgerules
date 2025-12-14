@@ -6,6 +6,13 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/core-tests/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/core-tests/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/core/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/wasm-tests/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/wasm/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/wasm/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

@@ -1,54 +1,42 @@
 [package]
-name = "edge-rules"
-version = "0.1.0"
-authors = ["Rimvydas Bingelis <rimvydas.bin@gmail.com>"]
-edition = "2021"
-license = "Apache-2.0"
-description = "A library for defining and evaluating business rules."
+name = "edge-rules-workspace"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Workspace host crate (no runtime code)."
 
 [lib]
-name = "edge_rules"
-crate-type = ["rlib", "cdylib"]
+path = "workspace_stub.rs"
 
-[[bin]]
-name = "edgerules"
-path = "src/cli.rs"
+[workspace]
+members = [
+    "crates/core",
+    "crates/cli",
+    "crates/wasm",
+    "crates/core-tests",
+]
+resolver = "2"
 
-[[bin]]
-name = "er"
-path = "src/cli.rs"
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Rimvydas Bingelis <rimvydas.bin@gmail.com>"]
+description = "A lightweight, embeddable rules engine for edge environments, supporting a custom DSL for defining rules and conditions."
 
-[[bin]]
-name = "edgerules-wasi"
-path = "src/cli.rs"
-
-[features]
-default = ["native"]
-# Native builds (CLI, tests) enable heavier optional functions
-native = ["regex_functions", "base64_functions"]
-
-# WASM builds keep heavy functions off by default
-wasm = ["wasm-bindgen", "js-sys", "log/max_level_off"]
-wasm_debug = ["wasm", "console_error_panic_hook"]
-
-# Optional function groups
-regex_functions = ["dep:regex"]
-base64_functions = ["dep:base64"]
-
-[dependencies]
+[workspace.dependencies]
 log = { version = "0.4.28" }
-console_error_panic_hook = { version = "0.1.7", optional = true }
+console_error_panic_hook = { version = "0.1.7" }
 time = { version = "0.3.43", features = ["macros", "formatting", "parsing"] }
 phf = { version = "0.13.1", features = ["macros"] }
-wasm-bindgen = { version = "0.2.100", optional = true }
-js-sys = { version = "0.3.81", optional = true }
+wasm-bindgen = { version = "0.2.100" }
+js-sys = { version = "0.3.81" }
 dlmalloc = { version = "0.2", features = ["global"] }
-regex = { version = "1.9.6", optional = true }
-base64 = { version = "0.22.1", optional = true }
-
-[dev-dependencies]
+regex = { version = "1.9.6" }
+base64 = { version = "0.22.1" }
 env_logger = "0.11.8"
-regex = "1.9.6"
+wasm-bindgen-test = "0.3"
 
 [profile.release]
 lto = "fat"

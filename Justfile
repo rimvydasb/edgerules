@@ -3,11 +3,16 @@ export PATH := env_var("HOME") + "/.cargo/bin:" + env_var("PATH")
 
 # Feature flags and target names
 FEATURES := "wasm"
-CRATE := "edge-rules"
+CRATE_CORE := "edge-rules"
+CRATE_WASM := "edge-rules-wasi"
+CRATE_CLI := "edge-rules-cli"
 BIN_WASI := "edgerules-wasi"
 BIN_NATIVE := "edgerules"
 PROFILE := "release"
 PKG_NAME := "edge_rules"
+CORE_MANIFEST := "crates/core/Cargo.toml"
+CLI_MANIFEST := "crates/cli/Cargo.toml"
+WASM_MANIFEST := "crates/wasm/Cargo.toml"
 
 # Output dirs for separate web/node packages under target/
 out_web := "target/pkg-web"
@@ -18,7 +23,8 @@ out_web_debug := "target/pkg-web-debug"
 out_node_debug := "target/pkg-node-debug"
 
 # External examples/public destination for showcasing web builds (sibling repo)
-examples_public := "../edgerules-page/public"
+edgerules_page_public := "../edgerules-page/public"
+edgerules_docs_public := "../edgerules-docs/public"
 
 # Shared wasm-opt flags to minimize output size. -Oz enables aggressive size optimizations, mutable globals unlock
 # further reductions across supported runtimes, and strip options remove debug metadata, DWARF sections, producers,
@@ -42,12 +48,12 @@ build-pkg platform out_dir features:
     feats="{{features}}"; \
     if [ "${ENABLE_REGEX:-}" = "1" ]; then feats="$feats,regex_functions"; fi; \
     if [ "${ENABLE_BASE64:-}" = "1" ]; then feats="$feats,base64_functions"; fi; \
-    echo "Using features: $feats"; \
-    wasm-pack build --release --target {{platform}} --out-dir {{out_dir}} --out-name {{PKG_NAME}} -- --no-default-features --features "$feats"; \
-    if [ -f {{out_dir}}/{{PKG_NAME}}_bg.wasm ]; then ls -lh {{out_dir}}/{{PKG_NAME}}_bg.wasm; fi; \
+    echo "Using features: $feats"; cd crates/wasm && \
+    wasm-pack build --release --target {{platform}} --out-dir ../../{{out_dir}} --out-name {{PKG_NAME}} -- --no-default-features --features "$feats"; \
+    if [ -f ../../{{out_dir}}/{{PKG_NAME}}_bg.wasm ]; then ls -lh ../../{{out_dir}}/{{PKG_NAME}}_bg.wasm; fi; \
     if command -v wasm-opt >/dev/null; then \
-      wasm-opt {{WASM_OPT_FLAGS}} {{out_dir}}/{{PKG_NAME}}_bg.wasm -o {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; \
-      if [ -f {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm ]; then ls -lh {{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; fi; \
+      wasm-opt {{WASM_OPT_FLAGS}} ../../{{out_dir}}/{{PKG_NAME}}_bg.wasm -o ../../{{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; \
+      if [ -f ../../{{out_dir}}/{{PKG_NAME}}_bg.opt.wasm ]; then ls -lh ../../{{out_dir}}/{{PKG_NAME}}_bg.opt.wasm; fi; \
     else \
       echo "Skipping wasm-opt (not installed)"; \
     fi
@@ -68,28 +74,28 @@ node-debug: ensure
     node examples/js/node-demo.mjs
 
 wasi: ensure
-    cargo build --release --target wasm32-wasip1 -p {{CRATE}} --bin {{BIN_WASI}}
+    cargo build --release --target wasm32-wasip1 -p {{CRATE_CLI}} --bin {{BIN_WASI}} --manifest-path {{CLI_MANIFEST}}
     ls -lh target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm || true
     # Always run demo-wasi after wasi build
     wasmtime target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm "{ value : 2 + 2 }" || true
 
 core: ensure
-    cargo build --release --target wasm32-unknown-unknown -p {{CRATE}} --no-default-features --features wasm
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm || true
+    cargo build --release --target wasm32-unknown-unknown -p {{CRATE_CORE}} --no-default-features --features wasm --manifest-path {{CORE_MANIFEST}}
+    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm || true
 
 core-opt: core
     # Apply shared size-focused flags and remove unnecessary metadata.
     wasm-opt {{WASM_OPT_FLAGS}} \
-      target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.wasm \
-      -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.min.wasm
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE}}.min.wasm || true
+      target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm \
+      -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm
+    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm || true
 
 # --- demo / test commands ---
-demo-node: node
-    node examples/js/node-demo.mjs
+performance-basic: node
+    node tests/wasm-performance/performance-basic.mjs
 
-demo-web: web
-    npx -y http-server -p 8080 .
+performance-ds: node
+    node tests/wasm-performance/performance-decision-service.mjs
 
 demo-wasi: wasi
 
@@ -103,30 +109,56 @@ clippy:
 test:
     cargo test --all
 
+test-node: node
+    node --test tests/wasm/*.mjs
+
+wasm-test: node
+    node --test tests/wasm/*.mjs
+
 # --- native CLI build & quick check ---
 cli:
-    cargo build --release -p {{CRATE}} --bin {{BIN_NATIVE}}
+    cargo build --release -p {{CRATE_CLI}} --bin {{BIN_NATIVE}} --manifest-path {{CLI_MANIFEST}}
     ls -lh target/{{PROFILE}}/{{BIN_NATIVE}} || true
     echo "Running arithmetic sanity check:"
     target/{{PROFILE}}/{{BIN_NATIVE}} "{ value : 2 + 3 }" || true
 
 # --- release helpers ---
-# Copies web builds into the external examples page project under public/.
+# Copies web builds into the external edgerules-page page project under public/.
 # Excludes files not needed for serving (.gitignore, README.md).
-release-to-examples: web web-debug
-    echo "Releasing to: {{examples_public}}"
+release-to-page: web web-debug
+    echo "Releasing to: {{edgerules_page_public}}"
     echo "Source (web): {{out_web}}" && ls -la "{{out_web}}" || true
     echo "Source (web-debug): {{out_web_debug}}" && ls -la "{{out_web_debug}}" || true
-    mkdir -p "{{examples_public}}/pkg-web" "{{examples_public}}/pkg-web-debug"
-    rsync -a --delete "{{out_web}}/" "{{examples_public}}/pkg-web/"
-    rsync -a --delete "{{out_web_debug}}/" "{{examples_public}}/pkg-web-debug/"
-    # Remove files not needed in examples
-    rm -f "{{examples_public}}/pkg-web/.gitignore" \
-          "{{examples_public}}/pkg-web/README.md" \
-          "{{examples_public}}/pkg-web/package.json" || true
-    rm -f "{{examples_public}}/pkg-web-debug/.gitignore" \
-          "{{examples_public}}/pkg-web-debug/README.md" \
-          "{{examples_public}}/pkg-web-debug/package.json" || true
-    echo "Contents (web):" && ls -la "{{examples_public}}/pkg-web" || true
-    echo "Contents (web-debug):" && ls -la "{{examples_public}}/pkg-web-debug" || true
-    echo "Released web assets to: {{examples_public}}"
+    mkdir -p "{{edgerules_page_public}}/pkg-web" "{{edgerules_page_public}}/pkg-web-debug"
+    rsync -a --delete "{{out_web}}/" "{{edgerules_page_public}}/pkg-web/"
+    rsync -a --delete "{{out_web_debug}}/" "{{edgerules_page_public}}/pkg-web-debug/"
+    # Remove files not needed in edgerules_page
+    rm -f "{{edgerules_page_public}}/pkg-web/.gitignore" \
+          "{{edgerules_page_public}}/pkg-web/README.md" \
+          "{{edgerules_page_public}}/pkg-web/package.json" || true
+    rm -f "{{edgerules_page_public}}/pkg-web-debug/.gitignore" \
+          "{{edgerules_page_public}}/pkg-web-debug/README.md" \
+          "{{edgerules_page_public}}/pkg-web-debug/package.json" || true
+    echo "Contents (web):" && ls -la "{{edgerules_page_public}}/pkg-web" || true
+    echo "Contents (web-debug):" && ls -la "{{edgerules_page_public}}/pkg-web-debug" || true
+    echo "Released web assets to: {{edgerules_page_public}}"
+
+# Copies node builds into the external edgerules-docs page project under public/.
+# Excludes files not needed for serving (.gitignore, README.md).
+release-to-docs: node node-debug
+    echo "Releasing to: {{edgerules_docs_public}}"
+    echo "Source (node): {{out_node}}" && ls -la "{{out_node}}" || true
+    echo "Source (node-debug): {{out_node_debug}}" && ls -la "{{out_node_debug}}" || true
+    mkdir -p "{{edgerules_docs_public}}/pkg-node" "{{edgerules_docs_public}}/pkg-node-debug"
+    rsync -a --delete "{{out_node}}/" "{{edgerules_docs_public}}/pkg-node/"
+    rsync -a --delete "{{out_node_debug}}/" "{{edgerules_docs_public}}/pkg-node-debug/"
+    # Remove files not needed in edgerules_page
+    rm -f "{{edgerules_docs_public}}/pkg-node/.gitignore" \
+          "{{edgerules_docs_public}}/pkg-node/README.md" \
+          "{{edgerules_docs_public}}/pkg-node/package.json" || true
+    rm -f "{{edgerules_docs_public}}/pkg-node-debug/.gitignore" \
+          "{{edgerules_docs_public}}/pkg-node-debug/README.md" \
+          "{{edgerules_docs_public}}/pkg-node-debug/package.json" || true
+    echo "Contents (node):" && ls -la "{{edgerules_docs_public}}/pkg-node" || true
+    echo "Contents (node-debug):" && ls -la "{{edgerules_docs_public}}/pkg-node-debug" || true
+    echo "Released node assets to: {{edgerules_docs_public}}"

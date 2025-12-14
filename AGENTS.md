@@ -42,8 +42,9 @@ A lightweight, embeddable rules engine for edge environments, supporting a custo
 - `just core`: Build core library for wasm32-unknown-unknown.
 - `just core-opt`: Minify core output to .min.wasm.
 - `just demo-web`: Serve at http://localhost:8080 (expects `target/pkg-web/`).
-- `just demo-node`: Run Node demo (expects `target/pkg-node/`).
+- `just performance-node`: Run Node performance benchmarks (expects `target/pkg-node/`).
 - `just demo-wasi`: Run WASI demo via wasmtime.
+- `just wasm-test`: Run WASM tests in Node.
 
 ### Daily Workflow Checklist
 
@@ -53,7 +54,8 @@ Follow this loop for every change:
 2. `cargo clippy --all-targets --all-features -- -D warnings`
 3. Reproduce the scenario you are touching:
    - Rust: `cargo test <suite>` / `cargo test <path>::<name>`
-   - WASM demos: rebuild first (`just node` or `just web`), then run `just demo-node` / `just demo-web`
+   - WASM demos: rebuild first (`just node` or `just web`), then run `just performance-node` / `just demo-web`
+   - WASM tests: `just wasm-test`
 4. If something fails, use the **Debugging & Verification Playbook** below before guessing.
 
 ## Coding Style & Naming Conventions
@@ -68,6 +70,19 @@ Follow this loop for every change:
 - Formatting: run `cargo fmt` before commits; keep `clippy` clean.
 - WASM features: `wasm` is the lean baseline; `wasm_debug` enables `console_error_panic_hook` for better panic traces in dev. Use `web-debug`/`node-debug` to build debug artifacts in separate folders to avoid shipping debug hooks.
 - Treat clippy warnings as hard errors—keep builds clean by default.
+
+## Code Review Guidelines
+
+The project goal is small WASM size first, performance second.
+When reviewing code, consider the following:
+- Check lifetime clarity
+- Detect boilerplate that can be abstracted
+- Ensure error handling is idiomatic
+- Check maintainability and readability
+- Check the ownership model
+- Remove unnecessary derive annotations `#[derive(...)]` that bloat binary size
+- Check if `mut` can be avoided
+- Ensure no unused imports or needless borrows exist (clippy clean)
 
 ## Debugging & Verification Playbook
 

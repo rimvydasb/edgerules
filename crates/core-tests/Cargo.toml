@@ -1,0 +1,15 @@
+[package]
+name = "edge-rules-core-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+mutable_decision_service = ["edge-rules/mutable_decision_service"]
+wasm = ["edge-rules/wasm"]
+
+[dev-dependencies]
+edge-rules = { path = "../core" }
+env_logger = { workspace = true }
+log = { workspace = true }

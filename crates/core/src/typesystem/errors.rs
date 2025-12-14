@@ -1,0 +1,591 @@
+use crate::ast::context::duplicate_name_error::DuplicateNameError;
+use crate::ast::functions::function_types::EFunctionType;
+use std::fmt;
+use std::fmt::{Display, Formatter};
+
+use crate::ast::token::EToken;
+use crate::ast::Link;
+use crate::typesystem::errors::LinkingErrorEnum::{
+    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OperationNotSupported,
+    OtherLinkingError, TypesNotCompatible,
+};
+use crate::typesystem::errors::ParseErrorEnum::{
+    FunctionWrongNumberOfArguments, MissingLiteral, OtherError, Stacked, UnexpectedEnd,
+    UnexpectedLiteral, UnexpectedToken, WrongFormat,
+};
+use crate::typesystem::errors::RuntimeErrorEnum::{
+    EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError,
+};
+use crate::typesystem::types::ValueType;
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
+pub enum ErrorStage {
+    Linking,
+    Runtime,
+}
+
+/// Error Stacking
+/// Other libraries:
+/// - https://crates.io/crates/anyhow
+/// - https://github.com/dtolnay/thiserror
+/// - https://crates.io/crates/handle-error
+/// - influence taken from: https://github.com/dtolnay/anyhow/blob/8b4fc43429fd9a034649e0f919c646ec6626c4c7/src/context.rs#L58
+pub trait ErrorStack<T: Display>: Sized {
+    fn update_context(&mut self, content: String);
+
+    #[allow(dead_code)]
+    fn get_context(&self) -> &Vec<String>;
+
+    fn get_error_type(&self) -> &T;
+
+    fn with_context<C, F>(mut self, context: F) -> Self
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C,
+    {
+        self.update_context(format!("{}", context()));
+        self
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
+pub struct GeneralStackedError<T: Display> {
+    pub error: T,
+    pub context: Vec<String>,
+    pub location: Vec<String>,
+    pub expression: Option<String>,
+    pub stage: Option<ErrorStage>,
+}
+
+impl<T: Display> ErrorStack<T> for GeneralStackedError<T> {
+    fn update_context(&mut self, content: String) {
+        self.context.push(content);
+    }
+
+    fn get_context(&self) -> &Vec<String> {
+        &self.context
+    }
+
+    fn get_error_type(&self) -> &T {
+        &self.error
+    }
+}
+
+impl<T: Display> Display for GeneralStackedError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.error.to_string())?;
+        let mut index = 0;
+        if !self.context.is_empty() {
+            write!(f, "\nContext:\n")?;
+
+            for context in &self.context {
+                index += 1;
+                writeln!(f, "  {}. {}", index, context)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub type RuntimeError = GeneralStackedError<RuntimeErrorEnum>;
+
+impl RuntimeError {
+    pub fn new(error: RuntimeErrorEnum) -> Self {
+        RuntimeError {
+            error,
+            context: vec![],
+            location: vec![],
+            expression: None,
+            stage: Some(ErrorStage::Runtime),
+        }
+    }
+
+    pub fn unexpected(message: String) -> Self {
+        RuntimeError::new(UnexpectedError(message))
+    }
+
+    pub fn eval_error(message: String) -> Self {
+        RuntimeError::new(EvalError(message.to_string()))
+    }
+
+    pub fn cyclic_reference(field: &str, object: &str) -> Self {
+        RuntimeError::new(RuntimeCyclicReference(
+            field.to_string(),
+            object.to_string(),
+        ))
+    }
+
+    pub fn field_not_found(field: &str, object: &str) -> Self {
+        RuntimeError::new(RuntimeFieldNotFound(field.to_string(), object.to_string()))
+    }
+
+    pub fn type_not_supported(current: ValueType) -> Self {
+        RuntimeError::new(TypeNotSupported(current))
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
+pub enum ParseErrorEnum {
+    UnexpectedToken(Box<EToken>, Option<String>),
+    UnexpectedLiteral(String, Option<String>),
+    MissingLiteral(String),
+    /// function_name, type, got
+    FunctionWrongNumberOfArguments(String, EFunctionType, usize),
+
+    /// Expected format description
+    WrongFormat(String),
+
+    /// Other parsing errors that are not strictly format-related
+    OtherError(String),
+
+    /// Ordered stack of errors to preserve context
+    Stacked(Vec<ParseErrorEnum>),
+
+    UnexpectedEnd,
+}
+
+impl Display for ParseErrorEnum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Helper closure to prefix [parse] only if not already present
+        let prefix_parse = |msg: &str| {
+            if msg.starts_with("[parse]") {
+                msg.to_string()
+            } else {
+                format!("[parse] {}", msg)
+            }
+        };
+
+        match self {
+            WrongFormat(message) => write!(f, "{}", prefix_parse(message)),
+            UnexpectedToken(token, expected) => {
+                if let Some(expected) = expected {
+                    write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected))
+                    )
+                } else {
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
+                }
+            }
+            UnexpectedEnd => f.write_str("[parse] Unexpected end"),
+            OtherError(message) => write!(f, "{}", prefix_parse(message)),
+            Stacked(errors) => {
+                let formatted = errors
+                    .iter()
+                    .map(|err| err.to_string())
+                    .collect::<Vec<String>>()
+                    .join(" → ");
+                f.write_str(&formatted)
+            }
+            UnexpectedLiteral(literal, expected) => {
+                if let Some(expected) = expected {
+                    write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!(
+                            "Unexpected '{}', expected '{}'",
+                            literal, expected
+                        ))
+                    )
+                } else {
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", literal)))
+                }
+            }
+            MissingLiteral(literal) => {
+                write!(f, "{}", prefix_parse(&format!("Missing '{}'", literal)))
+            }
+            FunctionWrongNumberOfArguments(function_name, function_type, existing) => {
+                if existing == &0 {
+                    return write!(
+                        f,
+                        "{}",
+                        prefix_parse(&format!("Function '{}' got no arguments", function_name))
+                    );
+                }
+                match function_type {
+                    EFunctionType::Custom(expected) => {
+                        write!(
+                            f,
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected {} arguments, but got {}",
+                                function_name, expected, existing
+                            ))
+                        )
+                    }
+                    EFunctionType::Binary => {
+                        write!(
+                            f,
+                            "{}",
+                            prefix_parse(&format!(
+                                "Binary function '{}' expected 2 arguments, but got {}",
+                                function_name, existing
+                            ))
+                        )
+                    }
+                    EFunctionType::Multi => {
+                        write!(
+                            f,
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected 1 or more arguments, but got {}",
+                                function_name, existing
+                            ))
+                        )
+                    }
+                    EFunctionType::Unary => {
+                        write!(
+                            f,
+                            "{}",
+                            prefix_parse(&format!(
+                                "Function '{}' expected 1 argument, but got {}",
+                                function_name, existing
+                            ))
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl From<DuplicateNameError> for ParseErrorEnum {
+    fn from(error: DuplicateNameError) -> Self {
+        ParseErrorEnum::OtherError(error.to_string())
+    }
+}
+
+impl ParseErrorEnum {
+    pub fn before(self, before_error: ParseErrorEnum) -> ParseErrorEnum {
+        if before_error == UnexpectedEnd {
+            return self;
+        }
+
+        let mut previous_errors = match before_error {
+            Stacked(errors) => errors,
+            other => vec![other],
+        };
+
+        match self {
+            Stacked(mut errors) => {
+                previous_errors.append(&mut errors);
+                Stacked(previous_errors)
+            }
+            other => {
+                previous_errors.push(other);
+                Stacked(previous_errors)
+            }
+        }
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
+pub enum RuntimeErrorEnum {
+    // message
+    EvalError(String),
+
+    // field, object
+    RuntimeCyclicReference(String, String),
+
+    // object, field
+    RuntimeFieldNotFound(String, String),
+
+    /// @Todo: update this: (existing type, expected type, method name)
+    /// @Todo: this is absolutely unclear how it happens in runtime, because linking solves types.
+    /// Add [unexpected] prefix to the error message for me to indicate that this is a linking/runtime mismatch
+    /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
+    TypeNotSupported(ValueType),
+
+    /// This error never appears in normal runtime, but used as a guard for maybe unlinked references.
+    /// This error also means development mistake and will not be covered by tests.
+    UnexpectedError(String),
+}
+
+impl Display for RuntimeErrorEnum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            EvalError(message) => write!(f, "[runtime] {}", message),
+            TypeNotSupported(value_type) => {
+                write!(f, "[runtime] Type '{}' is not supported", value_type)
+            }
+            RuntimeCyclicReference(object, field) => write!(
+                f,
+                "[runtime] Field {}.{} appears in a cyclic reference loop",
+                object, field
+            ),
+            RuntimeFieldNotFound(object, field) => {
+                write!(f, "[runtime] Field '{}' not found in {}", field, object)
+            }
+            UnexpectedError(message) => {
+                write!(f, "[runtime] Unexpected error: {}", message)
+            }
+        }
+    }
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(Clone, PartialEq)]
+pub enum LinkingErrorEnum {
+    // subject, unexpected, expected
+    TypesNotCompatible(Option<String>, ValueType, Option<Vec<ValueType>>),
+
+    // subject, type 1, type 2
+    DifferentTypesDetected(Option<String>, ValueType, ValueType),
+
+    FunctionNotFound {
+        name: String,
+        known_metaphors: Vec<String>,
+    },
+
+    // object, field
+    FieldNotFound(String, String),
+
+    // object, field
+    CyclicReference(String, String),
+
+    // operation, left type, right type
+    // e.g., "+" operation not supported for types Integer and String
+    OperationNotSupported(String, ValueType, ValueType),
+
+    // @Todo: this one must be split to multiple other enums
+    OtherLinkingError(String),
+
+    NotLinkedYet,
+}
+
+pub type LinkingError = GeneralStackedError<LinkingErrorEnum>;
+
+impl LinkingError {
+    pub fn new(error: LinkingErrorEnum) -> Self {
+        LinkingError {
+            error,
+            context: vec![],
+            location: vec![],
+            expression: None,
+            stage: Some(ErrorStage::Linking),
+        }
+    }
+
+    pub fn not_linked() -> Self {
+        LinkingError::new(NotLinkedYet)
+    }
+
+    pub fn other_error(message: String) -> Self {
+        LinkingError::new(OtherLinkingError(message))
+    }
+
+    pub fn field_not_found(object: &str, field: &str) -> Self {
+        LinkingError::new(FieldNotFound(object.to_string(), field.to_string()))
+    }
+
+    pub fn different_types(subject: Option<String>, type1: ValueType, type2: ValueType) -> Self {
+        LinkingError::new(DifferentTypesDetected(subject, type1, type2))
+    }
+
+    pub fn operation_not_supported(operation: &str, left: ValueType, right: ValueType) -> Self {
+        LinkingError::new(OperationNotSupported(operation.to_string(), left, right))
+    }
+
+    pub fn types_not_compatible(
+        subject: Option<String>,
+        unexpected: ValueType,
+        expected: Option<Vec<ValueType>>,
+    ) -> Self {
+        LinkingError::new(TypesNotCompatible(subject, unexpected, expected))
+    }
+
+    pub fn expect_type(
+        subject: Option<String>,
+        expression_type: ValueType,
+        expected: &[ValueType],
+    ) -> Link<ValueType> {
+        let actual = expression_type;
+        if expected.contains(&actual) {
+            return Ok(actual);
+        }
+        LinkingError::types_not_compatible(subject, actual, Some(expected.to_vec())).into()
+    }
+
+    pub fn expect_array_type(
+        subject: Option<String>,
+        expression_type: ValueType,
+    ) -> Link<ValueType> {
+        match expression_type {
+            ValueType::ListType(Some(list_type)) => Ok(*list_type),
+            ValueType::ListType(None) => Ok(ValueType::UndefinedType),
+            other => LinkingError::types_not_compatible(
+                subject,
+                other,
+                Some(vec![ValueType::ListType(None)]),
+            )
+            .into(),
+        }
+    }
+
+    pub fn expect_single_type(
+        subject: &str,
+        expression_type: ValueType,
+        expected: &ValueType,
+    ) -> Link<ValueType> {
+        if &expression_type == expected {
+            return Ok(expression_type);
+        }
+        LinkingError::types_not_compatible(
+            Some(subject.to_string()),
+            expression_type,
+            Some(vec![expected.clone()]),
+        )
+        .into()
+    }
+
+    pub fn expect_same_types(subject: &str, left: ValueType, right: ValueType) -> Link<ValueType> {
+        if left == right {
+            return Ok(left);
+        }
+        LinkingError::different_types(Some(subject.to_string()), left, right).into()
+    }
+
+    pub fn expect_same_item_types(subject: &str, items: &[ValueType]) -> Link<ValueType> {
+        if items.is_empty() {
+            return Ok(ValueType::UndefinedType);
+        }
+        let first = items[0].clone();
+        for item in items {
+            if item != &first {
+                return LinkingError::different_types(
+                    Some(subject.to_string()),
+                    first,
+                    item.clone(),
+                )
+                .into();
+            }
+        }
+        Ok(first)
+    }
+}
+
+impl<T, O> From<GeneralStackedError<O>> for Result<T, GeneralStackedError<O>>
+where
+    T: Sized,
+    O: Sized + Display,
+{
+    fn from(val: GeneralStackedError<O>) -> Self {
+        Err(val)
+    }
+}
+
+impl From<LinkingError> for RuntimeError {
+    fn from(value: LinkingError) -> Self {
+        Self::into_runtime(value)
+    }
+}
+
+impl From<ParseErrorEnum> for RuntimeError {
+    fn from(err: ParseErrorEnum) -> Self {
+        RuntimeError::eval_error(err.to_string())
+    }
+}
+
+impl From<DuplicateNameError> for RuntimeError {
+    fn from(err: DuplicateNameError) -> Self {
+        RuntimeError::eval_error(err.to_string())
+    }
+}
+
+impl RuntimeError {
+    fn into_runtime(error: LinkingError) -> Self {
+        let mut runtime_error = match &error.error {
+            FieldNotFound(object, field) => RuntimeError::field_not_found(object, field),
+            CyclicReference(object, field) => RuntimeError::cyclic_reference(object, field),
+            NotLinkedYet => RuntimeError::unexpected(format!("{}", error)),
+            _ => RuntimeError::eval_error(error.error.to_string()),
+        };
+
+        runtime_error.context = error.context.clone();
+        runtime_error.location = error.location.clone();
+        runtime_error.expression = error.expression.clone();
+        runtime_error.stage = Some(ErrorStage::Runtime);
+
+        runtime_error
+    }
+}
+
+impl Display for LinkingErrorEnum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            TypesNotCompatible(subject, unexpected, expected) => {
+                let clean_subject = subject.clone().unwrap_or_else(|| "Unexpected".to_string());
+                if let Some(expected) = expected {
+                    // joins expected types into a string separated by " or "
+                    let expected_str = expected
+                        .iter()
+                        .map(|value_type| value_type.to_string())
+                        .collect::<Vec<String>>()
+                        .join(" or ");
+                    write!(
+                        f,
+                        "[link] {} type '{}', expected '{}'",
+                        clean_subject, unexpected, expected_str
+                    )
+                } else {
+                    write!(f, "{} type '{}'", clean_subject, unexpected)
+                }
+            }
+            DifferentTypesDetected(subject, left, right) => match subject {
+                Some(subject) => {
+                    write!(
+                        f,
+                        "[link] {} types `{}` and `{}` must match",
+                        subject, left, right
+                    )
+                }
+                None => write!(
+                    f,
+                    "[link] Operation is not supported for different types: {} and {}",
+                    left, right
+                ),
+            },
+            LinkingErrorEnum::FunctionNotFound {
+                name,
+                known_metaphors,
+            } => {
+                write!(f, "[link] Function '{}(...)' not found", name)?;
+                if known_metaphors.is_empty() {
+                    write!(f, ". No metaphors in scope.")
+                } else {
+                    let formatted_candidates = known_metaphors
+                        .iter()
+                        .map(|metaphor_name| format!("{}(...)", metaphor_name))
+                        .collect::<Vec<String>>()
+                        .join(", ");
+                    write!(f, ". Known metaphors in scope: {}.", formatted_candidates)
+                }
+            }
+            FieldNotFound(object, field) => {
+                write!(f, "[link] Field '{}' not found in {}", field, object)
+            }
+            CyclicReference(object, field) => {
+                write!(
+                    f,
+                    "[link] Field {}.{} appears in a cyclic reference loop",
+                    object, field
+                )
+            }
+            OtherLinkingError(error) => write!(f, "[link] {}", error),
+            NotLinkedYet => f.write_str("[link] Not linked yet"),
+            OperationNotSupported(op, left, right) => {
+                write!(
+                    f,
+                    "[link] Operation '{}' not supported for types '{}' and '{}'",
+                    op, left, right
+                )
+            }
+        }
+    }
+}

@@ -1,0 +1,97 @@
+use crate::portable::error::PortableError;
+use crate::portable::model::{
+    apply_portable_entry,
+    get_portable_entry,
+    model_from_portable,
+    remove_portable_entry,
+    serialize_model,
+};
+use crate::utils::{get_prop, is_object};
+use edge_rules::runtime::decision_service::DecisionService;
+use edge_rules::typesystem::values::ValueEnum;
+use wasm_bindgen::JsValue;
+
+pub struct DecisionServiceController {
+    service: DecisionService,
+}
+
+impl DecisionServiceController {
+    pub fn from_portable(portable: &JsValue) -> Result<Self, PortableError> {
+        let model = model_from_portable(portable)?;
+        let service = DecisionService::from_model(model)?;
+        Ok(Self { service })
+    }
+    pub fn execute_value(
+        &mut self,
+        method: &str,
+        request: ValueEnum,
+    ) -> Result<ValueEnum, PortableError> {
+        Ok(self.service.execute(method, request)?)
+    }
+    pub fn model_snapshot(&mut self) -> Result<JsValue, PortableError> {
+        let model = self.service.get_model();
+        let snap = {
+            let borrowed = model.borrow();
+            serialize_model(&borrowed)?
+        };
+        Ok(snap)
+    }
+    pub fn set_entry(&mut self, path: &str, payload: &JsValue) -> Result<JsValue, PortableError> {
+        let model = self.service.get_model();
+        {
+            let mut borrowed = model.borrow_mut();
+            apply_portable_entry(&mut borrowed, path, payload)?;
+        }
+        self.service.ensure_linked()?;
+        let updated = {
+            let borrowed = model.borrow();
+            get_portable_entry(&borrowed, path)?
+        };
+        Ok(updated)
+    }
+    pub fn set_invocation(
+        &mut self,
+        path: &str,
+        payload: &JsValue,
+    ) -> Result<JsValue, PortableError> {
+        match classify_entry(payload) {
+            PortableKind::Invocation => self.set_entry(path, payload),
+            _ => Err(PortableError::new(
+                "Invocation payload must include \"@type\": \"invocation\"",
+            )),
+        }
+    }
+    pub fn remove_entry(&mut self, path: &str) -> Result<(), PortableError> {
+        let model = self.service.get_model();
+        {
+            let mut borrowed = model.borrow_mut();
+            remove_portable_entry(&mut borrowed, path)?;
+        }
+        self.service.ensure_linked()?;
+        Ok(())
+    }
+    pub fn get_entry(&mut self, path: &str) -> Result<JsValue, PortableError> {
+        let model = self.service.get_model();
+        let entry = {
+            let borrowed = model.borrow();
+            get_portable_entry(&borrowed, path)?
+        };
+        Ok(entry)
+    }
+}
+
+enum PortableKind {
+    Invocation,
+    Other,
+}
+
+fn classify_entry(value: &JsValue) -> PortableKind {
+    if is_object(value) {
+        if let Some(kind) = get_prop(value, "@type").and_then(|v| v.as_string()) {
+            if kind.as_str() == "invocation" {
+                return PortableKind::Invocation;
+            }
+        }
+    }
+    PortableKind::Other
+}

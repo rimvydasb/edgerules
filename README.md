@@ -12,12 +12,8 @@ with safety features such as no nulls, no runtime exceptions, no side effects,
 cycle-prevention that comes with a small runtime and hardly matched interpretation performance
 of Pratt’s top‑down operator precedence.
 
-- Interactive playground / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
-- [Language Reference](REFERENCE.md)
-- For Stories and Epics check: [doc](doc)
-- [General ToDo](TODO.md)
+- Language Reference / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
 - [Development](AGENTS.md)
-- [Complex examples and problems with results](tests/EXAMPLES-output.md)
 - [License](LICENSE)
 
 ### Comparison to the similar projects:
@@ -55,7 +51,7 @@ EdgeRules is ready for four options based on your requirements:
 - [x] Immutable by default
 - [x] Statically typed
 - [x] ~ Traceable
-- [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables
+- [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables; CLI I/O errors surface as readable messages
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
 - [ ] Hard to fail: no infinite loops (TBA: optimistic limits strategy)
 - [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
@@ -73,22 +69,22 @@ EdgeRules is ready for four options based on your requirements:
 EdgeRules exposes a small, stateful API for loading source and evaluating expressions/fields. The typical flow is:
 
 ```rust
-use edge_rules::runtime::edge_rules::EdgeRules;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), EvalError> {
     // Create a model builder
-    let mut model = EdgeRules::new();
+    let mut model = EdgeRulesModel::new();
 
-    // Load some code (can be called multiple times to extend/override)
-    model.load_source("{ value: 3 }")?;
+    // Append some code (can be called multiple times to extend/override)
+    model.append_source("{ value: 3 }")?;
 
     // Evaluate a pure expression using the loaded context without consuming the builder
     let runtime = model.to_runtime_snapshot()?;
     let val = runtime.evaluate_expression_str("2 + value")?;
     assert_eq!(val.to_string(), "5");
 
-    // Load more source and reuse the same builder
-    model.load_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
+    // Append more source and reuse the same builder
+    model.append_source("{ calendar: { config: { start: 7; end: start + 5 } } }")?;
 
     // Build a fresh runtime snapshot to evaluate fields
     let runtime = model.to_runtime_snapshot()?;
@@ -107,16 +103,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 WASM exported methods via `wasm_bindgen`:
 
 - `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
-- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript
-  value.
+- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
 - `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
-- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method
-  with given `args`.
+- `evaluate_method(code: &str, method: &str, args: &JsValue) -> JsValue` – loads `code`, then calls a top-level method with
+    given `args`.
 
-All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors
-instead of encoding everything as strings. `evaluate_method` accepts primitives, arrays, dates, or plain JavaScript
-objects
-as arguments, and context outputs are surfaced as plain objects.
+Decision-service lifecycle (all functions throw JavaScript exceptions when the model or invocation is invalid):
+
+- `create_decision_service(model: &JsValue) -> JsValue` – consumes a portable model object, initializes a single
+    `DecisionServiceController`, stores it in a thread-local slot, and returns the normalized model snapshot. Subsequent
+    lifecycle calls reuse this single instance until the next `create_decision_service` replaces it.
+- `execute_decision_service(service_method: &str, decision_request: &JsValue) -> JsValue` – executes `service_method` against
+    the stored controller using a portable request value and returns the response as a plain JavaScript object.
+- `get_decision_service_model() -> JsValue` – returns the current normalized model snapshot from the stored controller.
+
+Decision-service mutation helpers (operate on the same stored controller):
+
+- `set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue` – sets or replaces a model entry at `path` with a
+    portable object and returns the updated snapshot.
+- `set_invocation(path: &str, invocation: &JsValue) -> JsValue` – updates the invocation payload at `path` and returns the
+    updated snapshot.
+- `remove_from_decision_service_model(path: &str) -> JsValue` – removes an entry at `path` and returns `true` on success.
+- `get_from_decision_service_model(path: &str) -> JsValue` – fetches the portable model entry stored at `path`.
+
+All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors instead of
+encoding everything as strings. `evaluate_method` and decision-service inputs accept primitives, arrays, dates, or plain
+JavaScript objects as arguments, and context outputs are surfaced as plain objects. The thread-local controller in
+`src/wasm.rs` enforces single-instance behavior per WASM module instance so that concurrent calls reuse shared state without
+passing handles through JavaScript.
 
 ### Optional Function Groups for WASM
 
@@ -140,6 +154,17 @@ Usage examples:
 - `edgerules "{ value : 1 + 2 }"` → prints `3`
 - `edgerules @path/to/file.txt` → loads code from file
 - `echo "{ value : 2 * 3 }" | edgerules` → reads from stdin
+
+## Known Design Exceptions
+
+- WASM contains `DECISION_SERVICE` instance that is not designed to work in multithreaded environments.
+  It is intended for single-threaded usage in web or Node.js contexts where each WASM module instance
+  is isolated per thread or request. This design choice simplifies state management and avoids
+  concurrency issues in typical web scenarios.
+
+- Due to requirement to have small WASM size, serde is not used for JSON (de)serialization.
+  Custom lightweight JSON parser and serializer is implemented instead to keep small WASM size.
+  Do not introduce serde dependencies in the core runtime!
 
 ## Resources
 
