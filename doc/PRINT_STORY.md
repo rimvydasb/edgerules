@@ -31,12 +31,22 @@ a lot of code size. Exposed JavaScript must support both Node.js and browser env
 Later on we will think how to bundle them properly with WASM or deliverable if needed.
 - Develop tests in `tests/wasm-js` to validate the correctness of the JavaScript output.
 Feel free to add additional helpers or utilities as needed to `builtins.js` to make tests pass.
+- Simply include `builtins.js` where possible to make returned JavaScript executable - later we will refine that part.
+
+### Phase 4
+
+- The goal is to enable printing all EdgeRules objects to JavaScript objects and make them executable
+same as EdgeRules are executable in EdgeRules runtime.
+- Review all tests and check if all cases are covered and no boilerplate code is present.
+- Review the implementation and ensure correctness and eliminate warnings.
+- Do not fix old bugs in `crates/core` or `crates/core-tests` unless they block the implementation. Ideally you should
+not change any code outside of `crates/edge-js` and `tests/wasm-js` folders.
 
 ## Testing
 
 - Add unit tests for `to_js` implementations for all relevant AST nodes.
 - Add integration tests in `tests/wasm-js` where printed JavaScript objects are evaluated to ensure correctness.
 
-## Questions
+## Detected Issues
 
-- Do you have any questions before the implementation begins?
+Print eny detected issues during the implementation here
