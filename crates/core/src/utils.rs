@@ -142,7 +142,7 @@ impl Default for Lines {
     }
 }
 
-impl std::fmt::Display for Lines {
+impl Display for Lines {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for line in &self.lines {
             writeln!(f, "{}", line)?;
