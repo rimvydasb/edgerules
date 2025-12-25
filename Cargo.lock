@@ -126,6 +126,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "edge-js"
+version = "0.1.0"
+dependencies = [
+ "edge-rules",
+]
+
+[[package]]
 name = "edge-rules"
 version = "0.1.0"
 dependencies = [
@@ -144,6 +151,7 @@ dependencies = [
 name = "edge-rules-cli"
 version = "0.1.0"
 dependencies = [
+ "edge-js",
  "edge-rules",
 ]
 
@@ -161,6 +169,7 @@ name = "edge-rules-wasi"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "edge-js",
  "edge-rules",
  "js-sys",
  "log",

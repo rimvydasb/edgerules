@@ -65,6 +65,11 @@ web: ensure
 node: ensure
     just build-pkg nodejs {{out_node}} {{FEATURES}}
 
+# Build wasm package for Node with to_js enabled and run wasm + wasm-js tests
+node-js: ensure
+    just build-pkg nodejs {{out_node}} "wasm,to_js"
+    node --test tests/wasm/*.mjs tests/wasm-js/*.mjs
+
 # Debug builds with console_error_panic_hook enabled
 web-debug: ensure
     just build-pkg web {{out_web_debug}} wasm_debug
@@ -110,10 +115,10 @@ test:
     cargo test --all
 
 test-node: node
-    node --test tests/wasm/*.mjs
+    node --test tests/wasm/*.mjs tests/wasm-js/*.mjs
 
 wasm-test: node
-    node --test tests/wasm/*.mjs
+    node --test tests/wasm/*.mjs tests/wasm-js/*.mjs
 
 # --- native CLI build & quick check ---
 cli:

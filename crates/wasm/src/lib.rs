@@ -1,6 +1,8 @@
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
 mod conversion;
+#[cfg(feature = "to_js")]
+mod js_printer;
 mod portable;
 mod utils;
 mod wasm_convert;
@@ -72,6 +74,24 @@ pub fn evaluate_expression(code: &str) -> JsValue {
 pub fn evaluate_field(code: &str, field: &str) -> JsValue {
     match wasm_convert::evaluate_field_inner(code, field) {
         Ok(value) => value,
+        Err(err) => throw_portable_error(err),
+    }
+}
+
+#[cfg(feature = "to_js")]
+#[wasm_bindgen]
+pub fn print_expression_js(code: &str) -> String {
+    match js_printer::expression_to_js(code) {
+        Ok(js) => js,
+        Err(err) => throw_portable_error(err),
+    }
+}
+
+#[cfg(feature = "to_js")]
+#[wasm_bindgen]
+pub fn print_model_js(code: &str) -> String {
+    match js_printer::model_to_js(code) {
+        Ok(js) => js,
         Err(err) => throw_portable_error(err),
     }
 }

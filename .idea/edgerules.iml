@@ -13,6 +13,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/wasm-tests/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/wasm/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/wasm/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/edge-js/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
