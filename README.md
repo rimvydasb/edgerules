@@ -100,13 +100,13 @@ fn main() -> Result<(), EvalError> {
 
 ## WASM
 
-WASM exported methods via `wasm_bindgen`:
+Stateless WASM exported methods via `wasm_bindgen`:
 
 - `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
 - `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
 - `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
 
-Decision-service lifecycle (all functions throw JavaScript exceptions when the model or invocation is invalid):
+Decision-service (stateful) methods:
 
 - `create_decision_service(model: &JsValue) -> JsValue` – consumes a portable model object, initializes a single
     `DecisionServiceController`, stores it in a thread-local slot, and returns the normalized model snapshot. Subsequent
@@ -124,11 +124,13 @@ Decision-service mutation helpers (operate on the same stored controller):
 - `remove_from_decision_service_model(path: &str) -> JsValue` – removes an entry at `path` and returns `true` on success.
 - `get_from_decision_service_model(path: &str) -> JsValue` – fetches the portable model entry stored at `path`.
 
-All exports return native JavaScript primitives, arrays, or plain objects and throw JavaScript exceptions on errors instead of
-encoding everything as strings. Decision-service inputs accept primitives, arrays, dates, or plain
-JavaScript objects as arguments, and context outputs are surfaced as plain objects. The thread-local controller in
-`src/wasm.rs` enforces single-instance behavior per WASM module instance so that concurrent calls reuse shared state without
-passing handles through JavaScript.
+> All functions throw JavaScript exceptions when the model or invocation is invalid
+
+> All exports return native JavaScript primitives, arrays, or plain objects. Decision-service inputs accept primitives, arrays, dates, or plain
+> JavaScript objects as arguments, and context outputs are surfaced as plain objects. 
+
+> The thread-local controller enforces single-instance behavior per WASM module instance so 
+> single WASM should be treated as a single decision service.
 
 ### Optional Function Groups for WASM
 

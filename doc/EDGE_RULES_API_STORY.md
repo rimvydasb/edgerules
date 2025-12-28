@@ -653,27 +653,30 @@ sequenceDiagram
    Currently, the Portable format specification allows `[key: string]: ...` but the implementation logic often
    skips keys starting with `@`.
 
+## Next Steps
+
+- [ ] Remove add_invocation method from WASM API, because you can add invocation using set_to_decision_service_model
+
+```typescript
+wasm.set_invocation('eligibilityPreview', {
+    '@type': 'invocation',
+    '@method': 'evaluateEligibility',
+    '@arguments': [{score: 580}]
+});
+// is equivalent to
+wasm.set_to_decision_service_model('eligibilityPreview', {
+    '@type': 'invocation',
+    '@method': 'evaluateEligibility',
+    '@arguments': [{score: 580}]
+});
+```
+
+- [ ] Update documentation after removing `set_invocation` method from WASM API and make sure tests coverage
+still exists for invocation addition.
+- [ ] Remove `get_decision_service_model` because `get_from_decision_service_model` can be used to 
+get the whole model as well.
+- [ ] `get_from_decision_service_model` must be able to accept wildcard `*` to get the whole model.
+
 ## Story Completion Review
 
-## Missing Features
-
-1.  **Metadata Persistence**: The "Known Limitations" state that metadata like `@version` and `@model_name` are lost.
-    However, the "EdgeRules Portable" format specification explicitly includes them. This is a gap for a format
-    intended for persistent storage.
-
-## Changes Needed
-
-1.  **Remove `evaluate_method`**: The function `evaluate_method` in WASM is marked for deprecation/removal
-    in the story (`@Todo: deprecate and remove evaluate_method`) but is still present in the implementation.
-2.  **Support Metadata**: Update `EdgeRulesModel` to store optional `version` and `model_name`.
-    Update `model_from_portable` and `serialize_model` to handle these fields during conversion.
-
-## Outstanding questions
-
-1.  Should `EdgeRulesModel` support arbitrary metadata (e.g., `@author`, `@description`) or just specific fields?
-    Currently, the Portable format specification allows `[key: string]: ...` but the implementation logic often
-    skips keys starting with `@`.
-
-## Completion Status
-
-The approximate percentage of completion: 100%
+N/A
