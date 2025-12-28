@@ -3,6 +3,10 @@
 This document provides a comprehensive guide for AI agents to understand, build, and contribute to the EdgeRules
 project. It serves as the single source of truth for project structure, commands, and coding standards.
 
+## Non Negotiable
+
+- YOU ARE NOT ALLOWED TO COMMIT TO GIT!
+
 ## Main Instructions
 
 - **Format:** Always use Markdown for documents and documentation.

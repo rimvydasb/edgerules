@@ -162,3 +162,51 @@ const success = service.remove("rules.obsolete");
 - [ ] Make sure all Just tests pass.
 - [ ] Update README.md and other documentation to reflect the new API design.
 - [ ] Review implementation and check tasks that are done in `NAMESPACE_API.md`
+- [ ] Fix `to_schema` - this method can only be invoked on `ContextObject` as it is right now, but it skips the type
+  information for functions and types itself. `to_schema` will return linked types only of expression entries.
+- [ ] Add the new method `get_expression_type` near `get_expression`. `get_expression_type` will return the type of
+  the expression at a given path. Method will work the same as `get_expression` - it will accept path as string.
+  `get_expression_type` can will return the return types of functions as well and linked expression types.
+  This method will not be able to return types of type definitions: it will return None option in that case.
+- [ ] Add the new method `getType` that will return the type of the entry at a given path in the `DecisionService`
+  class:
+
+```typescript
+
+// assume provieded model is in portable format:
+const service = new DecisionService(`func eligibilityDecision(applicant): {
+        rules: [
+            {name: "INC_CHECK"; rule: applicant.income > applicant.expense * 2}
+            {name: "MIN_INCOM"; rule: applicant.income > 1000}
+            {name: "AGE_CHECK"; rule: applicant.age >= 18}
+        ]
+        result: {
+            firedRules: for invalid in rules[rule = false] return invalid.name
+            status: if count(rules) = 0 then "ELIGIBLE" else "INELIGIBLE"
+        }
+    }
+    applicantEligibility: eligibilityDecision({
+        income: 1100
+        expense: 600
+        age: 22
+    }).result`);
+
+const entryType = service.getType("applicantEligibility");
+assert.strictEqual(entryType, {firedRules: "string[]", status: "string"});
+
+// can get return type of function entry
+const entryType2 = service.getType("eligibilityDecision");
+assert.strictEqual(entryType2, {firedRules: "string[]", status: "string"});
+
+// can get type of specific nested entry
+const entryType3 = service.getType("applicantEligibility.status");
+assert.strictEqual(entryType3, "string");
+
+// can also get type of nested entries from function
+const entryType4 = service.getType("eligibilityDecision.firedRules");
+assert.strictEqual(entryType4, "string[]");
+```
+
+`getType` should work the same as now we have `get` method, but will use `get_expression_type`. See
+`example_ruleset_collecting`
+for reference implementation in Rust.

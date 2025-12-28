@@ -98,7 +98,7 @@ describe('Decision Service', () => {
         });
 
         it('verifies metadata persistence', () => {
-            const modelSnapshot = portableToObject(wasm.get_decision_service_model());
+            const modelSnapshot = portableToObject(wasm.get_from_decision_service_model('*'));
             assert.strictEqual(modelSnapshot['@version'], '1', 'Snapshot should contain version metadata');
             assert.strictEqual(modelSnapshot['@model_name'], 'LoanDecisions', 'Snapshot should contain model_name metadata');
             
@@ -165,7 +165,7 @@ describe('Decision Service', () => {
         it('verifies global state persistence and effect', () => {
             // The previous test modified the global state (maxAmount = 35000).
             // Since the WASM module uses thread_local state, it should persist.
-            const snapshotAfterEdits = portableToObject(wasm.get_decision_service_model());
+            const snapshotAfterEdits = portableToObject(wasm.get_from_decision_service_model('*'));
             assert.strictEqual(snapshotAfterEdits.decideLoanOffer.settings.maxAmount, 35000, 'Snapshot should include updated maxAmount');
             
             const postUpdateRequest = {amount: 42000, creditScore: 700, vip: false};
@@ -189,19 +189,19 @@ describe('Decision Service', () => {
 
         it('sets dynamic invocation', () => {
             const invocationEcho = portableToObject(
-                wasm.set_invocation('eligibilityPreview', {
+                wasm.set_to_decision_service_model('eligibilityPreview', {
                     '@type': 'invocation',
                     '@method': 'evaluateEligibility',
                     '@arguments': [{score: 580}]
                 })
             );
-            assert.strictEqual(invocationEcho['@method'], 'evaluateEligibility', 'set_invocation should return the stored invocation snippet');
-            assert.strictEqual(invocationEcho['@type'], 'invocation', 'set_invocation should return the stored invocation type');
+            assert.strictEqual(invocationEcho['@method'], 'evaluateEligibility', 'set_to_decision_service_model should return the stored invocation snippet');
+            assert.strictEqual(invocationEcho['@type'], 'invocation', 'set_to_decision_service_model should return the stored invocation type');
         });
 
         it('handles link errors', () => {
             assert.throws(() => {
-                wasm.set_invocation('brokenInvocation', {
+                wasm.set_to_decision_service_model('brokenInvocation', {
                     '@type': 'invocation',
                     '@method': 'someKindOfFunction'
                 });

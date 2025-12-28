@@ -38,14 +38,12 @@ Also, this API will be used for test cases execution and EdgeRules execution on 
 
 - `create_decision_service` - create a decision service from EdgeRules Portable, that could be loaded from the storage
 - `execute_decision_service` - execute a decision service method with a given request object
-- `get_decision_service_model` - retrieve the current decision service model as EdgeRules Portable that could be
-  persisted as a project.
 - `set_to_decision_service_model` - adds or overrides expressions, user types, user functions in the current decision
   service model based on EdgeRules Portable input.
 - `remove_from_decision_service_model` - removes expressions, user types, user functions from the current decision
   service model based on fully qualified name provided.
 - `get_from_decision_service_model` - retrieves expressions, user types, user functions from the current decision
-  service model based on fully qualified name provided.
+  service model based on fully qualified name provided. If path is "*", retrieves the whole model.
 
 ## Rust EdgeRulesModel API
 
@@ -462,11 +460,6 @@ execute_decision_service(service_method: &str, decision_request: &JsValue) -> Js
 }
 
 #[wasm_bindgen]
-get_decision_service_model() -> JsValue {
-    // ...
-}
-
-#[wasm_bindgen]
 set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue {
     // ...
 }
@@ -479,6 +472,9 @@ remove_from_decision_service_model(path: &str) -> JsValue {
 #[wasm_bindgen]
 get_from_decision_service_model(path: &str) -> JsValue {
     // ...
+    // retrieves expressions, user types, user functions from the current decision
+    // service model based on fully qualified name provided.
+    // If path is "*", retrieves the whole model.
 }
 ```
 
@@ -518,9 +514,6 @@ Each invocation follows `[instance]: [method]([arguments])`, for example
   }
   ```
 
-- Optional helper: `set_invocation(path: &str, invocation: &JsValue) -> JsValue` as a convenience wrapper that
-  returns the updated portable snippet; `remove_from_decision_service_model` removes the invocation like any
-  expression entry.
 - `@arguments` defaults to the provided decision request when omitted for single-parameter methods to mirror the
   current `execute_decision_service` contract.
 
@@ -655,7 +648,7 @@ sequenceDiagram
 
 ## Next Steps
 
-- [ ] Remove add_invocation method from WASM API, because you can add invocation using set_to_decision_service_model
+- [x] Remove add_invocation method from WASM API, because you can add invocation using set_to_decision_service_model
 
 ```typescript
 wasm.set_invocation('eligibilityPreview', {
@@ -671,11 +664,11 @@ wasm.set_to_decision_service_model('eligibilityPreview', {
 });
 ```
 
-- [ ] Update documentation after removing `set_invocation` method from WASM API and make sure tests coverage
+- [x] Update documentation after removing `set_invocation` method from WASM API and make sure tests coverage
 still exists for invocation addition.
-- [ ] Remove `get_decision_service_model` because `get_from_decision_service_model` can be used to 
+- [x] Remove `get_decision_service_model` because `get_from_decision_service_model` can be used to 
 get the whole model as well.
-- [ ] `get_from_decision_service_model` must be able to accept wildcard `*` to get the whole model.
+- [x] `get_from_decision_service_model` must be able to accept wildcard `*` to get the whole model.
 
 ## Story Completion Review
 

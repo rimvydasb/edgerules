@@ -126,26 +126,8 @@ pub fn execute_decision_service(service_method: &str, decision_request: &JsValue
 }
 
 #[wasm_bindgen]
-pub fn get_decision_service_model() -> JsValue {
-    let snapshot = match with_decision_service(|svc| svc.model_snapshot()) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    };
-    snapshot
-}
-
-#[wasm_bindgen]
 pub fn set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue {
     let updated = match with_decision_service(|svc| svc.set_entry(path, object)) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    };
-    updated
-}
-
-#[wasm_bindgen]
-pub fn set_invocation(path: &str, invocation: &JsValue) -> JsValue {
-    let updated = match with_decision_service(|svc| svc.set_invocation(path, invocation)) {
         Ok(value) => value,
         Err(err) => throw_portable_error(err),
     };
