@@ -12,6 +12,52 @@ The API supports two main modes of operation:
 
 The **EdgeRules Portable Format** is a JSON-based schema for exchanging models, types, functions, and invocations. It serves as the canonical serialization format.
 
+### TypeScript Interface
+
+```typescript
+export type PortableScalar = string | number | boolean;
+
+export type PortableExpressionString = string;
+
+export type PortableValue =
+    | PortableScalar
+    | PortableScalar[]
+    | PortableObject
+    | PortableObject[];
+
+export interface PortableTypeDefinition {
+    '@type': 'type';
+    '@ref'?: string;
+    [key: string]: PortableValue | PortableExpressionString | undefined;
+}
+
+export interface PortableFunctionDefinition {
+    '@type': 'function';
+    '@parameters': Record<string, string | null | undefined>;
+    [key: string]: PortableValue | PortableExpressionString;
+}
+
+export interface PortableInvocationDefinition {
+    '@type': 'invocation';
+    '@method': string;
+    '@arguments'?: (PortableValue | PortableExpressionString)[];
+}
+
+export interface PortableObject {
+    [key: string]:
+        | PortableValue
+        | PortableExpressionString
+        | PortableTypeDefinition
+        | PortableFunctionDefinition
+        | PortableInvocationDefinition;
+}
+
+export interface PortableContext extends PortableObject {
+    '@version'?: string | number;
+    '@model_name'?: string;
+}
+```
+
 ### Common Metadata
 *   `@version`: Model version string.
 *   `@model_name`: Human-readable model name.
