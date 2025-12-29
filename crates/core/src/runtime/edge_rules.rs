@@ -1,4 +1,5 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::expression::StaticLink;
@@ -7,7 +8,7 @@ use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
 use crate::ast::user_function_call::UserFunctionCall;
 use crate::ast::utils::array_to_code_sep;
-use crate::link::node_data::{ContentHolder, Node};
+use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::parser::tokenize;
 use crate::typesystem::errors::ParseErrorEnum::{
@@ -336,6 +337,19 @@ impl EdgeRulesModel {
         }
     }
 
+    fn resolve_parent<'a>(
+        &self,
+        field_path: &'a str,
+    ) -> Result<(Option<Rc<RefCell<ContextObject>>>, &'a str), ContextQueryErrorEnum> {
+        let path = FieldPath::parse(field_path)?;
+        if path.is_root() {
+            Ok((None, path.leaf()))
+        } else {
+            let parent = self.resolve_context_or_error(path.parent_segments())?;
+            Ok((Some(parent), path.leaf()))
+        }
+    }
+
     pub fn set_invocation(
         &mut self,
         field_path: &str,
@@ -362,36 +376,32 @@ impl EdgeRulesModel {
         field_path: &str,
         expression: ExpressionEnum,
     ) -> Result<(), ContextQueryErrorEnum> {
-        let path = FieldPath::parse(field_path)?;
-        let field_name = path.leaf();
-
-        if path.is_root() {
-            return self
+        let (parent, field_name) = self.resolve_parent(field_path)?;
+        match parent {
+            None => self
                 .ast_root
                 .set_expression(field_name, expression)
-                .map_err(ContextQueryErrorEnum::from);
+                .map_err(ContextQueryErrorEnum::from),
+            Some(parent) => {
+                {
+                    parent.borrow_mut().remove_field(field_name);
+                }
+                ContextObject::add_expression_field(&parent, field_name, expression)
+                    .map_err(ContextQueryErrorEnum::from)
+            }
         }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        {
-            parent.borrow_mut().remove_field(field_name);
-        }
-
-        ContextObject::add_expression_field(&parent, field_name, expression)
-            .map_err(ContextQueryErrorEnum::from)
     }
 
     pub fn remove_expression(&mut self, field_path: &str) -> Result<(), ContextQueryErrorEnum> {
-        let path = FieldPath::parse(field_path)?;
-        let field_name = path.leaf();
-
-        if path.is_root() {
-            self.ast_root.remove_field(field_name);
-            return Ok(());
+        let (parent, field_name) = self.resolve_parent(field_path)?;
+        match parent {
+            None => {
+                self.ast_root.remove_field(field_name);
+            }
+            Some(parent) => {
+                parent.borrow_mut().remove_field(field_name);
+            }
         }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        parent.borrow_mut().remove_field(field_name);
         Ok(())
     }
 
@@ -399,20 +409,13 @@ impl EdgeRulesModel {
         &self,
         field_path: &str,
     ) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum> {
-        let path = FieldPath::parse(field_path)?;
-        let field_name = path.leaf();
-
-        if path.is_root() {
-            return self
-                .ast_root
-                .get_expression(field_name)
-                .ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()));
-        }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        let expression = {
-            let borrowed = parent.borrow();
-            borrowed.expressions.get(field_name).cloned()
+        let (parent, field_name) = self.resolve_parent(field_path)?;
+        let expression = match parent {
+            None => self.ast_root.get_expression(field_name),
+            Some(parent) => {
+                let borrowed = parent.borrow();
+                borrowed.expressions.get(field_name).cloned()
+            }
         };
         expression.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
     }
@@ -432,52 +435,42 @@ impl EdgeRulesModel {
         type_path: &str,
         type_definition: UserTypeBody,
     ) -> Result<(), ContextQueryErrorEnum> {
-        let path = FieldPath::parse(type_path)?;
-        let type_name = path.leaf();
-
-        if path.is_root() {
-            self.ast_root.remove_user_type_definition(type_name);
-            self.ast_root
-                .set_user_type_definition(type_name.to_string(), type_definition);
-            return Ok(());
+        let (parent, type_name) = self.resolve_parent(type_path)?;
+        match parent {
+            None => {
+                self.ast_root.remove_user_type_definition(type_name);
+                self.ast_root
+                    .set_user_type_definition(type_name.to_string(), type_definition);
+            }
+            Some(parent) => {
+                ContextObject::remove_user_type_definition(&parent, type_name);
+                ContextObject::set_user_type_definition(&parent, type_name, type_definition);
+            }
         }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        ContextObject::remove_user_type_definition(&parent, type_name);
-        ContextObject::set_user_type_definition(&parent, type_name, type_definition);
         Ok(())
     }
 
     pub fn remove_user_type(&mut self, type_path: &str) -> Result<(), ContextQueryErrorEnum> {
-        let path = FieldPath::parse(type_path)?;
-        let type_name = path.leaf();
-
-        if path.is_root() {
-            self.ast_root.remove_user_type_definition(type_name);
-            return Ok(());
+        let (parent, type_name) = self.resolve_parent(type_path)?;
+        match parent {
+            None => {
+                self.ast_root.remove_user_type_definition(type_name);
+            }
+            Some(parent) => {
+                ContextObject::remove_user_type_definition(&parent, type_name);
+            }
         }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        ContextObject::remove_user_type_definition(&parent, type_name);
         Ok(())
     }
 
     pub fn get_user_type(&self, type_path: &str) -> Result<UserTypeBody, ContextQueryErrorEnum> {
-        let path = FieldPath::parse(type_path)?;
-        let type_name = path.leaf();
-
-        if path.is_root() {
-            return self
-                .ast_root
-                .get_user_type(type_name)
-                .ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(type_path.to_string()));
-        }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-
-        let user_type = {
-            let borrowed = parent.borrow();
-            borrowed.get_user_type(type_name)
+        let (parent, type_name) = self.resolve_parent(type_path)?;
+        let user_type = match parent {
+            None => self.ast_root.get_user_type(type_name),
+            Some(parent) => {
+                let borrowed = parent.borrow();
+                borrowed.get_user_type(type_name)
+            }
         };
         user_type.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(type_path.to_string()))
     }
@@ -509,16 +502,15 @@ impl EdgeRulesModel {
         &mut self,
         function_path: &str,
     ) -> Result<(), ContextQueryErrorEnum> {
-        let path = FieldPath::parse(function_path)?;
-        let function_name = path.leaf();
-
-        if path.is_root() {
-            self.ast_root.remove_field(function_name);
-            return Ok(());
+        let (parent, function_name) = self.resolve_parent(function_path)?;
+        match parent {
+            None => {
+                self.ast_root.remove_field(function_name);
+            }
+            Some(parent) => {
+                parent.borrow_mut().remove_field(function_name);
+            }
         }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        parent.borrow_mut().remove_field(function_name);
         Ok(())
     }
 
@@ -526,22 +518,13 @@ impl EdgeRulesModel {
         &self,
         function_path: &str,
     ) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
-        let path = FieldPath::parse(function_path)?;
-        let function_name = path.leaf();
-
-        if path.is_root() {
-            return self
-                .ast_root
-                .get_user_function(function_name)
-                .ok_or_else(|| {
-                    ContextQueryErrorEnum::EntryNotFoundError(function_path.to_string())
-                });
-        }
-
-        let parent = self.resolve_context_or_error(path.parent_segments())?;
-        let function = {
-            let borrowed = parent.borrow();
-            borrowed.get_function(function_name)
+        let (parent, function_name) = self.resolve_parent(function_path)?;
+        let function = match parent {
+            None => self.ast_root.get_user_function(function_name),
+            Some(parent) => {
+                let borrowed = parent.borrow();
+                borrowed.get_function(function_name)
+            }
         };
         function.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(function_path.to_string()))
     }
@@ -576,20 +559,9 @@ impl EdgeRulesModel {
     ) -> Option<Rc<RefCell<ContextObject>>> {
         let function_name = path_segments.first()?;
         let function = self.ast_root.get_user_function(function_name)?;
-        let mut current = Rc::clone(&function.borrow().function_definition.body);
+        let current = Rc::clone(&function.borrow().function_definition.body);
 
-        // @Todo: this is code duplication with ContextObject::resolve_context
-        for segment in path_segments.iter().skip(1) {
-            let next = {
-                let borrowed = current.borrow();
-                borrowed.node().get_child(segment)
-            };
-            match next {
-                Some(child) => current = child,
-                None => return None,
-            }
-        }
-        Some(current)
+        resolve_context_path(current, &path_segments[1..])
     }
 
     fn insert_root_user_function(
