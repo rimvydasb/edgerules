@@ -49,7 +49,8 @@ impl ToJs for ValueType {
                 for (name, body) in borrowed.defined_types.iter() {
                     let type_js = match body {
                         UserTypeBody::TypeRef(tref) => {
-                            let resolved_type = borrowed.resolve_type_ref(&tref)
+                            let resolved_type = borrowed
+                                .resolve_type_ref(&tref)
                                 .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
                             resolved_type.to_js()?
                         }
@@ -59,8 +60,7 @@ impl ToJs for ValueType {
                             js_obj
                         }
                     };
-                    set_prop(&js_object, name, &type_js)
-                        .map_err(RuntimeError::eval_error)?;
+                    set_prop(&js_object, name, &type_js).map_err(RuntimeError::eval_error)?;
                 }
 
                 Ok(JsValue::from(js_object))

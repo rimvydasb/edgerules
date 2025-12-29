@@ -1,6 +1,6 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
-use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::context::metadata::Metadata;
 use crate::ast::metaphors::metaphor::UserFunction;

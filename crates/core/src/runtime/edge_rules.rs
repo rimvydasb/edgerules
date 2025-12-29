@@ -1,6 +1,6 @@
 use crate::ast::context::context_object::ContextObject;
-use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::context_object_type::EObjectContent;
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::expression::StaticLink;
 use crate::ast::token::EToken;
@@ -533,8 +533,7 @@ impl EdgeRulesModel {
         &mut self,
         object: Rc<RefCell<ContextObject>>,
     ) -> Result<(), DuplicateNameError> {
-        self.ast_root
-            .merge_context_object(object)
+        self.ast_root.merge_context_object(object)
     }
 
     fn resolve_context_or_error(
@@ -707,7 +706,9 @@ impl EdgeRulesRuntime {
             // This is necessary because link_parts does not link function bodies by default.
             let field_names = self.static_tree.borrow().get_field_names();
             for name in field_names {
-                if let Ok(EObjectContent::UserFunctionRef(metaphor)) = self.static_tree.borrow().get(name) {
+                if let Ok(EObjectContent::UserFunctionRef(metaphor)) =
+                    self.static_tree.borrow().get(name)
+                {
                     if metaphor.borrow().field_type.is_err() {
                         let body = Rc::clone(&metaphor.borrow().function_definition.body);
                         let _ = link_parts(Rc::clone(&body));
@@ -736,11 +737,11 @@ impl EdgeRulesRuntime {
         let borrowed = parent.borrow();
         match borrowed.get(field_name) {
             Ok(content) => match content {
-                EObjectContent::ExpressionRef(entry) => entry
-                    .borrow()
-                    .field_type
-                    .clone()
-                    .map_err(|_| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string())),
+                EObjectContent::ExpressionRef(entry) => {
+                    entry.borrow().field_type.clone().map_err(|_| {
+                        ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string())
+                    })
+                }
                 EObjectContent::UserFunctionRef(entry) => {
                     let mut entry_mut = entry.borrow_mut();
                     if let Ok(vt) = &entry_mut.field_type {
@@ -758,12 +759,15 @@ impl EdgeRulesRuntime {
             },
             Err(_) => {
                 if let Some(body) = borrowed.get_user_type(field_name) {
-                    let vt = match body {
-                        UserTypeBody::TypeRef(tref) => borrowed.resolve_type_ref(&tref).map_err(|e: LinkingError| {
-                            ContextQueryErrorEnum::ContextNotFoundError(e.to_string())
-                        })?,
-                        UserTypeBody::TypeObject(obj) => ValueType::ObjectType(obj),
-                    };
+                    let vt =
+                        match body {
+                            UserTypeBody::TypeRef(tref) => borrowed
+                                .resolve_type_ref(&tref)
+                                .map_err(|e: LinkingError| {
+                                    ContextQueryErrorEnum::ContextNotFoundError(e.to_string())
+                                })?,
+                            UserTypeBody::TypeObject(obj) => ValueType::ObjectType(obj),
+                        };
                     return Ok(vt);
                 }
                 Err(ContextQueryErrorEnum::EntryNotFoundError(

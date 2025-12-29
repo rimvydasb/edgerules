@@ -24,8 +24,7 @@ impl DecisionService {
         link_parts(Rc::clone(&context))?;
 
         let mut model = EdgeRulesModel::new();
-        model
-            .merge_context_object(Rc::clone(&context))?;
+        model.merge_context_object(Rc::clone(&context))?;
 
         Ok(Self {
             model: Rc::new(RefCell::new(model)),
@@ -105,9 +104,7 @@ impl DecisionService {
         &self,
         method_path: &str,
     ) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
-        self.model
-            .borrow()
-            .get_user_function(method_path)
+        self.model.borrow().get_user_function(method_path)
     }
 
     fn ensure_single_argument(method_path: &str, params: usize) -> Result<(), EvalError> {

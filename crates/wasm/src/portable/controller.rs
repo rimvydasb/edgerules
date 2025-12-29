@@ -72,6 +72,8 @@ impl DecisionServiceController {
 
     pub fn get_entry_type(&mut self, path: &str) -> Result<ValueType, PortableError> {
         self.service.ensure_linked()?;
-        self.service.get_linked_type(path).map_err(PortableError::from)
+        self.service
+            .get_linked_type(path)
+            .map_err(PortableError::from)
     }
 }

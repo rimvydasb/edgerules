@@ -58,5 +58,3 @@ fn read_code(args: &[String]) -> Result<String, String> {
         Ok(buffer)
     }
 }
-
-
