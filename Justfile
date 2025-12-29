@@ -78,17 +78,7 @@ wasi: ensure
     # Always run demo-wasi after wasi build
     wasmtime target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm "{ value : 2 + 2 }" || true
 
-core: ensure
-    cargo build --release --target wasm32-unknown-unknown -p {{CRATE_CORE}} --no-default-features --features wasm --manifest-path {{CORE_MANIFEST}}
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm || true
-
-core-opt: core
-    # Apply shared size-focused flags and remove unnecessary metadata.
-    wasm-opt {{WASM_OPT_FLAGS}} \
-      target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm \
-      -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm || true
-
+# --- demo / test commands ---
 performance-basic: node
     node tests/wasm-performance/performance-basic.mjs
 

@@ -65,7 +65,6 @@ Use `just` to run common tasks. Do not memorize long `cargo` or `wasm-pack` comm
 - **Node.js (WASM):** `just node` (Builds to `target/pkg-node`, optimized)
 - **WASI:** `just wasi` (Builds `edgerules-wasi.wasm` to `target/wasm32-wasip1/release/`)
 - **CLI (Native):** `just cli` (Builds `edgerules` binary)
-- **Core Lib:** `just core` (Builds core library for `wasm32-unknown-unknown`)
 - **Debug Builds:** `just web-debug` or `just node-debug` (Includes `console_error_panic_hook` for debugging; do not
   ship).
 
@@ -79,7 +78,8 @@ Use `just` to run common tasks. Do not memorize long `cargo` or `wasm-pack` comm
 ### Demos & Performance
 
 - **Web Demo:** `just demo-web` (Serves `target/pkg-web` at localhost:8080)
-- **Node Performance:** `just performance-node` (Runs benchmarks in `tests/wasm-performance/`)
+- **Basic Performance:** `just performance-basic` (Runs basic WASM benchmarks)
+- **Decision Service Performance:** `just performance-ds` (Runs decision service benchmarks)
 - **WASI Demo:** `just demo-wasi` (Runs WASI binary via `wasmtime`)
 
 ## Daily Workflow Checklist
