@@ -14,17 +14,17 @@ pub fn inline<S: AsRef<str>>(code: S) -> String {
 #[macro_export]
 macro_rules! assert_value {
     // &["a","b","c"] form
-    (&[ $($line:expr),* $(,)? ], $expected:expr) => {{ 
+    (&[ $($line:expr),* $(,)? ], $expected:expr) => {{
         let lines: &[&str] = &[$($line),*];
         assert_eq!($crate::eval_lines_field(lines, "value"), $expected, "for lines: {:?}", lines)
-    }}; 
+    }};
     // Raw string / string literal block form (e.g., r#"..."#)
-    ($src:literal, $expected:expr) => {{ 
+    ($src:literal, $expected:expr) => {{
         let body = $src.trim_matches(|c| c == '\n' || c == '\r').trim();
         if (body.starts_with('{') && body.ends_with('}')) {
             assert_eq!($crate::eval_field(body, "value"), $expected, "for body: {:?}", body);
         } else if body.contains('\n') {
-            let code = { 
+            let code = {
                 let mut s = ::std::string::String::new();
                 s.push_str("{\n");
                 s.push_str(body);
@@ -34,7 +34,7 @@ macro_rules! assert_value {
             assert_eq!($crate::eval_field(&code, "value"), $expected, "for body: {:?}", $src);
         } else {
             if body.starts_with("value:") || body.starts_with("value :") || body.starts_with("value\t:") {
-                let code = { 
+                let code = {
                     let mut s = ::std::string::String::new();
                     s.push_str("{\n");
                     s.push_str(body);
@@ -46,16 +46,16 @@ macro_rules! assert_value {
                 assert_eq!(inline($crate::eval_value(&format!("value : {}", body))), inline($expected), "for body: {:?}", body);
             }
         }
-    }}; 
+    }};
     // Expression string form (fallback)
-    ($expr:expr, $expected:expr) => { 
+    ($expr:expr, $expected:expr) => {
         assert_eq!($crate::eval_value(&format!("value : {}", $expr)), $expected);
     };
 }
 
 #[macro_export]
 macro_rules! assert_string_contains {
-    ($needle:expr, $haystack:expr) => { 
+    ($needle:expr, $haystack:expr) => {
         assert!(
             $haystack.contains($needle),
             "expected `{}` to contain `{}`",

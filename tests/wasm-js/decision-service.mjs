@@ -6,7 +6,7 @@ import { installBuiltins } from './builtins.js';
 const evaluate = (source) => Function(`\"use strict\"; return (${source});`)();
 
 const toJsSupported =
-    typeof wasm.print_model_js === 'function' && typeof wasm.print_expression_js === 'function';
+    typeof wasm.DecisionEngine?.printModelJs === 'function' && typeof wasm.DecisionEngine?.printExpressionJs === 'function';
 const describeToJs = toJsSupported ? describe : describe.skip;
 
 describeToJs('Decision service printing', () => {
@@ -45,7 +45,7 @@ describeToJs('Decision service printing', () => {
         }
         `;
 
-        const js = wasm.print_model_js(modelCode);
+        const js = wasm.DecisionEngine.printModelJs(modelCode);
         const model = evaluate(js);
 
         const decision = model.applicationDecisions({

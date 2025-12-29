@@ -157,18 +157,18 @@ const success = service.remove("rules.obsolete");
 
 ### Next Steps
 
-- [ ] Implement proposed changes in the codebase.
-- [ ] Update `wasm`, `wasm-js`, `wasm-performance` tests to use the new API structure.
-- [ ] Make sure all Just tests pass.
-- [ ] Update README.md and other documentation to reflect the new API design.
-- [ ] Review implementation and check tasks that are done in `NAMESPACE_API.md`
-- [ ] Fix `to_schema` - this method can only be invoked on `ContextObject` as it is right now, but it skips the type
+- [x] Implement proposed changes in the codebase.
+- [x] Update `wasm`, `wasm-js`, `wasm-performance` tests to use the new API structure.
+- [x] Make sure all Just tests pass.
+- [x] Update README.md and other documentation to reflect the new API design.
+- [x] Review implementation and check tasks that are done in `NAMESPACE_API.md`
+- [x] Fix `to_schema` - this method can only be invoked on `ContextObject` as it is right now, but it skips the type
   information for functions and types itself. `to_schema` will return linked types only of expression entries.
-- [ ] Add the new method `get_expression_type` near `get_expression`. `get_expression_type` will return the type of
+- [x] Add the new method `get_expression_type` near `get_expression`. `get_expression_type` will return the type of
   the expression at a given path. Method will work the same as `get_expression` - it will accept path as string.
   `get_expression_type` can will return the return types of functions as well and linked expression types.
   This method will not be able to return types of type definitions: it will return None option in that case.
-- [ ] Add the new method `getType` that will return the type of the entry at a given path in the `DecisionService`
+- [x] Add the new method `getType` that will return the type of the entry at a given path in the `DecisionService`
   class:
 
 ```typescript

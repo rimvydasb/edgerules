@@ -3,9 +3,10 @@ use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::ExpressionEnum;
 use crate::link::linker::link_parts;
 use crate::runtime::edge_rules::{
-    ContextUpdateErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, MethodEntry,
+    ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, MethodEntry,
 };
-use crate::typesystem::errors::{ParseErrorEnum, RuntimeError};
+use crate::typesystem::errors::RuntimeError;
+use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -24,8 +25,7 @@ impl DecisionService {
 
         let mut model = EdgeRulesModel::new();
         model
-            .merge_context_object(Rc::clone(&context))
-            .map_err(Self::context_update_error)?;
+            .merge_context_object(Rc::clone(&context))?;
 
         Ok(Self {
             model: Rc::new(RefCell::new(model)),
@@ -92,6 +92,10 @@ impl DecisionService {
         Ok(EdgeRulesRuntime::new(Rc::clone(&self.static_context)))
     }
 
+    pub fn get_linked_type(&self, path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
+        EdgeRulesRuntime::new(Rc::clone(&self.static_context)).get_type(path)
+    }
+
     #[cfg_attr(not(all(target_arch = "wasm32", feature = "wasm")), allow(dead_code))]
     pub fn ensure_linked(&mut self) -> Result<(), EvalError> {
         self.ensure_runtime().map(|_| ())
@@ -100,11 +104,10 @@ impl DecisionService {
     fn resolve_method_entry(
         &self,
         method_path: &str,
-    ) -> Result<Rc<RefCell<MethodEntry>>, EvalError> {
+    ) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
         self.model
             .borrow()
             .get_user_function(method_path)
-            .ok_or_else(|| Self::config_error(format!("Method '{}' not found", method_path)))
     }
 
     fn ensure_single_argument(method_path: &str, params: usize) -> Result<(), EvalError> {
@@ -129,10 +132,6 @@ impl DecisionService {
 
     fn runtime_method_name(method_path: &str) -> &str {
         method_path.rsplit('.').next().unwrap_or(method_path)
-    }
-
-    fn context_update_error(err: ContextUpdateErrorEnum) -> EvalError {
-        EvalError::from(ParseErrorEnum::from(err))
     }
 
     fn config_error(message: impl Into<String>) -> EvalError {

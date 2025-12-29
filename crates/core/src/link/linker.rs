@@ -32,6 +32,11 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
     for name in field_names {
         match context.borrow().get(name)? {
             ExpressionRef(expression) => {
+                if let Ok(entry) = expression.try_borrow() {
+                    if entry.field_type.is_ok() {
+                        continue;
+                    }
+                }
                 context.borrow().node().lock_field(name)?;
 
                 let linked_type = {

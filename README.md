@@ -51,7 +51,8 @@ EdgeRules is ready for four options based on your requirements:
 - [x] Immutable by default
 - [x] Statically typed
 - [x] ~ Traceable
-- [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables; CLI I/O errors surface as readable messages
+- [x] Hard to fail: no exceptions, no nulls, no NaNs, no undefined variables; CLI I/O errors surface as readable
+  messages
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
 - [ ] Hard to fail: no infinite loops (TBA: optimistic limits strategy)
 - [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
@@ -100,37 +101,40 @@ fn main() -> Result<(), EvalError> {
 
 ## WASM
 
-Stateless WASM exported methods via `wasm_bindgen`:
+EdgeRules provides a structured, object-oriented API for Web and Node.js environments via `wasm_bindgen`.
 
-- `evaluate_all(code: &str) -> JsValue` – loads model code and returns the fully evaluated model as JSON output.
-- `evaluate_expression(code: &str) -> JsValue` – evaluates a standalone expression and returns the result as JavaScript value.
-- `evaluate_field(code: &str, field: &str) -> JsValue` – loads `code`, then evaluates a field/path.
+### Stateless API (DecisionEngine)
 
-Decision-service (stateful) methods:
+Stateless evaluation methods are grouped under the `DecisionEngine` namespace:
 
-- `create_decision_service(model: &JsValue) -> JsValue` – consumes a portable model object, initializes a single
-    `DecisionServiceController`, stores it in a thread-local slot, and returns the normalized model snapshot. Subsequent
-    lifecycle calls reuse this single instance until the next `create_decision_service` replaces it.
-- `execute_decision_service(service_method: &str, decision_request: &JsValue) -> JsValue` – executes `service_method` against
-    the stored controller using a portable request value and returns the response as a plain JavaScript object.
-- `get_decision_service_model() -> JsValue` – returns the current normalized model snapshot from the stored controller.
+- `DecisionEngine.evaluateAll(code: string) -> object` – loads model code and returns the fully evaluated model as JSON
+  output.
+- `DecisionEngine.evaluateExpression(code: string) -> any` – evaluates a standalone expression and returns the result as
+  a JavaScript value.
+- `DecisionEngine.evaluateField(code: string, field: string) -> any` – loads `code`, then evaluates a specific
+  field/path.
 
-Decision-service mutation helpers (operate on the same stored controller):
+### Stateful API (DecisionService)
 
-- `set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue` – sets or replaces a model entry at `path` with a
-    portable object and returns the updated snapshot.
-- `set_invocation(path: &str, invocation: &JsValue) -> JsValue` – updates the invocation payload at `path` and returns the
-    updated snapshot.
-- `remove_from_decision_service_model(path: &str) -> JsValue` – removes an entry at `path` and returns `true` on success.
-- `get_from_decision_service_model(path: &str) -> JsValue` – fetches the portable model entry stored at `path`.
+Stateful decision services are managed via the `DecisionService` class. This wrapper manages the underlying thread-local
+controller.
 
-> All functions throw JavaScript exceptions when the model or invocation is invalid
+- `new DecisionService(model: object | string)` – consumes a portable model (object or string), initializes the service,
+  and stores it in a thread-local slot.
+- `service.model -> object` – (getter) returns the current normalized model snapshot.
+- `service.execute(service_method: string, decision_request: any) -> object` – executes `service_method` against the
+  stored service using a portable request value.
+- `service.get(path: string) -> any` – fetches the portable model entry stored at `path` (use `"*"` for full model).
+- `service.getType(path: string) -> string | undefined` – returns the schema/type definition of the entry at `path`.
+- `service.set(path: string, object: any) -> any` – sets or replaces a model entry at `path` and returns the updated
+  snapshot.
+- `service.remove(path: string) -> boolean` – removes an entry at `path` and returns `true` on success.
 
-> All exports return native JavaScript primitives, arrays, or plain objects. Decision-service inputs accept primitives, arrays, dates, or plain
-> JavaScript objects as arguments, and context outputs are surfaced as plain objects. 
+> All functions throw JavaScript exceptions when the model or invocation is invalid.
+> All exports return native JavaScript primitives, arrays, or plain objects.
 
-> The thread-local controller enforces single-instance behavior per WASM module instance so 
-> single WASM should be treated as a single decision service.
+> **Note:** The thread-local controller enforces single-instance behavior per WASM module instance.
+> Instantiating a new `DecisionService` replaces the previous one and the same thread/context.
 
 ### Optional Function Groups for WASM
 

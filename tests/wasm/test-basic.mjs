@@ -8,36 +8,36 @@ describe('Basic Evaluation', () => {
     });
 
     it('evaluate_field simple arithmetic', () => {
-        const result = wasm.evaluate_field('{ x : 1; y : x + 2 }', 'y');
+        const result = wasm.DecisionEngine.evaluateField('{ x : 1; y : x + 2 }', 'y');
         assert.deepStrictEqual(result, 3);
     });
 
     it('evaluate_expression simple arithmetic', () => {
-        const result = wasm.evaluate_expression('2 + 3');
+        const result = wasm.DecisionEngine.evaluateExpression('2 + 3');
         assert.deepStrictEqual(result, 5);
     });
 
     it('regexReplace', () => {
-        const result = wasm.evaluate_expression(`regexReplace('Hello 123 world 456', '\\d+', 'X', 'g')`);
+        const result = wasm.DecisionEngine.evaluateExpression(`regexReplace('Hello 123 world 456', '\\d+', 'X', 'g')`);
         assert.deepStrictEqual(result, 'Hello X world X');
     });
 
     it('regexSplit', () => {
-        const split = wasm.evaluate_expression(`regexSplit('one   two\tthree', '\\s+')`);
+        const split = wasm.DecisionEngine.evaluateExpression(`regexSplit('one   two\tthree', '\\s+')`);
         assert.deepStrictEqual(split, ['one', 'two', 'three']);
     });
 
     it('base64 functions', () => {
-        const b64 = wasm.evaluate_expression(`toBase64('FEEL')`);
+        const b64 = wasm.DecisionEngine.evaluateExpression(`toBase64('FEEL')`);
         assert.deepStrictEqual(b64, 'RkVFTA==');
 
-        const from = wasm.evaluate_expression(`fromBase64('RkVFTA==')`);
+        const from = wasm.DecisionEngine.evaluateExpression(`fromBase64('RkVFTA==')`);
         assert.deepStrictEqual(from, 'FEEL');
     });
 
 
     it('complex evaluation with filter', () => {
-        const result = wasm.evaluate_field(
+        const result = wasm.DecisionEngine.evaluateField(
             `
             {
                 type Person: { name: <string>; age: <number>; tags: <string[]> }
@@ -63,7 +63,7 @@ describe('Basic Evaluation', () => {
     });
 
     it('evaluate_all', () => {
-        const result = wasm.evaluate_all(`
+        const result = wasm.DecisionEngine.evaluateAll(`
         {
             sales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
             salesCount: count(sales)

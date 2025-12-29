@@ -163,6 +163,27 @@ impl ContextObject {
         self.all_field_names.len()
     }
 
+    // @Todo: the code contains many algorithms that resolve context in one or another way - any way to unify them?
+    pub fn resolve_context(&self, path_segments: &[&str]) -> Option<Rc<RefCell<ContextObject>>> {
+        if path_segments.is_empty() {
+            return None;
+        }
+
+        let mut current = self.node().get_child(path_segments[0])?;
+        for segment in path_segments.iter().skip(1) {
+            let next = {
+                let ctx_ref = current.borrow();
+                ctx_ref.node().get_child(segment)
+            };
+            match next {
+                Some(child) => current = child,
+                None => return None,
+            }
+        }
+
+        Some(current)
+    }
+
     pub fn get_function(&self, name: &str) -> Option<Rc<RefCell<MethodEntry>>> {
         Some(Rc::clone(self.metaphors.get(name)?))
     }
@@ -242,7 +263,7 @@ impl ContextObject {
         None
     }
 
-    fn format_value_type(&self, value_type: &ValueType) -> String {
+    pub fn format_value_type(&self, value_type: &ValueType) -> String {
         match value_type {
             ValueType::ObjectType(obj) => self
                 .find_alias_for_object(obj)
@@ -391,6 +412,13 @@ impl ToSchema for ContextObject {
                                 lines.push(format!("{}: {}", name, formatted));
                             }
                             Err(err) => lines.push(format!("{}: {}", name, err)),
+                        }
+                    }
+                    EObjectContent::UserFunctionRef(entry) => {
+                        let entry_ref = entry.borrow();
+                        if let Ok(field_type) = &entry_ref.field_type {
+                            let formatted = self.format_value_type(field_type);
+                            lines.push(format!("{}: {}", name, formatted));
                         }
                     }
                     EObjectContent::ObjectRef(entry) => {

@@ -1,6 +1,6 @@
 use crate::utils;
 use edge_rules::ast::context::duplicate_name_error::DuplicateNameError;
-use edge_rules::runtime::edge_rules::{ContextUpdateErrorEnum, EvalError, ParseErrors};
+use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EvalError, ParseErrors};
 use edge_rules::typesystem::errors::{
     LinkingError, LinkingErrorEnum, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
 };
@@ -9,9 +9,9 @@ use std::fmt::{Display, Formatter};
 use wasm_bindgen::JsValue;
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-pub struct PortableError {
-    js_value: JsValue,
-    message: String,
+pub enum PortableError {
+    FromContextQuery(ContextQueryErrorEnum),
+    General { js_value: JsValue, message: String },
 }
 
 impl PortableError {
@@ -19,36 +19,38 @@ impl PortableError {
         let msg = message.into();
         let obj = Object::new();
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&msg));
-        Self {
+        Self::General {
             js_value: obj.into(),
             message: msg,
         }
     }
 
     pub fn to_js(&self) -> JsValue {
-        self.js_value.clone()
-    }
-
-    pub fn into_message(self) -> String {
-        self.message
+        match self {
+            PortableError::FromContextQuery(err) => Self::new(err.to_string()).to_js(),
+            PortableError::General { js_value, .. } => js_value.clone(),
+        }
     }
 }
 
 impl Display for PortableError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
+        match self {
+            PortableError::FromContextQuery(err) => write!(f, "{}", err),
+            PortableError::General { message, .. } => write!(f, "{}", message),
+        }
     }
 }
 
 impl From<PortableError> for String {
     fn from(v: PortableError) -> Self {
-        v.message
+        v.to_string()
     }
 }
 
-impl From<ContextUpdateErrorEnum> for PortableError {
-    fn from(err: ContextUpdateErrorEnum) -> Self {
-        PortableError::from(ParseErrorEnum::from(err))
+impl From<ContextQueryErrorEnum> for PortableError {
+    fn from(err: ContextQueryErrorEnum) -> Self {
+        PortableError::FromContextQuery(err)
     }
 }
 
@@ -65,7 +67,7 @@ impl From<ParseErrorEnum> for PortableError {
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("parse"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
-        PortableError {
+        PortableError::General {
             js_value: obj.into(),
             message: err.to_string(),
         }
@@ -78,7 +80,7 @@ impl From<ParseErrors> for PortableError {
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("parse"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
-        PortableError {
+        PortableError::General {
             js_value: obj.into(),
             message: err.to_string(),
         }
@@ -138,7 +140,7 @@ impl From<RuntimeError> for PortableError {
         }
         let _ = utils::set_prop(&obj, "error", &error_obj);
 
-        PortableError {
+        PortableError::General {
             js_value: obj.into(),
             message: err.to_string(),
         }
@@ -223,7 +225,7 @@ impl From<LinkingError> for PortableError {
         }
         let _ = utils::set_prop(&obj, "error", &error_obj);
 
-        PortableError {
+        PortableError::General {
             js_value: obj.into(),
             message: err.to_string(),
         }

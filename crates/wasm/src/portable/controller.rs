@@ -4,6 +4,7 @@ use crate::portable::model::{
     serialize_model,
 };
 use edge_rules::runtime::decision_service::DecisionService;
+use edge_rules::typesystem::types::ValueType;
 use edge_rules::typesystem::values::ValueEnum;
 use wasm_bindgen::JsValue;
 
@@ -17,6 +18,7 @@ impl DecisionServiceController {
         let service = DecisionService::from_model(model)?;
         Ok(Self { service })
     }
+
     pub fn execute_value(
         &mut self,
         method: &str,
@@ -24,6 +26,7 @@ impl DecisionServiceController {
     ) -> Result<ValueEnum, PortableError> {
         Ok(self.service.execute(method, request)?)
     }
+
     pub fn model_snapshot(&mut self) -> Result<JsValue, PortableError> {
         let model = self.service.get_model();
         let snap = {
@@ -32,6 +35,7 @@ impl DecisionServiceController {
         };
         Ok(snap)
     }
+
     pub fn set_entry(&mut self, path: &str, payload: &JsValue) -> Result<JsValue, PortableError> {
         let model = self.service.get_model();
         {
@@ -45,6 +49,7 @@ impl DecisionServiceController {
         };
         Ok(updated)
     }
+
     pub fn remove_entry(&mut self, path: &str) -> Result<(), PortableError> {
         let model = self.service.get_model();
         {
@@ -54,15 +59,19 @@ impl DecisionServiceController {
         self.service.ensure_linked()?;
         Ok(())
     }
+
     pub fn get_entry(&mut self, path: &str) -> Result<JsValue, PortableError> {
         if path == "*" {
             return self.model_snapshot();
         }
         let model = self.service.get_model();
-        let entry = {
-            let borrowed = model.borrow();
-            get_portable_entry(&borrowed, path)?
-        };
-        Ok(entry)
+        let borrowed = model.borrow();
+
+        get_portable_entry(&borrowed, path)
+    }
+
+    pub fn get_entry_type(&mut self, path: &str) -> Result<ValueType, PortableError> {
+        self.service.ensure_linked()?;
+        self.service.get_linked_type(path).map_err(PortableError::from)
     }
 }

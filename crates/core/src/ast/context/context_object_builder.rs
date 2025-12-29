@@ -274,6 +274,8 @@ impl ContextObjectBuilder {
         }
 
         let mut current = self.get_child_context(path_segments[0])?;
+
+        // @Todo: this is code duplication with ContextObject::resolve_context
         for segment in path_segments.iter().skip(1) {
             let next = {
                 let ctx_ref = current.borrow();

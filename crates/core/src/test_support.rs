@@ -5,7 +5,7 @@ pub use crate::ast::expression::StaticLink;
 pub use crate::ast::metaphors::functions::FunctionDefinition;
 pub use crate::ast::token::{ComplexTypeRef, EToken, EUnparsedToken, ExpressionEnum, UserTypeBody};
 pub use crate::runtime::edge_rules::{
-    ContextUpdateErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, ParseErrors,
+    ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, ParseErrors,
 };
 pub use crate::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum};
 pub use crate::typesystem::types::number::NumberEnum;

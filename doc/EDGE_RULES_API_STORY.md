@@ -26,24 +26,23 @@ Also, this API will be used for test cases execution and EdgeRules execution on 
 
 > It could be that for plain rules execution another WASM module will be released that do not have model mutation APIs.
 
-**_Stand-alone stateless EdgeRules WASM API:_**
+**_Stand-alone stateless EdgeRules WASM API (DecisionEngine):_**
 
-- `evaluate_all` - evaluate all expressions in the model and return the full context object as JsValue.
-- `evaluate_expression` - evaluate a single expression by its field name and return the result as JsValue.
-- `evaluate_field` - evaluate a field in the context object by its path and return the result as JsValue.
+- `DecisionEngine.evaluateAll` - evaluate all expressions in the model and return the full context object as JsValue.
+- `DecisionEngine.evaluateExpression` - evaluate a single expression by its field name and return the result as JsValue.
+- `DecisionEngine.evaluateField` - evaluate a field in the context object by its path and return the result as JsValue.
 
-@Todo: deprecate and remove `evaluate_method`
+**_Stateful EdgeRules WASM API for decision service (DecisionService):_**
 
-**_Stateful EdgeRules WASM API for decision service:_**
-
-- `create_decision_service` - create a decision service from EdgeRules Portable, that could be loaded from the storage
-- `execute_decision_service` - execute a decision service method with a given request object
-- `set_to_decision_service_model` - adds or overrides expressions, user types, user functions in the current decision
+- `new DecisionService(model)` - create a decision service from EdgeRules Portable, that could be loaded from the storage
+- `service.execute(method, request)` - execute a decision service method with a given request object
+- `service.set(path, object)` - adds or overrides expressions, user types, user functions in the current decision
   service model based on EdgeRules Portable input.
-- `remove_from_decision_service_model` - removes expressions, user types, user functions from the current decision
+- `service.remove(path)` - removes expressions, user types, user functions from the current decision
   service model based on fully qualified name provided.
-- `get_from_decision_service_model` - retrieves expressions, user types, user functions from the current decision
+- `service.get(path)` - retrieves expressions, user types, user functions from the current decision
   service model based on fully qualified name provided. If path is "*", retrieves the whole model.
+- `service.getType(path)` - retrieves the type/schema of an expression or function at the given path.
 
 ## Rust EdgeRulesModel API
 
@@ -65,21 +64,21 @@ where user edits and executes code on the fly.
 
 - **set operations** override existing entries if the name already exists.
 - **remove operations** do nothing if the name does not exist.
-- **get operations** return None if the name does not exist.
+- **get operations** (in WASM) throw an error if the name or an intermediate context does not exist. They throw an error for malformed paths.
 - **fully qualified names** are supported for `field_name`, `type_name`, and `function_name` parameters
   (e.g., `other.enabled`, `other.MyType`, `other.myFunction`). Array indexing is not supported, only dot notation.
 
 ### Expressions Rust API
 
 ```
-set_expression(field_name: &str, expression: ExpressionEnum) -> Result<ExpressionEntry, ContextUpdateErrorEnum>
-remove_expression(field_name: &str) -> Result<(), ContextUpdateErrorEnum>
-get_expression(field_name: &str) -> Option<Rc<RefCell<ExpressionEntry>>>
+set_expression(field_name: &str, expression: ExpressionEnum) -> Result<(), ContextQueryErrorEnum>
+remove_expression(field_name: &str) -> Result<(), ContextQueryErrorEnum>
+get_expression(field_name: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum>
 ```
 
 **Example 1**
 
-After applying `model.set_expression("enabled", ExpressionEnum::from(true))?;`
+After applying `model.set_expression("enabled", ExpressionEnum::from(true))?;
 appends an internal structure:
 
 ```
@@ -88,11 +87,11 @@ appends an internal structure:
 }
 ```
 
-After applying `model.set_expression("other.enabled", ExpressionEnum::from(true))?;`
-an exception should be thrown because `other` context does not exist yet.
+After applying `model.set_expression("other.enabled", ExpressionEnum::from(true))?;
+  an exception should be thrown because `other` context does not exist yet.
 
-After applying `model.set_expression("other", ExpressionEnum::from(ContextObjectBuilder::new().build()?))?;`
-an internal structure is:
+After applying `model.set_expression("other", ExpressionEnum::from(ContextObjectBuilder::new().build()?))?;
+  an internal structure is:
 
 ```
 {
@@ -102,8 +101,8 @@ an internal structure is:
 }
 ```
 
-After applying `model.set_expression("other.enabled", ExpressionEnum::from(true))?;`
-an internal structure is:
+After applying `model.set_expression("other.enabled", ExpressionEnum::from(true))?;
+  an internal structure is:
 
 ```
 {
@@ -117,14 +116,14 @@ an internal structure is:
 ### User Types Rust API
 
 ```
-set_user_type(type_name: &str, type_definition: UserTypeBody) -> Result<UserTypeBody, ContextUpdateErrorEnum>
-remove_user_type(type_name: &str) -> Result<(), ContextUpdateErrorEnum>
-get_user_type(type_name: &str) -> Option<UserTypeBody>
+set_user_type(type_name: &str, type_definition: UserTypeBody) -> Result<(), ContextQueryErrorEnum>
+remove_user_type(type_name: &str) -> Result<(), ContextQueryErrorEnum>
+get_user_type(type_name: &str) -> Result<UserTypeBody, ContextQueryErrorEnum>
 ```
 
 **Example 2**
 
-After applying `model.set_user_type("MyType", UserTypeBody::from("string"))?;`
+After applying `model.set_user_type("MyType", UserTypeBody::from("string"))?;
 the internal EdgeRules Language structure is:
 
 ```
@@ -133,21 +132,22 @@ the internal EdgeRules Language structure is:
 }
 ```
 
-After applying `model.set_user_type("other.MyType", UserTypeBody::from("string"))?;`
+After applying `model.set_user_type("other.MyType", UserTypeBody::from("string"))?;
 an exception should be thrown because `other` context does not exist yet so there's no place to put
 scoped type `MyType`.
 
 ### User Functions Rust API
 
 ```
-set_user_function(function_name: &str, definition: FunctionDefinition) -> Result<MethodEntry, ContextUpdateErrorEnum>
-remove_user_function(function_name: &str) -> Result<(), ContextUpdateErrorEnum>
-get_user_function(function_name: &str) -> Option<Rc<RefCell<MethodEntry>>>
+set_user_function(function_name: &str, definition: FunctionDefinition) -> Result<(), ContextQueryErrorEnum>
+remove_user_function(function_name: &str) -> Result<(), ContextQueryErrorEnum>
+get_user_function(function_name: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum>
 ```
 
 **Example 3**
 
-After applying `model.set_user_function("other.newFunction", definition)?;` where already existing model looks like
+After applying `model.set_user_function("other.newFunction", definition)?;
+where already existing model looks like
 this:
 
 ```
@@ -172,7 +172,7 @@ the internal structure is:
 ### Context Objects Rust API
 
 ```
-merge_context_object(object: Rc<RefCell<ContextObject>>) -> Result<(), ContextUpdateErrorEnum>
+merge_context_object(object: Rc<RefCell<ContextObject>>) -> Result<(), ContextQueryErrorEnum>
 get_context_object() -> Rc<RefCell<ContextObject>>
 append_source(code: &str) -> Result<(), ParseErrors>
 ```
@@ -444,38 +444,19 @@ impl DecisionService {
 
 ### WASM API
 
-As of now only one decision service can be created and used at a time.
+```javascript
+const service = new DecisionService(model); // Initializes new service instance
 
-```
-#[wasm_bindgen]
-create_decision_service(model: &JsValue) -> JsValue {
-    // ...
-    // initializing new DecisionService and storing it in static variable
-    // loaded model is parsed and linked
-}
+// Execute a method
+const result = service.execute(service_method, decision_request);
 
-#[wasm_bindgen]
-execute_decision_service(service_method: &str, decision_request: &JsValue) -> JsValue {
-    // ...
-}
+// Mutate model
+service.set(path, object);
+service.remove(path);
 
-#[wasm_bindgen]
-set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue {
-    // ...
-}
-
-#[wasm_bindgen]
-remove_from_decision_service_model(path: &str) -> JsValue {
-    // ...
-}
-
-#[wasm_bindgen]
-get_from_decision_service_model(path: &str) -> JsValue {
-    // ...
-    // retrieves expressions, user types, user functions from the current decision
-    // service model based on fully qualified name provided.
-    // If path is "*", retrieves the whole model.
-}
+// Inspect model
+const entry = service.get(path); // or "*" for full model
+const typeInfo = service.getType(path);
 ```
 
 ## Decision Service Invocation API
@@ -504,7 +485,7 @@ Each invocation follows `[instance]: [method]([arguments])`, for example
 
 **WASM / Portable API**
 
-- `set_to_decision_service_model` / `get_from_decision_service_model` accept invocations with payload:
+- `service.set` accepts invocations with payload:
 
   ```json
   {
@@ -514,8 +495,7 @@ Each invocation follows `[instance]: [method]([arguments])`, for example
   }
   ```
 
-- `@arguments` defaults to the provided decision request when omitted for single-parameter methods to mirror the
-  current `execute_decision_service` contract.
+- `@arguments` defaults to the provided decision request when omitted for single-parameter methods.
 
 ### Example
 
@@ -536,8 +516,10 @@ A valid model in EdgeRules Portable format:
 Injecting new function and invocation in `applicationDecisions`:
 
 ```javascript
+const service = new DecisionService(model);
+
 // Inserting scholarshipCalc function inside applicationDecisions function
-wasm.set_to_decision_service_model("applicationDecisions.scholarshipCalc", {
+service.set("applicationDecisions.scholarshipCalc", {
     "@type": "function",
     "@parameters": {
         "age": "number"
@@ -546,7 +528,7 @@ wasm.set_to_decision_service_model("applicationDecisions.scholarshipCalc", {
 });
 
 // Modifying applicationDecisions to include scholarship calculation
-wasm.set_to_decision_service_model("applicationDecisions.scholarship", {
+service.set("applicationDecisions.scholarship", {
     "@type": "invocation",
     "@method": "applicationDecisions",
     "@arguments": [
@@ -554,7 +536,7 @@ wasm.set_to_decision_service_model("applicationDecisions.scholarship", {
     ]
 });
 
-wasm.execute_decision_service("applicationDecisions", {
+service.execute("applicationDecisions", {
     "application": {
         "age": 22
     }
@@ -595,7 +577,7 @@ output:
 
 **Notes:**
 
-No performance considerations should be made for `set_to_decision_service_model`,
+No performance considerations should be made for `set`,
 because this method will be used in EdgeRules Editor GUI only for model manipulation.
 However, all code must be maintained with best coding practices.
 
@@ -610,7 +592,7 @@ sequenceDiagram
     participant WASM as EdgeRules WASM
     IDE ->> RUN: Add new Node Field
     RUN ->> RUN: Update Node State
-    RUN ->> WASM: set_user_function
+    RUN ->> WASM: service.set
     WASM -->> RUN: Result<MethodEntry, Err>
     RUN ->> RUN: Update Node State
     RUN -->> IDE: Updated Node State or Error
@@ -627,7 +609,7 @@ sequenceDiagram
     IDE ->> DB: Load Project
     DB -->> IDE: (PortableContext)
     IDE ->> RUN: Create Decision Service
-    RUN ->> WASM: create_decision_service
+    RUN ->> WASM: new DecisionService
     WASM -->> RUN: (PortableContext in JsValue)
     RUN -->> IDE: Decision Service Created or Error
 ```
@@ -646,30 +628,8 @@ sequenceDiagram
    Currently, the Portable format specification allows `[key: string]: ...` but the implementation logic often
    skips keys starting with `@`.
 
-## Next Steps
-
-- [x] Remove add_invocation method from WASM API, because you can add invocation using set_to_decision_service_model
-
-```typescript
-wasm.set_invocation('eligibilityPreview', {
-    '@type': 'invocation',
-    '@method': 'evaluateEligibility',
-    '@arguments': [{score: 580}]
-});
-// is equivalent to
-wasm.set_to_decision_service_model('eligibilityPreview', {
-    '@type': 'invocation',
-    '@method': 'evaluateEligibility',
-    '@arguments': [{score: 580}]
-});
-```
-
-- [x] Update documentation after removing `set_invocation` method from WASM API and make sure tests coverage
-still exists for invocation addition.
-- [x] Remove `get_decision_service_model` because `get_from_decision_service_model` can be used to 
-get the whole model as well.
-- [x] `get_from_decision_service_model` must be able to accept wildcard `*` to get the whole model.
-
 ## Story Completion Review
 
-N/A
+- [x] Refactored WASM API to object-oriented structure (`DecisionEngine`, `DecisionService`).
+- [x] Implemented `getType` (via `get_expression_type`) for inspecting schemas.
+- [x] Fixed `to_schema` to include function return types.

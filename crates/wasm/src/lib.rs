@@ -55,98 +55,111 @@ pub fn init_panic_hook() {
 pub fn init_panic_hook() {}
 
 #[wasm_bindgen]
-pub fn evaluate_all(code: &str) -> JsValue {
-    match wasm_convert::evaluate_all_inner(code) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
+pub struct DecisionEngine;
+
+#[wasm_bindgen]
+impl DecisionEngine {
+    #[wasm_bindgen(js_name = "evaluateAll")]
+    pub fn evaluate_all(code: &str) -> JsValue {
+        match wasm_convert::evaluate_all_inner(code) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "evaluateExpression")]
+    pub fn evaluate_expression(code: &str) -> JsValue {
+        match wasm_convert::evaluate_expression_inner(code) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "evaluateField")]
+    pub fn evaluate_field(code: &str, field: &str) -> JsValue {
+        match wasm_convert::evaluate_field_inner(code, field) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        }
+    }
+
+    #[cfg(feature = "to_js")]
+    #[wasm_bindgen(js_name = "printExpressionJs")]
+    pub fn print_expression_js(code: &str) -> String {
+        match js_printer::expression_to_js(code) {
+            Ok(js) => js,
+            Err(err) => throw_portable_error(err),
+        }
+    }
+
+    #[cfg(feature = "to_js")]
+    #[wasm_bindgen(js_name = "printModelJs")]
+    pub fn print_model_js(code: &str) -> String {
+        match js_printer::model_to_js(code) {
+            Ok(js) => js,
+            Err(err) => throw_portable_error(err),
+        }
     }
 }
 
 #[wasm_bindgen]
-pub fn evaluate_expression(code: &str) -> JsValue {
-    match wasm_convert::evaluate_expression_inner(code) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
+pub struct DecisionService;
+
+#[wasm_bindgen]
+impl DecisionService {
+    #[wasm_bindgen(constructor)]
+    pub fn new(model: &JsValue) -> DecisionService {
+        let controller = match DecisionServiceController::from_portable(model) {
+            Ok(ctrl) => ctrl,
+            Err(err) => throw_portable_error(err),
+        };
+        set_decision_service(controller);
+        DecisionService
     }
-}
 
-#[wasm_bindgen]
-pub fn evaluate_field(code: &str, field: &str) -> JsValue {
-    match wasm_convert::evaluate_field_inner(code, field) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
+    pub fn execute(&self, method: &str, request: &JsValue) -> JsValue {
+        let response = match with_decision_service(|svc| {
+            let req_val = js_request_to_value(request)?;
+            svc.execute_value(method, req_val)
+        }) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        };
+        match response.to_js() {
+            Ok(js) => js,
+            Err(err) => utils::throw_js_error(err.to_string()),
+        }
     }
-}
 
-#[cfg(feature = "to_js")]
-#[wasm_bindgen]
-pub fn print_expression_js(code: &str) -> String {
-    match js_printer::expression_to_js(code) {
-        Ok(js) => js,
-        Err(err) => throw_portable_error(err),
+    pub fn get(&self, path: &str) -> JsValue {
+        match with_decision_service(|svc| svc.get_entry(path)) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        }
     }
-}
 
-#[cfg(feature = "to_js")]
-#[wasm_bindgen]
-pub fn print_model_js(code: &str) -> String {
-    match js_printer::model_to_js(code) {
-        Ok(js) => js,
-        Err(err) => throw_portable_error(err),
+    pub fn set(&self, path: &str, object: &JsValue) -> JsValue {
+        match with_decision_service(|svc| svc.set_entry(path, object)) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        }
     }
-}
 
-#[wasm_bindgen]
-pub fn create_decision_service(model: &JsValue) -> JsValue {
-    let controller = match DecisionServiceController::from_portable(model) {
-        Ok(ctrl) => ctrl,
-        Err(err) => throw_portable_error(err),
-    };
-    set_decision_service(controller);
-    let snapshot = match with_decision_service(|svc| svc.model_snapshot()) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    };
-    snapshot
-}
-
-#[wasm_bindgen]
-pub fn execute_decision_service(service_method: &str, decision_request: &JsValue) -> JsValue {
-    let response = match with_decision_service(|svc| {
-        let request = js_request_to_value(decision_request)?;
-        svc.execute_value(service_method, request)
-    }) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    };
-    match response.to_js() {
-        Ok(js) => js,
-        Err(err) => utils::throw_js_error(err.to_string()),
+    pub fn remove(&self, path: &str) -> bool {
+        match with_decision_service(|svc| svc.remove_entry(path)) {
+            Ok(_) => true,
+            Err(err) => throw_portable_error(err),
+        }
     }
-}
 
-#[wasm_bindgen]
-pub fn set_to_decision_service_model(path: &str, object: &JsValue) -> JsValue {
-    let updated = match with_decision_service(|svc| svc.set_entry(path, object)) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    };
-    updated
-}
-
-#[wasm_bindgen]
-pub fn remove_from_decision_service_model(path: &str) -> JsValue {
-    match with_decision_service(|svc| svc.remove_entry(path)) {
-        Ok(_) => JsValue::from_bool(true),
-        Err(err) => throw_portable_error(err),
+    #[wasm_bindgen(js_name = "getType")]
+    pub fn get_type(&self, path: &str) -> JsValue {
+        match with_decision_service(|svc| {
+            let vt = svc.get_entry_type(path)?;
+            vt.to_js().map_err(PortableError::from)
+        }) {
+            Ok(value) => value,
+            Err(err) => throw_portable_error(err),
+        }
     }
-}
-
-#[wasm_bindgen]
-pub fn get_from_decision_service_model(path: &str) -> JsValue {
-    let portable = match with_decision_service(|svc| svc.get_entry(path)) {
-        Ok(value) => value,
-        Err(err) => throw_portable_error(err),
-    };
-    portable
 }

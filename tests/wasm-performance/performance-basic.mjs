@@ -139,7 +139,7 @@ const { iterations, warmup } = parseBenchmarkArgs(argv, {
     defaultWarmup: 10,
 });
 
-const run = () => wasm.evaluate_field(PROGRAM, "applicationResponse");
+const run = () => wasm.DecisionEngine.evaluateField(PROGRAM, "applicationResponse");
 
 // ------ single run (also proves it works) ------
 runSingle(run);

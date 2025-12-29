@@ -9,7 +9,7 @@ use edge_rules::ast::sequence::CollectionExpression;
 use edge_rules::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
 use edge_rules::ast::user_function_call::UserFunctionCall;
 use edge_rules::link::node_data::Node;
-use edge_rules::runtime::edge_rules::{EdgeRulesModel, InvocationSpec};
+use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, InvocationSpec};
 use edge_rules::tokenizer::parser;
 use edge_rules::typesystem::types::number::NumberEnum;
 use edge_rules::typesystem::values::ValueEnum;
@@ -120,18 +120,33 @@ pub fn apply_portable_entry(
 }
 
 pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(), PortableError> {
-    if model.get_user_type(path).is_some() {
-        model.remove_user_type(path)?;
-        return Ok(());
+    match model.get_user_type(path) {
+        Ok(_) => {
+            model.remove_user_type(path)?;
+            return Ok(());
+        }
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if model.get_user_function(path).is_some() {
-        model.remove_user_function(path)?;
-        return Ok(());
+
+    match model.get_user_function(path) {
+        Ok(_) => {
+            model.remove_user_function(path)?;
+            return Ok(());
+        }
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if model.get_expression(path).is_some() {
-        model.remove_expression(path)?;
-        return Ok(());
+
+    match model.get_expression(path) {
+        Ok(_) => {
+            model.remove_expression(path)?;
+            return Ok(());
+        }
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
+
     Err(PortableError::new(format!(
         "Entry '{}' not found in decision service model",
         path
@@ -139,19 +154,25 @@ pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(
 }
 
 pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue, PortableError> {
-    if let Some(body) = model.get_user_type(path) {
-        return serialize_type_body(&body);
+    match model.get_user_type(path) {
+        Ok(body) => return serialize_type_body(&body),
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if let Some(function) = model.get_user_function(path) {
-        return serialize_function(&function.borrow().function_definition);
+
+    match model.get_user_function(path) {
+        Ok(function) => return serialize_function(&function.borrow().function_definition),
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if let Some(expression) = model.get_expression(path) {
-        return serialize_expression(&expression.borrow().expression);
+
+    match model.get_expression(path) {
+        Ok(expression) => return serialize_expression(&expression.borrow().expression),
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    Err(PortableError::new(format!(
-        "Entry '{}' not found in decision service model",
-        path
-    )))
+
+    Err(ContextQueryErrorEnum::EntryNotFoundError(path.to_string()).into())
 }
 
 enum PortableKind {
