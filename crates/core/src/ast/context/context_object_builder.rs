@@ -1,4 +1,5 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::context::metadata::Metadata;
@@ -273,21 +274,8 @@ impl ContextObjectBuilder {
             return None;
         }
 
-        let mut current = self.get_child_context(path_segments[0])?;
-
-        // @Todo: this is code duplication with ContextObject::resolve_context
-        for segment in path_segments.iter().skip(1) {
-            let next = {
-                let ctx_ref = current.borrow();
-                ctx_ref.node().get_child(segment)
-            };
-            match next {
-                Some(child) => current = child,
-                None => return None,
-            }
-        }
-
-        Some(current)
+        let current = self.get_child_context(path_segments[0])?;
+        resolve_context_path(current, &path_segments[1..])
     }
 
     pub fn remove_field(&mut self, name: &str) -> bool {

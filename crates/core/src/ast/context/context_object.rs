@@ -1,4 +1,5 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::context::metadata::Metadata;
 use crate::ast::metaphors::functions::FunctionDefinition;
@@ -169,19 +170,8 @@ impl ContextObject {
             return None;
         }
 
-        let mut current = self.node().get_child(path_segments[0])?;
-        for segment in path_segments.iter().skip(1) {
-            let next = {
-                let ctx_ref = current.borrow();
-                ctx_ref.node().get_child(segment)
-            };
-            match next {
-                Some(child) => current = child,
-                None => return None,
-            }
-        }
-
-        Some(current)
+        let current = self.node().get_child(path_segments[0])?;
+        resolve_context_path(current, &path_segments[1..])
     }
 
     pub fn get_function(&self, name: &str) -> Option<Rc<RefCell<MethodEntry>>> {
