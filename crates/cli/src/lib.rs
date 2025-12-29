@@ -1,7 +1,6 @@
 use std::env;
 use std::fs;
 use std::io::{self, Read};
-use std::process;
 
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 
@@ -57,12 +56,5 @@ fn read_code(args: &[String]) -> Result<String, String> {
             .read_to_string(&mut buffer)
             .map_err(|error| format!("Failed to read stdin: {}", error))?;
         Ok(buffer)
-    }
-}
-
-fn main() {
-    if let Err(error) = run() {
-        eprintln!("{}", error);
-        process::exit(1);
     }
 }

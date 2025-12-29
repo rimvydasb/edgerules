@@ -1,13 +1,10 @@
 use crate::portable::error::PortableError;
 use crate::portable::model::{
-    apply_portable_entry,
-    get_portable_entry,
-    model_from_portable,
-    remove_portable_entry,
+    apply_portable_entry, get_portable_entry, model_from_portable, remove_portable_entry,
     serialize_model,
 };
-use crate::utils::{get_prop, is_object};
 use edge_rules::runtime::decision_service::DecisionService;
+use edge_rules::typesystem::types::ValueType;
 use edge_rules::typesystem::values::ValueEnum;
 use wasm_bindgen::JsValue;
 
@@ -21,6 +18,7 @@ impl DecisionServiceController {
         let service = DecisionService::from_model(model)?;
         Ok(Self { service })
     }
+
     pub fn execute_value(
         &mut self,
         method: &str,
@@ -28,6 +26,7 @@ impl DecisionServiceController {
     ) -> Result<ValueEnum, PortableError> {
         Ok(self.service.execute(method, request)?)
     }
+
     pub fn model_snapshot(&mut self) -> Result<JsValue, PortableError> {
         let model = self.service.get_model();
         let snap = {
@@ -36,6 +35,7 @@ impl DecisionServiceController {
         };
         Ok(snap)
     }
+
     pub fn set_entry(&mut self, path: &str, payload: &JsValue) -> Result<JsValue, PortableError> {
         let model = self.service.get_model();
         {
@@ -49,18 +49,7 @@ impl DecisionServiceController {
         };
         Ok(updated)
     }
-    pub fn set_invocation(
-        &mut self,
-        path: &str,
-        payload: &JsValue,
-    ) -> Result<JsValue, PortableError> {
-        match classify_entry(payload) {
-            PortableKind::Invocation => self.set_entry(path, payload),
-            _ => Err(PortableError::new(
-                "Invocation payload must include \"@type\": \"invocation\"",
-            )),
-        }
-    }
+
     pub fn remove_entry(&mut self, path: &str) -> Result<(), PortableError> {
         let model = self.service.get_model();
         {
@@ -70,28 +59,21 @@ impl DecisionServiceController {
         self.service.ensure_linked()?;
         Ok(())
     }
+
     pub fn get_entry(&mut self, path: &str) -> Result<JsValue, PortableError> {
-        let model = self.service.get_model();
-        let entry = {
-            let borrowed = model.borrow();
-            get_portable_entry(&borrowed, path)?
-        };
-        Ok(entry)
-    }
-}
-
-enum PortableKind {
-    Invocation,
-    Other,
-}
-
-fn classify_entry(value: &JsValue) -> PortableKind {
-    if is_object(value) {
-        if let Some(kind) = get_prop(value, "@type").and_then(|v| v.as_string()) {
-            if kind.as_str() == "invocation" {
-                return PortableKind::Invocation;
-            }
+        if path == "*" {
+            return self.model_snapshot();
         }
+        let model = self.service.get_model();
+        let borrowed = model.borrow();
+
+        get_portable_entry(&borrowed, path)
     }
-    PortableKind::Other
+
+    pub fn get_entry_type(&mut self, path: &str) -> Result<ValueType, PortableError> {
+        self.service.ensure_linked()?;
+        self.service
+            .get_linked_type(path)
+            .map_err(PortableError::from)
+    }
 }

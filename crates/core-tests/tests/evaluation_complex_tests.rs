@@ -107,6 +107,10 @@ fn example_ruleset_collecting() {
         exe_field(&rt, "applicantEligibility.status"),
         "'INELIGIBLE'"
     );
+    assert_eq!(
+        rt.static_tree.borrow().to_schema(),
+        "{applicantEligibility: {firedRules: string[]; status: string}}"
+    );
 }
 
 #[test]
@@ -187,12 +191,9 @@ fn example_variable_library() {
         "'INELIGIBLE'"
     );
     assert_eq!(
-        exe_field(
-            &rt,
-            "applicationResponse.applicationRecord.applicantsDecisions[1].status"
-        ),
-        "'INELIGIBLE'"
-    );
+            rt.static_tree.borrow().to_schema(),
+            "{Applicant: {name: string; birthDate: date; income: number; expense: number}; Application: {applicationDate: datetime; applicants: Applicant[]; propertyValue: number; loanAmount: number}; applicationResponse: {applicationRecord: {data: Application; applicantsDecisions: {rules: {name: string; rule: boolean}[]; firedRules: string[]; status: string}[]}}}"
+        );
 }
 
 #[test]
@@ -343,4 +344,5 @@ fn incredibly_nested_vl_record_example() {
 
 mod utilities;
 
+use edge_rules::runtime::ToSchema;
 pub use utilities::*;

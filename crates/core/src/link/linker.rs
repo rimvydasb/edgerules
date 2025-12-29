@@ -32,6 +32,11 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
     for name in field_names {
         match context.borrow().get(name)? {
             ExpressionRef(expression) => {
+                if let Ok(entry) = expression.try_borrow() {
+                    if entry.field_type.is_ok() {
+                        continue;
+                    }
+                }
                 context.borrow().node().lock_field(name)?;
 
                 let linked_type = {
@@ -264,8 +269,10 @@ impl BrowseResultFound<ExecutionContext> {
                     Ok(v) => Ok(v),
                     Err(mut err) => {
                         if err.location.is_empty() {
-                            err.location =
-                                build_location_from_execution_context(&self.context, self.field_name);
+                            err.location = build_location_from_execution_context(
+                                &self.context,
+                                self.field_name,
+                            );
                         }
                         if err.expression.is_none() {
                             err.expression = Some(value.borrow().expression.to_string());

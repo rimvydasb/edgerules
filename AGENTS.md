@@ -1,147 +1,131 @@
-# Repository Guidelines
+# EdgeRules Project:
 
-## Project Naming
+This document provides a comprehensive guide for AI agents to understand, build, and contribute to the EdgeRules
+project. It serves as the single source of truth for project structure, commands, and coding standards.
 
-- Public name: `EdgeRules`
-- Crates (Cargo): edge-rules, edge-rules-wasi, edge-rules-cli
-- Rust imports: edge_rules, edge_rules_wasi
-- CLI binary: edgerules (with alias er)
-- WASM file: edgerules-wasi.wasm
+## Main Instructions
 
-## Description
+- **Format:** Always use Markdown for documents and documentation.
+- **Line Length:** 120 characters maximum.
+- **Indentation:** 4 spaces (no tabs).
 
-A lightweight, embeddable rules engine for edge environments, supporting a custom DSL for defining rules and conditions.
+## Project Overview
 
-## Naming Conventions
+EdgeRules is a lightweight, embeddable, JSON-native business rules engine written in Rust. It is designed for
+performance and safety, with a strong focus on small WASM output sizes for edge computing environments. The engine
+features a custom DSL for defining rules, static typing, and aims for full DMN FEEL coverage.
 
-- Cargo / crates.io → kebab-case (Rust convention).
-- In-code imports → snake_case (automatic).
-- User-facing binaries / artifacts → no hyphen (clean UX).
-- 4 spaces for indentation; Rust 2021 edition.
-- Line length: 120 chars
+### Key Artifacts
 
-## Project Structure & Module Organization
+- **Public Name:** `EdgeRules`
+- **Crates (Cargo):**
+    - `edge-rules` (Core library)
+    - `edge-rules-wasi` (WASM bindings)
+    - `edge-rules-cli` (Command Line Interface)
+- **Rust Imports:** `edge_rules`, `edge_rules_wasi`, `edge_rules_cli`
+- **CLI Binary:** `edgerules` (alias `er`)
+- **WASI Binary:** `edgerules-wasi`
 
-- Core library: `src/` with modules like `ast/`, `tokenizer/`, `runtime/`, `typesystem/`, and `link/`. Entry points:
-  `src/lib.rs`, WASM glue: `src/wasm.rs`.
-- CLI (WASI): `src/bin/edgerules-wasi.rs`.
-- Tests: unit tests co-located under `#[cfg(test)]`; data-driven fixtures in `tests/` (e.g., `tests/invalid/*.txt`,
-  `tests/errors/*.txt`).
-- Demos: `examples/js` and `examples/web` for Node/Web usage.
-- Build config: `Cargo.toml` (crate `edge_rules`), `package.json` for WASM demos.
+## Project Structure
+
+The project is structured as a Rust workspace with the following layout:
+
+```text
+/
+├── crates/
+│   ├── core/           # Core logic (AST, tokenizer, runtime, type system)
+│   │   ├── src/lib.rs  # Main entry point
+│   │   └── src/wasm.rs # Core WASM glue (minimal)
+│   ├── cli/            # Command-line interface
+│   │   ├── src/lib.rs  # Shared CLI logic
+│   │   └── src/bin/    # Binary entry points (edgerules, er, edgerules-wasi)
+│   ├── wasm/           # WASM bindings (wasm-bindgen) for Web/Node
+│   │   └── src/lib.rs  # Public API for WASM module
+│   └── core-tests/     # Comprehensive test suite for the core crate
+│       └── tests/      # Integration tests and data-driven fixtures (*.txt)
+├── examples/           # Demo projects
+│   ├── js/             # Node.js examples
+│   └── web/            # Web browser examples
+├── tests/              # WASM integration tests (*.mjs)
+├── Justfile            # Task runner configuration (build, test, deploy)
+└── Cargo.toml          # Workspace configuration
+```
 
 ## Build, Test, and Development Commands
 
-- `just ensure`: Ensures targets and tools exist (wasm-pack, wasm-opt, wasmtime).
-- `just web`: Build WASM for web into `target/pkg-web/` and optimize (prints sizes).
-- `just node`: Build WASM for Node into `target/pkg-node/` and optimize (prints sizes).
-- `just web-debug`: Build WASM for web with panic hook enabled into `target/pkg-web-debug/` and optimize.
-- `just node-debug`: Build WASM for Node with panic hook enabled into `target/pkg-node-debug/` and optimize.
-- `just wasi`: Build the WASI binary `edgerules-wasi.wasm` and run demo (prints size).
-- `just cli`: Build the native CLI `edgerules`, print its size, and run a quick arithmetic check.
-- `just core`: Build core library for wasm32-unknown-unknown.
-- `just core-opt`: Minify core output to .min.wasm.
-- `just demo-web`: Serve at http://localhost:8080 (expects `target/pkg-web/`).
-- `just performance-node`: Run Node performance benchmarks (expects `target/pkg-node/`).
-- `just demo-wasi`: Run WASI demo via wasmtime.
-- `just wasm-test`: Run WASM tests in Node.
+Use `just` to run common tasks. Do not memorize long `cargo` or `wasm-pack` commands; use the definitions below.
 
-### Daily Workflow Checklist
+### Setup
 
-Follow this loop for every change:
+- `just ensure`: Ensures tools exist (wasm-pack, wasm-opt, wasmtime) and creates output directories.
 
-1. `cargo fmt`
-2. `cargo clippy --all-targets --all-features -- -D warnings`
-3. Reproduce the scenario you are touching:
-   - Rust: `cargo test <suite>` / `cargo test <path>::<name>`
-   - WASM demos: rebuild first (`just node` or `just web`), then run `just performance-node` / `just demo-web`
-   - WASM tests: `just wasm-test`
-4. If something fails, use the **Debugging & Verification Playbook** below before guessing.
+### Building
 
-## Coding Style & Naming Conventions
+- **Web (WASM):** `just web` (Builds to `target/pkg-web`, optimized)
+- **Node.js (WASM):** `just node` (Builds to `target/pkg-node`, optimized)
+- **WASI:** `just wasi` (Builds `edgerules-wasi.wasm` to `target/wasm32-wasip1/release/`)
+- **CLI (Native):** `just cli` (Builds `edgerules` binary)
+- **Debug Builds:** `just web-debug` or `just node-debug` (Includes `console_error_panic_hook` for debugging; do not
+  ship).
 
-- Rust 2021 edition; 4 spaces; keep modules small and cohesive.
-- Avoid single letter ot two letter variable names.
-- Avoid unclear abbreviations, instead use: `cfg` → `config`, `ctx` → `context`.
-- Avoid casting with "as", instead use ::from - if "from" does not exist, implement it.
-- Avoid long namespaces; use `use` to import types/functions.
-- Use `?` for error propagation; avoid `unwrap()`/`expect()` in runtime paths except test code.
-- Naming: modules/files `snake_case`; types/enums `CamelCase`; functions/fields `snake_case`.
-- Formatting: run `cargo fmt` before commits; keep `clippy` clean.
-- WASM features: `wasm` is the lean baseline; `wasm_debug` enables `console_error_panic_hook` for better panic traces in dev. Use `web-debug`/`node-debug` to build debug artifacts in separate folders to avoid shipping debug hooks.
-- Treat clippy warnings as hard errors—keep builds clean by default.
+### Testing
 
-## Code Review Guidelines
+- **Rust Tests:** `just test` (Runs `cargo test --all`)
+- **WASM Tests:** `just wasm-test` (Runs Node.js tests in `tests/wasm/*.mjs`)
+- **Linters:** `just clippy` (Runs `cargo clippy --all-targets -- -D warnings`)
+- **Formatting:** `just fmt` (Runs `cargo fmt --all`)
 
-The project goal is small WASM size first, performance second.
-When reviewing code, consider the following:
-- Check lifetime clarity
-- Detect boilerplate that can be abstracted
-- Ensure error handling is idiomatic
-- Check maintainability and readability
-- Check the ownership model
-- Remove unnecessary derive annotations `#[derive(...)]` that bloat binary size
-- Check if `mut` can be avoided
-- Ensure no unused imports or needless borrows exist (clippy clean)
+### Demos & Performance
+
+- **Web Demo:** `just demo-web` (Serves `target/pkg-web` at localhost:8080)
+- **Basic Performance:** `just performance-basic` (Runs basic WASM benchmarks)
+- **Decision Service Performance:** `just performance-ds` (Runs decision service benchmarks)
+- **WASI Demo:** `just demo-wasi` (Runs WASI binary via `wasmtime`)
+
+## Daily Workflow Checklist
+
+Follow this loop for every change to ensure quality and prevent regressions:
+
+1. **Format:** `just fmt`
+2. **Lint:** `just clippy` (Treat warnings as errors).
+3. **Test:**
+    - Run Rust tests: `just test`
+    - If touching WASM logic: `just node` then `just wasm-test`
+4. **Verify:** If fixing a bug, create a reproduction case in `crates/core-tests/tests/`.
+
+## Coding Standards & Conventions
+
+### Style
+
+- **Rust Edition:** 2021
+- **Indentation:** 4 spaces
+- **Naming:**
+    - Crates: `kebab-case`
+    - Modules/Files: `snake_case`
+    - Types/Enums: `CamelCase`
+    - Functions/Variables: `snake_case`
+- **Variable Names:** Descriptive and meaningful. Avoid single-letter names (use `index` not `i`, `context` not `ctx`
+  unless standard idiom).
+- **Imports:** Group imports cleanly. Avoid long module paths in code; use `use` statements.
+
+### Architecture & performance
+
+- **WASM Size First:** The primary goal is small WASM binary size. Performance is second.
+    - Avoid unnecessary `#[derive(...)]` if not strictly needed.
+    - Be mindful of generic monomorphization bloat.
+    - Do not use `Debug` or `Display` derives for WASM target.
+    - Regex and base64 are not included in WASM by default and are provided by the host environment.
+- **Error Handling:** Use `?` for propagation. Avoid `unwrap()`/`expect()` in runtime code; reserve them for tests.
+- **WASM Interop:**
+    - Shape conversions live in `crates/wasm/src/wasm_convert.rs`.
+    - `crates/wasm/src/lib.rs` uses a `thread_local` static `DecisionServiceController` for state management. This is a
+      known architectural constraint.
 
 ## Debugging & Verification Playbook
 
-- Run the equivalent Rust test whenever a WASM demo breaks; most demos mirror helpers in `tests/`.
-- When list or context fields report `Unlinked`, inspect `src/ast/sequence.rs` and related linking helpers to ensure inline objects are linked with `linker::link_parts`.
-- Use `tests/utilities.rs` helpers (`assert_eval_all`, `link_error_contains`, etc.) so expectations stay centralized and easy to diff.
-- Refresh `target/pkg-*` before demos: `just node` or `just web` rebuilds the WASM bundle; demos reuse those folders.
-- Shape conversions live in `src/wasm/wasm_convert.rs`; check there when JS output diverges from Rust results.
-
-## WASM Bridge Checklist
-
-1. Confirm the snippet passes `cargo test` (see **Reference Tests** below).
-2. Rebuild the target package (`just node`, `just web`).
-3. Ensure `CollectionExpression::link` handles nested static objects (arrays of contexts).
-4. Verify conversions in `wasm_convert.rs` match runtime expectations.
-5. Keep `src/wasm.rs` imports minimal to avoid `wasm-pack` warnings.
-
-## Testing Guidelines
-
-- Prefer unit tests near the code (`mod tests`), with focused cases.
-- Use `tests/` for integration-style, text-based fixtures; mirror feature areas (e.g., `tests/errors/*.txt`).
-- Run `cargo test` locally; add tests for new behavior and bug fixes.
-
-## Main Considerations
-
-- Project priority is small WASM size
-- Second priority is performance
-
-## Common Pitfalls
-
-- Empty arrays and inline objects must be linked—update collection linking when you touch `CollectionExpression`.
-- Running `just demo-*` without re-running `just node` / `just web` uses stale WASM artifacts.
-- Clippy runs with `-D warnings`; unused imports or needless borrows must be resolved immediately.
-
-## Reference Tests
-
-- Array casting & special values: `tests/evaluation_user_types.rs::complex_type_array_function_argument_v2`
-- Nested typed arguments: `tests/evaluation_user_types.rs::complex_nested_types_in_function_argument`
-- User function behaviour: `tests/evaluation_user_functions_tests.rs`
-- Tokenizer fuzz cases mirroring demos: `src/tokenizer.rs::test_fuzzy_code`
-
-# Quality Assurance
-
-It is possible to generate solutions to the problematic problems captured in complex examples.
-Run the command below and investigate [EXAMPLES-output.md](tests/EXAMPLES-output.md)
-to see results.
-
-### Optional Function Groups for WASM
-
-Enable for Web/Node via Just tasks:
-
-- `ENABLE_REGEX=1 just web` to link regex functions and bake into package.
-- `ENABLE_BASE64=1 just node` to link base64 functions and bake into package.
-- Both: `ENABLE_REGEX=1 ENABLE_BASE64=1 just web`.
-
-Or with Cargo directly:
-
-- `cargo build --target wasm32-unknown-unknown --no-default-features --features "wasm,regex_functions,base64_functions"`
-
-```bash
-cargo run --bin generate-examples
-```
+- **Unlinked Fields:** If list or context fields report `Unlinked`, inspect `crates/core/src/ast/sequence.rs` and
+  ensuring `linker::link_parts` is called.
+- **WASM vs Rust:** If JS output diverges from Rust, check `crates/wasm/src/wasm_convert.rs`.
+- **Test Helpers:** Use `crates/core-tests/tests/utilities.rs` (helpers like `assert_eval_all`, `link_error_contains`)
+  to keep tests clean.
+- **Stale Artifacts:** Always run `just node` or `just web` before running `just demo-*` commands.

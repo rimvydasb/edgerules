@@ -30,7 +30,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.evaluate_field(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
         delete error.message;
         
         assert.deepEqual(error, {
@@ -55,7 +55,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.evaluate_field(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
         delete error.message;
 
         assert.deepEqual(error, {
@@ -76,7 +76,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.evaluate_field(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
         delete error.message;
 
         assert.deepEqual(error, {
@@ -100,7 +100,7 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.evaluate_field(code, 'value'));
+            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
             delete error.message;
 
             assert.deepEqual(error, {
@@ -122,7 +122,7 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.evaluate_field(code, 'value'));
+            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
             delete error.message;
 
             assert.deepEqual(error, {
@@ -149,7 +149,7 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.evaluate_field(code, 'result'));
+            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'result'));
             delete error.message;
 
             assert.deepEqual(error, {
@@ -160,6 +160,116 @@ describe('Unhappy Paths & Error Handling', () => {
                 location: 'source.value',
                 expression: "date('invalid')",
                 stage: 'runtime'
+            });
+        });
+    });
+});
+
+describe('Abnormal Path Handling', () => {
+    let service;
+
+    before(() => {
+        wasm.init_panic_hook();
+        const model = {
+            valid: 10,
+            nested: {
+                inner: 20
+            }
+        };
+        service = new wasm.DecisionService(model);
+    });
+
+    const getError = (fn) => {
+        try {
+            fn();
+        } catch (e) {
+            return e;
+        }
+        assert.fail('Expected function to throw an error');
+    };
+
+    describe('service.get(path)', () => {
+        it('throws on empty path', () => {
+            const error = getError(() => service.get(''));
+            assert.match(error.message, /Field path is empty/);
+        });
+
+        it('throws on path with empty segments (..)', () => {
+            const error = getError(() => service.get('valid..path'));
+            assert.match(error.message, /Invalid path 'valid..path'/);
+        });
+
+        it('throws on path starting with dot (.path)', () => {
+            const error = getError(() => service.get('.valid'));
+            assert.match(error.message, /Invalid path '.valid'/);
+        });
+
+        it('throws on path ending with dot (path.)', () => {
+            const error = getError(() => service.get('valid.'));
+            assert.match(error.message, /Invalid path 'valid.'/);
+        });
+
+        it('throws for non-existent root path', () => {
+            const error = getError(() => service.get('nonexistent'));
+            assert.match(error.message, /Entry 'nonexistent' not found/);
+        });
+        
+        it('throws for non-existent nested leaf', () => {
+             const error = getError(() => service.get('nested.ghost'));
+             assert.match(error.message, /Entry 'nested.ghost' not found/);
+        });
+
+        it('throws for non-existent nested parent', () => {
+             const error = getError(() => service.get('ghost.child'));
+             assert.match(error.message, /Context 'ghost' not found/);
+        });
+    });
+
+    describe('service.getType(path)', () => {
+        it('throws on empty path', () => {
+            const error = getError(() => service.getType(''));
+            assert.match(error.message, /Field path is empty/);
+        });
+
+        it('throws on path with empty segments (..)', () => {
+            const error = getError(() => service.getType('valid..path'));
+            assert.match(error.message, /Invalid path 'valid..path'/);
+        });
+
+        it('throws on path starting with dot (.path)', () => {
+            const error = getError(() => service.getType('.valid'));
+            assert.match(error.message, /Invalid path '.valid'/);
+        });
+
+        it('throws on path ending with dot (path.)', () => {
+            const error = getError(() => service.getType('valid.'));
+            assert.match(error.message, /Invalid path 'valid.'/);
+        });
+
+        it('throws on non-existent path', () => {
+            const error = getError(() => service.getType('nonexistent'));
+            assert.match(error.message, /Entry 'nonexistent' not found/);
+        });
+
+        it('throws on non-existent nested path', () => {
+            const error = getError(() => service.getType('nested.ghost'));
+            assert.match(error.message, /Entry 'nested.ghost' not found/);
+        });
+
+        it('throws on non-existent parent context', () => {
+            const error = getError(() => service.getType('ghost.child'));
+            assert.match(error.message, /Context 'ghost' not found/);
+        });
+
+        it('returns type string for valid primitive path', () => {
+            const type = service.getType('valid');
+            assert.strictEqual(type, 'number');
+        });
+
+        it('returns type object for valid complex path', () => {
+            const type = service.getType('nested');
+            assert.deepEqual(type, {
+                inner: 'number'
             });
         });
     });

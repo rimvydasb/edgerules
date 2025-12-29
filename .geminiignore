@@ -1,0 +1,8 @@
+target/debug/
+target/llvm-cov-target/
+target/**/debug/
+target/tmp/
+**/*.log
+**/*.rlib
+**/*.rmeta
+**/*.o

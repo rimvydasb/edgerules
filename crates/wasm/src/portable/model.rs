@@ -3,12 +3,13 @@ use crate::utils::{get_prop, is_object, set_prop};
 use edge_rules::ast::context::context_object::ContextObject;
 use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
 use edge_rules::ast::context::context_object_type::FormalParameter;
+use edge_rules::ast::context::metadata::Metadata;
 use edge_rules::ast::metaphors::functions::FunctionDefinition;
 use edge_rules::ast::sequence::CollectionExpression;
 use edge_rules::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
 use edge_rules::ast::user_function_call::UserFunctionCall;
 use edge_rules::link::node_data::Node;
-use edge_rules::runtime::edge_rules::{EdgeRulesModel, InvocationSpec};
+use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, InvocationSpec};
 use edge_rules::tokenizer::parser;
 use edge_rules::typesystem::types::number::NumberEnum;
 use edge_rules::typesystem::values::ValueEnum;
@@ -22,6 +23,12 @@ pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, Portabl
     let mut model = EdgeRulesModel::new();
     let object: Object = portable.clone().unchecked_into();
     let keys = Object::keys(&object);
+
+    let metadata = extract_metadata(portable);
+    if !metadata.is_empty() {
+        model.ast_root.set_metadata(metadata);
+    }
+
     for i in 0..keys.length() {
         let name = keys.get(i).as_string().unwrap_or_default();
         if name.starts_with('@') {
@@ -58,6 +65,29 @@ pub fn serialize_model(model: &EdgeRulesModel) -> Result<JsValue, PortableError>
     serialize_builder(&model.ast_root)
 }
 
+fn extract_metadata(obj: &JsValue) -> Metadata {
+    let mut m = Metadata::default();
+    if let Some(v) = get_prop(obj, "@version").and_then(|v| v.as_string()) {
+        m.version = Some(v);
+    }
+    if let Some(v) = get_prop(obj, "@model_name").and_then(|v| v.as_string()) {
+        m.model_name = Some(v);
+    }
+    m
+}
+
+fn attach_metadata(obj: &JsValue, metadata: Option<&Metadata>) -> Result<(), PortableError> {
+    if let Some(m) = metadata {
+        if let Some(v) = &m.version {
+            let _ = set_prop(obj, "@version", &JsValue::from_str(v));
+        }
+        if let Some(v) = &m.model_name {
+            let _ = set_prop(obj, "@model_name", &JsValue::from_str(v));
+        }
+    }
+    Ok(())
+}
+
 pub fn apply_portable_entry(
     model: &mut EdgeRulesModel,
     path: &str,
@@ -90,18 +120,33 @@ pub fn apply_portable_entry(
 }
 
 pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(), PortableError> {
-    if model.get_user_type(path).is_some() {
-        model.remove_user_type(path)?;
-        return Ok(());
+    match model.get_user_type(path) {
+        Ok(_) => {
+            model.remove_user_type(path)?;
+            return Ok(());
+        }
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if model.get_user_function(path).is_some() {
-        model.remove_user_function(path)?;
-        return Ok(());
+
+    match model.get_user_function(path) {
+        Ok(_) => {
+            model.remove_user_function(path)?;
+            return Ok(());
+        }
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if model.get_expression(path).is_some() {
-        model.remove_expression(path)?;
-        return Ok(());
+
+    match model.get_expression(path) {
+        Ok(_) => {
+            model.remove_expression(path)?;
+            return Ok(());
+        }
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
+
     Err(PortableError::new(format!(
         "Entry '{}' not found in decision service model",
         path
@@ -109,19 +154,25 @@ pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(
 }
 
 pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue, PortableError> {
-    if let Some(body) = model.get_user_type(path) {
-        return serialize_type_body(&body);
+    match model.get_user_type(path) {
+        Ok(body) => return serialize_type_body(&body),
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if let Some(function) = model.get_user_function(path) {
-        return serialize_function(&function.borrow().function_definition);
+
+    match model.get_user_function(path) {
+        Ok(function) => return serialize_function(&function.borrow().function_definition),
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    if let Some(expression) = model.get_expression(path) {
-        return serialize_expression(&expression.borrow().expression);
+
+    match model.get_expression(path) {
+        Ok(expression) => return serialize_expression(&expression.borrow().expression),
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        Err(err) => return Err(PortableError::from(err)),
     }
-    Err(PortableError::new(format!(
-        "Entry '{}' not found in decision service model",
-        path
-    )))
+
+    Err(ContextQueryErrorEnum::EntryNotFoundError(path.to_string()).into())
 }
 
 enum PortableKind {
@@ -202,6 +253,12 @@ fn parse_type_definition(obj: &JsValue) -> Result<UserTypeBody, PortableError> {
 
 fn parse_type_body(obj: &JsValue) -> Result<ContextObjectBuilder, PortableError> {
     let mut builder = ContextObjectBuilder::new();
+
+    let metadata = extract_metadata(obj);
+    if !metadata.is_empty() {
+        builder.set_metadata(metadata);
+    }
+
     for (name, value) in object_field_iter(obj) {
         if name.starts_with('@') {
             continue;
@@ -245,10 +302,21 @@ fn parse_context_builder(
     skip_metadata: bool,
 ) -> Result<ContextObjectBuilder, PortableError> {
     let mut builder = ContextObjectBuilder::new();
+
+    let metadata = extract_metadata(obj);
+    if !metadata.is_empty() {
+        builder.set_metadata(metadata);
+    }
+
     for (name, value) in object_field_iter(obj) {
         if skip_metadata && name.starts_with('@') {
             continue;
         }
+        // Also skip metadata fields if we just extracted them
+        if !skip_metadata && (name == "@version" || name == "@model_name") {
+            continue;
+        }
+
         match classify_entry(&value) {
             PortableKind::Function(def_obj) => {
                 let definition = parse_function_definition(&name, &def_obj)?;
@@ -408,8 +476,10 @@ fn apply_function_with_path(
 
 fn serialize_builder(builder: &ContextObjectBuilder) -> Result<JsValue, PortableError> {
     let map = context_builder_to_object(builder)?;
+    attach_metadata(&map, builder.get_metadata())?;
     Ok(map)
 }
+
 fn serialize_expression(expr: &ExpressionEnum) -> Result<JsValue, PortableError> {
     match expr {
         ExpressionEnum::Value(value) => serialize_value(value),
@@ -454,7 +524,18 @@ fn serialize_value(value: &ValueEnum) -> Result<JsValue, PortableError> {
 }
 fn serialize_type_body(body: &UserTypeBody) -> Result<JsValue, PortableError> {
     match body {
-        UserTypeBody::TypeRef(reference) => Ok(JsValue::from_str(&format!("<{}>", reference))),
+        UserTypeBody::TypeRef(reference) => {
+            let obj = Object::new();
+            set_prop(&obj, "@type", &JsValue::from_str("type"))
+                .map_err(|_| PortableError::new("Failed to set type metadata"))?;
+            set_prop(
+                &obj,
+                "@ref",
+                &JsValue::from_str(&format!("<{}>", reference)),
+            )
+            .map_err(|_| PortableError::new("Failed to set type reference"))?;
+            Ok(JsValue::from(obj))
+        }
         UserTypeBody::TypeObject(ctx) => {
             let obj = context_to_object(&ctx.borrow())?;
             set_prop(&obj, "@type", &JsValue::from_str("type"))
@@ -470,12 +551,8 @@ fn serialize_function(definition: &FunctionDefinition) -> Result<JsValue, Portab
     if !definition.arguments.is_empty() {
         let params = Object::new();
         for param in &definition.arguments {
-            set_prop(
-                &params,
-                &param.name,
-                &JsValue::from_str(&param.to_string()),
-            )
-            .map_err(|_| PortableError::new("Failed to set parameter"))?;
+            set_prop(&params, &param.name, &JsValue::from_str(&param.to_string()))
+                .map_err(|_| PortableError::new("Failed to set parameter"))?;
         }
         set_prop(&obj, "@parameters", &params)
             .map_err(|_| PortableError::new("Failed to attach parameters"))?;
@@ -518,6 +595,9 @@ fn context_builder_to_object(builder: &ContextObjectBuilder) -> Result<JsValue, 
 
 fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
     let obj = Object::new();
+
+    attach_metadata(&obj, ctx.metadata.as_ref())?;
+
     for &name in ctx.get_field_names().iter() {
         if let Some(expr) = ctx.expressions.get(name) {
             set_prop(

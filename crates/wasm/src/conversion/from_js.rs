@@ -1,5 +1,5 @@
 use crate::conversion::traits::FromJs;
-use crate::utils::{js_to_object, js_to_array};
+use crate::utils::{js_to_array, js_to_object};
 use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
 use edge_rules::ast::expression::StaticLink;
 use edge_rules::ast::sequence::CollectionExpression;

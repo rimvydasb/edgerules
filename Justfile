@@ -60,35 +60,23 @@ build-pkg platform out_dir features:
 
 # --- primary builds (separate outputs under target/) ---
 web: ensure
+    just build-pkg web {{out_web_debug}} wasm_debug
     just build-pkg web {{out_web}} {{FEATURES}}
 
 node: ensure
+    just build-pkg nodejs {{out_node_debug}} wasm_debug
     just build-pkg nodejs {{out_node}} {{FEATURES}}
 
-# Debug builds with console_error_panic_hook enabled
-web-debug: ensure
-    just build-pkg web {{out_web_debug}} wasm_debug
-
-node-debug: ensure
-    just build-pkg nodejs {{out_node_debug}} wasm_debug
-    node examples/js/node-demo.mjs
+# Build wasm package for Node with to_js enabled and run wasm + wasm-js tests
+node-js: ensure
+    just build-pkg nodejs {{out_node}} "wasm,to_js"
+    node --test tests/wasm/*.mjs tests/wasm-js/*.mjs
 
 wasi: ensure
     cargo build --release --target wasm32-wasip1 -p {{CRATE_CLI}} --bin {{BIN_WASI}} --manifest-path {{CLI_MANIFEST}}
     ls -lh target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm || true
     # Always run demo-wasi after wasi build
     wasmtime target/wasm32-wasip1/{{PROFILE}}/{{BIN_WASI}}.wasm "{ value : 2 + 2 }" || true
-
-core: ensure
-    cargo build --release --target wasm32-unknown-unknown -p {{CRATE_CORE}} --no-default-features --features wasm --manifest-path {{CORE_MANIFEST}}
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm || true
-
-core-opt: core
-    # Apply shared size-focused flags and remove unnecessary metadata.
-    wasm-opt {{WASM_OPT_FLAGS}} \
-      target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.wasm \
-      -o target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm
-    ls -lh target/wasm32-unknown-unknown/{{PROFILE}}/{{CRATE_CORE}}.min.wasm || true
 
 # --- demo / test commands ---
 performance-basic: node
@@ -97,23 +85,11 @@ performance-basic: node
 performance-ds: node
     node tests/wasm-performance/performance-decision-service.mjs
 
-demo-wasi: wasi
-
-# --- dev quality-of-life ---
-fmt:
-    cargo fmt --all
-
-clippy:
-    cargo clippy --all-targets -- -D warnings
-
 test:
     cargo test --all
 
 test-node: node
-    node --test tests/wasm/*.mjs
-
-wasm-test: node
-    node --test tests/wasm/*.mjs
+    node --test tests/wasm/*.mjs tests/wasm-js/*.mjs
 
 # --- native CLI build & quick check ---
 cli:
@@ -125,7 +101,7 @@ cli:
 # --- release helpers ---
 # Copies web builds into the external edgerules-page page project under public/.
 # Excludes files not needed for serving (.gitignore, README.md).
-release-to-page: web web-debug
+release-to-page: web
     echo "Releasing to: {{edgerules_page_public}}"
     echo "Source (web): {{out_web}}" && ls -la "{{out_web}}" || true
     echo "Source (web-debug): {{out_web_debug}}" && ls -la "{{out_web_debug}}" || true
@@ -145,7 +121,7 @@ release-to-page: web web-debug
 
 # Copies node builds into the external edgerules-docs page project under public/.
 # Excludes files not needed for serving (.gitignore, README.md).
-release-to-docs: node node-debug
+release-to-docs: node
     echo "Releasing to: {{edgerules_docs_public}}"
     echo "Source (node): {{out_node}}" && ls -la "{{out_node}}" || true
     echo "Source (node-debug): {{out_node_debug}}" && ls -la "{{out_node_debug}}" || true

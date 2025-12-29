@@ -19,11 +19,13 @@ wasm = [
     "log/max_level_off",
 ]
 wasm_debug = ["wasm", "console_error_panic_hook", "edge-rules/wasm_debug"]
+to_js = ["edge-js/wasm", "wasm"]
 regex_functions = ["edge-rules/regex_functions"]
 base64_functions = ["edge-rules/base64_functions"]
 
 [dependencies]
 edge-rules = { path = "../core", default-features = false, features = ["wasm"] }
+edge-js = { path = "../edge-js", optional = true, default-features = false, features = ["wasm"] }
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }

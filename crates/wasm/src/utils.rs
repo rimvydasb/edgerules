@@ -2,7 +2,8 @@ use js_sys::{Array, Object, Reflect};
 use wasm_bindgen::{JsCast, JsValue};
 
 pub fn set_prop(target: &JsValue, key: &str, value: &JsValue) -> Result<bool, String> {
-    Reflect::set(target, &JsValue::from_str(key), value).map_err(|_| format!("Failed to set property '{}'", key))
+    Reflect::set(target, &JsValue::from_str(key), value)
+        .map_err(|_| format!("Failed to set property '{}'", key))
 }
 
 pub fn get_prop(target: &JsValue, key: &str) -> Option<JsValue> {

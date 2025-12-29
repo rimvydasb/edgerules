@@ -1,6 +1,8 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
+use crate::ast::context::metadata::Metadata;
 use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
@@ -24,6 +26,7 @@ pub struct ContextObjectBuilder {
     parameters: Vec<FormalParameter>,
     node_type: NodeDataEnum<ContextObject>,
     defined_types: HashMap<String, UserTypeBody>,
+    metadata: Option<Metadata>,
 }
 
 impl Default for ContextObjectBuilder {
@@ -44,6 +47,7 @@ impl ContextObjectBuilder {
             node_type: NodeDataEnum::Root(),
             parameters: Vec::new(),
             defined_types: HashMap::new(),
+            metadata: None,
         }
     }
 
@@ -58,12 +62,22 @@ impl ContextObjectBuilder {
             node_type: NodeDataEnum::Internal(Rc::downgrade(&parent), None),
             parameters: Vec::new(),
             defined_types: HashMap::new(),
+            metadata: None,
         }
     }
 
     pub fn set_parameters(&mut self, parameters: Vec<FormalParameter>) -> &mut Self {
         self.parameters = parameters;
         self
+    }
+
+    pub fn set_metadata(&mut self, metadata: Metadata) -> &mut Self {
+        self.metadata = Some(metadata);
+        self
+    }
+
+    pub fn get_metadata(&self) -> Option<&Metadata> {
+        self.metadata.as_ref()
     }
 
     // @Todo: check if field is not duplicated
@@ -167,6 +181,10 @@ impl ContextObjectBuilder {
             self.insert_type_definition(key.clone(), value.clone())?;
         }
 
+        if self.metadata.is_none() {
+            self.metadata = borrowed.metadata.clone();
+        }
+
         Ok(self)
     }
 
@@ -256,19 +274,8 @@ impl ContextObjectBuilder {
             return None;
         }
 
-        let mut current = self.get_child_context(path_segments[0])?;
-        for segment in path_segments.iter().skip(1) {
-            let next = {
-                let ctx_ref = current.borrow();
-                ctx_ref.node().get_child(segment)
-            };
-            match next {
-                Some(child) => current = child,
-                None => return None,
-            }
-        }
-
-        Some(current)
+        let current = self.get_child_context(path_segments[0])?;
+        resolve_context_path(current, &path_segments[1..])
     }
 
     pub fn remove_field(&mut self, name: &str) -> bool {
@@ -299,6 +306,7 @@ impl ContextObjectBuilder {
             parameters: self.parameters,
             context_type: self.context_type,
             defined_types: self.defined_types,
+            metadata: self.metadata,
         };
 
         let ctx = Rc::new(RefCell::new(obj));

@@ -102,8 +102,20 @@ impl StaticLink for EObjectContent<ContextObject> {
                     )))
                 }
             },
-            UserFunctionRef(_metaphor) => {
-                todo!("UserFunctionRef")
+            UserFunctionRef(metaphor) => {
+                // @Todo: there's no Rust test that covers this place - must to add one
+                let mut borrowed = metaphor.borrow_mut();
+                if let Ok(field_type) = &borrowed.field_type {
+                    return Ok(field_type.clone());
+                }
+
+                let body = Rc::clone(&borrowed.function_definition.body);
+                link_parts(Rc::clone(&body))?;
+
+                let field_type = ValueType::ObjectType(body);
+                borrowed.field_type = Ok(field_type.clone());
+
+                Ok(field_type)
             }
             ObjectRef(value) => match link_parts(Rc::clone(value)) {
                 Ok(_) => Ok(ValueType::ObjectType(Rc::clone(value))),

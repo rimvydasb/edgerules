@@ -1,5 +1,5 @@
 use edge_rules::runtime::decision_service::DecisionService;
-use edge_rules::runtime::edge_rules::{EdgeRulesModel, ExpressionEnum, InvocationSpec};
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
 

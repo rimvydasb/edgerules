@@ -1,5 +1,5 @@
 use edge_rules::runtime::edge_rules::{
-    ContextObjectBuilder, ContextUpdateErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError,
+    ContextObjectBuilder, ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError,
     ExpressionEnum, ParseErrors,
 };
 use edge_rules::runtime::ToSchema;
@@ -378,7 +378,7 @@ fn merge_context_object_rejects_duplicate_fields() -> Result<(), EvalError> {
     let context = builder.build();
 
     match service.merge_context_object(context) {
-        Err(ContextUpdateErrorEnum::DuplicateNameError(err)) => {
+        Err(err) => {
             assert_eq!(err.name, "value");
         }
         other => panic!("expected duplicate error, got {:?}", other),
@@ -432,7 +432,7 @@ fn set_expression_errors_when_context_missing() {
         .expect_err("missing context should fail");
 
     match error {
-        ContextUpdateErrorEnum::ContextNotFoundError(path) => {
+        ContextQueryErrorEnum::ContextNotFoundError(path) => {
             assert_eq!(path, "other");
         }
         other => panic!("unexpected error: {:?}", other),
@@ -512,12 +512,15 @@ fn expressions_api_gets_and_removes_fields() -> Result<(), EvalError> {
     service
         .set_expression("enabled", ExpressionEnum::from(true))
         .expect("set root expression");
-    assert!(service.get_expression("enabled").is_some());
+    assert!(service.get_expression("enabled").is_ok());
 
     service
         .remove_expression("enabled")
         .expect("remove root expression");
-    assert!(service.get_expression("enabled").is_none());
+    match service.get_expression("enabled") {
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        _ => panic!("expected EntryNotFoundError"),
+    }
 
     let mut nested_builder = ContextObjectBuilder::new();
     nested_builder
@@ -535,14 +538,17 @@ fn expressions_api_gets_and_removes_fields() -> Result<(), EvalError> {
         .set_expression("settings.mode", ExpressionEnum::from("auto"))
         .expect("set nested field");
 
-    assert!(service.get_expression("settings.enabled").is_some());
-    assert!(service.get_expression("settings.mode").is_some());
+    assert!(service.get_expression("settings.enabled").is_ok());
+    assert!(service.get_expression("settings.mode").is_ok());
 
     service
         .remove_expression("settings.enabled")
         .expect("remove nested expression");
-    assert!(service.get_expression("settings.enabled").is_none());
-    assert!(service.get_expression("settings.mode").is_some());
+    match service.get_expression("settings.enabled") {
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        _ => panic!("expected EntryNotFoundError"),
+    }
+    assert!(service.get_expression("settings.mode").is_ok());
 
     Ok(())
 }
@@ -557,12 +563,15 @@ fn user_type_api_supports_root_and_nested_contexts() -> Result<(), EvalError> {
     service
         .set_user_type("IsEnabled", base_type.clone())
         .expect("set root user type");
-    assert!(service.get_user_type("IsEnabled").is_some());
+    assert!(service.get_user_type("IsEnabled").is_ok());
 
     service
         .remove_user_type("IsEnabled")
         .expect("remove root user type");
-    assert!(service.get_user_type("IsEnabled").is_none());
+    match service.get_user_type("IsEnabled") {
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        _ => panic!("expected EntryNotFoundError"),
+    }
 
     let nested_builder = ContextObjectBuilder::new();
     let nested = nested_builder.build();
@@ -573,18 +582,21 @@ fn user_type_api_supports_root_and_nested_contexts() -> Result<(), EvalError> {
     service
         .set_user_type("settings.Point", base_type.clone())
         .expect("set nested user type");
-    assert!(service.get_user_type("settings.Point").is_some());
+    assert!(service.get_user_type("settings.Point").is_ok());
 
     service
         .remove_user_type("settings.Point")
         .expect("remove nested user type");
-    assert!(service.get_user_type("settings.Point").is_none());
+    match service.get_user_type("settings.Point") {
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        _ => panic!("expected EntryNotFoundError"),
+    }
 
     let error = service
         .set_user_type("unknown.Point", base_type)
         .expect_err("missing context should fail");
     match error {
-        ContextUpdateErrorEnum::ContextNotFoundError(path) => assert_eq!(path, "unknown"),
+        ContextQueryErrorEnum::ContextNotFoundError(path) => assert_eq!(path, "unknown"),
         other => panic!("unexpected error: {:?}", other),
     }
 
@@ -605,12 +617,15 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
     service
         .set_user_function(root_fn, None)
         .expect("set root user function");
-    assert!(service.get_user_function("inc").is_some());
+    assert!(service.get_user_function("inc").is_ok());
 
     service
         .remove_user_function("inc")
         .expect("remove root user function");
-    assert!(service.get_user_function("inc").is_none());
+    match service.get_user_function("inc") {
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        _ => panic!("expected EntryNotFoundError"),
+    }
 
     let nested_builder = ContextObjectBuilder::new();
     let nested = nested_builder.build();
@@ -627,12 +642,15 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
     service
         .set_user_function(nested_fn, Some(vec!["other"]))
         .expect("set nested user function");
-    assert!(service.get_user_function("other.compute").is_some());
+    assert!(service.get_user_function("other.compute").is_ok());
 
     service
         .remove_user_function("other.compute")
         .expect("remove nested user function");
-    assert!(service.get_user_function("other.compute").is_none());
+    match service.get_user_function("other.compute") {
+        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
+        _ => panic!("expected EntryNotFoundError"),
+    }
 
     let err = service
         .set_user_function(
@@ -646,7 +664,7 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
         )
         .expect_err("missing context should fail");
     match err {
-        ContextUpdateErrorEnum::ContextNotFoundError(path) => assert_eq!(path, "missing"),
+        ContextQueryErrorEnum::ContextNotFoundError(path) => assert_eq!(path, "missing"),
         other => panic!("unexpected error: {:?}", other),
     }
 

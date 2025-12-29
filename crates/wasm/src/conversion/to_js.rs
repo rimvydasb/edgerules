@@ -1,17 +1,81 @@
 use crate::conversion::traits::ToJs;
 use crate::utils::set_prop;
 use edge_rules::ast::context::context_object_type::EObjectContent;
+use edge_rules::ast::token::UserTypeBody;
 use edge_rules::link::node_data::ContentHolder;
 use edge_rules::runtime::execution_context::ExecutionContext;
 
 use edge_rules::typesystem::errors::RuntimeError;
 use edge_rules::typesystem::types::number::NumberEnum;
 use edge_rules::typesystem::types::string::StringEnum;
+use edge_rules::typesystem::types::ValueType;
 use edge_rules::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use js_sys::{Array, Object};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
+
+impl ToJs for ValueType {
+    fn to_js(&self) -> Result<JsValue, RuntimeError> {
+        match self {
+            ValueType::ObjectType(obj) => {
+                let js_object = Object::new();
+                let borrowed = obj.borrow();
+                for name in borrowed.get_field_names() {
+                    if let Ok(content) = borrowed.get(name) {
+                        match content {
+                            EObjectContent::ExpressionRef(entry) => {
+                                if let Ok(field_type) = &entry.borrow().field_type {
+                                    set_prop(&js_object, name, &field_type.to_js()?)
+                                        .map_err(RuntimeError::eval_error)?;
+                                }
+                            }
+                            EObjectContent::UserFunctionRef(entry) => {
+                                if let Ok(field_type) = &entry.borrow().field_type {
+                                    set_prop(&js_object, name, &field_type.to_js()?)
+                                        .map_err(RuntimeError::eval_error)?;
+                                }
+                            }
+                            EObjectContent::ObjectRef(child) => {
+                                let child_type = ValueType::ObjectType(child);
+                                set_prop(&js_object, name, &child_type.to_js()?)
+                                    .map_err(RuntimeError::eval_error)?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                for (name, body) in borrowed.defined_types.iter() {
+                    let type_js = match body {
+                        UserTypeBody::TypeRef(tref) => {
+                            let resolved_type = borrowed
+                                .resolve_type_ref(&tref)
+                                .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
+                            resolved_type.to_js()?
+                        }
+                        UserTypeBody::TypeObject(ctx) => {
+                            let obj_type = ValueType::ObjectType(Rc::clone(ctx));
+                            let js_obj = obj_type.to_js()?;
+                            js_obj
+                        }
+                    };
+                    set_prop(&js_object, name, &type_js).map_err(RuntimeError::eval_error)?;
+                }
+
+                Ok(JsValue::from(js_object))
+            }
+            ValueType::ListType(Some(inner)) => {
+                let js_obj = Object::new();
+                set_prop(&js_obj, "type", &JsValue::from_str("list"))
+                    .map_err(RuntimeError::eval_error)?;
+                set_prop(&js_obj, "itemType", &inner.to_js()?).map_err(RuntimeError::eval_error)?;
+                Ok(JsValue::from(js_obj))
+            }
+            _ => Ok(JsValue::from_str(&self.to_string())),
+        }
+    }
+}
 
 impl ToJs for ValueEnum {
     fn to_js(&self) -> Result<JsValue, RuntimeError> {
@@ -36,13 +100,18 @@ impl ToJs for ValueEnum {
                 let js_range = Object::new();
                 set_prop(&js_range, "start", &JsValue::from_f64(range.start as f64))
                     .map_err(RuntimeError::eval_error)?;
-                set_prop(&js_range, "endExclusive", &JsValue::from_f64(range.end as f64))
-                    .map_err(RuntimeError::eval_error)?;
+                set_prop(
+                    &js_range,
+                    "endExclusive",
+                    &JsValue::from_f64(range.end as f64),
+                )
+                .map_err(RuntimeError::eval_error)?;
                 Ok(JsValue::from(js_range))
             }
             ValueEnum::DurationValue(inner) => match inner {
                 ValueOrSv::Value(duration) => {
-                    let text = ValueEnum::DurationValue(ValueOrSv::Value(duration.clone())).to_string();
+                    let text =
+                        ValueEnum::DurationValue(ValueOrSv::Value(duration.clone())).to_string();
                     Ok(JsValue::from_str(&text))
                 }
                 ValueOrSv::Sv(sv) => Ok(JsValue::from_str(&sv.to_string())),

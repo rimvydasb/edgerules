@@ -15,6 +15,7 @@ members = [
     "crates/cli",
     "crates/wasm",
     "crates/core-tests",
+    "crates/edge-js",
 ]
 resolver = "2"
 

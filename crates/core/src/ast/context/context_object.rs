@@ -1,5 +1,7 @@
 use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
+use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
+use crate::ast::context::metadata::Metadata;
 use crate::ast::metaphors::functions::FunctionDefinition;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
@@ -79,6 +81,8 @@ pub struct ContextObject {
     pub node: NodeData<ContextObject>,
 
     pub context_type: Option<ValueType>,
+
+    pub metadata: Option<Metadata>,
 }
 
 impl Node<ContextObject> for ContextObject {
@@ -160,6 +164,16 @@ impl ContextObject {
         self.all_field_names.len()
     }
 
+    // @Todo: the code contains many algorithms that resolve context in one or another way - any way to unify them?
+    pub fn resolve_context(&self, path_segments: &[&str]) -> Option<Rc<RefCell<ContextObject>>> {
+        if path_segments.is_empty() {
+            return None;
+        }
+
+        let current = self.node().get_child(path_segments[0])?;
+        resolve_context_path(current, &path_segments[1..])
+    }
+
     pub fn get_function(&self, name: &str) -> Option<Rc<RefCell<MethodEntry>>> {
         Some(Rc::clone(self.metaphors.get(name)?))
     }
@@ -239,7 +253,7 @@ impl ContextObject {
         None
     }
 
-    fn format_value_type(&self, value_type: &ValueType) -> String {
+    pub fn format_value_type(&self, value_type: &ValueType) -> String {
         match value_type {
             ValueType::ObjectType(obj) => self
                 .find_alias_for_object(obj)
@@ -390,6 +404,13 @@ impl ToSchema for ContextObject {
                             Err(err) => lines.push(format!("{}: {}", name, err)),
                         }
                     }
+                    EObjectContent::UserFunctionRef(entry) => {
+                        let entry_ref = entry.borrow();
+                        if let Ok(field_type) = &entry_ref.field_type {
+                            let formatted = self.format_value_type(field_type);
+                            lines.push(format!("{}: {}", name, formatted));
+                        }
+                    }
                     EObjectContent::ObjectRef(entry) => {
                         lines.push(format!("{}: {}", name, entry.borrow().to_schema()));
                     }
@@ -401,6 +422,3 @@ impl ToSchema for ContextObject {
         format!("{{{}}}", lines.join("; "))
     }
 }
-
-
-

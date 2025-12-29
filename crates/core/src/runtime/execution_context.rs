@@ -354,6 +354,3 @@ pub(crate) fn build_location_from_execution_context(
 
     location
 }
-
-
-

@@ -6,17 +6,15 @@ license.workspace = true
 authors.workspace = true
 description = "Command-line interface for EdgeRules."
 
+[features]
+default = ["native"]
+native = ["edge-rules/native", "edge-rules/mutable_decision_service"]
+mutable_decision_service = ["edge-rules/mutable_decision_service"]
+to_js = ["edge-js/native"]
+
 [dependencies]
-edge-rules = { path = "../core", package = "edge-rules" }
-
-[[bin]]
-name = "edgerules"
-path = "src/main.rs"
-
-[[bin]]
-name = "er"
-path = "src/main.rs"
-
-[[bin]]
-name = "edgerules-wasi"
-path = "src/main.rs"
+edge-rules = { path = "../core", package = "edge-rules", default-features = false, features = [
+    "native",
+    "mutable_decision_service",
+] }
+edge-js = { path = "../edge-js", optional = true, default-features = false, features = ["native"] }

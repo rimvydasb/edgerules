@@ -106,9 +106,10 @@ const PORTABLE_MODEL = {
 };
 
 // create decision service in WASM (measure once)
+let service;
 {
     const start = process.hrtime.bigint();
-    wasm.create_decision_service(PORTABLE_MODEL);
+    service = new wasm.DecisionService(PORTABLE_MODEL);
     const end = process.hrtime.bigint();
     console.log('Decision service creation took', (Number(end - start) / 1e6).toFixed(3), 'ms');
 }
@@ -166,7 +167,7 @@ const { iterations, warmup } = parseBenchmarkArgs(argv, {
     defaultWarmup: 10,
 });
 
-const run = () => wasm.execute_decision_service('applicationDecisions', REQUEST);
+const run = () => service.execute('applicationDecisions', REQUEST);
 
 // ------ single run (sanity) ------
 runSingle(run);
