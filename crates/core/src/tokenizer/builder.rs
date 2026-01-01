@@ -452,12 +452,10 @@ pub mod factory {
             }
         }
 
-        if !arguments.is_empty() {
-            if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
-                return Ok(Expression(
-                    MultiFunction::build(function.clone(), arguments).into(),
-                ));
-            }
+        if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
+            return Ok(Expression(
+                MultiFunction::build(function.clone(), arguments).into(),
+            ));
         }
 
         match BUILT_IN_ALL_FUNCTIONS.get(name) {

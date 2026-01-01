@@ -15,12 +15,180 @@ use crate::typesystem::values::{
     ArrayValue, DurationValue as DurationStruct, ValueEnum, ValueOrSv,
 };
 use std::cmp::Ordering;
+use std::f64::consts::PI;
 
 // Helper to extract NumberEnum
 fn get_number(v: &ValueEnum) -> Option<NumberEnum> {
     match v {
         NumberValue(n) => Some(n.clone()),
         _ => None,
+    }
+}
+
+pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => {
+            if n <= 0.0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
+            } else {
+                Ok(NumberValue(Real(n.ln())))
+            }
+        },
+        NumberValue(Int(n)) => {
+            if n <= 0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
+            } else {
+                Ok(NumberValue(Real((n as f64).ln())))
+            }
+        },
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_log10(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => {
+            if n <= 0.0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
+            } else {
+                Ok(NumberValue(Real(n.log10())))
+            }
+        },
+        NumberValue(Int(n)) => {
+            if n <= 0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
+            } else {
+                Ok(NumberValue(Real((n as f64).log10())))
+            }
+        },
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_exp(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.exp()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).exp()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_pi(_args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
+    Ok(NumberValue(Real(PI)))
+}
+
+pub fn eval_degrees(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.to_degrees()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).to_degrees()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_radians(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.to_radians()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).to_radians()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_sin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.sin()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).sin()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_cos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.cos()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).cos()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_tan(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.tan()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).tan()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => {
+            if n < -1.0 || n > 1.0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
+            } else {
+                Ok(NumberValue(Real(n.asin())))
+            }
+        },
+        NumberValue(Int(n)) => {
+            let val = n as f64;
+             if val < -1.0 || val > 1.0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
+            } else {
+                Ok(NumberValue(Real(val.asin())))
+            }
+        },
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => {
+            if n < -1.0 || n > 1.0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
+            } else {
+                Ok(NumberValue(Real(n.acos())))
+            }
+        },
+        NumberValue(Int(n)) => {
+            let val = n as f64;
+             if val < -1.0 || val > 1.0 {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
+            } else {
+                Ok(NumberValue(Real(val.acos())))
+            }
+        },
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_atan(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    match value {
+        NumberValue(Real(n)) => Ok(NumberValue(Real(n.atan()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).atan()))),
+        NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
+        other => RuntimeError::type_not_supported(other.get_type()).into(),
+    }
+}
+
+pub fn eval_atan2(y_val: ValueEnum, x_val: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    if let (Some(y), Some(x)) = (get_number(&y_val), get_number(&x_val)) {
+        match (y, x) {
+            (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
+            (Real(y_f), Real(x_f)) => Ok(NumberValue(Real(y_f.atan2(x_f)))),
+            (Int(y_i), Int(x_i)) => Ok(NumberValue(Real((y_i as f64).atan2(x_i as f64)))),
+            (Real(y_f), Int(x_i)) => Ok(NumberValue(Real(y_f.atan2(x_i as f64)))),
+            (Int(y_i), Real(x_f)) => Ok(NumberValue(Real((y_i as f64).atan2(x_f)))),
+        }
+    } else {
+        RuntimeError::type_not_supported(y_val.get_type()).into()
     }
 }
 
@@ -357,6 +525,13 @@ pub fn validate_clamp_args(args: Vec<ValueType>) -> Link<()> {
     Ok(())
 }
 
+pub fn validate_zero_args(args: Vec<ValueType>) -> Link<()> {
+    if !args.is_empty() {
+        return LinkingError::other_error("Expects 0 arguments".to_string()).into();
+    }
+    Ok(())
+}
+
 
 #[derive(Clone, Copy)]
 enum ExtremaOrder {
@@ -414,7 +589,7 @@ fn detect_extrema_kind(
         return Ok(kind);
     }
 
-    for value in values {
+    if let Some(value) = values.first() {
         if let Some(kind) = kind_from_value(value) {
             return Ok(kind);
         } else {

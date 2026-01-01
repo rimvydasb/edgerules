@@ -104,6 +104,72 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
         validation: validate_unary_number,
         return_type: return_uni_number,
     },
+    "ln" => UnaryFunctionDefinition {
+        name: "ln",
+        function: eval_ln,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "log10" => UnaryFunctionDefinition {
+        name: "log10",
+        function: eval_log10,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "exp" => UnaryFunctionDefinition {
+        name: "exp",
+        function: eval_exp,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "degrees" => UnaryFunctionDefinition {
+        name: "degrees",
+        function: eval_degrees,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "radians" => UnaryFunctionDefinition {
+        name: "radians",
+        function: eval_radians,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "sin" => UnaryFunctionDefinition {
+        name: "sin",
+        function: eval_sin,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "cos" => UnaryFunctionDefinition {
+        name: "cos",
+        function: eval_cos,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "tan" => UnaryFunctionDefinition {
+        name: "tan",
+        function: eval_tan,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "asin" => UnaryFunctionDefinition {
+        name: "asin",
+        function: eval_asin,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "acos" => UnaryFunctionDefinition {
+        name: "acos",
+        function: eval_acos,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "atan" => UnaryFunctionDefinition {
+        name: "atan",
+        function: eval_atan,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
     // List numerics
     "min" => UnaryFunctionDefinition {
         name: "min",
@@ -319,6 +385,12 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
         validation: validate_binary_number_number,
         return_type: return_number_type_binary,
     },
+    "atan2" => BinaryFunctionDefinition {
+        name: "atan2",
+        function: eval_atan2,
+        validation: validate_binary_number_number,
+        return_type: return_number_type_binary,
+    },
     // List or String
     "contains" => BinaryFunctionDefinition {
         name: "contains",
@@ -458,6 +530,12 @@ pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinit
         validation: validate_clamp_args,
         return_type: |_| ValueType::NumberType,
     },
+    "pi" => MultiFunctionDefinition {
+        name: "pi",
+        function: eval_pi,
+        validation: validate_zero_args,
+        return_type: |_| ValueType::NumberType,
+    },
     // List multi-arity
     "sublist" => MultiFunctionDefinition {
         name: "sublist",
@@ -565,6 +643,19 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "ceiling" => EFunctionType::Unary,
     "trunc" => EFunctionType::Unary,
     "sqrt" => EFunctionType::Unary,
+    "ln" => EFunctionType::Unary,
+    "log10" => EFunctionType::Unary,
+    "exp" => EFunctionType::Unary,
+    "degrees" => EFunctionType::Unary,
+    "radians" => EFunctionType::Unary,
+    "sin" => EFunctionType::Unary,
+    "cos" => EFunctionType::Unary,
+    "tan" => EFunctionType::Unary,
+    "asin" => EFunctionType::Unary,
+    "acos" => EFunctionType::Unary,
+    "atan" => EFunctionType::Unary,
+    "atan2" => EFunctionType::Binary,
+    "pi" => EFunctionType::Multi,
     "modulo" => EFunctionType::Binary,
     "idiv" => EFunctionType::Binary,
     "round" => EFunctionType::Multi,

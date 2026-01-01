@@ -212,6 +212,55 @@ fn test_math_rounding_edge_cases() {
 }
 
 #[test]
+fn test_math_advanced() {
+    init_logger();
+    
+    // Constants
+    assert_value!("pi()", "3.141592653589793");
+    
+    // Exponential / Logarithmic
+    assert_value!("exp(1)", "2.718281828459045");
+    assert_value!("ln(2.718281828459045)", "1");
+    assert_value!("log10(100)", "2");
+    assert_value!("log10(1000)", "3");
+    assert_value!("log10(0.01)", "-2");
+    
+    // Trigonometry (Radians)
+    assert_value!("sin(0)", "0");
+    assert_value!("sin(pi()/2)", "1");
+    assert_value!("cos(0)", "1");
+    assert_value!("cos(pi())", "-1");
+    assert_value!("tan(0)", "0");
+    // tan(pi/4) should be 1
+    assert_value!("tan(pi()/4) > 0.999999 and tan(pi()/4) < 1.000001", "true");
+    
+    // Inverse Trig
+    assert_value!("asin(0)", "0");
+    assert_value!("asin(1)", "1.5707963267948966"); // pi/2
+    assert_value!("acos(1)", "0");
+    assert_value!("acos(0)", "1.5707963267948966"); // pi/2
+    assert_value!("atan(0)", "0");
+    assert_value!("atan(1)", "0.7853981633974483"); // pi/4
+    
+    assert_value!("atan2(0, 1)", "0");
+    assert_value!("atan2(1, 0)", "1.5707963267948966"); // pi/2
+    assert_value!("atan2(1, 1)", "0.7853981633974483"); // pi/4
+    
+    // Conversions
+    assert_value!("degrees(pi())", "180");
+    assert_value!("degrees(pi()/2)", "90");
+    assert_value!("radians(180)", "3.141592653589793");
+    assert_value!("radians(90)", "1.5707963267948966");
+
+    // Invalid/Edge cases
+    assert_value!("ln(0)", "NotApplicable('ln of non-positive number')");
+    assert_value!("ln(-1)", "NotApplicable('ln of non-positive number')");
+    assert_value!("log10(0)", "NotApplicable('log10 of non-positive number')");
+    assert_value!("asin(2)", "NotApplicable('asin input out of range [-1, 1]')");
+    assert_value!("acos(-2)", "NotApplicable('acos input out of range [-1, 1]')");
+}
+
+#[test]
 fn test_math_floats_and_mixed() {
     init_logger();
     assert_value!("1.1 + 2", "3.1");
