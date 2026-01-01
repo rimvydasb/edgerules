@@ -140,6 +140,7 @@ dependencies = [
  "console_error_panic_hook",
  "dlmalloc",
  "env_logger",
+ "js-sys",
  "log",
  "phf",
  "regex",
