@@ -210,3 +210,34 @@ fn test_math_rounding_edge_cases() {
     // RoundDown negative numbers (toward zero)
     assert_value!("roundDown(-123.45, 1)", "-123.4");
 }
+
+#[test]
+fn test_math_floats_and_mixed() {
+    init_logger();
+    assert_value!("1.1 + 2", "3.1");
+    assert_value!("1.1 + 2.1", "3.2");
+    assert_value!("1.0 + 2", "3");
+    assert_value!("-1 + 2", "1");
+    assert_value!("-2 + 1", "-1");
+    
+    assert_value!("2 / 3", "0.6666666666666666");
+    assert_value!("1 * 2 / 3 + 1 - 2", "-0.33333333333333337");
+    // Direct float comparison from test_common
+    assert_eq!(1.0 * 2.0 / 3.0 + 1.0 - 2.0, -0.3333333333333335);
+}
+
+#[test]
+fn test_functions_sum_variants() {
+    assert_value!("sum(1,2,3) + (2 * 2)", "10");
+    assert_eq!(
+        eval_field(
+            "value: sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)",
+            "value"
+        ),
+        "14"
+    );
+    assert_value!("sum([1,2,3]) + 1", "7");
+    assert_value!("sum([1.0,2.0,3.0]) + 1", "7");
+    assert_value!("sum([1,2.1,3]) + 1", "7.1");
+    assert_value!("sum([duration('PT6H'),duration('PT12H')])", "PT18H");
+}
