@@ -14,6 +14,7 @@ use crate::tokenizer::builder::factory::*;
 use crate::tokenizer::builder::ASTBuilder;
 use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
+use std::borrow::Cow;
 
 const RANGE_LITERAL: &str = "..";
 const ASSIGN_LITERAL: &str = ":";
@@ -95,14 +96,35 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             '+' | '-' | '*' | '×' | '÷' | '^' => {
                 let extracted = source.next().unwrap();
 
-                // @Todo: must be in a builder
-                let priority = match extracted {
+                // Detect unary context for '-'
+                let mut priority = match extracted {
                     '+' => Plus,
                     '-' => Minus,
                     '*' | '×' | '÷' => DivideMultiply,
                     '^' => PowerPriority,
                     _ => ErrorPriority,
                 };
+
+                if extracted == '-' {
+                    // If start of stream or previous token was not an expression, it's unary
+                    let is_unary = if let Some(token) = ast_builder.last_token() {
+                        !matches!(
+                            token,
+                            Expression(_) | Unparsed(BracketOpen) | Unparsed(Literal(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
+                        )
+                    } else {
+                        true
+                    };
+                    
+                    // Double check logic:
+                    // 1 - 2 -> last is 1 (Expression). is_unary = false. Binary.
+                    // 1 * -2 -> last is * (MathOperatorToken). is_unary = true. Unary.
+                    // (-2) -> ( starts level. last is None (if start) or operator before (. is_unary = true.
+                    
+                    if is_unary {
+                        priority = UnaryPriority;
+                    }
+                }
 
                 ast_builder.push_node(
                     priority as u32,

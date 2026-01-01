@@ -46,7 +46,7 @@ fn test_common() {
     is_equals("value : 1 + 7 - 8 / 3 * 10", "value : 1+(7-8/3*10)");
     is_equals("value : 1 + -2", "value : 1 + -2");
     is_equals("value : -1 + 2", "value : -1 + 2");
-    is_equals("value : - (-2*10)", "value:-(-(2*10))");
+    is_equals("value : - (-2*10)", "value:-(-2*10)");
     is_equals(
         "value : (1 + 7 * (5 / 6 + (2-1))-1) - 8 / 3 * 10",
         "value:(1+(7*(5/6+(2-1))-1))-8/3*10",

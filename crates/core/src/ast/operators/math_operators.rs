@@ -306,9 +306,15 @@ impl MathOperator {
             },
             Power => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
                 match (left, right) {
-                    (Int(left), Int(right)) => Ok(NumberEnum::from(left.pow(right as u32))),
+                    (Int(left), Int(right)) => {
+                        if right < 0 {
+                            Ok(NumberEnum::from((left as f64).powf(right as f64)))
+                        } else {
+                            Ok(NumberEnum::from(left.pow(right as u32)))
+                        }
+                    },
                     (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i32))),
-                    (Int(left), Real(right)) => Ok(NumberEnum::from(left.pow(right as u32))),
+                    (Int(left), Real(right)) => Ok(NumberEnum::from((left as f64).powf(right))),
                     (Real(left), Real(right)) => Ok(NumberEnum::from(left.powf(right))),
                     (left, right) => RuntimeError::eval_error(format!(
                         "Operator '^' is not implemented for '{} ^ {}'",

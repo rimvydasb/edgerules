@@ -73,6 +73,37 @@ pub static UNARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, UnaryFunctionDefinit
         validation: validate_sum_input,
         return_type: return_uni_extrema,
     },
+    // Simple Numerics
+    "abs" => UnaryFunctionDefinition {
+        name: "abs",
+        function: eval_abs,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "floor" => UnaryFunctionDefinition {
+        name: "floor",
+        function: eval_floor,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "ceiling" => UnaryFunctionDefinition {
+        name: "ceiling",
+        function: eval_ceiling,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "trunc" => UnaryFunctionDefinition {
+        name: "trunc",
+        function: eval_trunc,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
+    "sqrt" => UnaryFunctionDefinition {
+        name: "sqrt",
+        function: eval_sqrt,
+        validation: validate_unary_number,
+        return_type: return_uni_number,
+    },
     // List numerics
     "min" => UnaryFunctionDefinition {
         name: "min",
@@ -276,6 +307,18 @@ pub static BINARY_BUILT_IN_FUNCTIONS: phf::Map<&'static str, BinaryFunctionDefin
         validation: list_item_as_second_arg,
         return_type: return_binary_same_as_right_arg,
     },
+    "modulo" => BinaryFunctionDefinition {
+        name: "modulo",
+        function: eval_modulo,
+        validation: validate_binary_number_number,
+        return_type: return_number_type_binary,
+    },
+    "idiv" => BinaryFunctionDefinition {
+        name: "idiv",
+        function: eval_idiv,
+        validation: validate_binary_number_number,
+        return_type: return_number_type_binary,
+    },
     // List or String
     "contains" => BinaryFunctionDefinition {
         name: "contains",
@@ -391,6 +434,30 @@ pub static MULTI_BUILT_IN_FUNCTIONS: phf::Map<&'static str, MultiFunctionDefinit
         validation: validate_multi_extrema_args,
         return_type: return_multi_extrema,
     },
+    "round" => MultiFunctionDefinition {
+        name: "round",
+        function: eval_round,
+        validation: validate_round_args,
+        return_type: |_| ValueType::NumberType,
+    },
+    "roundUp" => MultiFunctionDefinition {
+        name: "roundUp",
+        function: eval_round_up,
+        validation: validate_round_args,
+        return_type: |_| ValueType::NumberType,
+    },
+    "roundDown" => MultiFunctionDefinition {
+        name: "roundDown",
+        function: eval_round_down,
+        validation: validate_round_args,
+        return_type: |_| ValueType::NumberType,
+    },
+    "clamp" => MultiFunctionDefinition {
+        name: "clamp",
+        function: eval_clamp,
+        validation: validate_clamp_args,
+        return_type: |_| ValueType::NumberType,
+    },
     // List multi-arity
     "sublist" => MultiFunctionDefinition {
         name: "sublist",
@@ -493,6 +560,17 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "max" => EFunctionType::Multi,
     "sum" => EFunctionType::Multi,
     "min" => EFunctionType::Multi,
+    "abs" => EFunctionType::Unary,
+    "floor" => EFunctionType::Unary,
+    "ceiling" => EFunctionType::Unary,
+    "trunc" => EFunctionType::Unary,
+    "sqrt" => EFunctionType::Unary,
+    "modulo" => EFunctionType::Binary,
+    "idiv" => EFunctionType::Binary,
+    "round" => EFunctionType::Multi,
+    "roundUp" => EFunctionType::Multi,
+    "roundDown" => EFunctionType::Multi,
+    "clamp" => EFunctionType::Multi,
     "count" => EFunctionType::Unary,
     "find" => EFunctionType::Binary,
     "product" => EFunctionType::Unary,

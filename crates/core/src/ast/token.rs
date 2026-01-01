@@ -42,19 +42,20 @@ pub enum EPriorities {
     // Precedence: Not binds tighter than And/Or/Xor, but looser than Comparators
     // so expressions like `not it > 10` parse as `not (it > 10)`.
     GateNot = 14,
-    GateAnd = 9,
+    GateAnd = 13,
     GatesXor = 11,
-    GatesOr = 13,
+    GatesOr = 9,
     ComparatorPriority = 15,
     CastPriority = 16,
     // Todo: is it really OK?
     FilterArray = 17,
-    FieldSelectionPriority = 26,
+    FieldSelectionPriority = 27,
     Plus = 21,
     Minus = 22,
     DivideMultiply = 23,
     PowerPriority = 25,
-    FunctionCallPriority = 27,
+    UnaryPriority = 26,
+    FunctionCallPriority = 28,
 
     //CommaPriority = 98,
     ErrorPriority = 99,
