@@ -167,11 +167,10 @@ fn test_math_precedence() {
     assert_value!("2 * abs(-5)", "10");
 
     // 4. Unary minus `-`
-    // -2^2 -> -4 (standard math convention: -(2^2)) or (-2)^2 -> 4?
-    // In many languages -2^2 is -4, but let's check our parser.
-    // If Unary is tighter than Power, it's (-2)^2 = 4.
-    // If Power is tighter than Unary, it's -(2^2) = -4.
-    // Based on table: Unary (4) > Power (5). So (-2)^2 = 4.
+    // -2^2 -> 4.
+    // NOTE: This follows DMN FEEL (1.3+) and Excel standards where Unary Minus has HIGHER precedence 
+    // than Exponentiation (-2)^2 = 4.
+    // This differs from Python/Bash/Written Math where it is usually -(2^2) = -4.
     assert_value!("-2 ^ 2", "4"); 
 
     // 5. Power `^`
@@ -195,11 +194,7 @@ fn test_math_precedence() {
     assert_value!("not (1 = 2)", "true");
     
     // 10. Logical `and`, `xor`, `or`
-    assert_value!("1 = 1 or 2 = 2 and 3 = 4", "true"); // or has lower prec? Usually AND > OR.
-    // If AND > OR: true OR (true AND false) -> true OR false -> true.
-    // If OR > AND: (true OR true) AND false -> true AND false -> false.
-    // Let's verify AND/OR precedence if implicit.
-    // Typically AND binds tighter.
+    assert_value!("1 = 1 or 2 = 2 and 3 = 4", "true");
 }
 
 #[test]
