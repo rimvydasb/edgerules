@@ -39,6 +39,10 @@ Provide a capability to define unary tests for decision table cells, filters and
 
 - **Range Check Execution** is done by calling the Range Check Definition as a function with a single argument.
 
+## Known Limitations
+
+1. `in` operator is not supported at all for now.
+
 ## Range Checks as Unary Tests
 
 - [ ] Support for range check syntax: `[start..end]`, `(start..end]`, etc.
@@ -47,9 +51,14 @@ Provide a capability to define unary tests for decision table cells, filters and
 **Good limitations:**
 
 - Range Checks can only be defined for numbers.
+- Range Checks definition must contain both start and end boundaries and `..` operator.
 - No infinite range checks (e.g., `[..100]` or `[50..`), user should use standard unary tests for that.
 - A single expression can only contain one range check definition. For range check definition boundary is a first
   character `[` or `(` and last the last character  `]` or `)`.
+- No support for negation of range checks (e.g., `not [start..end]`). This is done to simplify Range Check definition
+  parsing.
+- Unary Test must contain `...` to be recognized as Unary Test Definition (except for Range Checks when other rules apply).
+- No support for simple unary tests without placeholders (e.g., `<= 65`, `= "Active"`), must be defined with `...` placeholder.
 
 **Examples:**
 
@@ -85,7 +94,6 @@ Provide a capability to define unary tests for decision table cells, filters and
 ## Simple Unary Tests
 
 - [ ] Support for simple unary tests with placeholders (e.g., `... >= 18`, `... = "Active"`)
-- [ ] Support for simple unary tests without placeholders (e.g., `<= 65`, `= "Active"`)
 - [ ] Support for combining multiple unary tests with `and` / `or` operators.
 - [ ] Validation of unary test expressions and types.
 - [ ] Support for executing unary tests as functions: `ageCheck(20)`, `statusCheck("Active")`
@@ -95,7 +103,7 @@ Provide a capability to define unary tests for decision table cells, filters and
 ```edgerules
 {
     ageCheck: ... >= 18
-    statusCheck: = "Active"
+    statusCheck: ... = "Active"
     complexCheck: ... >= 100 or ... = 0
     nestedChecks: {
         checkA: ... < 50 and ... > 10
@@ -104,7 +112,7 @@ Provide a capability to define unary tests for decision table cells, filters and
     listOfChecks: [
         ... <> "Inactive",
         ... <= 100,
-        = "Pending"
+        ... = "Pending"
     ]
     withBuiltIn: contains(["ACTIVE", "PENDING"], ...)
     
