@@ -89,6 +89,7 @@ Provide a capability to define unary tests for decision table cells, filters and
         ... <= 100,
         = "Pending"
     ]
+    withBuiltIn: contains(["ACTIVE", "PENDING"], ...)
     
     // executed as functions:
     isAdult: ageCheck(20)               // true
@@ -97,5 +98,6 @@ Provide a capability to define unary tests for decision table cells, filters and
     isInNestedA: nestedChecks.checkA(30)  // true
     isInListCheck1: listOfChecks[0]("Active")  // true
     allListTest: for test in listOfChecks return test("Active")  // [true, true, false]
+    withBuiltInTest: withBuiltIn("ACTIVE")  // true
 }
 ```
