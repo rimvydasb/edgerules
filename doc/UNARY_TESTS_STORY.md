@@ -17,6 +17,8 @@ Provide a capability to define unary tests for decision table cells, filters and
 }
 ```
 
+**Clarifications:**
+
 - `...` is Ellipsis / Placeholder, and it means "The gap goes here". Both unary tests expressions are supported:
     - With placeholder (e.g., `... >= 18`)
     - Without placeholder (e.g., `<= 65`) - in this case parser
@@ -24,6 +26,18 @@ Provide a capability to define unary tests for decision table cells, filters and
       this is valid `>= 100 or ... = 0`, but `>= 100 or = 0` is invalid.
 
 - `..` is Range operator.
+
+- **Unary Test Definition** is an expression that contains at least one placeholder `...` or is a Range Check.
+  Unary test definitions are not executed immediately, they are just definitions same as `func` or `type` definitions.
+
+- **Unary Test Execution** is done by calling the Unary Test Definition as a function with a single argument.
+  Only one argument is supported, which is mapped to the placeholder `...` during execution or used within Range Check.
+  Each unary test execution returns a `boolean` value.
+
+- **Range Check Definition** is a special syntax for defining unary tests that check if a value falls within a specified
+  range.
+
+- **Range Check Execution** is done by calling the Range Check Definition as a function with a single argument.
 
 ## Range Checks as Unary Tests
 
@@ -62,8 +76,11 @@ Provide a capability to define unary tests for decision table cells, filters and
 ```
 
 > Do not confuse Range Checks with Range Expressions (e.g., `a..b`), which produce lists of values!
-> In this example `p : for number in 1..(5+inc) return number * 3` a range expression is used that does not have anything
-> common with Range Checks used as unary tests!
+> In this example `p : for number in 1..(5+inc) return number * 3` a range expression is used that does not have
+> anything common with Range Checks used as unary tests!
+
+> Do not confuse include range check `[start..end]` with list literal syntax `[ ... ]`.
+> Parser must successfully identify `..` as Range Check operator and not treat the whole expression as a List literal.
 
 ## Simple Unary Tests
 
@@ -101,3 +118,12 @@ Provide a capability to define unary tests for decision table cells, filters and
     withBuiltInTest: withBuiltIn("ACTIVE")  // true
 }
 ```
+
+## Clarifications
+
+1. `start < ... <= end` and `(start..end]` are equivalent.
+
+# Story Review
+
+TBC
+
