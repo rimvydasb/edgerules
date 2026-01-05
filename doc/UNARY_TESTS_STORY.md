@@ -57,8 +57,16 @@ Provide a capability to define unary tests for decision table cells, filters and
   character `[` or `(` and last the last character  `]` or `)`.
 - No support for negation of range checks (e.g., `not [start..end]`). This is done to simplify Range Check definition
   parsing.
-- Unary Test must contain `...` to be recognized as Unary Test Definition (except for Range Checks when other rules apply).
-- No support for simple unary tests without placeholders (e.g., `<= 65`, `= "Active"`), must be defined with `...` placeholder.
+- Unary Test must contain `...` to be recognized as Unary Test Definition (except for Range Checks when other rules
+  apply).
+- No support for simple unary tests without placeholders (e.g., `<= 65`, `= "Active"`), must be defined with `...`
+  placeholder.
+
+**Parser rules:**
+
+- If expression contains `..` (two dots) it is treated as Range Check Definition, that must also have boundaries as
+  first and last characters of the expression.
+- If expression contains `...` (ellipsis) it is treated as Unary Test Definition.
 
 **Examples:**
 
@@ -130,6 +138,26 @@ Provide a capability to define unary tests for decision table cells, filters and
 ## Clarifications
 
 1. `start < ... <= end` and `(start..end]` are equivalent.
+
+## Technical Implementation Notes
+
+- [ ] Add `UnaryOrRangeTestDefinition` variant to `ExpressionEnum` to make unary tests first class citizens in the
+  expression AST. This definition holds `EvaluatableExpression`.
+- [ ] Make sure `UnaryOrRangeTestDefinition` can be created in any context and lists. However, lists must stay
+  homogeneous so if a list contains unary tests, then all items must be unary tests.
+- [ ] Same as `FunctionDefinition`, create `RangeCheckDefinition` that has name, start and end boundaries, and start and
+  end ranges. Implement `EvaluatableExpression` for it. `StaticLink` link method always returns boolean type.
+- [ ] Same as `FunctionDefinition`, create `UnaryTestDefinition` that has name, parameter type as `ComplexTypeRef` and
+  `ExpressionEnum` as a body. Implement `EvaluatableExpression` for it. `StaticLink` link method always returns boolean
+  type.
+- [ ] For `UnaryTestDefinition` parameter type must be derived from the expression body. If multiple placeholders are
+  used, then parameter type must be validated to be the same for all placeholders.
+- [ ] Extend `UserFunctionCall` linking to support `UnaryTestDefinition` and `RangeCheckDefinition`.
+  If `UserFunctionCall` has a single argument, then extend the definition resolution to also check for
+  `UnaryTestDefinition` and `RangeCheckDefinition` with the same name.
+- [ ] Implement dynamic unnamed calls of unary tests from the lists such as `listOfChecks[0]("Active")`.
+  During linking, make sure that list of items type is `UnaryOrRangeTestDefinition` to allow dynamic calls.
+  Note that lists must be homogeneous.
 
 # Story Review
 
