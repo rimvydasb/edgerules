@@ -17,6 +17,14 @@ Provide a capability to define unary tests for decision table cells, filters and
 }
 ```
 
+**Unary tests as a first class citizens:**
+
+- `UnaryTestDefinition` can be used in collections or defined as variables in contexts.
+- `UnaryTestDefinition` will always accept any single argument and return `boolean` value.
+- Lists of unary tests must also be homogenous, so the single argument type must be the same for all unary tests in the
+  list.
+- `UnaryTestDefinition` can be `UserUnaryTestDefinition` or `RangeCheckDefinition`.
+
 **Clarifications:**
 
 - `...` is Ellipsis / Placeholder, and it means "The gap goes here". Both unary tests expressions are supported:
@@ -96,6 +104,9 @@ Provide a capability to define unary tests for decision table cells, filters and
 > In this example `p : for number in 1..(5+inc) return number * 3` a range expression is used that does not have
 > anything common with Range Checks used as unary tests!
 
+> No collection of Range Expressions are supported so `[1..10]` is treated as a Range Check Definition and not as a List
+> containing a single Range Expression item!
+
 > Do not confuse include range check `[start..end]` with list literal syntax `[ ... ]`.
 > Parser must successfully identify `..` as Range Check operator and not treat the whole expression as a List literal.
 
@@ -141,25 +152,31 @@ Provide a capability to define unary tests for decision table cells, filters and
 
 ## Technical Implementation Notes
 
-- [ ] Add `UnaryOrRangeTestDefinition` variant to `ExpressionEnum` to make unary tests first class citizens in the
-  expression AST. This definition holds `EvaluatableExpression`.
-- [ ] Make sure `UnaryOrRangeTestDefinition` can be created in any context and lists. However, lists must stay
-  homogeneous so if a list contains unary tests, then all items must be unary tests.
+- [ ] Parsing Logic Update: The parser must be updated to:
+    - [ ] Detect ... and wrap the expression in a UnaryTestDefinition.
+    - [ ] Detect [start..end] patterns and parse them as RangeCheckDefinition instead of Collection containing a
+      RangeExpression.
+    - [ ] Allow generalized function calls (e.g., list[0](arg)), relaxing the current restriction that requires a
+      variable name for function calls.
+- [ ] Add `UnaryTestDefinition` variant to `ValueEnum` to make unary tests first class citizens in the
+  AST and grant ability to be stored in lists. @TODO: what this variant should hold?
+- [ ] Make sure `UnaryTestDefinition` can be created in any context and lists. However, lists must stay
+  homogeneous so if a list contains unary tests, then all items must be unary tests with the same single argument type.
 - [ ] Same as `FunctionDefinition`, create `RangeCheckDefinition` that has name, start and end boundaries, and start and
   end ranges. Implement `EvaluatableExpression` for it. `StaticLink` link method always returns boolean type.
-- [ ] Same as `FunctionDefinition`, create `UnaryTestDefinition` that has name, parameter type as `ComplexTypeRef` and
-  `ExpressionEnum` as a body. Implement `EvaluatableExpression` for it. `StaticLink` link method always returns boolean
-  type.
-- [ ] For `UnaryTestDefinition` parameter type must be derived from the expression body. If multiple placeholders are
-  used, then parameter type must be validated to be the same for all placeholders.
-- [ ] Extend `UserFunctionCall` linking to support `UnaryTestDefinition` and `RangeCheckDefinition`.
+- [ ] Same as `FunctionDefinition`, create `UserUnaryTestDefinition` that has name, parameter type as `ComplexTypeRef`
+  and  `ExpressionEnum` as a body. Implement `EvaluatableExpression` for it. `StaticLink` link method always returns
+  boolean type.
+- [ ] For `UserUnaryTestDefinition` parameter type must be derived from the expression body. If multiple placeholders
+  are used, then parameter type must be validated to be the same for all placeholders.
+- [ ] Extend `UserFunctionCall` linking to support `UserUnaryTestDefinition` and `RangeCheckDefinition`.
   If `UserFunctionCall` has a single argument, then extend the definition resolution to also check for
-  `UnaryTestDefinition` and `RangeCheckDefinition` with the same name.
+  `UnaryTestDefinition` with the same name.
 - [ ] Implement dynamic unnamed calls of unary tests from the lists such as `listOfChecks[0]("Active")`.
-  During linking, make sure that list of items type is `UnaryOrRangeTestDefinition` to allow dynamic calls.
-  Note that lists must be homogeneous.
+  During linking, make sure that list of items type is `UnaryTestDefinition` to allow dynamic calls.
+  Note that lists must be homogeneous. Note that dynamic calls are only supported for unary tests and have only
+  one argument.
 
 # Story Review
 
 TBC
-
