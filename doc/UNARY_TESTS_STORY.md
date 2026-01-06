@@ -1,5 +1,7 @@
 # Unary Tests Story
 
+TBC: INCOMPLETE!!!
+
 ## Goals
 
 Provide a capability to define unary tests for decision table cells, filters and lists of constraints.
@@ -24,6 +26,17 @@ Provide a capability to define unary tests for decision table cells, filters and
 - Lists of unary tests must also be homogenous, so the single argument type must be the same for all unary tests in the
   list.
 - `UnaryTestDefinition` can be `UserUnaryTestDefinition` or `RangeCheckDefinition`.
+
+```rust
+#[derive(Clone, PartialEq)]
+pub enum UnaryTest {
+    /// A general unary test defined by an expression (e.g., `... > 18`)
+    Simple(Rc<UnaryTestDefinition>),
+    
+    /// A specialized range check (e.g., `[10..20]`)
+    Range(Rc<RangeCheckDefinition>),
+}
+```
 
 **Clarifications:**
 
