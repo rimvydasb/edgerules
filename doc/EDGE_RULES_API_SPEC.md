@@ -203,6 +203,9 @@ const rule = decisionService.get("rules[1]");
 decisionService.remove("rules[2]");
 ```
 
+- [ ] Update `test-decision-service.mjs` with tests covering basic array CRUD operations.
+- [ ] Unit test Rust `EdgeRulesModel` methods for array element manipulation.
+
 **`set` array element exceptions:**
 
 - [ ] Overwriting existing array element should not shift other elements.
