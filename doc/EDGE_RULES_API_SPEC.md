@@ -205,6 +205,11 @@ decisionService.remove("rules[2]");
 
 - [ ] Update `test-decision-service.mjs` with tests covering basic array CRUD operations.
 - [ ] Unit test Rust `EdgeRulesModel` methods for array element manipulation.
+- [ ] Add a complex JavaScript test: find out `example_variable_library`, use that decision service definition in
+  `test-decision-service.mjs` tests. Apply CRUD operations on `eligibilityDecision` rules. Ensure decision service is
+  still executable and produces expected results.
+- [ ] Apply other CRUD operations on the new `example_variable_library` test in `test-decision-service.mjs`.
+- [ ] Perform updated code review to ensure quality, consistency and maintainability.
 
 **`set` array element exceptions:**
 
@@ -235,7 +240,8 @@ decisionService.remove("rules[2]");
 
 ## Next Steps: Rename Support
 
-- [ ] Implement `rename` support for renaming fields, functions, types, and invocations so user will be able to do like this:
+- [ ] Implement `rename` support for renaming fields, functions, types, and invocations so user will be able to do like
+  this:
 
 ```javascript
 // rename nested field `applicant.age` to `applicant.years`
