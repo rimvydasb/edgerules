@@ -6,6 +6,8 @@ project. It serves as the single source of truth for project structure, commands
 ## Non Negotiable
 
 - YOU ARE NOT ALLOWED TO COMMIT TO GIT!
+- `git commit` commands are forbidden.
+- `git push` commands are forbidden.
 
 ## Main Instructions
 
