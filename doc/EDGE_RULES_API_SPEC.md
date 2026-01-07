@@ -188,7 +188,7 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
 
-## Next Steps
+## Next Steps: Array CRUD Support
 
 - [ ] Implement `set`, `get`, `remove` support for array elements so user will be able to do like this:
 
@@ -208,6 +208,7 @@ decisionService.remove("rules[2]");
 - [ ] Overwriting existing array element should not shift other elements.
 - [ ] Adding new array element is possible only if previous elements exist (no gaps allowed). Throw
   `WrongFieldPathError`  if user tries to add element at index 5 while only 3 elements exist.
+- [ ] When setting element that does not match the array element type, I'm expecting `LinkingError`.
 - [ ] Update `test-unhappy.mjs` to cover these exceptions.
 - [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
 
@@ -221,5 +222,30 @@ decisionService.remove("rules[2]");
 
 - [ ] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
 - [ ] Leave empty array when last element is removed.
+- [ ] Shift remaining elements to fill the gap when an element is removed from the middle.
+- [ ] Update `test-unhappy.mjs` to cover these exceptions.
+- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+
+**Implement additional support when basic array CRUD is done and tested:**
+
+- [ ] Support of matrix (multidimensional) arrays.
+
+## Next Steps: Rename Support
+
+- [ ] Implement `rename` support for renaming fields, functions, types, and invocations so user will be able to do like this:
+
+```javascript
+// rename nested field `applicant.age` to `applicant.years`
+decisionService.rename("applicant.age", "years");
+
+// rename any nested function `eligibility.checkAge` to `verifyAge`
+decisionService.rename("eligibility.checkAge", "eligibility.verifyAge");
+```
+
+**`rename` element exceptions:**
+
+- [ ] Throw `WrongFieldPathError` if path does not exist, or new name is invalid (empty or contains invalid characters).
+- [ ] Expecting `LinkingError` if new name conflicts with existing sibling entry.
+- [ ] It is not possible to move entry or rename root context, only renaming last segment of the path is supported.
 - [ ] Update `test-unhappy.mjs` to cover these exceptions.
 - [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
