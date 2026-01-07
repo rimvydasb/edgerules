@@ -145,19 +145,59 @@ Stateless utility for quick evaluation.
 * `evaluateField(code: string, field: string): JsValue`
     * Parses the code and evaluates a specific field path within it.
 
-### `DecisionService` (Stateful)
+### CRUD Operations
 
-Maintains a mutable `EdgeRulesModel`.
+The `DecisionService` provides methods to modify the decision model at runtime.
 
-- `constructor(model: JsValue)` - Initializes service with a Portable Format object.
-- `execute(method: string, request: JsValue): JsValue` - Executes a named function in the model using the provided
-  request object as the argument.
-- `set(path: string, object: JsValue): JsValue` - Updates or inserts an entry (expression, function, type, invocation)at
-  the specified path. Returns the updated portable representation.
-- `get(path: string): JsValue` - Retrieves the portable representation of an entry at `path`. Use `"*"` for the full
-  model.
-- `remove(path: string): boolean` - Deletes the entry at `path`.
-- `getType(path: string): JsValue` - Returns the inferred or defined type schema for the entry at `path`.
+#### `get(path: string): object | any`
+
+Retrieves the value or definition at the specified path.
+
+- **Parameters:**
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
+- **Returns:** The value at the path. If the path points to a context, it returns a JSON object.
+- **Throws:**
+    - `EntryNotFoundError`: If the path does not exist.
+    - `WrongFieldPathError`: If the path is invalid, empty, out of bounds for arrays, or index is negative.
+
+#### `set(path: string, value: any): object | any`
+
+Sets a value or definition at the specified path.
+
+- **Parameters:**
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
+    - `value`: The value to set. Can be a primitive, object, or a function definition.
+- **Returns:** The set value.
+- **Throws:**
+    - `WrongFieldPathError`: If the path is invalid or attempts to add an array element with gaps (e.g., setting index 5 when length is 3).
+    - `LinkingError`: If the new value's type is incompatible with the existing structure or array type.
+    - `PortableError`: For other parsing or structural errors.
+
+#### `remove(path: string): void`
+
+Removes the entry at the specified path.
+
+- **Parameters:**
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
+- **Returns:** `void`.
+- **Throws:**
+    - `EntryNotFoundError`: If the path does not exist.
+    - `WrongFieldPathError`: If the path is invalid, out of bounds for arrays, or index is negative.
+
+**Array Access Exceptions:**
+
+*   **Set:**
+    *   **No Gaps:** You cannot add an element at an index that skips existing positions (e.g., `arr[5]` if length is 2).
+    *   **Overwrite:** Overwriting an existing index replaces the value without shifting.
+    *   **Type Safety:** Setting an element must respect the array's type (e.g., cannot put a string in a number array).
+*   **Remove:**
+    *   **Shift:** Removing an element (e.g., `arr[1]`) shifts subsequent elements left (index 2 becomes 1).
+    *   **Empty:** Removing the last element leaves an empty array.
+*   **General:**
+    *   **Bounds:** accessing `arr[10]` when length is 5 throws `WrongFieldPathError`.
+    *   **Negative Index:** `arr[-1]` throws `WrongFieldPathError`.
+
+### Error Handling
 
 ## Rust API Specification
 
@@ -190,49 +230,38 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 
 ## Next Steps: Array CRUD Support
 
-- [ ] Implement `set`, `get`, `remove` support for array elements so user will be able to do like this:
-
-```javascript
-// set the first rule in the rules array, overwriting existing one or adding a new one if index is out of bounds
-decisionService.set("rules[0]", {name: "NEW_RULE", rule: true, action: "APPROVE"});
-
-// get the second rule in the rules array
-const rule = decisionService.get("rules[1]");
-
-// remove the third rule in the rules array
-decisionService.remove("rules[2]");
-```
-
-- [ ] Update `test-decision-service.mjs` with tests covering basic array CRUD operations.
-- [ ] Unit test Rust `EdgeRulesModel` methods for array element manipulation.
-- [ ] Add a complex JavaScript test: find out `example_variable_library`, use that decision service definition in
+- [x] Check what is already implemented for this story part: implementation is not commited yet.
+- [x] Implement `set`, `get`, `remove` support for array elements.
+- [x] Update `test-decision-service.mjs` with tests covering basic array CRUD operations.
+- [x] Unit test Rust `EdgeRulesModel` methods for array element manipulation.
+- [x] Add a complex JavaScript test: find out `example_variable_library`, use that decision service definition in
   `test-decision-service.mjs` tests. Apply CRUD operations on `eligibilityDecision` rules. Ensure decision service is
   still executable and produces expected results.
-- [ ] Apply other CRUD operations on the new `example_variable_library` test in `test-decision-service.mjs`.
-- [ ] Perform updated code review to ensure quality, consistency and maintainability.
+- [x] Apply other CRUD operations on the new `example_variable_library` test in `test-decision-service.mjs`.
+- [x] Perform updated code review to ensure quality, consistency and maintainability.
 
 **`set` array element exceptions:**
 
-- [ ] Overwriting existing array element should not shift other elements.
-- [ ] Adding new array element is possible only if previous elements exist (no gaps allowed). Throw
+- [x] Overwriting existing array element should not shift other elements.
+- [x] Adding new array element is possible only if previous elements exist (no gaps allowed). Throw
   `WrongFieldPathError`  if user tries to add element at index 5 while only 3 elements exist.
-- [ ] When setting element that does not match the array element type, I'm expecting `LinkingError`.
-- [ ] Update `test-unhappy.mjs` to cover these exceptions.
-- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+- [x] When setting element that does not match the array element type, I'm expecting `LinkingError`.
+- [x] Update `test-unhappy.mjs` to cover these exceptions.
+- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
 
 **`get` array element exceptions:**
 
-- [ ] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
-- [ ] Update `test-unhappy.mjs` to cover these exceptions.
-- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+- [x] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
+- [x] Update `test-unhappy.mjs` to cover these exceptions.
+- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
 
 **`remove` array element exceptions:**
 
-- [ ] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
-- [ ] Leave empty array when last element is removed.
-- [ ] Shift remaining elements to fill the gap when an element is removed from the middle.
-- [ ] Update `test-unhappy.mjs` to cover these exceptions.
-- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+- [x] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
+- [x] Leave empty array when last element is removed.
+- [x] Shift remaining elements to fill the gap when an element is removed from the middle.
+- [x] Update `test-unhappy.mjs` to cover these exceptions.
+- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
 
 **Implement additional support when basic array CRUD is done and tested:**
 

@@ -10,7 +10,13 @@ pub fn resolve_context_path(
     for segment in path_segments {
         let next = {
             let ctx = current.borrow();
-            ctx.node().get_child(segment)
+            if let Some(child) = ctx.node().get_child(segment) {
+                Some(child)
+            } else if let Some(function) = ctx.get_function(segment) {
+                Some(Rc::clone(&function.borrow().function_definition.body))
+            } else {
+                None
+            }
         };
         match next {
             Some(child) => current = child,

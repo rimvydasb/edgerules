@@ -191,7 +191,7 @@ describe('Abnormal Path Handling', () => {
     describe('service.get(path)', () => {
         it('throws on empty path', () => {
             const error = getError(() => service.get(''));
-            assert.match(error.message, /Field path is empty/);
+            assert.match(error.message, /Path cannot be empty/);
         });
 
         it('throws on path with empty segments (..)', () => {
@@ -272,5 +272,46 @@ describe('Abnormal Path Handling', () => {
                 inner: 'number'
             });
         });
+    });
+});
+
+describe('Array Access Exceptions', () => {
+    let service;
+    before(() => {
+        wasm.init_panic_hook();
+        const model = {
+            list: [1, 2, 3],
+            scalar: 10
+        };
+        service = new wasm.DecisionService(model);
+    });
+
+    const getError = (fn) => {
+        try {
+            fn();
+        } catch (e) {
+            return e;
+        }
+        assert.fail('Expected function to throw an error');
+    };
+
+    it('set throws on gap', () => {
+        const error = getError(() => service.set('list[4]', 99));
+        assert.match(error.message, /Index 4 is out of bounds for array of length 3/);
+    });
+
+    it('get throws on out of bounds', () => {
+        const error = getError(() => service.get('list[3]'));
+         assert.match(error.message, /Index 3 out of bounds/);
+    });
+    
+    it('remove throws on out of bounds', () => {
+        const error = getError(() => service.remove('list[3]'));
+         assert.match(error.message, /Index 3 out of bounds/);
+    });
+
+    it('set throws if field is not an array', () => {
+         const error = getError(() => service.set('scalar[0]', 2));
+         assert.match(error.message, /Field 'scalar' is not an array/);
     });
 });

@@ -96,30 +96,93 @@ pub fn apply_portable_entry(
     match classify_entry(payload) {
         PortableKind::Function(def_obj) => {
             let (context_path, function_name) = split_path(path)?;
+            if let PathTarget::ArrayElement(_, _) = parse_path_target(&function_name)? {
+                return Err(PortableError::new(
+                    "Function definition cannot be an array element",
+                ));
+            }
             let definition = parse_function_definition(&function_name, &def_obj)?;
             apply_function_with_path(model, context_path, definition)?;
         }
         PortableKind::Invocation(inv_obj) => {
+            let (context_path, name) = split_path(path)?;
+            if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
+                return Err(PortableError::new(
+                    "Invocation definition cannot be an array element",
+                ));
+            }
             let spec = parse_invocation_spec(&inv_obj)?;
             model.set_invocation(path, spec)?;
         }
         PortableKind::Type(def_obj) => {
+            let (context_path, name) = split_path(path)?;
+            if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
+                return Err(PortableError::new(
+                    "Type definition cannot be an array element",
+                ));
+            }
             let body = parse_type_definition(&def_obj)?;
             model.set_user_type(path, body)?;
         }
         PortableKind::Context(ctx_obj) => {
-            let expr = parse_static_object(&ctx_obj)?;
-            model.set_expression(path, expr)?;
+            let (context_path, name) = split_path(path)?;
+            match parse_path_target(&name)? {
+                PathTarget::Field(_) => {
+                    let expr = parse_static_object(&ctx_obj)?;
+                    model.set_expression(path, expr)?;
+                }
+                PathTarget::ArrayElement(array_name, index) => {
+                    let full_array_path = join_path(context_path, &array_name);
+                    let expr = parse_static_object(&ctx_obj)?;
+                    set_array_element(model, &full_array_path, index, expr)?;
+                }
+            }
         }
         PortableKind::Expression(raw) => {
-            let expr = parse_expression_value(&raw)?;
-            model.set_expression(path, expr)?;
+            let (context_path, name) = split_path(path)?;
+            match parse_path_target(&name)? {
+                PathTarget::Field(_) => {
+                    let expr = parse_expression_value(&raw)?;
+                    model.set_expression(path, expr)?;
+                }
+                PathTarget::ArrayElement(array_name, index) => {
+                    let full_array_path = join_path(context_path, &array_name);
+                    let expr = parse_expression_value(&raw)?;
+                    set_array_element(model, &full_array_path, index, expr)?;
+                }
+            }
         }
     }
     Ok(())
 }
 
 pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(), PortableError> {
+    let (context_path, name) = split_path(path)?;
+    if let PathTarget::ArrayElement(array_name, index) = parse_path_target(&name)? {
+        let full_array_path = join_path(context_path, &array_name);
+        let entry = model
+            .get_expression(&full_array_path)
+            .map_err(PortableError::from)?;
+        let mut borrowed = entry.borrow_mut();
+
+        match &mut borrowed.expression {
+            ExpressionEnum::Collection(col) => {
+                if index >= col.elements.len() {
+                    return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                        Some(format!("Index {} out of bounds", index)),
+                    )));
+                }
+                col.elements.remove(index);
+                return Ok(());
+            }
+            _ => {
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                    Some(format!("Field '{}' is not an array", full_array_path)),
+                )));
+            }
+        }
+    }
+
     match model.get_user_type(path) {
         Ok(_) => {
             model.remove_user_type(path)?;
@@ -154,6 +217,31 @@ pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(
 }
 
 pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue, PortableError> {
+    let (context_path, name) = split_path(path)?;
+    if let PathTarget::ArrayElement(array_name, index) = parse_path_target(&name)? {
+        let full_array_path = join_path(context_path, &array_name);
+        let entry = model
+            .get_expression(&full_array_path)
+            .map_err(PortableError::from)?;
+        let borrowed = entry.borrow();
+
+        match &borrowed.expression {
+            ExpressionEnum::Collection(col) => {
+                if index >= col.elements.len() {
+                    return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                        Some(format!("Index {} out of bounds", index)),
+                    )));
+                }
+                return serialize_expression(&col.elements[index]);
+            }
+            _ => {
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                    Some(format!("Field '{}' is not an array", full_array_path)),
+                )));
+            }
+        }
+    }
+
     match model.get_user_type(path) {
         Ok(body) => return serialize_type_body(&body),
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
@@ -173,6 +261,88 @@ pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue,
     }
 
     Err(ContextQueryErrorEnum::EntryNotFoundError(path.to_string()).into())
+}
+
+fn join_path(context: Option<Vec<String>>, name: &str) -> String {
+    match context {
+        Some(parts) => format!("{}.{}", parts.join("."), name),
+        None => name.to_string(),
+    }
+}
+
+fn set_array_element(
+    model: &mut EdgeRulesModel,
+    array_path: &str,
+    index: usize,
+    value: ExpressionEnum,
+) -> Result<(), PortableError> {
+    let entry = model
+        .get_expression(array_path)
+        .map_err(PortableError::from)?;
+    let mut borrowed = entry.borrow_mut();
+    match &mut borrowed.expression {
+        ExpressionEnum::Collection(col) => {
+            let len = col.elements.len();
+            if index > len {
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                    Some(format!(
+                        "Index {} is out of bounds for array of length {} (no gaps allowed)",
+                        index, len
+                    )),
+                )));
+            } else if index == len {
+                col.elements.push(value);
+            } else {
+                col.elements[index] = value;
+            }
+            Ok(())
+        }
+        _ => Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+            Some(format!("Field '{}' is not an array", array_path)),
+        ))),
+    }
+}
+
+enum PathTarget {
+    Field(String),
+    ArrayElement(String, usize),
+}
+
+fn parse_path_target(name: &str) -> Result<PathTarget, PortableError> {
+    if name.ends_with(']') {
+        if let Some(start_bracket) = name.rfind('[') {
+            let array_name = name[..start_bracket].trim();
+            let index_str = name[start_bracket + 1..name.len() - 1].trim();
+
+            if array_name.is_empty() {
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                    Some(format!("Invalid array path '{}'", name)),
+                )));
+            }
+
+            // Check for valid unsigned integer
+            // Disallow negative numbers (starts with -) or non-numeric chars
+            if index_str.starts_with('-') || index_str.is_empty() {
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                    Some(format!("Invalid array index '{}'", index_str)),
+                )));
+            }
+
+            let index = index_str.parse::<usize>().map_err(|_| {
+                PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                    "Invalid array index '{}'",
+                    index_str
+                ))))
+            })?;
+
+            return Ok(PathTarget::ArrayElement(array_name.to_string(), index));
+        } else {
+            return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
+                Some(format!("Invalid path format '{}'", name)),
+            )));
+        }
+    }
+    Ok(PathTarget::Field(name.to_string()))
 }
 
 enum PortableKind {
@@ -627,4 +797,102 @@ fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
             .map_err(|_| PortableError::new("Failed to set local type"))?;
     }
     Ok(JsValue::from(obj))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use edge_rules::ast::sequence::CollectionExpression;
+    use edge_rules::typesystem::values::ValueEnum;
+
+    #[test]
+    fn test_parse_path_target_field() {
+        let res = parse_path_target("someField").unwrap();
+        match res {
+            PathTarget::Field(name) => assert_eq!(name, "someField"),
+            _ => panic!("Expected Field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_path_target_array() {
+        let res = parse_path_target("rules[0]").unwrap();
+        match res {
+            PathTarget::ArrayElement(name, idx) => {
+                assert_eq!(name, "rules");
+                assert_eq!(idx, 0);
+            }
+            _ => panic!("Expected ArrayElement"),
+        }
+
+        let res = parse_path_target("items[10]").unwrap();
+        match res {
+            PathTarget::ArrayElement(name, idx) => {
+                assert_eq!(name, "items");
+                assert_eq!(idx, 10);
+            }
+            _ => panic!("Expected ArrayElement"),
+        }
+    }
+
+    #[test]
+    fn test_parse_path_target_invalid() {
+        assert!(parse_path_target("rules[").is_err());
+        assert!(parse_path_target("rules[a]").is_err());
+        assert!(parse_path_target("rules[-1]").is_err());
+        assert!(parse_path_target("rules[]").is_err());
+        assert!(parse_path_target("[0]").is_err()); // empty array name
+    }
+
+    #[test]
+    fn test_set_array_element_append() {
+        let mut model = EdgeRulesModel::new();
+        // Setup array
+        let col = ExpressionEnum::Collection(CollectionExpression::build(vec![]));
+        model.set_expression("list", col).unwrap();
+
+        // Append [0]
+        let val = ExpressionEnum::from(ValueEnum::from(10));
+        set_array_element(&mut model, "list", 0, val).unwrap();
+
+        // Check
+        let entry = model.get_expression("list").unwrap();
+        let borrowed = entry.borrow();
+        if let ExpressionEnum::Collection(c) = &borrowed.expression {
+            assert_eq!(c.elements.len(), 1);
+        } else {
+            panic!("Not a collection");
+        }
+    }
+
+    #[test]
+    fn test_set_array_element_gap_error() {
+        let mut model = EdgeRulesModel::new();
+        let col = ExpressionEnum::Collection(CollectionExpression::build(vec![]));
+        model.set_expression("list", col).unwrap();
+
+        // Try [1] on empty -> error
+        let val = ExpressionEnum::from(ValueEnum::from(10));
+        let err = set_array_element(&mut model, "list", 1, val);
+        assert!(err.is_err());
+        assert!(err.unwrap_err().to_string().contains("out of bounds"));
+    }
+
+    #[test]
+    fn test_set_array_element_overwrite() {
+        let mut model = EdgeRulesModel::new();
+        let val1 = ExpressionEnum::from(ValueEnum::from(10));
+        let col = ExpressionEnum::Collection(CollectionExpression::build(vec![val1]));
+        model.set_expression("list", col).unwrap();
+
+        // Overwrite [0]
+        let val2 = ExpressionEnum::from(ValueEnum::from(20));
+        set_array_element(&mut model, "list", 0, val2).unwrap();
+
+        let entry = model.get_expression("list").unwrap();
+        let borrowed = entry.borrow();
+        if let ExpressionEnum::Collection(c) = &borrowed.expression {
+             assert_eq!(c.elements.len(), 1);
+        }
+    }
 }
