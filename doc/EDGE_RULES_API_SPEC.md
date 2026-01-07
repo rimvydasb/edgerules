@@ -191,9 +191,10 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 ## Next Steps
 
 - [ ] Implement `set`, `get`, `remove` support for array elements so user will be able to do like this:
+
 ```javascript
 // set the first rule in the rules array, overwriting existing one or adding a new one if index is out of bounds
-decisionService.set("rules[0]", { name: "NEW_RULE", rule: true, action: "APPROVE" });
+decisionService.set("rules[0]", {name: "NEW_RULE", rule: true, action: "APPROVE"});
 
 // get the second rule in the rules array
 const rule = decisionService.get("rules[1]");
@@ -203,5 +204,22 @@ decisionService.remove("rules[2]");
 ```
 
 **`set` array element exceptions:**
+
 - [ ] Overwriting existing array element should not shift other elements.
-- [ ] Adding new array element is possible only if previous elements exist (no gaps allowed).
+- [ ] Adding new array element is possible only if previous elements exist (no gaps allowed). Throw
+  `WrongFieldPathError`  if user tries to add element at index 5 while only 3 elements exist.
+- [ ] Update `test-unhappy.mjs` to cover these exceptions.
+- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+
+**`get` array element exceptions:**
+
+- [ ] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
+- [ ] Update `test-unhappy.mjs` to cover these exceptions.
+- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+
+**`remove` array element exceptions:**
+
+- [ ] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
+- [ ] Leave empty array when last element is removed.
+- [ ] Update `test-unhappy.mjs` to cover these exceptions.
+- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
