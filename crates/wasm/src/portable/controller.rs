@@ -70,6 +70,18 @@ impl DecisionServiceController {
         get_portable_entry(&borrowed, path)
     }
 
+    pub fn rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), PortableError> {
+        let model = self.service.get_model();
+        {
+            let mut borrowed = model.borrow_mut();
+            borrowed
+                .rename_entry(old_path, new_path)
+                .map_err(PortableError::from)?;
+        }
+        self.service.ensure_linked()?;
+        Ok(())
+    }
+
     pub fn get_entry_type(&mut self, path: &str) -> Result<ValueType, PortableError> {
         self.service.ensure_linked()?;
         self.service

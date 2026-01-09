@@ -209,4 +209,65 @@ describe('DecisionService Rename', () => {
         
         assert.strictEqual(service.get("customer.firstName"), "'John'");
     });
+
+    describe('DecisionService.rename Exceptions', () => {
+        let service;
+
+        before(() => {
+            wasm.init_panic_hook();
+            const model = {
+                a: 10,
+                b: 20,
+                nested: {
+                    x: 1,
+                    y: 2
+                }
+            };
+            service = new wasm.DecisionService(model);
+        });
+
+        const getError = (fn) => {
+            try {
+                fn();
+            } catch (e) {
+                return e;
+            }
+            assert.fail('Expected function to throw an error');
+        };
+
+        it('throws if old path does not exist', () => {
+            const error = getError(() => service.rename('nonexistent', 'exists'));
+            assert.match(error.message, /Entry 'nonexistent' not found/);
+        });
+
+        it('throws if new name conflicts with existing sibling', () => {
+            const error = getError(() => service.rename('a', 'b'));
+            assert.match(error.message, /Duplicate field 'b'/);
+        });
+
+        it('throws if new name is empty', () => {
+             const error = getError(() => service.rename('a', ' '));
+             assert.match(error.message, /Field path is empty/);
+        });
+
+        it('throws if renaming to different context (root vs nested)', () => {
+            const error = getError(() => service.rename('a', 'nested.z'));
+            assert.match(error.message, /Renaming must be within the same context/);
+        });
+
+        it('throws if renaming to different context (nested vs nested)', () => {
+             const error = getError(() => service.rename('nested.x', 'nested.child.x'));
+             assert.match(error.message, /Renaming must be within the same context/);
+        });
+
+        it('throws if old path nested parent not found', () => {
+             const error = getError(() => service.rename('ghost.child', 'ghost.child2'));
+             assert.match(error.message, /Context 'ghost' not found/);
+        });
+
+        it('throws if new name conflicts in nested context', () => {
+             const error = getError(() => service.rename('nested.x', 'nested.y'));
+             assert.match(error.message, /Duplicate field 'y'/);
+        });
+    });
 });

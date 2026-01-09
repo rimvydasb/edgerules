@@ -292,6 +292,53 @@ impl ContextObjectBuilder {
         true
     }
 
+    pub fn rename_field(
+        &mut self,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<bool, DuplicateNameError> {
+        let exists = self.field_name_set.contains(old_name)
+            || self.defined_types.contains_key(old_name);
+        if !exists {
+            return Ok(false);
+        }
+
+        if self.field_name_set.contains(new_name) || self.defined_types.contains_key(new_name) {
+            return Err(DuplicateNameError::new(NameKind::Field, new_name));
+        }
+
+        let new_interned = intern_field_name(new_name);
+
+        if let Some(val) = self.fields.remove(old_name) {
+            self.fields.insert(new_interned, val);
+        }
+
+        if let Some(val) = self.metaphors.remove(old_name) {
+            {
+                let mut borrowed = val.borrow_mut();
+                borrowed.function_definition.name = new_name.to_string();
+            }
+            self.metaphors.insert(new_interned, val);
+        }
+
+        if let Some(val) = self.childs.remove(old_name) {
+            self.childs.insert(new_interned, val);
+        }
+
+        if let Some(val) = self.defined_types.remove(old_name) {
+            self.defined_types.insert(new_name.to_string(), val);
+        }
+
+        if self.field_name_set.remove(old_name) {
+            self.field_name_set.insert(new_interned);
+            if let Some(pos) = self.field_names.iter().position(|&x| x == old_name) {
+                self.field_names[pos] = new_interned;
+            }
+        }
+
+        Ok(true)
+    }
+
     pub fn get_field_names(&self) -> Vec<&'static str> {
         self.field_names.clone()
     }

@@ -184,6 +184,22 @@ Removes the entry at the specified path.
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid, out of bounds for arrays, or index is negative.
 
+#### `rename(oldPath: string, newPath: string): void`
+
+Renames an entry (field, function, type, or invocation) from `oldPath` to `newPath`.
+
+- **Parameters:**
+    - `oldPath`: The current full path of the entry (e.g., `"applicant.age"`).
+    - `newPath`: The new full path of the entry (e.g., `"applicant.years"`).
+- **Returns:** `void` (or boolean true in some bindings).
+- **Throws:**
+    - `EntryNotFoundError`: If `oldPath` does not exist.
+    - `WrongFieldPathError`:
+        - If `newPath` is invalid or empty.
+        - If `oldPath` and `newPath` do not share the same parent context (you cannot move entries between contexts).
+    - `DuplicateNameError`: If an entry with the name of `newPath` already exists in the target context.
+    - `LinkingError`: If the rename breaks existing references (e.g., referencing a function that was renamed without updating the call site). Note: updating references is not automatic.
+
 **Array Access Exceptions:**
 
 *   **Set:**
@@ -196,6 +212,12 @@ Removes the entry at the specified path.
 *   **General:**
     *   **Bounds:** accessing `arr[10]` when length is 5 throws `WrongFieldPathError`.
     *   **Negative Index:** `arr[-1]` throws `WrongFieldPathError`.
+
+**Rename Exceptions:**
+
+*   **Same Context:** Renaming `user.firstName` to `customer.firstName` throws `WrongFieldPathError` because the parent context changes from `user` to `customer`.
+*   **Collision:** Renaming `a` to `b` when `b` exists throws `DuplicateNameError`.
+*   **Root vs Nested:** Renaming a root element to a nested path (or vice versa) throws `WrongFieldPathError`.
 
 ### Error Handling
 
@@ -211,6 +233,7 @@ The primary struct for building and manipulating the AST before compilation.
 - `set_user_type(path, body)`: Inserts/updates a type definition.
 - `set_invocation(path, spec)`: Inserts a function invocation.
 - `remove_*(path)`: Removes corresponding entities.
+- `rename_entry(old_path, new_path)`: Renames an entity within its context.
 - `to_runtime_snapshot()`: Compiles the model into an `EdgeRulesRuntime` for execution.
 
 ### `DecisionService` (`crates/core`)
@@ -269,12 +292,12 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 
 ## Next Steps: Rename Support
 
-- [ ] Implement `rename` support for renaming fields, functions, types, and invocations so user will be able to do like
+- [x] Implement `rename` support for renaming fields, functions, types, and invocations so user will be able to do like
   this:
 
 ```javascript
 // rename nested field `applicant.age` to `applicant.years`
-decisionService.rename("applicant.age", "years");
+decisionService.rename("applicant.age", "applicant.years");
 
 // rename any nested function `eligibility.checkAge` to `verifyAge`
 decisionService.rename("eligibility.checkAge", "eligibility.verifyAge");
@@ -282,8 +305,30 @@ decisionService.rename("eligibility.checkAge", "eligibility.verifyAge");
 
 **`rename` element exceptions:**
 
-- [ ] Throw `WrongFieldPathError` if path does not exist, or new name is invalid (empty or contains invalid characters).
-- [ ] Expecting `LinkingError` if new name conflicts with existing sibling entry.
-- [ ] It is not possible to move entry or rename root context, only renaming last segment of the path is supported.
-- [ ] Update `test-unhappy.mjs` to cover these exceptions.
-- [ ] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+- [x] Throw `WrongFieldPathError` if path does not exist, or new name is invalid (empty or contains invalid characters).
+- [x] Expecting `LinkingError` if new name conflicts with existing sibling entry.
+- [x] It is not possible to move entry or rename root context, only renaming last segment of the path is supported.
+- [x] Update `test-unhappy.mjs` to cover these exceptions.
+- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
+- [x] User is able to rename context variable names as well:
+```edgerules
+{
+    user: {
+        firstName: "John",
+        lastName: "Doe"
+    }
+} 
+```
+Following rename operation should be possible:
+```javascript
+// rename context variable:
+decisionService.rename("user.firstName", "user.givenName");
+
+// rename context variable in the root context:
+decisionService.rename("user", "customer");
+```
+However, double renames are not supported:
+```javascript
+// this is not supported:
+decisionService.rename("user.firstName", "customer.givenName"); // Throws WrongFieldPathError
+```

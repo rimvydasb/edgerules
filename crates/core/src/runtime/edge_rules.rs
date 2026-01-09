@@ -1,7 +1,7 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_resolver::resolve_context_path;
-use crate::ast::context::duplicate_name_error::DuplicateNameError;
+use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::expression::StaticLink;
 use crate::ast::token::EToken;
 use crate::ast::token::EToken::{Definition, Expression};
@@ -145,6 +145,14 @@ impl<'a> FieldPath<'a> {
 
     fn parent_path(&self) -> String {
         self.parent_segments().join(".")
+    }
+
+    fn is_sibling(&self, other: &FieldPath) -> bool {
+        if self.is_root() {
+            other.is_root()
+        } else {
+            !other.is_root() && self.parent_segments() == other.parent_segments()
+        }
     }
 }
 
@@ -527,6 +535,49 @@ impl EdgeRulesModel {
             }
         };
         function.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(function_path.to_string()))
+    }
+
+    pub fn rename_entry(
+        &mut self,
+        old_path: &str,
+        new_path: &str,
+    ) -> Result<(), ContextQueryErrorEnum> {
+        let old_path_parsed = FieldPath::parse(old_path)?;
+        let old_name = old_path_parsed.leaf();
+
+        let new_path_parsed = FieldPath::parse(new_path)?;
+        let new_name = new_path_parsed.leaf();
+
+        // Validate that both paths are in the same context
+        let same_context = if old_path_parsed.is_root() {
+            new_path_parsed.is_root()
+        } else {
+            !new_path_parsed.is_root()
+                && old_path_parsed.parent_segments() == new_path_parsed.parent_segments()
+        };
+
+        if !same_context {
+            return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                "Renaming must be within the same context. Cannot rename '{}' to '{}'",
+                old_path, new_path
+            ))));
+        }
+
+        let (parent_opt, _) = self.resolve_parent(old_path)?;
+
+        let result = match parent_opt {
+            Some(parent) => {
+                let mut borrowed = parent.borrow_mut();
+                borrowed.rename_field(old_name, new_name)
+            }
+            None => self.ast_root.rename_field(old_name, new_name),
+        };
+
+        match result {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(ContextQueryErrorEnum::EntryNotFoundError(old_path.to_string())),
+            Err(dup) => Err(ContextQueryErrorEnum::DuplicateNameError(dup)),
+        }
     }
 
     pub fn merge_context_object(

@@ -335,6 +335,78 @@ impl ContextObject {
         Ok(())
     }
 
+    pub fn rename_field(
+        &mut self,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<bool, DuplicateNameError> {
+        let exists = self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
+        if !exists {
+            return Ok(false);
+        }
+
+        if self.field_name_set.contains(new_name) || self.defined_types.contains_key(new_name) {
+            return Err(DuplicateNameError::new(NameKind::Field, new_name));
+        }
+
+        let new_interned = intern_field_name(new_name);
+
+        // Expressions
+        if let Some(entry) = self.expressions.remove(old_name) {
+            self.expressions.insert(new_interned, entry);
+        }
+
+        // Metaphors (Functions)
+        if let Some(entry) = self.metaphors.remove(old_name) {
+            {
+                let mut borrowed = entry.borrow_mut();
+                borrowed.function_definition.name = new_name.to_string();
+                let body = &borrowed.function_definition.body;
+                let mut body_borrowed = body.borrow_mut();
+                if let NodeDataEnum::Internal(_, ref mut alias) = body_borrowed.node.node_type {
+                    *alias = Some(new_interned);
+                }
+            }
+            self.metaphors.insert(new_interned, entry);
+        }
+
+        // Child Contexts (Static Objects)
+        {
+            let childs_rc = self.node.get_childs();
+            let mut childs = childs_rc.borrow_mut();
+            if let Some(child_ctx) = childs.remove(old_name) {
+                {
+                    let mut child_borrowed = child_ctx.borrow_mut();
+                    if let NodeDataEnum::Child(ref mut name, _) = child_borrowed.node.node_type {
+                        *name = new_interned;
+                    }
+                }
+                childs.insert(new_interned, child_ctx);
+            }
+        }
+
+        // Defined Types
+        if let Some(body) = self.defined_types.remove(old_name) {
+            if let UserTypeBody::TypeObject(ref type_ctx) = body {
+                let mut borrowed = type_ctx.borrow_mut();
+                if let NodeDataEnum::Internal(_, ref mut alias) = borrowed.node.node_type {
+                    *alias = Some(new_interned);
+                }
+            }
+            self.defined_types.insert(new_name.to_string(), body);
+        }
+
+        // Update name sets
+        if self.field_name_set.remove(old_name) {
+            self.field_name_set.insert(new_interned);
+            if let Some(pos) = self.all_field_names.iter().position(|&x| x == old_name) {
+                self.all_field_names[pos] = new_interned;
+            }
+        }
+
+        Ok(true)
+    }
+
     pub fn set_user_type_definition(
         parent: &Rc<RefCell<ContextObject>>,
         name: &str,

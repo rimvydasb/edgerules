@@ -152,6 +152,13 @@ impl DecisionService {
         }
     }
 
+    pub fn rename(&self, old_path: &str, new_path: &str) -> bool {
+        match with_decision_service(|svc| svc.rename_entry(old_path, new_path)) {
+            Ok(_) => true,
+            Err(err) => throw_portable_error(err),
+        }
+    }
+
     #[wasm_bindgen(js_name = "getType")]
     pub fn get_type(&self, path: &str) -> JsValue {
         match with_decision_service(|svc| {
