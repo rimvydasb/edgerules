@@ -228,21 +228,35 @@ Renames an entry (field, function, type, or invocation) from `oldPath` to `newPa
 The primary struct for building and manipulating the AST before compilation.
 
 - `new() -> Self`: Creates an empty model.
-- `set_expression(path, expr)`: Inserts/updates an expression.
-- `set_user_function(def, context_path)`: Inserts/updates a function.
-- `set_user_type(path, body)`: Inserts/updates a type definition.
-- `set_invocation(path, spec)`: Inserts a function invocation.
-- `remove_*(path)`: Removes corresponding entities.
-- `rename_entry(old_path, new_path)`: Renames an entity within its context.
-- `to_runtime_snapshot()`: Compiles the model into an `EdgeRulesRuntime` for execution.
+- `append_source(code: &str) -> Result<(), ParseErrors>`: Parses and appends source code to the model.
+- `set_expression(path: &str, expr: ExpressionEnum) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates an expression.
+- `set_user_function(def: FunctionDefinition, context_path: Option<Vec<&str>>) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates a function.
+- `set_user_type(path: &str, body: UserTypeBody) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates a type definition.
+- `set_invocation(path: &str, spec: InvocationSpec) -> Result<(), ContextQueryErrorEnum>`: Inserts a function invocation.
+- `remove_expression(path: &str) -> Result<(), ContextQueryErrorEnum>`: Removes an expression.
+- `remove_user_type(path: &str) -> Result<(), ContextQueryErrorEnum>`: Removes a type definition.
+- `remove_user_function(path: &str) -> Result<(), ContextQueryErrorEnum>`: Removes a user function.
+- `rename_entry(old_path: &str, new_path: &str) -> Result<(), ContextQueryErrorEnum>`: Renames an entity within its context.
+- `get_expression(path: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum>`: Retrieves an expression entry.
+- `get_expression_type(path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the type of an expression.
+- `get_user_type(path: &str) -> Result<UserTypeBody, ContextQueryErrorEnum>`: Retrieves a user type definition.
+- `get_user_function(path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum>`: Retrieves a user function entry.
+- `to_runtime() -> Result<EdgeRulesRuntime, LinkingError>`: Consumes the model and compiles it into a runtime.
+- `to_runtime_snapshot() -> Result<EdgeRulesRuntime, LinkingError>`: Compiles the model into a runtime without consuming it.
 
 ### `DecisionService` (`crates/core`)
 
 Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-oriented execution.
 
-- `from_model(EdgeRulesModel) -> Result<Self>`: Creates service from a model.
-- `execute(method, request) -> Result<ValueEnum>`: Executes a service method.
-- `get_model()`: Returns `Rc<RefCell<EdgeRulesModel>>` for mutation.
+- `from_source(source: &str) -> Result<Self, EvalError>`: Creates a service from source code.
+- `from_context(context: Rc<RefCell<ContextObject>>) -> Result<Self, EvalError>`: Creates a service from an existing context object.
+- `from_model(model: EdgeRulesModel) -> Result<Self, EvalError>`: Creates a service from a model.
+- `execute(&mut self, method: &str, request: ValueEnum) -> Result<ValueEnum, EvalError>`: Executes a service method.
+- `evaluate_field(&mut self, path: &str) -> Result<ValueEnum, EvalError>`: Evaluates a specific field path.
+- `get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the linked type of a field.
+- `rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), EvalError>`: Renames an entry within the service.
+- `ensure_linked(&mut self) -> Result<(), EvalError>`: Ensures the underlying runtime is linked and up-to-date.
+- `get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>>`: Returns `Rc<RefCell<EdgeRulesModel>>` for mutation (requires `mutable_decision_service` feature).
 
 ## Limitations
 
@@ -250,85 +264,3 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
-
-## Next Steps: Array CRUD Support
-
-- [x] Check what is already implemented for this story part: implementation is not commited yet.
-- [x] Implement `set`, `get`, `remove` support for array elements.
-- [x] Update `test-decision-service.mjs` with tests covering basic array CRUD operations.
-- [x] Unit test Rust `EdgeRulesModel` methods for array element manipulation.
-- [x] Add a complex JavaScript test: find out `example_variable_library`, use that decision service definition in
-  `test-decision-service.mjs` tests. Apply CRUD operations on `eligibilityDecision` rules. Ensure decision service is
-  still executable and produces expected results.
-- [x] Apply other CRUD operations on the new `example_variable_library` test in `test-decision-service.mjs`.
-- [x] Perform updated code review to ensure quality, consistency and maintainability.
-
-**`set` array element exceptions:**
-
-- [x] Overwriting existing array element should not shift other elements.
-- [x] Adding new array element is possible only if previous elements exist (no gaps allowed). Throw
-  `WrongFieldPathError`  if user tries to add element at index 5 while only 3 elements exist.
-- [x] When setting element that does not match the array element type, I'm expecting `LinkingError`.
-- [x] Update `test-unhappy.mjs` to cover these exceptions.
-- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
-
-**`get` array element exceptions:**
-
-- [x] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
-- [x] Update `test-unhappy.mjs` to cover these exceptions.
-- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
-
-**`remove` array element exceptions:**
-
-- [x] Throw `WrongFieldPathError` if index is out of bounds, index is negative, or path is not an array.
-- [x] Leave empty array when last element is removed.
-- [x] Shift remaining elements to fill the gap when an element is removed from the middle.
-- [x] Update `test-unhappy.mjs` to cover these exceptions.
-- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
-
-**Implement additional support when basic array CRUD is done and tested:**
-
-- [ ] Support of matrix (multidimensional) arrays.
-
-## Next Steps: Rename Support
-
-- [x] Implement `rename` support for renaming fields, functions, types, and invocations so user will be able to do like
-  this:
-
-```javascript
-// rename nested field `applicant.age` to `applicant.years`
-decisionService.rename("applicant.age", "applicant.years");
-
-// rename any nested function `eligibility.checkAge` to `verifyAge`
-decisionService.rename("eligibility.checkAge", "eligibility.verifyAge");
-```
-
-**`rename` element exceptions:**
-
-- [x] Throw `WrongFieldPathError` if path does not exist, or new name is invalid (empty or contains invalid characters).
-- [x] Expecting `LinkingError` if new name conflicts with existing sibling entry.
-- [x] It is not possible to move entry or rename root context, only renaming last segment of the path is supported.
-- [x] Update `test-unhappy.mjs` to cover these exceptions.
-- [x] Update `EDGE_RULES_API_SPEC.md` to explain these exceptions.
-- [x] User is able to rename context variable names as well:
-```edgerules
-{
-    user: {
-        firstName: "John",
-        lastName: "Doe"
-    }
-} 
-```
-Following rename operation should be possible:
-```javascript
-// rename context variable:
-decisionService.rename("user.firstName", "user.givenName");
-
-// rename context variable in the root context:
-decisionService.rename("user", "customer");
-```
-However, double renames are not supported:
-```javascript
-// this is not supported:
-decisionService.rename("user.firstName", "customer.givenName"); // Throws WrongFieldPathError
-```
