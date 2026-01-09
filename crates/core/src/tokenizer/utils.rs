@@ -29,6 +29,12 @@ pub enum Either<L, R> {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct TokenChain(pub VecDeque<EToken>);
 
+impl Default for TokenChain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TokenChain {
     pub fn new() -> Self {
         TokenChain(VecDeque::new())
@@ -329,7 +335,7 @@ impl<'a> CharStream<'a> {
     }
 
     // Override iter.next() method
-    pub fn next(&mut self) -> Option<char> {
+    pub fn next_char(&mut self) -> Option<char> {
         self.iter.next()
     }
 
@@ -400,21 +406,21 @@ mod test {
         assert_eq!(
             CharStream::new(" abc123_ ")
                 .skip_whitespace()
-                .next()
+                .next_char()
                 .unwrap(),
             'a'
         );
         assert_eq!(
             CharStream::new("xbc123_ ")
                 .skip_whitespace()
-                .next()
+                .next_char()
                 .unwrap(),
             'x'
         );
         assert_eq!(
             CharStream::new("       zbc123_ ")
                 .skip_whitespace()
-                .next()
+                .next_char()
                 .unwrap(),
             'z'
         );
@@ -442,8 +448,8 @@ mod test {
             let mut stream = CharStream::new("13..1");
             assert_eq!(stream.get_number(), NumberEnum::from(13));
             assert_eq!(stream.peek().unwrap(), &'.');
-            assert_eq!(stream.next().unwrap(), '.');
-            assert_eq!(stream.next().unwrap(), '1');
+            assert_eq!(stream.next_char().unwrap(), '.');
+            assert_eq!(stream.next_char().unwrap(), '1');
             assert!(stream.dot_was_skipped);
         }
         // testing CharStream get_literal_token method

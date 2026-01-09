@@ -128,7 +128,7 @@ pub fn eval_tan(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
-            if n < -1.0 || n > 1.0 {
+            if !(-1.0..=1.0).contains(&n) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
             } else {
                 Ok(NumberValue(Real(n.asin())))
@@ -136,7 +136,7 @@ pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         },
         NumberValue(Int(n)) => {
             let val = n as f64;
-             if val < -1.0 || val > 1.0 {
+             if !(-1.0..=1.0).contains(&val) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
             } else {
                 Ok(NumberValue(Real(val.asin())))
@@ -150,7 +150,7 @@ pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
-            if n < -1.0 || n > 1.0 {
+            if !(-1.0..=1.0).contains(&n) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
             } else {
                 Ok(NumberValue(Real(n.acos())))
@@ -158,7 +158,7 @@ pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         },
         NumberValue(Int(n)) => {
             let val = n as f64;
-             if val < -1.0 || val > 1.0 {
+             if !(-1.0..=1.0).contains(&val) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
             } else {
                 Ok(NumberValue(Real(val.acos())))

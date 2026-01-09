@@ -129,7 +129,7 @@ impl ForFunction {
             match map_value {
                 Ok(val) => result.push(val),
                 Err(err) => {
-                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.inner.error {
                         let missing =
                             missing_for_type(&element_type, Some(field.as_str()), &parent)?;
                         result.push(missing);
@@ -183,7 +183,7 @@ impl ForFunction {
             match map_value {
                 Ok(val) => result.push(val),
                 Err(err) => {
-                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.inner.error {
                         let missing =
                             missing_for_type(&element_type, Some(field.as_str()), &parent)?;
                         result.push(missing);

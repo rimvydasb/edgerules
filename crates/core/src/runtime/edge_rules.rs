@@ -1,7 +1,7 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_resolver::resolve_context_path;
-use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
+use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::expression::StaticLink;
 use crate::ast::token::EToken;
 use crate::ast::token::EToken::{Definition, Expression};
@@ -146,14 +146,6 @@ impl<'a> FieldPath<'a> {
     fn parent_path(&self) -> String {
         self.parent_segments().join(".")
     }
-
-    fn is_sibling(&self, other: &FieldPath) -> bool {
-        if self.is_root() {
-            other.is_root()
-        } else {
-            !other.is_root() && self.parent_segments() == other.parent_segments()
-        }
-    }
 }
 
 impl ParsedItem {
@@ -255,6 +247,8 @@ impl Default for EdgeRulesModel {
     }
 }
 
+type ParentResolution<'a> = (Option<Rc<RefCell<ContextObject>>>, &'a str);
+
 /// Reusable model holder that can be later converted to runtime to be executed.
 /// Model is reused across multiple executions.
 impl EdgeRulesModel {
@@ -348,7 +342,7 @@ impl EdgeRulesModel {
     fn resolve_parent<'a>(
         &self,
         field_path: &'a str,
-    ) -> Result<(Option<Rc<RefCell<ContextObject>>>, &'a str), ContextQueryErrorEnum> {
+    ) -> Result<ParentResolution<'a>, ContextQueryErrorEnum> {
         let path = FieldPath::parse(field_path)?;
         if path.is_root() {
             Ok((None, path.leaf()))

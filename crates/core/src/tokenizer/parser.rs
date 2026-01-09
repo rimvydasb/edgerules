@@ -53,7 +53,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 if source.dot_was_skipped {
                     if let Some('.') = source.peek() {
                         // two dots detected
-                        source.next();
+                        source.next_char();
 
                         ast_builder.push_node(
                             RangePriority as u32,
@@ -64,10 +64,10 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 }
             }
             '/' => {
-                source.next();
+                source.next_char();
 
                 if source.next_if_eq(&'/').is_some() {
-                    while let Some(comment_text) = source.next() {
+                    while let Some(comment_text) = source.next_char() {
                         if comment_text == '\n' {
                             break;
                         }
@@ -82,7 +82,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 }
             }
             &C_ASSIGN => {
-                source.next();
+                source.next_char();
 
                 left_side = false;
                 after_colon = true;
@@ -94,7 +94,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 );
             }
             '+' | '-' | '*' | '×' | '÷' | '^' => {
-                let extracted = source.next().unwrap();
+                let extracted = source.next_char().unwrap();
 
                 // Detect unary context for '-'
                 let mut priority = match extracted {
@@ -133,7 +133,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 );
             }
             '{' => {
-                source.next();
+                source.next_char();
 
                 //ctx_open += 1;
                 ast_builder.incl_level();
@@ -151,7 +151,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 ast_builder.incl_level();
             }
             ';' | '\n' => {
-                source.next();
+                source.next_char();
 
                 left_side = true;
 
@@ -159,7 +159,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 ast_builder.merge();
             }
             '}' => {
-                source.next();
+                source.next_char();
 
                 //ctx_open -= 1;
                 ast_builder.dec_level();
@@ -170,7 +170,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 ast_builder.dec_level();
             }
             '(' => {
-                source.next();
+                source.next_char();
 
                 // prioritizing function/call merge
                 ast_builder.incl_level();
@@ -207,7 +207,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 ast_builder.incl_level();
             }
             ')' => {
-                source.next();
+                source.next_char();
 
                 ast_builder.dec_level();
 
@@ -216,12 +216,12 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 ast_builder.dec_level();
             }
             ',' => {
-                source.next();
+                source.next_char();
 
                 ast_builder.push_element(Unparsed(Comma));
             }
             ' ' | '\t' | '\r' => {
-                source.next();
+                source.next_char();
             }
             'a'..='z' | 'A'..='Z' => {
                 let variable = source.get_literal_token();
@@ -348,16 +348,16 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 }
             }
             '.' => {
-                source.next();
+                source.next_char();
                 after_colon = false;
 
                 // two dots detected
                 if let Some('.') = source.peek() {
-                    source.next();
+                    source.next_char();
 
                     // three dots detected
                     if let Some('.') = source.peek() {
-                        source.next();
+                        source.next_char();
 
                         ast_builder.push_element(Expression(ContextVariable));
                     } else {
@@ -408,14 +408,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     );
                 };
 
-                source.next();
+                source.next_char();
 
                 ast_builder.incl_level();
                 after_colon = false;
             }
             //----------------------------------------------------------------------------------
             ']' => {
-                source.next();
+                source.next_char();
 
                 ast_builder.dec_level();
 
@@ -427,7 +427,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             '=' | '<' | '>' => {
                 // @Todo: simplify operator acquisition
                 if *symbol == '<' && after_colon {
-                    source.next();
+                    source.next_char();
                     let tref = parse_complex_type_in_angle(&mut source);
                     ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
                     after_colon = false;
@@ -440,12 +440,12 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 } else {
                     ast_builder.push_element(error_token!(
                         "Unrecognized comparator after '{}'",
-                        source.next().unwrap()
+                        source.next_char().unwrap()
                     ));
                 }
             }
             '"' | '\'' => {
-                let string_starter = source.next().unwrap();
+                let string_starter = source.next_char().unwrap();
 
                 let literal = source.get_all_till(string_starter);
 
@@ -455,7 +455,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             _ => {
                 ast_builder.push_element(error_token!(
                     "unexpected character '{}'",
-                    source.next().unwrap()
+                    source.next_char().unwrap()
                 ));
             }
         }
@@ -470,11 +470,11 @@ fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
     let mut name = String::new();
     while let Some(c) = source.peek().cloned() {
         if c == '>' {
-            source.next();
+            source.next_char();
             break;
         } else {
             name.push(c);
-            source.next();
+            source.next_char();
         }
     }
     parse_type(name.trim())
@@ -492,8 +492,8 @@ fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option
         let mut iter = source.iter.clone();
         match (iter.next(), iter.peek().copied()) {
             (Some('['), Some(']')) => {
-                source.next();
-                source.next();
+                source.next_char();
+                source.next_char();
                 layers += 1;
             }
             _ => break,

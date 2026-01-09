@@ -46,17 +46,17 @@ impl ComparatorEnum {
     }
 
     pub fn parse(iter: &mut CharStream) -> Option<ComparatorEnum> {
-        match (iter.next().unwrap(), iter.peek()) {
+        match (iter.next_char().unwrap(), iter.peek()) {
             ('<', Some('=')) => {
-                iter.next();
+                iter.next_char();
                 Some(LessEquals)
             }
             ('>', Some('=')) => {
-                iter.next();
+                iter.next_char();
                 Some(GreaterEquals)
             }
             ('<', Some('>')) => {
-                iter.next();
+                iter.next_char();
                 Some(NotEquals)
             }
             ('=', _) => Some(Equals),

@@ -316,7 +316,7 @@ impl DurationValue {
             return Ok(DurationValue::zero());
         }
         let negative = total_seconds < 0;
-        let abs = total_seconds.abs() as u128;
+        let abs = total_seconds.unsigned_abs();
         DurationValue::from_total_seconds(abs, negative)
     }
 

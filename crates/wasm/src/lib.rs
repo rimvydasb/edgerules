@@ -50,7 +50,7 @@ fn js_request_to_value(js: &JsValue) -> Result<ValueEnum, PortableError> {
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
-#[cfg(all(not(feature = "console_error_panic_hook")))]
+#[cfg(not(feature = "console_error_panic_hook"))]
 #[wasm_bindgen]
 pub fn init_panic_hook() {}
 

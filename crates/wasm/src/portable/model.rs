@@ -104,20 +104,19 @@ pub fn apply_portable_entry(
             let definition = parse_function_definition(&function_name, &def_obj)?;
             apply_function_with_path(model, context_path, definition)?;
         }
-        PortableKind::Invocation(inv_obj) => {
-            let (context_path, name) = split_path(path)?;
-            if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
-                return Err(PortableError::new(
-                    "Invocation definition cannot be an array element",
-                ));
-            }
-            let spec = parse_invocation_spec(&inv_obj)?;
-            model.set_invocation(path, spec)?;
-        }
-        PortableKind::Type(def_obj) => {
-            let (context_path, name) = split_path(path)?;
-            if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
-                return Err(PortableError::new(
+                PortableKind::Invocation(inv_obj) => {
+                    let (_context_path, name) = split_path(path)?;
+                    if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
+                        return Err(PortableError::new(
+                            "Invocation definition cannot be an array element",
+                        ));
+                    }
+                    let spec = parse_invocation_spec(&inv_obj)?;
+                    model.set_invocation(path, spec)?;
+                }
+                PortableKind::Type(def_obj) => {
+                    let (_context_path, name) = split_path(path)?;
+                    if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {                return Err(PortableError::new(
                     "Type definition cannot be an array element",
                 ));
             }
@@ -127,7 +126,7 @@ pub fn apply_portable_entry(
         PortableKind::Context(ctx_obj) => {
             let (context_path, name) = split_path(path)?;
             match parse_path_target(&name)? {
-                PathTarget::Field(_) => {
+                PathTarget::Field => {
                     let expr = parse_static_object(&ctx_obj)?;
                     model.set_expression(path, expr)?;
                 }
@@ -141,7 +140,7 @@ pub fn apply_portable_entry(
         PortableKind::Expression(raw) => {
             let (context_path, name) = split_path(path)?;
             match parse_path_target(&name)? {
-                PathTarget::Field(_) => {
+                PathTarget::Field => {
                     let expr = parse_expression_value(&raw)?;
                     model.set_expression(path, expr)?;
                 }
@@ -304,7 +303,7 @@ fn set_array_element(
 }
 
 enum PathTarget {
-    Field(String),
+    Field,
     ArrayElement(String, usize),
 }
 
@@ -320,29 +319,15 @@ fn parse_path_target(name: &str) -> Result<PathTarget, PortableError> {
                 )));
             }
 
-            // Check for valid unsigned integer
-            // Disallow negative numbers (starts with -) or non-numeric chars
-            if index_str.starts_with('-') || index_str.is_empty() {
-                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                    Some(format!("Invalid array index '{}'", index_str)),
-                )));
-            }
-
-            let index = index_str.parse::<usize>().map_err(|_| {
-                PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                    "Invalid array index '{}'",
-                    index_str
-                ))))
-            })?;
+            let index = index_str
+                .parse::<usize>()
+                .map_err(|_| PortableError::new(format!("Invalid array index '{}'", index_str)))?;
 
             return Ok(PathTarget::ArrayElement(array_name.to_string(), index));
-        } else {
-            return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                Some(format!("Invalid path format '{}'", name)),
-            )));
         }
     }
-    Ok(PathTarget::Field(name.to_string()))
+
+    Ok(PathTarget::Field)
 }
 
 enum PortableKind {
@@ -807,10 +792,10 @@ mod tests {
 
     #[test]
     fn test_parse_path_target_field() {
-        let res = parse_path_target("someField").unwrap();
-        match res {
-            PathTarget::Field(name) => assert_eq!(name, "someField"),
-            _ => panic!("Expected Field"),
+        let target = parse_path_target("someField").unwrap();
+        match target {
+            PathTarget::Field => {}
+            _ => panic!("Expected Field target"),
         }
     }
 

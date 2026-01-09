@@ -51,7 +51,7 @@ pub trait ErrorStack<T: Display>: Sized {
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
-pub struct GeneralStackedError<T: Display> {
+pub struct ErrorData<T: Display> {
     pub error: T,
     pub context: Vec<String>,
     pub location: Vec<String>,
@@ -59,28 +59,34 @@ pub struct GeneralStackedError<T: Display> {
     pub stage: Option<ErrorStage>,
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
+pub struct GeneralStackedError<T: Display> {
+    pub inner: Box<ErrorData<T>>,
+}
+
 impl<T: Display> ErrorStack<T> for GeneralStackedError<T> {
     fn update_context(&mut self, content: String) {
-        self.context.push(content);
+        self.inner.context.push(content);
     }
 
     fn get_context(&self) -> &Vec<String> {
-        &self.context
+        &self.inner.context
     }
 
     fn get_error_type(&self) -> &T {
-        &self.error
+        &self.inner.error
     }
 }
 
 impl<T: Display> Display for GeneralStackedError<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.error.to_string())?;
+        write!(f, "{}", self.inner.error)?;
         let mut index = 0;
-        if !self.context.is_empty() {
+        if !self.inner.context.is_empty() {
             write!(f, "\nContext:\n")?;
 
-            for context in &self.context {
+            for context in &self.inner.context {
                 index += 1;
                 writeln!(f, "  {}. {}", index, context)?;
             }
@@ -94,12 +100,14 @@ pub type RuntimeError = GeneralStackedError<RuntimeErrorEnum>;
 
 impl RuntimeError {
     pub fn new(error: RuntimeErrorEnum) -> Self {
-        RuntimeError {
-            error,
-            context: vec![],
-            location: vec![],
-            expression: None,
-            stage: Some(ErrorStage::Runtime),
+        GeneralStackedError {
+            inner: Box::new(ErrorData {
+                error,
+                context: vec![],
+                location: vec![],
+                expression: None,
+                stage: Some(ErrorStage::Runtime),
+            }),
         }
     }
 
@@ -363,12 +371,14 @@ pub type LinkingError = GeneralStackedError<LinkingErrorEnum>;
 
 impl LinkingError {
     pub fn new(error: LinkingErrorEnum) -> Self {
-        LinkingError {
-            error,
-            context: vec![],
-            location: vec![],
-            expression: None,
-            stage: Some(ErrorStage::Linking),
+        GeneralStackedError {
+            inner: Box::new(ErrorData {
+                error,
+                context: vec![],
+                location: vec![],
+                expression: None,
+                stage: Some(ErrorStage::Linking),
+            }),
         }
     }
 
@@ -500,17 +510,17 @@ impl From<DuplicateNameError> for RuntimeError {
 
 impl RuntimeError {
     fn into_runtime(error: LinkingError) -> Self {
-        let mut runtime_error = match &error.error {
+        let mut runtime_error = match &error.inner.error {
             FieldNotFound(object, field) => RuntimeError::field_not_found(object, field),
             CyclicReference(object, field) => RuntimeError::cyclic_reference(object, field),
             NotLinkedYet => RuntimeError::unexpected(format!("{}", error)),
-            _ => RuntimeError::eval_error(error.error.to_string()),
+            _ => RuntimeError::eval_error(error.inner.error.to_string()),
         };
 
-        runtime_error.context = error.context.clone();
-        runtime_error.location = error.location.clone();
-        runtime_error.expression = error.expression.clone();
-        runtime_error.stage = Some(ErrorStage::Runtime);
+        runtime_error.inner.context = error.inner.context.clone();
+        runtime_error.inner.location = error.inner.location.clone();
+        runtime_error.inner.expression = error.inner.expression.clone();
+        runtime_error.inner.stage = Some(ErrorStage::Runtime);
 
         runtime_error
     }
