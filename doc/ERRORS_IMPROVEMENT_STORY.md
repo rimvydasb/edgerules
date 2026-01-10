@@ -28,6 +28,9 @@ each built-in function already has its own guard in `validation` field that prev
   - [ ] Remove all redundant `RuntimeError` that duplicate validation checks already present in built-in functions.
   - [ ] Ensure that all built-in functions have proper validation in `validation` field: add if missing.
   - [ ] Stay with principle that `RuntimeError` should be used only for errors that cannot be detected during validation phase.
+  - [ ] Check all built-in function Rust tests and ensure that validation errors are properly caught during validation phase, not runtime. Add tests if missing.
+  - [ ] Run rust and just node tests to ensure nothing is broken (before the implementation, all tests passed).
+  - [ ] Check box if task is done.
 - [ ] Eliminate all message formatting's in all error enums and places where errors are created.
 
 ### Phase 2
