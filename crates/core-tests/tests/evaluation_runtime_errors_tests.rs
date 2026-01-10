@@ -19,7 +19,7 @@ fn runtime_error_exposes_stage_at_root() {
     assert!(err.inner.stage.is_some());
     assert_eq!(err.inner.location, vec!["value"]);
     assert!(
-        err.to_string().to_lowercase().contains("invalid date"),
+        err.to_string().to_lowercase().contains("failed to parse"),
         "got: {err}"
     );
 }
@@ -44,7 +44,7 @@ fn runtime_error_in_nested_context_has_stage() {
     assert!(err.inner.stage.is_some());
     assert_eq!(err.inner.location, vec!["nested", "bad"]);
     assert!(
-        err.to_string().to_lowercase().contains("invalid date"),
+        err.to_string().to_lowercase().contains("failed to parse"),
         "got: {err}"
     );
 }

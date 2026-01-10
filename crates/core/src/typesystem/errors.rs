@@ -15,6 +15,7 @@ use crate::typesystem::errors::ParseErrorEnum::{
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
     EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError,
+    ValueParsingError,
 };
 use crate::typesystem::types::ValueType;
 
@@ -132,6 +133,10 @@ impl RuntimeError {
 
     pub fn type_not_supported(current: ValueType) -> Self {
         RuntimeError::new(TypeNotSupported(current))
+    }
+
+    pub fn value_parsing_error(from: ValueType, to: ValueType) -> Self {
+        RuntimeError::new(ValueParsingError(from, to))
     }
 }
 
@@ -295,13 +300,15 @@ impl ParseErrorEnum {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
 pub enum RuntimeErrorEnum {
+    // @Todo: ideally all eval errors must be eliminated and replaced with specific errors
     // message
     EvalError(String),
 
-    // value parsing error occurs when parsing typed values from strings, e.g. `eval_duration`
-    // @Todo: this error should occur only when string is passed to a typed value parser,
-    // @Todo: need to develop linking aware constant string parsing, e.g. @P2D and report errors during linking
-    // ValueParsingError(String),
+    // value parsing error occurs when parsing typed values from strings, e.g. `eval_duration`, to duration or other type
+    // @Todo: this error should occur only when string is passed to a typed value parser, TBC, TBA
+    // @Todo: need to develop linking aware constant string parsing, e.g. @P2D and report errors during linking, TBC, TBA
+    // fromType, toType
+    ValueParsingError(ValueType, ValueType),
 
     // field, object
     RuntimeCyclicReference(String, String),
@@ -324,6 +331,9 @@ impl Display for RuntimeErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             EvalError(message) => write!(f, "[runtime] {}", message),
+            ValueParsingError(from, to) => {
+                write!(f, "[runtime] Failed to parse '{}' from '{}'", to, from)
+            }
             TypeNotSupported(value_type) => {
                 write!(f, "[runtime] Type '{}' is not supported", value_type)
             }

@@ -128,6 +128,13 @@ impl From<RuntimeError> for PortableError {
                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("EvalError"));
                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&msg));
             }
+            RuntimeErrorEnum::ValueParsingError(from, to) => {
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("ValueParsingError"));
+                let _ = utils::set_prop(&error_obj, "from", &JsValue::from_str(&from.to_string()));
+                let _ = utils::set_prop(&error_obj, "to", &JsValue::from_str(&to.to_string()));
+                let msg = format!("Failed to parse '{}' from '{}'", to, from);
+                let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&msg));
+            }
             _ => {
                 let _ =
                     utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherRuntimeError"));

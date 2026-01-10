@@ -105,8 +105,10 @@ describe('Unhappy Paths & Error Handling', () => {
 
             assert.deepEqual(error, {
                 error: {
-                    type: 'EvalError',
-                    message: 'Invalid date string'
+                    type: 'ValueParsingError',
+                    from: 'string',
+                    to: 'date',
+                    message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'value',
                 expression: "date('invalid')",
@@ -127,8 +129,10 @@ describe('Unhappy Paths & Error Handling', () => {
 
             assert.deepEqual(error, {
                 error: {
-                    type: 'EvalError',
-                    message: 'Invalid date string'
+                    type: 'ValueParsingError',
+                    from: 'string',
+                    to: 'date',
+                    message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'nested.bad',
                 expression: "date('invalid')",
@@ -154,8 +158,10 @@ describe('Unhappy Paths & Error Handling', () => {
 
             assert.deepEqual(error, {
                 error: {
-                    type: 'EvalError',
-                    message: 'Invalid date string'
+                    type: 'ValueParsingError',
+                    from: 'string',
+                    to: 'date',
+                    message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'source.value',
                 expression: "date('invalid')",

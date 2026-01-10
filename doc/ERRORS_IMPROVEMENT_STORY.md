@@ -38,6 +38,11 @@ export interface PortableError {
     - [x] Check how built-in functions are tested. Ensure that all argument count or other built-in function validation
       tests are present and are able to catch errors in linking and not the execution. Add tests if missing.
       Ensure every built-in function validation is covered by Rust test.
+- [x] Start using `ValueParsingError(ValueType, ValueType)` instead of
+  `return RuntimeError::eval_error("Invalid duration string".to_string()).into();` where problems are related to value
+  parsing. Find out all places where eval_error is used for value parsing problems and replace with `ValueParsingError`.
+  Make sure all tests still pass. For now use canonic message for all type parsing problems in `impl Display for RuntimeErrorEnum`.
+  Align tests to match canonic message.
 - [ ] Eliminate all message formatting's in all error enums and places where errors are created.
 
 ### Phase 2

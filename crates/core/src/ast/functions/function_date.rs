@@ -369,7 +369,7 @@ pub fn eval_date(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(d) = parse_date_iso(raw.as_str()) {
                 return Ok(DateValue(ValueOrSv::Value(d)));
             }
-            return RuntimeError::eval_error("Invalid date string".to_string()).into();
+            return RuntimeError::value_parsing_error(StringType, DateType).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -381,7 +381,7 @@ pub fn eval_time(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(t) = parse_time_local(raw.as_str()) {
                 return Ok(TimeValue(ValueOrSv::Value(t)));
             }
-            return RuntimeError::eval_error("Invalid time string".to_string()).into();
+            return RuntimeError::value_parsing_error(StringType, ValueType::TimeType).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -393,7 +393,7 @@ pub fn eval_datetime(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(dt) = parse_datetime_local(raw.as_str()) {
                 return Ok(DateTimeValue(ValueOrSv::Value(dt)));
             }
-            return RuntimeError::eval_error("Invalid datetime string".to_string()).into();
+            return RuntimeError::value_parsing_error(StringType, ValueType::DateTimeType).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -405,7 +405,7 @@ pub fn eval_duration(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(dur) = parse_duration_iso8601(raw.as_str()) {
                 return Ok(DurationVariant(ValueOrSv::Value(dur)));
             }
-            return RuntimeError::eval_error("Invalid duration string".to_string()).into();
+            return RuntimeError::value_parsing_error(StringType, ValueType::DurationType).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -417,7 +417,7 @@ pub fn eval_period(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(per) = parse_period_iso8601(raw.as_str()) {
                 return Ok(PeriodVariant(ValueOrSv::Value(per)));
             }
-            return RuntimeError::eval_error("Invalid period string".to_string()).into();
+            return RuntimeError::value_parsing_error(StringType, ValueType::PeriodType).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
