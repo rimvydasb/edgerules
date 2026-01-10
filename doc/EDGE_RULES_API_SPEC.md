@@ -219,6 +219,47 @@ Renames an entry (field, function, type, or invocation) from `oldPath` to `newPa
 *   **Collision:** Renaming `a` to `b` when `b` exists throws `DuplicateNameError`.
 *   **Root vs Nested:** Renaming a root element to a nested path (or vice versa) throws `WrongFieldPathError`.
 
+### JavaScript Example
+
+```javascript
+import { DecisionEngine, DecisionService } from 'edge-rules';
+
+// 1. Stateless Evaluation
+const code = `
+    {
+        input: 10
+        factor: 2
+        result: input * factor
+    }
+`;
+// Evaluate a specific field
+const result = DecisionEngine.evaluateField(code, 'result');
+console.log(result); // 20
+
+// 2. Stateful Decision Service
+const model = {
+    '@version': '1.0',
+    'taxRate': 0.2,
+    'calculateTax': {
+        '@type': 'function',
+        '@parameters': { 'amount': 'number' },
+        'result': 'amount * taxRate'
+    }
+};
+
+// Initialize service with a portable model
+const service = new DecisionService(model);
+
+// Execute a function
+const tax = service.execute('calculateTax', 100);
+console.log(tax.result); // 20
+
+// Modify the model at runtime
+service.set('taxRate', 0.25);
+const newTax = service.execute('calculateTax', 100);
+console.log(newTax.result); // 25
+```
+
 ### Error Handling
 
 ## Rust API Specification
