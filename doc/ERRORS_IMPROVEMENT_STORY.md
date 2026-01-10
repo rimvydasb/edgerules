@@ -43,6 +43,13 @@ export interface PortableError {
   parsing. Find out all places where eval_error is used for value parsing problems and replace with `ValueParsingError`.
   Make sure all tests still pass. For now use canonic message for all type parsing problems in `impl Display for RuntimeErrorEnum`.
   Align tests to match canonic message.
+- [ ] Eliminate all places where runtime errors are produced and the discarded with `.ok()` or similar approaches.
+Start using error code in `ValueParsingError(ValueType, ValueType, u8)` - default error code for normal conversion problem is 0,
+but use other error codes for `RuntimeError::eval_error("Date adjustment overflowed year range".to_string())` or
+`RuntimeError::eval_error("Invalid month produced during calendarDiff".to_string())` and all similar cases. I do not need messages,
+simply use proper error code and update the list for me to know under `/// ValueParsingError error codes:` - date related errors
+may start after 100. If code exists and is not 0, then attach code number to the formatted error message, e.g.:
+`"Failed to parse 'date' from 'string'. (Error code: 101)"`.
 - [ ] Eliminate all message formatting's in all error enums and places where errors are created.
 
 ### Phase 2
