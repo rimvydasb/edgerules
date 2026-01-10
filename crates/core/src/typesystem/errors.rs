@@ -112,12 +112,12 @@ impl RuntimeError {
         }
     }
 
-    pub fn unexpected(message: String) -> Self {
-        RuntimeError::new(UnexpectedError(message))
+    pub fn unexpected(message: impl Into<String>) -> Self {
+        RuntimeError::new(UnexpectedError(message.into()))
     }
 
-    pub fn eval_error(message: String) -> Self {
-        RuntimeError::new(EvalError(message.to_string()))
+    pub fn eval_error(message: impl Into<String>) -> Self {
+        RuntimeError::new(EvalError(message.into()))
     }
 
     pub fn cyclic_reference(field: &str, object: &str) -> Self {
@@ -401,8 +401,8 @@ impl LinkingError {
         LinkingError::new(NotLinkedYet)
     }
 
-    pub fn other_error(message: String) -> Self {
-        LinkingError::new(OtherLinkingError(message))
+    pub fn other_error(message: impl Into<String>) -> Self {
+        LinkingError::new(OtherLinkingError(message.into()))
     }
 
     pub fn field_not_found(object: &str, field: &str) -> Self {
