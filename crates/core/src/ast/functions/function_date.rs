@@ -1,7 +1,7 @@
 use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::types::ValueType::{DateType, StringType};
+use crate::typesystem::types::ValueType::{DateTimeType, DateType, DurationType, PeriodType, StringType};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
@@ -36,9 +36,9 @@ fn parse_datetime_local(s: &str) -> Option<time::PrimitiveDateTime> {
     time::PrimitiveDateTime::parse(s, &fmt).ok()
 }
 
-pub fn parse_duration_iso8601(s: &str) -> Option<DurationValue> {
+pub fn parse_duration_iso8601(s: &str) -> Result<DurationValue, RuntimeError> {
     if s.is_empty() {
-        return None;
+        return RuntimeError::parsing_from_string(DurationType, 0).into();
     }
     let mut negative = false;
     let mut idx = 0;
@@ -48,7 +48,7 @@ pub fn parse_duration_iso8601(s: &str) -> Option<DurationValue> {
         idx += 1;
     }
     if idx >= bytes.len() || bytes[idx] != b'P' {
-        return None;
+        return RuntimeError::parsing_from_string(DurationType, 0).into();
     }
     idx += 1;
 
@@ -69,33 +69,35 @@ pub fn parse_duration_iso8601(s: &str) -> Option<DurationValue> {
                 }
                 if bytes[idx] == b'T' {
                     if in_time {
-                        return None;
+                        return RuntimeError::parsing_from_string(DurationType, 0).into();
                     }
                     in_time = true;
                     idx += 1;
                     num_start = idx;
                     continue;
                 }
-                return None;
+                return RuntimeError::parsing_from_string(DurationType, 0).into();
             }
             let num: i64 = std::str::from_utf8(&bytes[num_start..idx])
-                .ok()?
+                .map_err(|_| RuntimeError::parsing_from_string(DurationType, 0))?
                 .parse()
-                .ok()?;
+                .map_err(|_| RuntimeError::parsing_from_string(DurationType, 0))?;
             if num < 0 {
-                return None;
+                return RuntimeError::parsing_from_string(DurationType, 0).into();
             }
             if idx < bytes.len() {
                 match bytes[idx] {
-                    b'Y' => return None,
-                    b'M' if !in_time => return None,
+                    b'Y' => return RuntimeError::parsing_from_string(DurationType, 0).into(),
+                    b'M' if !in_time => {
+                        return RuntimeError::parsing_from_string(DurationType, 0).into()
+                    }
                     b'D' => {
                         days = num;
                         saw_any = true;
                     }
                     b'T' => {
                         if in_time {
-                            return None;
+                            return RuntimeError::parsing_from_string(DurationType, 0).into();
                         }
                         in_time = true;
                         idx += 1;
@@ -114,7 +116,7 @@ pub fn parse_duration_iso8601(s: &str) -> Option<DurationValue> {
                         seconds = num;
                         saw_any = true;
                     }
-                    _ => return None,
+                    _ => return RuntimeError::parsing_from_string(DurationType, 0).into(),
                 }
                 idx += 1;
                 num_start = idx;
@@ -127,15 +129,15 @@ pub fn parse_duration_iso8601(s: &str) -> Option<DurationValue> {
     }
 
     if !saw_any {
-        return None;
+        return RuntimeError::parsing_from_string(DurationType, 0).into();
     }
 
-    DurationValue::from_components(days, hours, minutes, seconds, negative).ok()
+    DurationValue::from_components(days, hours, minutes, seconds, negative)
 }
 
-pub fn parse_period_iso8601(s: &str) -> Option<PeriodValue> {
+pub fn parse_period_iso8601(s: &str) -> Result<PeriodValue, RuntimeError> {
     if s.is_empty() {
-        return None;
+        return RuntimeError::parsing_from_string(PeriodType, 0).into();
     }
 
     let mut negative = false;
@@ -146,7 +148,7 @@ pub fn parse_period_iso8601(s: &str) -> Option<PeriodValue> {
         idx += 1;
     }
     if idx >= bytes.len() || bytes[idx] != b'P' {
-        return None;
+        return RuntimeError::parsing_from_string(PeriodType, 0).into();
     }
     idx += 1;
 
@@ -163,14 +165,14 @@ pub fn parse_period_iso8601(s: &str) -> Option<PeriodValue> {
                 if idx == bytes.len() {
                     break;
                 }
-                return None;
+                return RuntimeError::parsing_from_string(PeriodType, 0).into();
             }
             let num: i64 = std::str::from_utf8(&bytes[num_start..idx])
-                .ok()?
+                .map_err(|_| RuntimeError::parsing_from_string(PeriodType, 0))?
                 .parse()
-                .ok()?;
+                .map_err(|_| RuntimeError::parsing_from_string(PeriodType, 0))?;
             if num < 0 {
-                return None;
+                return RuntimeError::parsing_from_string(PeriodType, 0).into();
             }
 
             if idx < bytes.len() {
@@ -187,8 +189,8 @@ pub fn parse_period_iso8601(s: &str) -> Option<PeriodValue> {
                         days = num;
                         saw_any = true;
                     }
-                    b'T' | b'H' | b'S' => return None,
-                    _ => return None,
+                    b'T' | b'H' | b'S' => return RuntimeError::parsing_from_string(PeriodType, 0).into(),
+                    _ => return RuntimeError::parsing_from_string(PeriodType, 0).into(),
                 }
                 idx += 1;
                 num_start = idx;
@@ -201,10 +203,10 @@ pub fn parse_period_iso8601(s: &str) -> Option<PeriodValue> {
     }
 
     if !saw_any {
-        return None;
+        return RuntimeError::parsing_from_string(PeriodType, 0).into();
     }
 
-    PeriodValue::from_components(years, months, days, negative).ok()
+    PeriodValue::from_components(years, months, days, negative)
 }
 
 fn shift_date_by_months_safe(
@@ -227,8 +229,7 @@ fn shift_date_by_months_safe(
     }
 
     if new_year < i32::MIN as i64 || new_year > i32::MAX as i64 {
-        return RuntimeError::eval_error("Date adjustment overflowed year range".to_string())
-            .into();
+        return RuntimeError::parsing_code(DateType, DateType, 101).into();
     }
 
     let new_month_u8 = new_month as u8;
@@ -239,11 +240,11 @@ fn shift_date_by_months_safe(
     time::Date::from_calendar_date(
         new_year as i32,
         Month::try_from(new_month_u8).map_err(|_| {
-            RuntimeError::eval_error("Invalid month produced during calendarDiff".to_string())
+            RuntimeError::parsing_code(DateType, DateType, 102)
         })?,
         new_day,
     )
-    .map_err(|_| RuntimeError::eval_error("Invalid date produced during calendarDiff".to_string()))
+    .map_err(|_| RuntimeError::parsing_code(DateType, DateType, 103))
 }
 
 pub fn validate_binary_date_date(left: ValueType, right: ValueType) -> Link<()> {
@@ -252,7 +253,7 @@ pub fn validate_binary_date_date(left: ValueType, right: ValueType) -> Link<()> 
 }
 
 pub fn return_period_type_binary(_: ValueType, _: ValueType) -> ValueType {
-    ValueType::PeriodType
+    PeriodType
 }
 
 pub fn eval_calendar_diff(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
@@ -369,7 +370,7 @@ pub fn eval_date(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(d) = parse_date_iso(raw.as_str()) {
                 return Ok(DateValue(ValueOrSv::Value(d)));
             }
-            return RuntimeError::value_parsing_error(StringType, DateType).into();
+            return RuntimeError::parsing_from_string(DateType, 0).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -381,7 +382,7 @@ pub fn eval_time(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(t) = parse_time_local(raw.as_str()) {
                 return Ok(TimeValue(ValueOrSv::Value(t)));
             }
-            return RuntimeError::value_parsing_error(StringType, ValueType::TimeType).into();
+            return RuntimeError::parsing_from_string(ValueType::TimeType, 0).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -393,7 +394,7 @@ pub fn eval_datetime(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if let Some(dt) = parse_datetime_local(raw.as_str()) {
                 return Ok(DateTimeValue(ValueOrSv::Value(dt)));
             }
-            return RuntimeError::value_parsing_error(StringType, ValueType::DateTimeType).into();
+            return RuntimeError::parsing_from_string(DateTimeType, 0).into();
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -402,10 +403,8 @@ pub fn eval_datetime(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_duration(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let StringValue(ref s) = value {
         if let StringEnum::String(raw) = s.clone() {
-            if let Some(dur) = parse_duration_iso8601(raw.as_str()) {
-                return Ok(DurationVariant(ValueOrSv::Value(dur)));
-            }
-            return RuntimeError::value_parsing_error(StringType, ValueType::DurationType).into();
+            return parse_duration_iso8601(raw.as_str())
+                .map(|dur| DurationVariant(ValueOrSv::Value(dur)));
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -414,10 +413,8 @@ pub fn eval_duration(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_period(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let StringValue(ref s) = value {
         if let StringEnum::String(raw) = s.clone() {
-            if let Some(per) = parse_period_iso8601(raw.as_str()) {
-                return Ok(PeriodVariant(ValueOrSv::Value(per)));
-            }
-            return RuntimeError::value_parsing_error(StringType, ValueType::PeriodType).into();
+            return parse_period_iso8601(raw.as_str())
+                .map(|per| PeriodVariant(ValueOrSv::Value(per)));
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -429,8 +426,8 @@ mod tests {
 
     #[test]
     fn parse_period_months_only() {
-        assert!(parse_period_iso8601("P1M").is_some());
-        assert!(parse_period_iso8601("P18M").is_some());
-        assert!(parse_period_iso8601("P1Y2M3D").is_some());
+        assert!(parse_period_iso8601("P1M").is_ok());
+        assert!(parse_period_iso8601("P18M").is_ok());
+        assert!(parse_period_iso8601("P1Y2M3D").is_ok());
     }
 }

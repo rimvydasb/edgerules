@@ -4,6 +4,7 @@ use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
+use crate::typesystem::types::ValueType::{DurationType, PeriodType};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt;
@@ -253,49 +254,40 @@ impl DurationValue {
                 i128::from(days)
                     .checked_mul(SECONDS_PER_DAY)
                     .ok_or_else(|| {
-                        RuntimeError::eval_error(
-                            "Duration days overflow the supported range".to_string(),
-                        )
+                        RuntimeError::parsing_from_string(DurationType, 110)
                     })?,
             )
             .ok_or_else(|| {
-                RuntimeError::eval_error("Duration overflow while calculating seconds".to_string())
+                RuntimeError::parsing_from_string(DurationType, 114)
             })?;
         total = total
             .checked_add(
                 i128::from(hours)
                     .checked_mul(SECONDS_PER_HOUR)
                     .ok_or_else(|| {
-                        RuntimeError::eval_error(
-                            "Duration hours overflow the supported range".to_string(),
-                        )
+                        RuntimeError::parsing_from_string(DurationType, 111)
                     })?,
             )
             .ok_or_else(|| {
-                RuntimeError::eval_error("Duration overflow while calculating seconds".to_string())
+                RuntimeError::parsing_from_string(DurationType, 114)
             })?;
         total = total
             .checked_add(
                 i128::from(minutes)
                     .checked_mul(SECONDS_PER_MINUTE)
                     .ok_or_else(|| {
-                        RuntimeError::eval_error(
-                            "Duration minutes overflow the supported range".to_string(),
-                        )
+                        RuntimeError::parsing_from_string(DurationType, 112)
                     })?,
             )
             .ok_or_else(|| {
-                RuntimeError::eval_error("Duration overflow while calculating seconds".to_string())
+                RuntimeError::parsing_from_string(DurationType, 114)
             })?;
         total = total.checked_add(i128::from(seconds)).ok_or_else(|| {
-            RuntimeError::eval_error("Duration seconds overflow the supported range".to_string())
+            RuntimeError::parsing_from_string(DurationType, 113)
         })?;
 
         if total < 0 {
-            return RuntimeError::eval_error(
-                "Duration components must be non-negative before applying the sign".to_string(),
-            )
-            .into();
+            return RuntimeError::parsing_from_string(DurationType, 115).into();
         }
 
         DurationValue::from_total_seconds(total as u128, negative)
@@ -303,10 +295,7 @@ impl DurationValue {
 
     pub fn from_total_seconds(total_seconds: u128, negative: bool) -> Result<Self, RuntimeError> {
         if total_seconds > u64::MAX as u128 {
-            return RuntimeError::eval_error(
-                "Duration seconds overflow the supported range".to_string(),
-            )
-            .into();
+            return RuntimeError::parsing_from_string(DurationType, 113).into();
         }
         Ok(DurationValue::new(total_seconds as u64, negative))
     }
@@ -451,17 +440,14 @@ impl PeriodValue {
         negative: bool,
     ) -> Result<Self, RuntimeError> {
         if years < 0 || months < 0 || days < 0 {
-            return RuntimeError::eval_error(
-                "Period components must be non-negative before applying the sign".to_string(),
-            )
-            .into();
+            return RuntimeError::parsing_from_string(PeriodType, 104).into();
         }
 
         let total_months = i128::from(years)
             .checked_mul(MONTHS_PER_YEAR)
             .and_then(|v| v.checked_add(i128::from(months)))
             .ok_or_else(|| {
-                RuntimeError::eval_error("Period months overflow the supported range".to_string())
+                RuntimeError::parsing_from_string(PeriodType, 105)
             })?;
 
         PeriodValue::from_total_parts(total_months, i128::from(days), negative)
@@ -473,17 +459,11 @@ impl PeriodValue {
         negative: bool,
     ) -> Result<Self, RuntimeError> {
         if months_total < 0 || days_total < 0 {
-            return RuntimeError::eval_error(
-                "Period components must be non-negative before applying the sign".to_string(),
-            )
-            .into();
+            return RuntimeError::parsing_from_string(PeriodType, 104).into();
         }
 
         if months_total > u32::MAX as i128 || days_total > u32::MAX as i128 {
-            return RuntimeError::eval_error(
-                "Period components overflow the supported range".to_string(),
-            )
-            .into();
+            return RuntimeError::parsing_from_string(PeriodType, 106).into();
         }
 
         Ok(PeriodValue::new(
@@ -499,10 +479,7 @@ impl PeriodValue {
         }
 
         if (months > 0 && days < 0) || (months < 0 && days > 0) {
-            return RuntimeError::eval_error(
-                "Period months and days must carry the same sign".to_string(),
-            )
-            .into();
+            return RuntimeError::parsing_from_string(PeriodType, 107).into();
         }
 
         let negative = months < 0 || days < 0;

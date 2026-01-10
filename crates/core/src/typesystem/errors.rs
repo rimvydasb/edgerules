@@ -135,8 +135,16 @@ impl RuntimeError {
         RuntimeError::new(TypeNotSupported(current))
     }
 
-    pub fn value_parsing_error(from: ValueType, to: ValueType) -> Self {
-        RuntimeError::new(ValueParsingError(from, to))
+    pub fn parsing(from: ValueType, to: ValueType) -> Self {
+        RuntimeError::new(ValueParsingError(from, to, 0))
+    }
+
+    pub fn parsing_code(from: ValueType, to: ValueType, code: u8) -> Self {
+        RuntimeError::new(ValueParsingError(from, to, code))
+    }
+
+    pub fn parsing_from_string(to: ValueType, code: u8) -> Self {
+        RuntimeError::new(ValueParsingError(ValueType::StringType, to, code))
     }
 }
 
@@ -297,6 +305,21 @@ impl ParseErrorEnum {
     }
 }
 
+/// ValueParsingError error codes:
+/// 0 - Generic parsing error
+/// 101 - Date adjustment overflowed year range
+/// 102 - Invalid month produced during calendarDiff
+/// 103 - Invalid date produced during calendarDiff
+/// 104 - Period components must be non-negative before applying the sign
+/// 105 - Period months overflow the supported range
+/// 106 - Period components overflow the supported range
+/// 107 - Period months and days must carry the same sign
+/// 110 - Duration days overflow the supported range
+/// 111 - Duration hours overflow the supported range
+/// 112 - Duration minutes overflow the supported range
+/// 113 - Duration seconds overflow the supported range
+/// 114 - Duration overflow while calculating seconds
+/// 115 - Duration components must be non-negative before applying the sign
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
 pub enum RuntimeErrorEnum {
@@ -307,8 +330,8 @@ pub enum RuntimeErrorEnum {
     // value parsing error occurs when parsing typed values from strings, e.g. `eval_duration`, to duration or other type
     // @Todo: this error should occur only when string is passed to a typed value parser, TBC, TBA
     // @Todo: need to develop linking aware constant string parsing, e.g. @P2D and report errors during linking, TBC, TBA
-    // fromType, toType
-    ValueParsingError(ValueType, ValueType),
+    // fromType, toType, errorCode
+    ValueParsingError(ValueType, ValueType, u8),
 
     // field, object
     RuntimeCyclicReference(String, String),
@@ -331,8 +354,16 @@ impl Display for RuntimeErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             EvalError(message) => write!(f, "[runtime] {}", message),
-            ValueParsingError(from, to) => {
-                write!(f, "[runtime] Failed to parse '{}' from '{}'", to, from)
+            ValueParsingError(from, to, code) => {
+                if *code > 0 {
+                    write!(
+                        f,
+                        "[runtime] Failed to parse '{}' from '{}'. (Error code: {})",
+                        to, from, code
+                    )
+                } else {
+                    write!(f, "[runtime] Failed to parse '{}' from '{}'", to, from)
+                }
             }
             TypeNotSupported(value_type) => {
                 write!(f, "[runtime] Type '{}' is not supported", value_type)

@@ -108,6 +108,7 @@ describe('Unhappy Paths & Error Handling', () => {
                     type: 'ValueParsingError',
                     from: 'string',
                     to: 'date',
+                    code: 0,
                     message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'value',
@@ -132,6 +133,7 @@ describe('Unhappy Paths & Error Handling', () => {
                     type: 'ValueParsingError',
                     from: 'string',
                     to: 'date',
+                    code: 0,
                     message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'nested.bad',
@@ -161,6 +163,7 @@ describe('Unhappy Paths & Error Handling', () => {
                     type: 'ValueParsingError',
                     from: 'string',
                     to: 'date',
+                    code: 0,
                     message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'source.value',
