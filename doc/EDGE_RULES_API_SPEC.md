@@ -62,6 +62,21 @@ export interface PortableContext extends PortableObject {
     '@version'?: string | number;
     '@model_name'?: string;
 }
+
+export interface PortableError {
+    message?: string; // formatted message (might be deprecated)
+    error: {
+        type: string; // `FieldNotFound`, `CyclicReference`, `TypesNotCompatible`, etc.
+        fields?: string[]; // for now only `FieldNotFound` and `CyclicReference` uses it (TBC, must be ordered map of key and string)
+        subject?: string; // Used by `DifferentTypesDetected` and `TypesNotCompatible`, and `FieldNotFound` (deprecated, must be in fields)
+        unexpected?: string; // used only for `TypesNotCompatible` (deprecated)
+        expected?: string[]; // used only for `TypesNotCompatible` (deprecated)
+        message?: string; // raw error message without formatting, now only `EvalError` uses it, @TBC
+    };
+    location: string; // Fully qualified path of the problem, e.g. "calculations.takeDate.year"
+    expression: string; // Problematic expression snippet, e.g.  "d.nonexistent"
+    stage: 'linking' | 'runtime';
+}
 ```
 
 ### Common Metadata
@@ -258,9 +273,15 @@ console.log(tax.result); // 20
 service.set('taxRate', 0.25);
 const newTax = service.execute('calculateTax', 100);
 console.log(newTax.result); // 25
-```
 
-### Error Handling
+try {
+    service.execute('calculateTax', 'invalid argument');
+} catch (e) {
+    console.error('Error Type:', e.error.type);
+    console.error('Location:', e.location);
+    console.error('Expression:', e.expression);
+}
+```
 
 ## Rust API Specification
 
