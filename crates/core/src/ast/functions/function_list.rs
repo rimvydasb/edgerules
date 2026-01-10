@@ -425,9 +425,7 @@ pub fn eval_sublist(
     ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if !(vals.len() == 2 || vals.len() == 3) {
-        return RuntimeError::eval_error("sublist expects 2 or 3 args".to_string()).into();
-    }
+    // validation ensures 2 or 3 arguments
     let (items, source_item_type) = match &vals[0] {
         ValueEnum::Array(array) => match array {
             ArrayValue::ObjectsArray { object_type, .. } => {
@@ -485,9 +483,7 @@ pub fn eval_append(
     args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
-    if args.is_empty() {
-        return RuntimeError::eval_error("append expects at least 1 argument".to_string()).into();
-    }
+    // validation ensures at least 1 argument
     let vals = into_valid(args)?;
     let (mut items, mut item_type) = match &vals[0] {
         ValueEnum::Array(array) => match array {
@@ -584,9 +580,7 @@ pub fn eval_insert_before(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.len() != 3 {
-        return RuntimeError::eval_error("insertBefore expects 3 arguments".to_string()).into();
-    }
+    // validation ensures 3 arguments
 
     let (mut items, mut item_type) = clone_array_parts(&vals[0])?;
     let pos =
@@ -912,9 +906,7 @@ pub fn eval_join(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.is_empty() {
-        return RuntimeError::eval_error("join expects at least 1 argument".to_string()).into();
-    }
+    // validation ensures at least 1 argument
 
     let (items, _) = clone_array_parts(&vals[0])?;
 

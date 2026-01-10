@@ -298,6 +298,11 @@ pub enum RuntimeErrorEnum {
     // message
     EvalError(String),
 
+    // value parsing error occurs when parsing typed values from strings, e.g. `eval_duration`
+    // @Todo: this error should occur only when string is passed to a typed value parser,
+    // @Todo: need to develop linking aware constant string parsing, e.g. @P2D and report errors during linking
+    // ValueParsingError(String),
+
     // field, object
     RuntimeCyclicReference(String, String),
 

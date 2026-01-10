@@ -206,9 +206,7 @@ pub fn eval_round(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.is_empty() || vals.len() > 2 {
-        return RuntimeError::eval_error("round expects 1 or 2 arguments".to_string()).into();
-    }
+    // validation ensures 1 or 2 arguments
     let number = get_number(&vals[0])
         .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
@@ -248,9 +246,7 @@ pub fn eval_round_up(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.is_empty() || vals.len() > 2 {
-        return RuntimeError::eval_error("roundUp expects 1 or 2 arguments".to_string()).into();
-    }
+    // validation ensures 1 or 2 arguments
     let number = get_number(&vals[0])
         .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
@@ -291,9 +287,7 @@ pub fn eval_round_down(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.is_empty() || vals.len() > 2 {
-        return RuntimeError::eval_error("roundDown expects 1 or 2 arguments".to_string()).into();
-    }
+    // validation ensures 1 or 2 arguments
     let number = get_number(&vals[0])
         .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
@@ -471,9 +465,7 @@ pub fn eval_clamp(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.len() != 3 {
-        return RuntimeError::eval_error("clamp expects 3 arguments".to_string()).into();
-    }
+    // validation ensures 3 arguments
     let n = get_number(&vals[0])
         .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let min = get_number(&vals[1])

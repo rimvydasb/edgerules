@@ -687,11 +687,13 @@ pub static BUILT_IN_ALL_FUNCTIONS: phf::Map<&'static str, EFunctionType> = phf_m
     "join" => EFunctionType::Multi,
     "isEmpty" => EFunctionType::Unary,
     "partition" => EFunctionType::Binary,
+    "calendarDiff" => EFunctionType::Binary,
     // Date/Time/Duration parsing and helpers
     "date" => EFunctionType::Unary,
     "time" => EFunctionType::Unary,
     "datetime" => EFunctionType::Unary,
     "duration" => EFunctionType::Unary,
+    "period" => EFunctionType::Unary,
     "dayOfWeek" => EFunctionType::Unary,
     "monthOfYear" => EFunctionType::Unary,
     "lastDayOfMonth" => EFunctionType::Unary,

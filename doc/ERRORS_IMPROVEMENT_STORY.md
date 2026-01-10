@@ -23,14 +23,21 @@ export interface PortableError {
 
 ### Phase 1
 
-- [ ] Find all `RuntimeError` that throw errors regarding arguments count, types, etc. in built-in functions. These errors are not necessary, because
-each built-in function already has its own guard in `validation` field that prevents wrong arguments or types from being passed. Do following:
-  - [ ] Remove all redundant `RuntimeError` that duplicate validation checks already present in built-in functions.
-  - [ ] Ensure that all built-in functions have proper validation in `validation` field: add if missing.
-  - [ ] Stay with principle that `RuntimeError` should be used only for errors that cannot be detected during validation phase.
-  - [ ] Check all built-in function Rust tests and ensure that validation errors are properly caught during validation phase, not runtime. Add tests if missing.
-  - [ ] Run rust and just node tests to ensure nothing is broken (before the implementation, all tests passed).
-  - [ ] Check box if task is done.
+- [x] Find all `RuntimeError` that throw errors regarding arguments count, types, etc. in built-in functions. These
+  errors are not necessary, because
+  each built-in function already has its own guard in `validation` field that prevents wrong arguments or types from
+  being passed. Do following:
+    - [x] Remove all redundant `RuntimeError` that duplicate validation checks already present in built-in functions.
+    - [x] Ensure that all built-in functions have proper validation in `validation` field: add if missing.
+    - [x] Stay with principle that `RuntimeError` should be used only for errors that cannot be detected during
+      validation phase.
+    - [x] Check all built-in function Rust tests and ensure that validation errors are properly caught during validation
+      phase, not runtime. Add tests if missing.
+    - [x] Run rust and just node tests to ensure nothing is broken (before the implementation, all tests passed).
+    - [x] Check box if task is done.
+    - [x] Check how built-in functions are tested. Ensure that all argument count or other built-in function validation
+      tests are present and are able to catch errors in linking and not the execution. Add tests if missing.
+      Ensure every built-in function validation is covered by Rust test.
 - [ ] Eliminate all message formatting's in all error enums and places where errors are created.
 
 ### Phase 2
