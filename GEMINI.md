@@ -5,15 +5,26 @@ project. It serves as the single source of truth for project structure, commands
 
 ## Non Negotiable
 
-- YOU ARE NOT ALLOWED TO COMMIT TO GIT!
+- YOU ARE NOT ALLOWED TO COMMIT TO GIT! All your changes will be reviewed by a human, only human can commit the code.
 - `git commit` commands are forbidden.
 - `git push` commands are forbidden.
+- However, you can check and compare previous versions of files using git commands.
 
-## Main Instructions
+## Coding Standards
 
 - **Format:** Always use Markdown for documents and documentation.
 - **Line Length:** 120 characters maximum.
 - **Indentation:** 4 spaces (no tabs).
+- **Rust Edition:** 2021
+- **Naming:**
+  - Crates: `kebab-case`
+  - Modules/Files: `snake_case`
+  - Types/Enums: `CamelCase`
+  - Functions/Variables: `snake_case`
+- **Variable Names:** Descriptive and meaningful. Avoid single-letter names (use `index` not `i`, `context` not `ctx`
+  unless standard idiom).
+- **Imports:** Group imports cleanly. Avoid long module paths in code; use `use` statements.
+- `*_SPEC.md` files are used for design specifications, `*_STORY.md` files for implementation stories.
 
 ## Project Overview
 
@@ -99,39 +110,20 @@ Follow this loop for every change to ensure quality and prevent regressions:
     - If touching WASM logic: `just node` then `just wasm-test`
 4. **Verify:** If fixing a bug, create a reproduction case in `crates/core-tests/tests/`.
 
-## Coding Standards & Conventions
+## Project Priorities
 
-### Style
+1. **Small WASM Size First:** The primary goal is small WASM binary size. Performance is second.
+2. **Small Stack Size Second**: Optimize for low stack usage in WASM environments.
+3. **Performance Third:** Optimize for speed only after size and stack considerations are met.
+4. **Maintainability** and code clarity are important but secondary to the above goals.
 
-- **Rust Edition:** 2021
-- **Indentation:** 4 spaces
-- **Naming:**
-    - Crates: `kebab-case`
-    - Modules/Files: `snake_case`
-    - Types/Enums: `CamelCase`
-    - Functions/Variables: `snake_case`
-- **Variable Names:** Descriptive and meaningful. Avoid single-letter names (use `index` not `i`, `context` not `ctx`
-  unless standard idiom).
-- **Imports:** Group imports cleanly. Avoid long module paths in code; use `use` statements.
+**Tips for keeping WASM size small:**
+- Avoid unnecessary `#[derive(...)]` if not strictly needed.
+- Be mindful of generic monomorphization bloat.
+- Do not use `Debug` or `Display` derives for WASM target.
+- Regex and base64 are not included in WASM by default and are provided by the host environment.
 
-### Architecture & performance
-
-- **WASM Size First:** The primary goal is small WASM binary size. Performance is second.
-    - Avoid unnecessary `#[derive(...)]` if not strictly needed.
-    - Be mindful of generic monomorphization bloat.
-    - Do not use `Debug` or `Display` derives for WASM target.
-    - Regex and base64 are not included in WASM by default and are provided by the host environment.
-- **Error Handling:** Use `?` for propagation. Avoid `unwrap()`/`expect()` in runtime code; reserve them for tests.
-- **WASM Interop:**
-    - Shape conversions live in `crates/wasm/src/wasm_convert.rs`.
-    - `crates/wasm/src/lib.rs` uses a `thread_local` static `DecisionServiceController` for state management. This is a
-      known architectural constraint.
-
-## Debugging & Verification Playbook
-
-- **Unlinked Fields:** If list or context fields report `Unlinked`, inspect `crates/core/src/ast/sequence.rs` and
-  ensuring `linker::link_parts` is called.
-- **WASM vs Rust:** If JS output diverges from Rust, check `crates/wasm/src/wasm_convert.rs`.
-- **Test Helpers:** Use `crates/core-tests/tests/utilities.rs` (helpers like `assert_eval_all`, `link_error_contains`)
-  to keep tests clean.
-- **Stale Artifacts:** Always run `just node` or `just web` before running `just demo-*` commands.
+## Error Handling
+- Use `?` for propagation.
+- Avoid `unwrap()`/`expect()` in runtime code; reserve them for tests.
+- Avoid `.ok()` that discards errors. Propagate errors instead.
