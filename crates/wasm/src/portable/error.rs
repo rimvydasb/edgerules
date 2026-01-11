@@ -140,6 +140,16 @@ impl From<RuntimeError> for PortableError {
                 };
                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&msg));
             }
+            RuntimeErrorEnum::InternalIntegrityError(code) => {
+                let _ = utils::set_prop(
+                    &error_obj,
+                    "type",
+                    &JsValue::from_str("InternalIntegrityError"),
+                );
+                let _ = utils::set_prop(&error_obj, "code", &JsValue::from_f64(*code as f64));
+                let msg = format!("Internal integrity error: code {}", code);
+                let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&msg));
+            }
             _ => {
                 let _ =
                     utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherRuntimeError"));

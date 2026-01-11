@@ -145,7 +145,7 @@ impl ExpressionFilter {
                     }
                 }
             } else {
-                RuntimeError::eval_error(format!("Cannot select a value with '{}'", method)).into()
+                RuntimeError::internal_integrity_error(401).into()
             }
         }
     }
@@ -513,12 +513,7 @@ impl EvaluatableExpression for FieldSelection {
                     _ => RuntimeError::field_not_found(name.as_str(), "period").into(),
                 }
             }
-            _ => RuntimeError::eval_error(format!(
-                "Cannot select '{}' because data type is {} and not an object",
-                self.source,
-                source_value.get_type()
-            ))
-            .into(),
+            _ => RuntimeError::internal_integrity_error(402).into(),
         }
     }
 }

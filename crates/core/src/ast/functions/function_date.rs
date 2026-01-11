@@ -285,12 +285,7 @@ pub fn eval_calendar_diff(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum
             )?;
             Ok(PeriodVariant(ValueOrSv::Value(period)))
         }
-        (left_value, right_value) => RuntimeError::eval_error(format!(
-            "calendarDiff expects date arguments, received '{}' and '{}'",
-            left_value.get_type(),
-            right_value.get_type()
-        ))
-        .into(),
+        (_left_value, _right_value) => RuntimeError::internal_integrity_error(300).into(),
     }
 }
 

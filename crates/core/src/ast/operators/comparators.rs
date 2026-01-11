@@ -348,13 +348,13 @@ impl ComparatorOperator {
                 .duration_ordering(a, b)
             {
                 Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
-                None => RuntimeError::eval_error("Cannot compare durations 1".to_string()).into(),
+                None => RuntimeError::internal_integrity_error(150).into(),
             },
             (DurationVariant(Value(a)), Greater, DurationVariant(Value(b))) => match self
                 .duration_ordering(a, b)
             {
                 Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
-                None => RuntimeError::eval_error("Cannot compare durations 2".to_string()).into(),
+                None => RuntimeError::internal_integrity_error(151).into(),
             },
             (DurationVariant(Value(a)), LessEquals, DurationVariant(Value(b))) => match self
                 .duration_ordering(a, b)
@@ -362,7 +362,7 @@ impl ComparatorOperator {
                 Some(ordering) => Ok(BooleanValue(
                     ordering == Ordering::Less || ordering == Ordering::Equal,
                 )),
-                None => RuntimeError::eval_error("Cannot compare durations 3".to_string()).into(),
+                None => RuntimeError::internal_integrity_error(152).into(),
             },
             (DurationVariant(Value(a)), GreaterEquals, DurationVariant(Value(b))) => {
                 match self.duration_ordering(a, b) {
@@ -371,7 +371,7 @@ impl ComparatorOperator {
                     )),
                     None => {
                         trace!("Durations: a: {:?}, b: {:?}", a, b);
-                        RuntimeError::eval_error("Cannot compare durations 4".to_string()).into()
+                        RuntimeError::internal_integrity_error(153).into()
                     }
                 }
             }
@@ -379,19 +379,11 @@ impl ComparatorOperator {
             (PeriodVariant(Value(a)), NotEquals, PeriodVariant(Value(b))) => {
                 Ok(BooleanValue(a != b))
             }
-            (PeriodVariant(Value(_)), comparator, PeriodVariant(Value(_))) => {
-                RuntimeError::eval_error(format!(
-                    "Comparator '{}' is not supported for period values",
-                    comparator
-                ))
-                .into()
+            (PeriodVariant(Value(_)), _comparator, PeriodVariant(Value(_))) => {
+                RuntimeError::internal_integrity_error(154).into()
             }
 
-            (left, comparator, right) => RuntimeError::eval_error(format!(
-                "Not possible to compare {} {} {}",
-                left, comparator, right
-            ))
-            .into(),
+            (_left, _comparator, _right) => RuntimeError::internal_integrity_error(155).into(),
         }
     }
 }

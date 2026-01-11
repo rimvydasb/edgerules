@@ -14,8 +14,8 @@ use crate::typesystem::errors::ParseErrorEnum::{
     UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
-    DivisionByZero, EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
-    UnexpectedError, ValueParsingError,
+    DivisionByZero, EvalError, InternalIntegrityError, RuntimeCyclicReference, RuntimeFieldNotFound,
+    TypeNotSupported, ValueParsingError,
 };
 use crate::typesystem::types::ValueType;
 
@@ -158,7 +158,11 @@ impl RuntimeError {
     }
 
     pub fn unexpected(message: impl Into<String>) -> Self {
-        RuntimeError::new(UnexpectedError(message.into()))
+        RuntimeError::eval_error(message.into())
+    }
+
+    pub fn internal_integrity_error(code: u16) -> Self {
+        RuntimeError::new(InternalIntegrityError(code))
     }
 
     pub fn eval_error(message: impl Into<String>) -> Self {
@@ -397,9 +401,38 @@ pub enum RuntimeErrorEnum {
     /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
     TypeNotSupported(ValueType),
 
-    /// This error never appears in normal runtime, but used as a guard for maybe unlinked references.
-    /// This error also means development mistake and will not be covered by tests.
-    UnexpectedError(String),
+    // Code 100-199: math linking guards
+    // Code 200-299: string linking guards
+    // Code 300-399: date, time, duration linking guards
+    // Code 400-499: array and object linking guards
+    // Codes:
+    // 100 - Operator '^' is not implemented for operands
+    // 101 - Unsupported operator for duration values
+    // 102 - Unsupported operator for period values
+    // 103 - Operator is not implemented for date and duration values
+    // 104 - Operator is not implemented for datetime and duration values
+    // 105 - Operator is not implemented for time and duration values
+    // 106 - Operator is not implemented for date and period values
+    // 107 - Operator is not implemented for datetime and period values
+    // 108 - Cannot apply operator between period and duration values
+    // 109 - Operator is not implemented for operands
+    // 110 - Cannot negate value
+    // 150 - Cannot compare durations (Less)
+    // 151 - Cannot compare durations (Greater)
+    // 152 - Cannot compare durations (LessEquals)
+    // 153 - Cannot compare durations (GreaterEquals)
+    // 154 - Comparator is not supported for period values
+    // 155 - Not possible to compare operands
+    // 160 - Logical operator is not implemented for operands
+    // 200 - regex_functions feature is disabled (split)
+    // 201 - regex_functions feature is disabled (replace)
+    // 202 - base64_functions feature is disabled (to_base64)
+    // 203 - base64_functions feature is disabled (from_base64)
+    // 300 - calendarDiff expects date arguments
+    // 400 - Cannot iterate
+    // 401 - Cannot select a value
+    // 402 - Cannot select because data type is not an object
+    InternalIntegrityError(u16),
 }
 
 impl Display for RuntimeErrorEnum {
@@ -429,8 +462,8 @@ impl Display for RuntimeErrorEnum {
             RuntimeFieldNotFound(object, field) => {
                 write!(f, "[runtime] Field '{}' not found in {}", field, object)
             }
-            UnexpectedError(message) => {
-                write!(f, "[runtime] Unexpected error: {}", message)
+            InternalIntegrityError(code) => {
+                write!(f, "[runtime] Internal integrity error: code {}", code)
             }
         }
     }
@@ -612,7 +645,7 @@ impl RuntimeError {
         let mut runtime_error = match &error.inner.error {
             FieldNotFound(object, field) => RuntimeError::field_not_found(object, field),
             CyclicReference(object, field) => RuntimeError::cyclic_reference(object, field),
-            NotLinkedYet => RuntimeError::unexpected(format!("{}", error)),
+            NotLinkedYet => RuntimeError::eval_error(format!("{}", error)),
             _ => RuntimeError::eval_error(error.inner.error.to_string()),
         };
 

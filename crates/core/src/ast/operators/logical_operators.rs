@@ -118,11 +118,7 @@ impl EvaluatableExpression for LogicalOperator {
             (BooleanValue(_left), BooleanValue(_right)) => {
                 Ok(BooleanValue((self.function)(_left, _right)))
             }
-            _ => RuntimeError::eval_error(format!(
-                "Operator '{}' is not implemented for '{} {} {}'",
-                self.data.operator, left_token, self.data.operator, right_token
-            ))
-            .into(),
+            _ => RuntimeError::internal_integrity_error(160).into(),
         }
     }
 }

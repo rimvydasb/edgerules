@@ -12,7 +12,7 @@ use crate::link::node_data::{NodeData, NodeDataEnum};
 use crate::runtime::execution_context::*;
 use crate::tokenizer::utils::Either;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
-use crate::typesystem::types::{Integer, TypedValue, ValueType};
+use crate::typesystem::types::{Integer, ValueType};
 use crate::typesystem::values::ValueEnum::{Array, RangeValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
 use crate::utils::context_unwrap;
@@ -229,8 +229,8 @@ impl EvaluatableExpression for ForFunction {
                 self.iterate_objects(values, Rc::clone(&context))
             }
             RangeValue(range) => self.iterate_range(range, Rc::clone(&context)),
-            other => {
-                RuntimeError::eval_error(format!("Cannot iterate {}", other.get_type())).into()
+            _other => {
+                RuntimeError::internal_integrity_error(400).into()
             }
         }
     }

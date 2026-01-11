@@ -419,7 +419,7 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
     not(all(target_arch = "wasm32", feature = "wasm"))
 ))]
 pub fn eval_regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(200).into()
 }
 
 #[cfg(feature = "base64_functions")]
@@ -451,7 +451,7 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     not(all(target_arch = "wasm32", feature = "wasm"))
 ))]
 pub fn eval_to_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(202).into()
 }
 #[cfg(feature = "base64_functions")]
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
@@ -487,7 +487,7 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     not(all(target_arch = "wasm32", feature = "wasm"))
 ))]
 pub fn eval_from_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(203).into()
 }
 #[cfg(feature = "regex_functions")]
 pub fn eval_regex_replace(
@@ -557,7 +557,7 @@ pub fn eval_regex_replace(
     _args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(201).into()
 }
 
 pub fn eval_char_at(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
