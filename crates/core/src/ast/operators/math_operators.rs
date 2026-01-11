@@ -361,13 +361,9 @@ fn operate_duration_values(
     let right_seconds = right.signed_seconds();
 
     let total = if matches!(operator, MathOperatorEnum::Addition) {
-        left_seconds
-            .checked_add(right_seconds)
-            .ok_or_else(|| RuntimeError::eval_error("Duration addition overflowed".to_string()))?
+        left_seconds + right_seconds
     } else {
-        left_seconds.checked_sub(right_seconds).ok_or_else(|| {
-            RuntimeError::eval_error("Duration subtraction overflowed".to_string())
-        })?
+        left_seconds - right_seconds
     };
 
     ErDurationValue::from_signed_seconds(total)
@@ -387,23 +383,9 @@ fn operate_period_values(
     let (right_months, right_days) = right.signed_components();
 
     let (months_total, days_total) = if matches!(operator, MathOperatorEnum::Addition) {
-        (
-            left_months.checked_add(right_months).ok_or_else(|| {
-                RuntimeError::eval_error("Period addition overflowed".to_string())
-            })?,
-            left_days.checked_add(right_days).ok_or_else(|| {
-                RuntimeError::eval_error("Period addition overflowed".to_string())
-            })?,
-        )
+        (left_months + right_months, left_days + right_days)
     } else {
-        (
-            left_months.checked_sub(right_months).ok_or_else(|| {
-                RuntimeError::eval_error("Period subtraction overflowed".to_string())
-            })?,
-            left_days.checked_sub(right_days).ok_or_else(|| {
-                RuntimeError::eval_error("Period subtraction overflowed".to_string())
-            })?,
-        )
+        (left_months - right_months, left_days - right_days)
     };
 
     ErPeriodValue::from_signed_parts(months_total, days_total)

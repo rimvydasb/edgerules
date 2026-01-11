@@ -57,6 +57,7 @@ may start after 100. If code exists and is not 0, then attach code number to the
 
 ### Phase 2
 
+- [ ] Investigate the whole Phase 2 plan and break it down to smaller high level tasks to understand the scope.
 - [ ] PortableError `fields` must be renamed to `args` and must be presented as ordered structure. `args` should now
   contain:
 
