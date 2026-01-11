@@ -152,7 +152,7 @@ impl TestServiceBuilder {
         }
 
         if let Some(errors) = &self.linking_errors {
-            assert_eq!(expected, errors.inner.error, "Testing:\n{}", self.original_code);
+            assert_eq!(&expected, errors.kind(), "Testing:\n{}", self.original_code);
         } else {
             panic!(
                 "Expected linking error, but got no errors: `{}`",

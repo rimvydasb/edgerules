@@ -52,7 +52,7 @@ pub trait ErrorStack<T: Display>: Sized {
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
-pub struct ErrorData<T: Display> {
+struct ErrorData<T: Display> {
     pub error: T,
     pub context: Vec<String>,
     pub location: Vec<String>,
@@ -63,8 +63,53 @@ pub struct ErrorData<T: Display> {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
 pub struct GeneralStackedError<T: Display> {
-    pub inner: Box<ErrorData<T>>,
+    inner: Box<ErrorData<T>>,
 }
+
+impl<T: Display> GeneralStackedError<T> {
+    pub fn kind(&self) -> &T {
+        &self.inner.error
+    }
+
+    pub fn context(&self) -> &[String] {
+        &self.inner.context
+    }
+
+    pub fn location(&self) -> &[String] {
+        &self.inner.location
+    }
+
+    pub fn expression(&self) -> Option<&String> {
+        self.inner.expression.as_ref()
+    }
+
+    pub fn stage(&self) -> Option<&ErrorStage> {
+        self.inner.stage.as_ref()
+    }
+
+    pub fn location_mut(&mut self) -> &mut Vec<String> {
+        &mut self.inner.location
+    }
+
+    pub fn set_expression(&mut self, expression: String) {
+        self.inner.expression = Some(expression);
+    }
+
+    pub fn set_stage(&mut self, stage: ErrorStage) {
+        self.inner.stage = Some(stage);
+    }
+
+    pub fn has_expression(&self) -> bool {
+        self.inner.expression.is_some()
+    }
+
+    pub fn has_stage(&self) -> bool {
+        self.inner.stage.is_some()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T: Display + fmt::Debug> std::error::Error for GeneralStackedError<T> {}
 
 impl<T: Display> ErrorStack<T> for GeneralStackedError<T> {
     fn update_context(&mut self, content: String) {
