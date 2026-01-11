@@ -9,6 +9,7 @@ project. It serves as the single source of truth for project structure, commands
 - `git commit` commands are forbidden.
 - `git push` commands are forbidden.
 - However, you can check and compare previous versions of files using git commands.
+- You must run all tests and ensure they pass before creating Pull Request.
 
 ## Coding Standards
 

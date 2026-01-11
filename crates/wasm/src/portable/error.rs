@@ -99,17 +99,17 @@ impl From<RuntimeError> for PortableError {
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("runtime"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
-        if !err.inner.location.is_empty() {
-            let loc_str = err.inner.location.join(".");
+        if !err.location().is_empty() {
+            let loc_str = err.location().join(".");
             let _ = utils::set_prop(&obj, "location", &JsValue::from_str(&loc_str));
         }
 
-        if let Some(expr) = &err.inner.expression {
+        if let Some(expr) = err.expression() {
             let _ = utils::set_prop(&obj, "expression", &JsValue::from_str(expr));
         }
 
         let error_obj = Object::new();
-        match &err.inner.error {
+        match err.kind() {
             RuntimeErrorEnum::RuntimeFieldNotFound(object, field) => {
                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FieldNotFound"));
                 let fields = Array::new();
@@ -146,7 +146,7 @@ impl From<RuntimeError> for PortableError {
                 let _ = utils::set_prop(
                     &error_obj,
                     "message",
-                    &JsValue::from_str(&err.inner.error.to_string()),
+                    &JsValue::from_str(&err.kind().to_string()),
                 );
             }
         }
@@ -165,17 +165,17 @@ impl From<LinkingError> for PortableError {
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("linking"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
-        if !err.inner.location.is_empty() {
-            let loc_str = err.inner.location.join(".");
+        if !err.location().is_empty() {
+            let loc_str = err.location().join(".");
             let _ = utils::set_prop(&obj, "location", &JsValue::from_str(&loc_str));
         }
 
-        if let Some(expr) = &err.inner.expression {
+        if let Some(expr) = err.expression() {
             let _ = utils::set_prop(&obj, "expression", &JsValue::from_str(expr));
         }
 
         let error_obj = Object::new();
-        match &err.inner.error {
+        match err.kind() {
             LinkingErrorEnum::FieldNotFound(object, field) => {
                 let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("FieldNotFound"));
                 let fields = Array::new();
@@ -231,7 +231,7 @@ impl From<LinkingError> for PortableError {
                 let _ = utils::set_prop(
                     &error_obj,
                     "message",
-                    &JsValue::from_str(&err.inner.error.to_string()),
+                    &JsValue::from_str(&err.kind().to_string()),
                 );
             }
         }

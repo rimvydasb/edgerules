@@ -99,19 +99,13 @@ impl ForFunction {
     ) -> Result<ValueEnum, RuntimeError> {
         let mut result: Vec<ValueEnum> = Vec::new();
 
+        // @Todo: solve this code duplication:
         let element_type = match self.return_type.clone()? {
             ValueType::ListType(item_type) => item_type
                 .as_ref()
                 .map(|inner| (**inner).clone())
                 .unwrap_or(ValueType::UndefinedType),
-            err => {
-                // @Todo: it should be linking error, not a runtime
-                return RuntimeError::eval_error(format!(
-                    "Cannot iterate through non list type `{}`",
-                    err
-                ))
-                .into();
-            }
+            other => return RuntimeError::type_not_supported(other).into(),
         };
 
         for loop_value in values {
@@ -153,18 +147,13 @@ impl ForFunction {
     ) -> Result<ValueEnum, RuntimeError> {
         let mut result: Vec<ValueEnum> = Vec::new();
 
+        // @Todo: solve this code duplication:
         let element_type = match self.return_type.clone()? {
             ValueType::ListType(item_type) => item_type
                 .as_ref()
                 .map(|inner| (**inner).clone())
                 .unwrap_or(ValueType::UndefinedType),
-            err => {
-                return RuntimeError::eval_error(format!(
-                    "Cannot iterate through non list type `{}`",
-                    err
-                ))
-                .into();
-            }
+            other => return RuntimeError::type_not_supported(other).into(),
         };
 
         for ctx_ref in values {
