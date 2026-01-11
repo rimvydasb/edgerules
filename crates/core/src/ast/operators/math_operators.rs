@@ -302,6 +302,11 @@ impl MathOperator {
                                right: NumberEnum|
              -> Result<NumberEnum, RuntimeError> { Ok(left * right) },
             Division => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                match right {
+                    NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
+                    NumberEnum::Real(r) if r == 0.0 => return Err(RuntimeError::division_by_zero()),
+                    _ => {}
+                }
                 Ok(left / right)
             },
             Power => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
@@ -324,6 +329,11 @@ impl MathOperator {
                 }
             },
             Modulus => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                match right {
+                    NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
+                    NumberEnum::Real(r) if r == 0.0 => return Err(RuntimeError::division_by_zero()),
+                    _ => {}
+                }
                 Ok(left % right)
             },
         };

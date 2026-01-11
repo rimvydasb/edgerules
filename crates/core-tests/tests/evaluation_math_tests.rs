@@ -98,6 +98,18 @@ fn test_math_division() {
 }
 
 #[test]
+fn test_math_division_by_zero() {
+    init_logger();
+    // Functions
+    assert_string_contains!("[runtime] Division by zero", eval_value("value : modulo(10, 0)"));
+    assert_string_contains!("[runtime] Division by zero", eval_value("value : idiv(10, 0)"));
+    
+    // Operators
+    assert_string_contains!("[runtime] Division by zero", eval_value("value : 10 / 0"));
+    assert_string_contains!("[runtime] Division by zero", eval_value("value : 10 % 0"));
+}
+
+#[test]
 fn test_math_sqrt() {
     init_logger();
     assert_value!("sqrt(4)", "2");

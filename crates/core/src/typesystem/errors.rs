@@ -14,8 +14,8 @@ use crate::typesystem::errors::ParseErrorEnum::{
     UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
-    EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError,
-    ValueParsingError,
+    DivisionByZero, EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
+    UnexpectedError, ValueParsingError,
 };
 use crate::typesystem::types::ValueType;
 
@@ -145,6 +145,10 @@ impl RuntimeError {
 
     pub fn parsing_from_string(to: ValueType, code: u8) -> Self {
         RuntimeError::new(ValueParsingError(ValueType::StringType, to, code))
+    }
+
+    pub fn division_by_zero() -> Self {
+        RuntimeError::new(DivisionByZero)
     }
 }
 
@@ -333,6 +337,9 @@ pub enum RuntimeErrorEnum {
     // fromType, toType, errorCode
     ValueParsingError(ValueType, ValueType, u8),
 
+    // e.g., division by zero
+    DivisionByZero,
+
     // field, object
     RuntimeCyclicReference(String, String),
 
@@ -365,6 +372,7 @@ impl Display for RuntimeErrorEnum {
                     write!(f, "[runtime] Failed to parse '{}' from '{}'", to, from)
                 }
             }
+            DivisionByZero => write!(f, "[runtime] Division by zero"),
             TypeNotSupported(value_type) => {
                 write!(f, "[runtime] Type '{}' is not supported", value_type)
             }

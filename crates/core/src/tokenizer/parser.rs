@@ -93,14 +93,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     build_assignment,
                 );
             }
-            '+' | '-' | '*' | '×' | '÷' | '^' => {
+            '+' | '-' | '*' | '×' | '÷' | '^' | '%' => {
                 let extracted = source.next_char().unwrap();
 
                 // Detect unary context for '-'
                 let mut priority = match extracted {
                     '+' => Plus,
                     '-' => Minus,
-                    '*' | '×' | '÷' => DivideMultiply,
+                    '*' | '×' | '÷' | '%' => DivideMultiply,
                     '^' => PowerPriority,
                     _ => ErrorPriority,
                 };

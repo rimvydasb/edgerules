@@ -355,7 +355,7 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
                 let rem = r1 % r2;
                 let res = if rem != 0.0 && rem.signum() != r2.signum() {
                     rem + r2
@@ -365,7 +365,7 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                 Ok(NumberValue(Real(res)))
             },
             (Int(i1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
                 let rem = i1 % i2;
                 let res = if rem != 0 && rem.signum() != i2.signum() {
                     rem + i2
@@ -375,7 +375,7 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                 Ok(NumberValue(Int(res)))
             },
             (Real(r1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
                 let r2 = i2 as f64;
                 let rem = r1 % r2;
                 let res = if rem != 0.0 && rem.signum() != r2.signum() {
@@ -386,7 +386,7 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                 Ok(NumberValue(Real(res)))
             },
             (Int(i1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
                 let r1 = i1 as f64;
                 let rem = r1 % r2;
                 let res = if rem != 0.0 && rem.signum() != r2.signum() {
@@ -407,11 +407,11 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
                 Ok(NumberValue(Real((r1 / r2).floor())))
             },
             (Int(i1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
                 let d = i1 / i2;
                 let r = i1 % i2;
                 let res = if (r > 0 && i2 < 0) || (r < 0 && i2 > 0) {
@@ -422,11 +422,11 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
                 Ok(NumberValue(Int(res)))
             },
             (Real(r1), Int(i2)) => {
-                 if i2 == 0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                 if i2 == 0 { return RuntimeError::division_by_zero().into(); }
                  Ok(NumberValue(Real((r1 / (i2 as f64)).floor())))
             },
             (Int(i1), Real(r2)) => {
-                 if r2 == 0.0 { return RuntimeError::eval_error("Division by zero".to_string()).into(); }
+                 if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
                  Ok(NumberValue(Real(((i1 as f64) / r2).floor())))
             },
         }
