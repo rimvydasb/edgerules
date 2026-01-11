@@ -52,10 +52,7 @@ impl EvaluatableExpression for UserFunctionCall {
                 ExecutionContext::eval_all_fields(&eval_context)?;
                 Ok(Reference(eval_context))
             }
-            Err(error) => Err(RuntimeError::unexpected(format!(
-                "{}: {}",
-                self.name, error
-            ))),
+            Err(_error) => Err(RuntimeError::internal_integrity_error(403)),
         }
     }
 }
