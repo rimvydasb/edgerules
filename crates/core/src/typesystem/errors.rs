@@ -364,6 +364,7 @@ pub enum RuntimeErrorEnum {
     // value parsing error occurs when parsing typed values from strings, e.g. `eval_duration`, to duration or other type
     // @Todo: this error should occur only when string is passed to a typed value parser, TBC, TBA
     // @Todo: need to develop linking aware constant string parsing, e.g. @P2D and report errors during linking, TBC, TBA
+    // See ERROR_CODES_SPEC.md for details.
     // fromType, toType, errorCode
     ValueParsingError(ValueType, ValueType, u8),
 
@@ -382,6 +383,7 @@ pub enum RuntimeErrorEnum {
     /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
     TypeNotSupported(ValueType),
 
+    // Unexpected development errors. See ERROR_CODES_SPEC.md for details.
     // errorCode
     InternalIntegrityError(u16),
 }
