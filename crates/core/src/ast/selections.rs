@@ -159,7 +159,7 @@ impl ExpressionFilter {
             Ok(BooleanValue(true)) => Ok(true),
             Ok(BooleanValue(false)) => Ok(false),
             Ok(_) => Ok(false),
-            Err(err) => match &err.inner.error {
+            Err(err) => match err.kind() {
                 RuntimeErrorEnum::RuntimeFieldNotFound(_, field) => {
                     if field == "it" {
                         return Ok(false);

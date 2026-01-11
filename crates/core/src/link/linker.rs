@@ -50,13 +50,16 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                                     Ok(field_type)
                                 }
                                 Err(mut err) => {
-                                    if err.inner.location.is_empty() {
-                                        err.inner.location = build_location_from_context(&context, name);
+                                    if err.location().is_empty() {
+                                        *err.location_mut() =
+                                            build_location_from_context(&context, name);
                                     }
-                                    if err.inner.expression.is_none() {
-                                        err.inner.expression = Some(expression_display);
+                                    if !err.has_expression() {
+                                        err.set_expression(expression_display);
                                     }
-                                    err.inner.stage = Some(ErrorStage::Linking);
+                                    if !err.has_stage() {
+                                        err.set_stage(ErrorStage::Linking);
+                                    }
                                     Err(err)
                                 }
                             }
@@ -214,11 +217,14 @@ pub fn get_till_root<T: Node<T>>(
         Ok(finding) => {
             result = Ok(BrowseResultFound::new(Rc::clone(&ctx), interned, finding));
         }
-        Err(err) if matches!(err.inner.error, FieldNotFound(_, _)) => {
-            if let FieldNotFound(obj_name, field) = err.inner.error {
+        Err(err) if matches!(err.kind(), FieldNotFound(_, _)) => {
+            if let FieldNotFound(obj_name, field) = err.kind() {
                 match ctx.borrow().node().node_type.get_parent() {
                     None => {
-                        result = Err(LinkingError::new(FieldNotFound(obj_name, field)));
+                        result = Err(LinkingError::new(FieldNotFound(
+                            obj_name.clone(),
+                            field.clone(),
+                        )));
                     }
                     Some(parent) => {
                         result = get_till_root(parent, name);
@@ -270,14 +276,14 @@ impl BrowseResultFound<ExecutionContext> {
                 let result = match value.borrow().expression.eval(Rc::clone(&self.context)) {
                     Ok(v) => Ok(v),
                     Err(mut err) => {
-                        if err.inner.location.is_empty() {
-                            err.inner.location = build_location_from_execution_context(
+                        if err.location().is_empty() {
+                            *err.location_mut() = build_location_from_execution_context(
                                 &self.context,
                                 self.field_name,
                             );
                         }
-                        if err.inner.expression.is_none() {
-                            err.inner.expression = Some(value.borrow().expression.to_string());
+                        if !err.has_expression() {
+                            err.set_expression(value.borrow().expression.to_string());
                         }
                         Err(err)
                     }

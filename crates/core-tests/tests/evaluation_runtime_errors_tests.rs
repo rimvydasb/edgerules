@@ -16,8 +16,8 @@ fn runtime_error_exposes_stage_at_root() {
         .evaluate_field("value")
         .expect_err("expected runtime error");
 
-    assert!(err.inner.stage.is_some());
-    assert_eq!(err.inner.location, vec!["value"]);
+    assert!(err.stage().is_some());
+    assert_eq!(err.location(), vec!["value"]);
     assert!(
         err.to_string().to_lowercase().contains("invalid date"),
         "got: {err}"
@@ -41,8 +41,8 @@ fn runtime_error_in_nested_context_has_stage() {
         .evaluate_field("value")
         .expect_err("expected runtime error");
 
-    assert!(err.inner.stage.is_some());
-    assert_eq!(err.inner.location, vec!["nested", "bad"]);
+    assert!(err.stage().is_some());
+    assert_eq!(err.location(), vec!["nested", "bad"]);
     assert!(
         err.to_string().to_lowercase().contains("invalid date"),
         "got: {err}"
@@ -76,8 +76,8 @@ fn runtime_error_deep_dependency_chain() {
         .evaluate_field("result")
         .expect_err("expected runtime error");
 
-    assert!(err.inner.stage.is_some());
+    assert!(err.stage().is_some());
     // The location should point to the source of the error, not the top-level field
-    assert_eq!(err.inner.location, vec!["source", "value"]);
-    assert_eq!(err.inner.expression, Some("date('invalid')".to_string()));
+    assert_eq!(err.location(), vec!["source", "value"]);
+    assert_eq!(err.expression().map(|s| s.as_str()), Some("date('invalid')"));
 }

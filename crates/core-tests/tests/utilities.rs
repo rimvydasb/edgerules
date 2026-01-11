@@ -183,17 +183,18 @@ pub fn link_error_location(
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
             assert_eq!(
-                err.inner.location, expected,
+                err.location(),
+                expected,
                 "location mismatch for code:\n{code}"
             );
             assert_eq!(
-                err.inner.expression.as_deref(),
+                err.expression().map(|s| s.as_str()),
                 Some(expected_expression),
                 "expression mismatch for code:\n{code}"
             );
-            assert!(err.inner.stage.is_some());
-            assert_eq!(err.inner.error, error);
-            err.inner.location
+            assert!(err.stage().is_some());
+            assert_eq!(err.kind(), &error);
+            err.location().to_vec()
         }
     }
 }
