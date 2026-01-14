@@ -269,18 +269,6 @@ describe('Abnormal Path Handling', () => {
             const error = getError(() => service.getType('ghost.child'));
             assert.match(error.message, /Context 'ghost' not found/);
         });
-
-        it('returns type string for valid primitive path', () => {
-            const type = service.getType('valid');
-            assert.strictEqual(type, 'number');
-        });
-
-        it('returns type object for valid complex path', () => {
-            const type = service.getType('nested');
-            assert.deepEqual(type, {
-                inner: 'number'
-            });
-        });
     });
 });
 

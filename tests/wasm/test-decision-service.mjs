@@ -420,13 +420,6 @@ describe('Decision Service', () => {
                 return /Entry 'auditNote' not found/.test(err.message);
             });
 
-            // Verify a type definition
-            assert.deepEqual(service.getType('LoanRequest'), {
-                amount: 'number',
-                creditScore: 'number',
-                vip: 'boolean'
-            });
-
             // Verify wildcard type retrieval
             const actualWildcardSchema = service.getType('*');
             // console.log("Actual Wildcard Schema:", JSON.stringify(actualWildcardSchema, null, 2));

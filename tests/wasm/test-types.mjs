@@ -70,95 +70,49 @@ describe('Type Introspection (getType) and List Operations', () => {
     });
 
     describe('getType API Coverage', () => {
-        it('retrieves type for string field', () => {
+        it('retrieves correct types for primitive fields', () => {
             assert.equal(service.getType('aString'), 'string');
-        });
-
-        it('retrieves type for number field', () => {
             assert.equal(service.getType('aNumber'), 'number');
-        });
-
-        it('retrieves type for decimal (pi)', () => {
             assert.equal(service.getType('pi'), 'number');
-        });
-
-        it('retrieves type for boolean field', () => {
             assert.equal(service.getType('aBoolean'), 'boolean');
         });
 
-        it('retrieves type for list of strings', () => {
-            const type = service.getType('stringList');
-            assert.deepEqual(type, {
+        it('retrieves correct types for list fields', () => {
+            // String list
+            assert.deepEqual(service.getType('stringList'), { type: 'list', itemType: 'string' });
+            
+            // Variable list (resolved to number)
+            assert.deepEqual(service.getType('variablesList'), { type: 'list', itemType: 'number' });
+            
+            // Number list
+            assert.deepEqual(service.getType('numberList'), { type: 'list', itemType: 'number' });
+            
+            // Boolean list
+            assert.deepEqual(service.getType('boolList'), { type: 'list', itemType: 'boolean' });
+            
+            // Empty list
+            assert.equal(service.getType('emptyList'), '[]');
+            
+            // Nested list
+            assert.deepEqual(service.getType('nestedList'), { 
+                type: 'list', 
+                itemType: { type: 'list', itemType: 'number' } 
+            });
+            
+            // List of objects
+            assert.deepEqual(service.getType('objects1List'), {
                 type: 'list',
-                itemType: 'string'
+                itemType: { x: 'number' }
             });
         });
 
-        it('retrieves type for list of variables (numbers)', () => {
-            const type = service.getType('variablesList');
-            assert.deepEqual(type, {
-                type: 'list',
-                itemType: 'number'
-            });
-        });
-
-        it('retrieves type for list of numbers', () => {
-            const type = service.getType('numberList');
-            assert.deepEqual(type, {
-                type: 'list',
-                itemType: 'number'
-            });
-        });
-
-        it('retrieves type for list of booleans', () => {
-            const type = service.getType('boolList');
-            assert.deepEqual(type, {
-                type: 'list',
-                itemType: 'boolean'
-            });
-        });
-
-        it('retrieves type for empty list', () => {
-            const type = service.getType('emptyList');
-            assert.equal(type, '[]');
-        });
-
-        it('retrieves type for nested list', () => {
-            const type = service.getType('nestedList');
-            assert.deepEqual(type, {
-                type: 'list',
-                itemType: {
-                    type: 'list',
-                    itemType: 'number'
-                }
-            });
-        });
-
-        it('retrieves type for simple object', () => {
-            const type = service.getType('simpleObject');
-            assert.deepEqual(type, {
-                x: 'number',
-                y: 'string'
-            });
-        });
-
-        it('retrieves type for nested object', () => {
-            const type = service.getType('nestedObject');
-            assert.deepEqual(type, {
-                child: {
-                    grandchild: 'string',
-                    age: 'number'
-                }
-            });
-        });
-
-        it('retrieves type for list of objects', () => {
-            const type = service.getType('objects1List');
-            assert.deepEqual(type, {
-                type: 'list',
-                itemType: {
-                    x: 'number'
-                }
+        it('retrieves correct types for object fields', () => {
+            // Simple object
+            assert.deepEqual(service.getType('simpleObject'), { x: 'number', y: 'string' });
+            
+            // Nested object
+            assert.deepEqual(service.getType('nestedObject'), {
+                child: { grandchild: 'string', age: 'number' }
             });
         });
 
@@ -178,26 +132,23 @@ describe('Type Introspection (getType) and List Operations', () => {
             quoted: "\"To be or not to be!\""
         };
 
-        it('can access number list from function', () => {
-            const response = service.execute('main', testData);
-            assert.strictEqual(response.sum, 6);
-        });
+        it('executes list and string operations correctly', () => {
+            // Access number list from function
+            const resSum = service.execute('main', testData);
+            assert.strictEqual(resSum.sum, 6);
 
-        it('evaluates joined strings correctly', () => {
-            const response = service.execute('main', testData);
-            assert.strictEqual(response.joined, 'abc');
-        });
+            // Evaluate joined strings
+            const resJoined = service.execute('main', testData);
+            assert.strictEqual(resJoined.joined, 'abc');
 
-        it('evaluates single array element correctly', () => {
-            const req = { ...testData, index: 1 };
-            const response = service.execute('main', req);
-            assert.strictEqual(response.elem, 'b'); 
-        });
+            // Evaluate single array element
+            const reqElem = { ...testData, index: 1 };
+            const resElem = service.execute('main', reqElem);
+            assert.strictEqual(resElem.elem, 'b');
 
-        it('preserves quotes in string concatenation', () => {
-            const response = service.execute('main', testData);
-            // "To be or not to be!" + ! -> "To be or not to be!"!
-            assert.strictEqual(response.quoteTest, '"To be or not to be!"!');
+            // Preserve quotes in string concatenation
+            const resQuote = service.execute('main', testData);
+            assert.strictEqual(resQuote.quoteTest, '"To be or not to be!"!');
         });
 
         it('retrieves decimal values correctly', () => {
