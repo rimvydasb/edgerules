@@ -16,6 +16,11 @@ The API supports two main modes of operation:
 The **EdgeRules Portable Format** is a JSON-based schema for exchanging models, types, functions, and invocations. It
 serves as the canonical serialization format.
 
+> EdgeRules Portable Format is designed to exchange the code rather than the data. For this reason, user must know
+> applied exceptions:
+> 1. Variables are represented as JSON stings: { "var": "path.to.variable" }.
+> 2. Strings are escaped with quotes: { "const": "\"string value\"" } or { "const": "'string value'" }.
+
 ### TypeScript Interface
 
 ```typescript
@@ -215,6 +220,20 @@ Renames an entry (field, function, type, or invocation) from `oldPath` to `newPa
     - `DuplicateNameError`: If an entry with the name of `newPath` already exists in the target context.
     - `LinkingError`: If the rename breaks existing references (e.g., referencing a function that was renamed without updating the call site). Note: updating references is not automatic.
 
+#### `getType(path: string): string | object`
+
+Retrieves the type definition of the entry at the specified path.
+
+- **Parameters:**
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`).
+- **Returns:** The type definition.
+    - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
+    - For complex types: returns a JSON object describing the structure (e.g., `{ "name": "string", "age": "number" }`).
+    - For wildcard `"*"`: returns the entire model schema.
+- **Throws:**
+    - `EntryNotFoundError`: If the path does not exist.
+    - `WrongFieldPathError`: If the path is invalid or empty.
+
 **Array Access Exceptions:**
 
 *   **Set:**
@@ -273,6 +292,19 @@ console.log(tax.result); // 20
 service.set('taxRate', 0.25);
 const newTax = service.execute('calculateTax', 100);
 console.log(newTax.result); // 25
+
+// Inspect types
+const taxRateType = service.getType('taxRate');
+console.log(taxRateType); // "number"
+
+const funcType = service.getType('calculateTax');
+console.log(funcType); 
+// Output:
+// {
+//   "@type": "function",
+//   "@parameters": { "amount": "number" },
+//   "result": "number"
+// }
 
 try {
     service.execute('calculateTax', 'invalid argument');
