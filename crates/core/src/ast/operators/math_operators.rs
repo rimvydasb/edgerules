@@ -640,11 +640,7 @@ impl EvaluatableExpression for MathOperator {
                 if matches!(self.data.operator, Subtraction) =>
             {
                 let diff_days = (*left - *right).whole_days();
-                let seconds = i128::from(diff_days).checked_mul(86_400).ok_or_else(|| {
-                    RuntimeError::eval_error(
-                        "Date difference overflowed duration range".to_string(),
-                    )
-                })?;
+                let seconds = i128::from(diff_days) * 86_400;
                 let duration = ErDurationValue::from_signed_seconds(seconds)?;
                 Ok(DurationVariant(ValueOrSv::Value(duration)))
             }
