@@ -12,15 +12,20 @@ describe('Type Introspection (getType) and List Operations', () => {
             aString: "'text'",
             aNumber: 42,
             aBoolean: true,
+            pi: 3.14159265359,
             
+            // Quoted string tests (for getType)
+            a: "'!'",
+            quoted: "'\"To be or not to be!\"'",
+
             // Dependencies for variablesList
-            a: 11,
-            b: 22,
-            c: 33,
+            xVar: 11,
+            yVar: 22,
+            zVar: 33,
 
             // Lists (Global)
-            variablesList: ["a", "b", "c"],      // Variables (as strings)
-            stringList: ["'a'", "'b'", "'c'"],   // Strings (escaped)
+            variablesList: ["xVar", "yVar", "zVar"],
+            stringList: ["'a'", "'b'", "'c'"],
             numberList: [1, 2, 3],
             boolList: [true, false, true],
             
@@ -45,7 +50,9 @@ describe('Type Introspection (getType) and List Operations', () => {
                 '@type': 'type',
                 index: '<number>',
                 strList: '<string[]>',
-                numList: '<number[]>'
+                numList: '<number[]>',
+                a: '<string>',
+                quoted: '<string>'
             },
 
             // Functions for execution tests
@@ -55,6 +62,8 @@ describe('Type Introspection (getType) and List Operations', () => {
                 joined: "req.strList[0] + req.strList[1] + req.strList[2]",
                 elem: "req.strList[floor(req.index)]",
                 sum: "sum(req.numList)",
+                // Concatenation test for quoted strings using parameters
+                quoteTest: "req.quoted + req.a"
             }
         };
         service = new wasm.DecisionService(model);
@@ -67,6 +76,10 @@ describe('Type Introspection (getType) and List Operations', () => {
 
         it('retrieves type for number field', () => {
             assert.equal(service.getType('aNumber'), 'number');
+        });
+
+        it('retrieves type for decimal (pi)', () => {
+            assert.equal(service.getType('pi'), 'number');
         });
 
         it('retrieves type for boolean field', () => {
@@ -83,7 +96,6 @@ describe('Type Introspection (getType) and List Operations', () => {
 
         it('retrieves type for list of variables (numbers)', () => {
             const type = service.getType('variablesList');
-            // Since a, b, c are numbers, the resolved item type should be number
             assert.deepEqual(type, {
                 type: 'list',
                 itemType: 'number'
@@ -157,11 +169,13 @@ describe('Type Introspection (getType) and List Operations', () => {
         });
     });
 
-    describe('List Operations (Execution)', () => {
+    describe('Execution and Value Tests', () => {
         const testData = {
             index: 0,
             strList: ["a", "b", "c"],
-            numList: [1, 2, 3]
+            numList: [1, 2, 3],
+            a: "!",
+            quoted: "\"To be or not to be!\""
         };
 
         it('can access number list from function', () => {
@@ -178,6 +192,17 @@ describe('Type Introspection (getType) and List Operations', () => {
             const req = { ...testData, index: 1 };
             const response = service.execute('main', req);
             assert.strictEqual(response.elem, 'b'); 
+        });
+
+        it('preserves quotes in string concatenation', () => {
+            const response = service.execute('main', testData);
+            // "To be or not to be!" + ! -> "To be or not to be!"!
+            assert.strictEqual(response.quoteTest, '"To be or not to be!"!');
+        });
+
+        it('retrieves decimal values correctly', () => {
+            const pi = service.get('pi');
+            assert.strictEqual(pi, 3.14159265359);
         });
     });
 });
