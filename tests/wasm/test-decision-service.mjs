@@ -495,4 +495,23 @@ describe('Decision Service', () => {
             }
         });
     });
+
+    describe('EdgeRules Language DSL to Portable Conversion', () => {
+        it('initializes from EdgeRules Language DSL and exports to EdgeRules Portable', () => {
+            const code = `
+            {
+                taxRate: 0.21
+                price: 100
+                total: price * (1 + taxRate)
+            }
+            `;
+            const service = new wasm.DecisionService(code);
+            const portableModel = portableToObject(service.get('*'));
+            
+            assert.equal(portableModel.taxRate, 0.21);
+            assert.equal(portableModel.price, 100);
+            assert.ok(typeof portableModel.total === 'string', 'total should be an expression string');
+            assert.ok(portableModel.total.includes('price * (1 + taxRate)'), 'total expression should be preserved');
+        });
+    });
 });

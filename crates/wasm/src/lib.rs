@@ -109,10 +109,18 @@ pub struct DecisionService;
 impl DecisionService {
     #[wasm_bindgen(constructor)]
     pub fn new(model: &JsValue) -> DecisionService {
-        let controller = match DecisionServiceController::from_portable(model) {
-            Ok(ctrl) => ctrl,
-            Err(err) => throw_portable_error(err),
+        let controller = if let Some(source) = model.as_string() {
+            match DecisionServiceController::from_source(&source) {
+                Ok(ctrl) => ctrl,
+                Err(err) => throw_portable_error(err),
+            }
+        } else {
+            match DecisionServiceController::from_portable(model) {
+                Ok(ctrl) => ctrl,
+                Err(err) => throw_portable_error(err),
+            }
         };
+
         set_decision_service(controller);
         DecisionService
     }

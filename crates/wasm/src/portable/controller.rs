@@ -19,6 +19,11 @@ impl DecisionServiceController {
         Ok(Self { service })
     }
 
+    pub fn from_source(source: &str) -> Result<Self, PortableError> {
+        let service = DecisionService::from_source(source).map_err(PortableError::from)?;
+        Ok(Self { service })
+    }
+
     pub fn execute_value(
         &mut self,
         method: &str,
