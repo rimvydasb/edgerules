@@ -1,11 +1,11 @@
-import { describe, it, before } from 'node:test';
-import { strict as assert } from 'node:assert';
+import {before, describe, it} from 'node:test';
+import {strict as assert} from 'node:assert';
 import wasm from '../../target/pkg-node/edge_rules.js';
-import { installBuiltins } from '../wasm-js/builtins.js';
+import {installBuiltins} from '../wasm-js/builtins.js';
 
 const evaluate = (source) => Function(`"use strict"; return (${source});`)();
 
-const toJsSupported = 
+const toJsSupported =
     typeof wasm.DecisionEngine?.printModelJs === 'function' && typeof wasm.DecisionEngine?.printExpressionJs === 'function';
 const describeToJs = toJsSupported ? describe : describe.skip;
 
@@ -134,8 +134,8 @@ describeToJs('Decision service printing', () => {
 
         const decision = model.applicationDecisions({
             applicants: [
-                { name: 'John', age: 30, income: 2000, expense: 500 },
-                { name: 'Jane', age: 17, income: 900, expense: 400 },
+                {name: 'John', age: 30, income: 2000, expense: 500},
+                {name: 'Jane', age: 17, income: 900, expense: 400},
             ],
         });
 
@@ -151,9 +151,9 @@ describe('DecisionService CRUD', () => {
     it('Array CRUD basic operations', () => {
         const model = {
             rules: [
-                { id: 1, action: "'A'" },
-                { id: 2, action: "'B'" },
-                { id: 3, action: "'C'" }
+                {id: 1, action: "'A'"},
+                {id: 2, action: "'B'"},
+                {id: 3, action: "'C'"}
             ],
             decision: 'rules[0].action'
         };
@@ -162,30 +162,30 @@ describe('DecisionService CRUD', () => {
 
         // GET
         const first = service.get('rules[0]');
-        assert.deepEqual(first, { id: 1, action: "'A'" });
+        assert.deepEqual(first, {id: 1, action: "'A'"});
 
         // SET Overwrite
-        service.set('rules[1]', { id: 99, action: "'Z'" });
+        service.set('rules[1]', {id: 99, action: "'Z'"});
         const second = service.get('rules[1]');
-        assert.deepEqual(second, { id: 99, action: "'Z'" });
+        assert.deepEqual(second, {id: 99, action: "'Z'"});
         // Ensure no shift
-        assert.deepEqual(service.get('rules[0]'), { id: 1, action: "'A'" });
-        assert.deepEqual(service.get('rules[2]'), { id: 3, action: "'C'" });
+        assert.deepEqual(service.get('rules[0]'), {id: 1, action: "'A'"});
+        assert.deepEqual(service.get('rules[2]'), {id: 3, action: "'C'"});
 
         // SET Append
-        service.set('rules[3]', { id: 4, action: "'D'" });
-        assert.deepEqual(service.get('rules[3]'), { id: 4, action: "'D'" });
+        service.set('rules[3]', {id: 4, action: "'D'"});
+        assert.deepEqual(service.get('rules[3]'), {id: 4, action: "'D'"});
 
         // REMOVE
         // Remove index 1, index 2 & 3 should shift down
         service.remove('rules[1]');
         // Old rules[2] is now rules[1]
-        assert.deepEqual(service.get('rules[1]'), { id: 3, action: "'C'" });
+        assert.deepEqual(service.get('rules[1]'), {id: 3, action: "'C'"});
         // Old rules[3] is now rules[2]
-        assert.deepEqual(service.get('rules[2]'), { id: 4, action: "'D'" });
+        assert.deepEqual(service.get('rules[2]'), {id: 4, action: "'D'"});
 
         // Verify length (attempting to get index 3 should fail)
-        assert.throws(() => service.get('rules[3]'), { message: /Index 3 out of bounds/ });
+        assert.throws(() => service.get('rules[3]'), {message: /Index 3 out of bounds/});
     });
 });
 
@@ -215,50 +215,56 @@ describe('Variable Library Complex Test', () => {
     before(() => {
         wasm.init_panic_hook();
         const model = {
-             "@model_name": "ApplicantCheck",
-             "Applicant": {
-                 "@type": "type",
-                 "name": "<string>",
-                 "birthDate": "<date>",
-                 "income": "<number>",
-                 "expense": "<number>"
-             },
-             "Application": {
-                 "@type": "type",
-                 "applicationDate": "<datetime>",
-                 "applicants": "<Applicant[]>",
-                 "propertyValue": "<number>",
-                 "loanAmount": "<number>"
-             },
-             "applicantDecisions": {
-                 "@type": "function",
-                 "@parameters": { "applicant": "Applicant", "application": "Application" },
-                 "applicantRecord": {
-                     "checkDate": "application.applicationDate",
-                     "data": "applicant",
-                     "age": "application.applicationDate - applicant.birthDate"
-                 },
-                 "eligibilityDecision": {
-                     "@type": "function",
-                     "@parameters": { "applicantRecord": null },
-                     "rules": [
-                         { "name": "'INC_CHECK'", "rule": "applicantRecord.data.income > applicantRecord.data.expense * 2" },
-                         { "name": "'MIN_INCOM'", "rule": "applicantRecord.data.income > 1000" },
-                         { "name": "'AGE_CHECK'", "rule": "applicantRecord.data.birthDate + period('P18Y') <= applicantRecord.checkDate" }
-                     ],
-                     "firedRules": "for invalid in rules[rule = false] return invalid.name",
-                     "status": "if count(firedRules) = 0 then 'ELIGIBLE' else 'INELIGIBLE'"
-                 },
-                 "eligibility": "eligibilityDecision(applicantRecord)"
-             },
-             "applicationDecisions": {
-                 "@type": "function",
-                 "@parameters": { "application": "Application" },
-                 "applicationRecord": {
-                     "data": "application",
-                     "applicantsDecisions": "for app in application.applicants return applicantDecisions(app, application).eligibility"
-                 }
-             }
+            "@model_name": "ApplicantCheck",
+            "Applicant": {
+                "@type": "type",
+                "name": "<string>",
+                "birthDate": "<date>",
+                "income": "<number>",
+                "expense": "<number>"
+            },
+            "Application": {
+                "@type": "type",
+                "applicationDate": "<datetime>",
+                "applicants": "<Applicant[]>",
+                "propertyValue": "<number>",
+                "loanAmount": "<number>"
+            },
+            "applicantDecisions": {
+                "@type": "function",
+                "@parameters": {"applicant": "Applicant", "application": "Application"},
+                "applicantRecord": {
+                    "checkDate": "application.applicationDate",
+                    "data": "applicant",
+                    "age": "application.applicationDate - applicant.birthDate"
+                },
+                "eligibilityDecision": {
+                    "@type": "function",
+                    "@parameters": {"applicantRecord": null},
+                    "rules": [
+                        {
+                            "name": "'INC_CHECK'",
+                            "rule": "applicantRecord.data.income > applicantRecord.data.expense * 2"
+                        },
+                        {"name": "'MIN_INCOM'", "rule": "applicantRecord.data.income > 1000"},
+                        {
+                            "name": "'AGE_CHECK'",
+                            "rule": "applicantRecord.data.birthDate + period('P18Y') <= applicantRecord.checkDate"
+                        }
+                    ],
+                    "firedRules": "for invalid in rules[rule = false] return invalid.name",
+                    "status": "if count(firedRules) = 0 then 'ELIGIBLE' else 'INELIGIBLE'"
+                },
+                "eligibility": "eligibilityDecision(applicantRecord)"
+            },
+            "applicationDecisions": {
+                "@type": "function",
+                "@parameters": {"application": "Application"},
+                "applicationRecord": {
+                    "data": "application",
+                    "applicantsDecisions": "for app in application.applicants return applicantDecisions(app, application).eligibility"
+                }
+            }
         };
         service = new wasm.DecisionService(model);
     });
@@ -272,7 +278,7 @@ describe('Variable Library Complex Test', () => {
 
     it('evaluates initial state correctly', () => {
         const res = evalField();
-        
+
         // John
         assert.equal(res[0].status, 'INELIGIBLE');
         assert.deepEqual(res[0].firedRules, ['INC_CHECK']);
@@ -290,9 +296,9 @@ describe('Variable Library Complex Test', () => {
         assert.equal(rule0.name, "'INC_CHECK'");
 
         // 2. Modify rule 0 to be always true (income > 0)
-        service.set('applicantDecisions.eligibilityDecision.rules[0]', { 
-            name: "'INC_CHECK'", 
-            rule: "applicantRecord.data.income > 0" 
+        service.set('applicantDecisions.eligibilityDecision.rules[0]', {
+            name: "'INC_CHECK'",
+            rule: "applicantRecord.data.income > 0"
         });
 
         // 3. Evaluate again. John should now pass INC_CHECK.
@@ -507,11 +513,27 @@ describe('Decision Service', () => {
             `;
             const service = new wasm.DecisionService(code);
             const portableModel = portableToObject(service.get('*'));
-            
+
             assert.equal(portableModel.taxRate, 0.21);
             assert.equal(portableModel.price, 100);
             assert.ok(typeof portableModel.total === 'string', 'total should be an expression string');
             assert.ok(portableModel.total.includes('price * (1 + taxRate)'), 'total expression should be preserved');
+        });
+
+        it('unhappy test for EdgeRules Language DSL and exports to EdgeRules Portable', () => {
+            const code = `
+            {
+                taxRate: 0.+....21
+                price: 100
+                total: price * (1 + taxRate)
+            }
+            `;
+            assert.throws(() => {
+                new wasm.DecisionService(code);
+            }, (err) => {
+                const msg = err && (err.message || String(err));
+                return /assignment side is not complete/.test(msg);
+            });
         });
     });
 });
