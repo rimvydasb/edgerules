@@ -30,9 +30,8 @@ export type PortableExpressionString = string;
 
 export type PortableValue =
     | PortableScalar
-    | PortableScalar[]
     | PortableObject
-    | PortableObject[];
+    | PortableValue[];
 
 export interface PortableTypeDefinition {
     '@type': 'type';
@@ -169,7 +168,7 @@ Stateless utility for quick evaluation.
 
 The `DecisionService` provides methods to modify the decision model at runtime.
 
-#### `get(path: string): object | any`
+#### `get(path: string): object`
 
 Retrieves the value or definition at the specified path.
 
@@ -180,7 +179,7 @@ Retrieves the value or definition at the specified path.
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid, empty, out of bounds for arrays, or index is negative.
 
-#### `set(path: string, value: any): object | any`
+#### `set(path: string, value: PortableValue): object`
 
 Sets a value or definition at the specified path.
 
