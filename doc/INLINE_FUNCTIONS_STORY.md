@@ -72,9 +72,19 @@ If `return` is present in the evaluated function context, only its value is retu
     *   **If not found:** Return the full context object.
     *   *Note:* This logic will naturally handle `InlineUserFunction` as well, assuming its `create_context` wraps the expression in a `return` field.
 
+3.  **Linking Logic:**
+    *   **File:** `crates/core/src/ast/user_function_call.rs`.
+    *   Update `UserFunctionCall::link`.
+    *   The current logic likely returns the full `ObjectType` of the function body.
+    *   The linker must inspect the function definition's return type (the `ObjectType` of the body).
+    *   **Check:** Does the body's `ContextObject` contain a field named `return`?
+    *   **If yes:** The return type of the function call is the type of that `return` field.
+    *   **If no:** The return type is the `ObjectType` of the body itself (legacy behavior).
+
 ### Tasks
 - [ ] **Parser Update**: Modify `parser.rs` to allow `return:` as a field key.
 - [ ] **Runtime Update**: Modify `UserFunctionCall::eval` to implement the return value extraction logic.
+- [ ] **Linking Update**: Modify `UserFunctionCall::link` to resolve the return type based on the presence of the `return` field in the function body context.
 - [ ] **Core Testing**:
     - [ ] Test explicit return scoping (hiding internal vars).
     - [ ] Test backward compatibility (returning full objects).
