@@ -35,10 +35,22 @@ Instead of wrapping the expression into a `StaticObject` immediately during pars
     *   Implement `UserFunction` trait for `InlineFunctionDefinition`.
     *   `create_context`: This method will perform the normalization for execution. It should create a temporary `ContextObject` containing the expression (implicitly assigned to `return` or a reserved field) so that the existing `FunctionContext` machinery can execute it.
 
+4.  **Portable API & Serialization:**
+    *   **Constraint**: `PortableFunctionDefinition` structure (JSON) should not change. It expects a body object.
+    *   **Export (Serialization)**: When `InlineFunctionDefinition` is serialized to Portable Format, it must be **expanded**. The body must be serialized as a JSON object containing a single field named `return` with the expression as its value.
+        *   Example: `func f(a): a+a` -> `{ "name": "f", "args": ["a"], "body": { "return": "a+a" } }`.
+    *   **Import (Deserialization)**: When loading from Portable Format, if a function body contains **only** a `return` field (and no other fields), it should be **collapsed** into an `InlineFunctionDefinition` in the AST. This optimizes the internal representation and ensures consistent behavior.
+
 ### Tasks
 - [ ] **AST Update**: Add `InlineFunctionDefinition` struct and `DefinitionEnum::InlineUserFunction`.
 - [ ] **Parser Update**: Modify `build_assignment` in `tokenizer/builder.rs` to produce `InlineUserFunction` for inline bodies.
-- [ ] **Introspection Testing**: Create WASM/Node.js tests to verify that `getType` on an inline function returns the expression structure, not a wrapper object.
+- [ ] **Serialization Update**: Implement `to_portable` for `InlineUserFunction` (expanding to `{return: ...}`) and update `from_portable` to detect return-only bodies (collapsing to `InlineUserFunction`).
+- [ ] **Testing Strategy**:
+    - [ ] **Rust**: Verify AST construction for inline syntax.
+    - [ ] **Rust**: Verify execution of inline functions (correct wrapping).
+    - [ ] **Rust**: Test Round-trip Serialization: `Inline -> Portable (expanded) -> Inline`.
+    - [ ] **WASM/JS**: Test that `getFunction` returns the expanded Portable definition for inline functions (Rule: API returns Portable structure).
+    - [ ] **WASM/JS**: Test that importing a "return-only" Portable definition behaves as an inline function.
 
 ## Optional return Body
 
@@ -75,7 +87,6 @@ If `return` is present in the evaluated function context, only its value is retu
 3.  **Linking Logic:**
     *   **File:** `crates/core/src/ast/user_function_call.rs`.
     *   Update `UserFunctionCall::link`.
-    *   The current logic likely returns the full `ObjectType` of the function body.
     *   The linker must inspect the function definition's return type (the `ObjectType` of the body).
     *   **Check:** Does the body's `ContextObject` contain a field named `return`?
     *   **If yes:** The return type of the function call is the type of that `return` field.
