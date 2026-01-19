@@ -164,7 +164,28 @@ Stateless utility for quick evaluation.
 * `evaluateField(code: string, field: string): JsValue`
     * Parses the code and evaluates a specific field path within it.
 
-### CRUD Operations
+### `DecisionService` (Stateful)
+
+The `DecisionService` maintains a compiled model, allowing for incremental updates and repeated execution against requests.
+
+#### Initialization
+
+* `new DecisionService(model: string | object)`
+    * Creates a new decision service.
+    * **Parameters:**
+        * `model`: Can be an EdgeRules DSL string or a `PortableContext` (JSON) object.
+    * **Note:** The WASM binding currently uses a thread-local singleton; initializing a new `DecisionService` replaces the previous one for the WASM module instance.
+
+#### Execution
+
+* `execute(method: string, request: any): any`
+    * Executes a function defined in the model.
+    * **Parameters:**
+        * `method`: The name or path of the function to execute.
+        * `request`: The input data to pass to the function.
+    * **Returns:** The result of the function execution.
+
+#### CRUD Operations
 
 The `DecisionService` provides methods to modify the decision model at runtime.
 
