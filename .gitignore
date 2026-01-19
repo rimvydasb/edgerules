@@ -30,5 +30,5 @@ Thumbs.db
 *.class
 
 # Local environment files
-.gemini
+.gemini/
 .geminiignore
