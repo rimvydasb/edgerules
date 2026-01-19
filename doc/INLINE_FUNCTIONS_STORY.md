@@ -138,7 +138,7 @@ returned. User defined functions with return or without remain fully compatible 
 
 ### Tasks
 
-- [ ] **Parser Update**: Modify `parser.rs` to allow `return:` as a field key. Note that parser has `left_side` and
+- [ ] **Parser Update**: Modify `parser.rs` to allow `return` as a field key. Note that parser has `left_side` and
   `after_colon` variables. We already have reserved word `return` that is used in for statement, but it is reserved only
   on the `after_colon` side, meanwhile on the `left_side` it is just a normal field name. Ensure that `return` can be
   used as a normal field name.
