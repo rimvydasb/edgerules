@@ -1,8 +1,114 @@
 mod utilities;
 use edge_rules::test_support::expr;
 pub use utilities::*;
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::typesystem::values::ValueEnum;
+use edge_rules::link::node_data::ContentHolder;
+use edge_rules::ast::user_function_call::UserFunctionCall;
+use edge_rules::ast::token::ExpressionEnum;
+use edge_rules::ast::metaphors::metaphor::UserFunction;
 
 // Dedicated coverage for user-defined functions (custom functions)
+
+#[test]
+fn execute_no_arg_function_root_manual() {
+    let code = r#"
+    {
+        func main(): { result: 420 }
+    }
+    "#;
+    let mut model = EdgeRulesModel::new();
+    model.append_source(code).unwrap();
+    let runtime = model.to_runtime().unwrap();
+
+    let result = runtime.call_method("main", vec![]).unwrap();
+    
+    if let ValueEnum::Reference(ctx) = result {
+        let borrowed = ctx.borrow();
+        let val = borrowed.get("result").unwrap();
+        assert_eq!(format!("{}", val), "420");
+    } else {
+        panic!("Expected reference result");
+    }
+}
+
+#[test]
+fn execute_no_arg_function_nested_manual() {
+    let code = r#"
+    {
+        nested: {
+            func getVal(): { val: 100 }
+        }
+    }
+    "#;
+    let mut model = EdgeRulesModel::new();
+    model.append_source(code).unwrap();
+    
+    let method_entry = model.get_user_function("nested.getVal").unwrap();
+    let definition = method_entry.borrow().function_definition.create_context(vec![]).unwrap();
+
+    let runtime = model.to_runtime().unwrap();
+
+    let mut call = UserFunctionCall::new("nested.getVal".to_string(), vec![]);
+    call.definition = Ok(definition);
+    
+    let result = runtime.evaluate_expression(ExpressionEnum::from(call)).unwrap();
+
+    if let ValueEnum::Reference(ctx) = result {
+        let borrowed = ctx.borrow();
+        let val = borrowed.get("val").unwrap();
+        assert_eq!(format!("{}", val), "100");
+    } else {
+        panic!("Expected reference result");
+    }
+}
+
+#[test]
+fn unhappy_execute_no_arg_function_with_arg() {
+    let code = r#"
+    {
+        func main(): { result: 420 }
+    }
+    "#;
+    let mut model = EdgeRulesModel::new();
+    model.append_source(code).unwrap();
+    let runtime = model.to_runtime().unwrap();
+
+    // Call with 1 argument
+    let args = vec![ExpressionEnum::from(1)];
+    let result = runtime.call_method("main", args);
+    
+    match result {
+        Err(e) => {
+            let msg = format!("{}", e);
+            assert!(msg.contains("expects 0 arguments, but 1 were provided"));
+        }
+        Ok(_) => panic!("Should have failed"),
+    }
+}
+
+#[test]
+fn unhappy_execute_arg_function_with_no_arg() {
+    let code = r#"
+    {
+        func add(a, b): { result: a + b }
+    }
+    "#;
+    let mut model = EdgeRulesModel::new();
+    model.append_source(code).unwrap();
+    let runtime = model.to_runtime().unwrap();
+
+    // Call with 0 arguments
+    let result = runtime.call_method("add", vec![]);
+    
+    match result {
+        Err(e) => {
+            let msg = format!("{}", e);
+            assert!(msg.contains("expects 2 arguments, but 0 were provided"));
+        }
+        Ok(_) => panic!("Should have failed"),
+    }
+}
 
 #[test]
 fn user_function_with_list_argument_and_return_list() {

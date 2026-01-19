@@ -59,30 +59,6 @@ pub struct DecisionEngine;
 
 #[wasm_bindgen]
 impl DecisionEngine {
-    #[wasm_bindgen(js_name = "evaluateAll")]
-    pub fn evaluate_all(code: &str) -> JsValue {
-        match wasm_convert::evaluate_inner(&JsValue::from_str(code), None) {
-            Ok(value) => value,
-            Err(err) => throw_portable_error(err),
-        }
-    }
-
-    #[wasm_bindgen(js_name = "evaluateExpression")]
-    pub fn evaluate_expression(code: &str) -> JsValue {
-        match wasm_convert::evaluate_inner(&JsValue::from_str(code), None) {
-            Ok(value) => value,
-            Err(err) => throw_portable_error(err),
-        }
-    }
-
-    #[wasm_bindgen(js_name = "evaluateField")]
-    pub fn evaluate_field(code: &str, field: &str) -> JsValue {
-        match wasm_convert::evaluate_inner(&JsValue::from_str(code), Some(field.to_string())) {
-            Ok(value) => value,
-            Err(err) => throw_portable_error(err),
-        }
-    }
-
     #[wasm_bindgen]
     pub fn evaluate(input: &JsValue, field: Option<String>) -> JsValue {
         match wasm_convert::evaluate_inner(input, field) {

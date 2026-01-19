@@ -454,12 +454,12 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 - [x] `DecisionEngine` markdown documentation is a bit messy with gaps - fix the formatting.
 - [x] Fix variable does not need to be mutable crates/wasm/src/wasm_convert.rs:40:13 let mut service =
   model_from_portable(input)?; - maybe other linting errors still exist?
-- [ ] Run just test-node again - check if any problems.
-- [ ] Add a possibility to pass method name to `evaluate` method to execute a function directly.
-- [ ] Throw exception if provided method does not exist, or it has arguments. If method has arguments, then
+- [x] Run just test-node again - check if any problems.
+- [x] Add a possibility to pass method name to `evaluate` method to execute a function directly.
+- [x] Throw exception if provided method does not exist, or it has arguments. If method has arguments, then
   `DecisionService` should be used instead - mention this in exception and documentation.
-- [ ] Add JavaScript test for this case: happy and unhappy paths.
-- [ ] The new `evaluate` method should perfectly fine execute any method if it does not have arguments:
+- [x] Add JavaScript test for this case: happy and unhappy paths.
+- [x] The new `evaluate` method should perfectly fine execute any method if it does not have arguments:
 
 ```edgerules
 {
@@ -472,3 +472,5 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 
 Then calling `evaluate(code, 'main')` should return `{result: 420}`, because method return is an object. Add a test for
 this case if not exists.
+
+- [x] Check tasks if completed.

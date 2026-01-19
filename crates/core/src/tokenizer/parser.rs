@@ -189,9 +189,11 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                     build_function_definition,
                                 );
                             } else {
-                                ast_builder.push_element(error_token!(
-                                    "Function definition must start with 'func'"
-                                ));
+                                ast_builder.push_node(
+                                    FunctionCallPriority as u32,
+                                    Unparsed(FunctionNameToken(function_var)),
+                                    build_function_call,
+                                );
                             }
                         } else {
                             ast_builder.push_node(

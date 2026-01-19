@@ -129,6 +129,11 @@ Follow this loop for every change to ensure quality and prevent regressions:
 - Avoid `unwrap()`/`expect()` in runtime code; reserve them for tests.
 - Avoid `.ok()` that discards errors. Propagate errors instead.
 
+## Tips and Tricks
+
+- Do not use `grep` or `find` on the root of the project - you will end up searching in `target/` that is huge for cargo
+  projects.
+
 # Instructions for Jules
 
 **Testing notes:** you will not be able to run WASM builds due to environment limitations. However, you can run Rust
