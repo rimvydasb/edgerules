@@ -155,89 +155,46 @@ Represents a call to a user function within the model structure.
 
 ### `DecisionEngine` (Stateless)
 
-
-
 Stateless utility for quick evaluation. These methods do not persist any state between calls.
-
-
 
 #### `evaluate(input: string | object, field?: string): any`
 
-
-
 Evaluates the provided EdgeRules code or portable model.
 
-
-
 *   **Parameters:**
-
     *   `input`: The EdgeRules DSL source code (string) or a Portable Context object.
-
         *   If `input` is a string:
-
             *   If it is wrapped in `{}` (e.g., `{ a: 1 }`), it is treated as a full model.
-
             *   Otherwise (e.g., `1 + 2`), it is treated as a single expression.
-
     *   `field`: (Optional) The dot-separated path to the field to evaluate.
-
         *   If provided, only this field is evaluated.
-
         *   **Note:** Field path is not applicable if `input` is a single expression string.
-
 *   **Returns:**
-
     *   If `field` is provided: The result of that field.
-
     *   If `input` is a single expression (and no `field`): The result of the expression.
-
     *   If `input` is a model (and no `field`): The fully evaluated context object.
-
 *   **Throws:**
-
     *   `PortableError`: For syntax errors, linking errors, runtime errors, or invalid usage (e.g., field path with expression).
-
-
 
 #### `printExpressionJs(code: string): string`
 
-
-
 (Requires `to_js` feature) Transpiles an EdgeRules expression into a JavaScript expression.
 
-
-
 *   **Parameters:**
-
     *   `code`: The EdgeRules expression to transpile.
-
 *   **Returns:** A string containing the equivalent JavaScript code.
-
 *   **Throws:**
-
     *   `PortableError`: If the expression cannot be parsed or transpiled.
-
-
 
 #### `printModelJs(code: string): string`
 
-
-
 (Requires `to_js` feature) Transpiles an entire EdgeRules model into a JavaScript module/object.
 
-
-
 *   **Parameters:**
-
     *   `code`: The EdgeRules DSL model code.
-
 *   **Returns:** A string containing the equivalent JavaScript code.
-
 *   **Throws:**
-
     *   `PortableError`: If the model cannot be parsed or transpiled.
-
-
 
 > **Deprecated:** `evaluateAll`, `evaluateExpression`, and `evaluateField` are deprecated in favor of `evaluate`.
 
@@ -358,7 +315,7 @@ Retrieves the type definition of the entry at the specified path.
 ### JavaScript Example
 
 ```javascript
-import {DecisionEngine, DecisionService} from 'edge-rules';
+import { DecisionEngine, DecisionService } from 'edge-rules';
 
 // 1. Stateless Evaluation
 const code = `
@@ -369,7 +326,7 @@ const code = `
     }
 `;
 // Evaluate a specific field
-const result = DecisionEngine.evaluateField(code, 'result');
+const result = DecisionEngine.evaluate(code, 'result');
 console.log(result); // 20
 
 // 2. Stateful Decision Service
@@ -378,7 +335,7 @@ const model = {
     'taxRate': 0.2,
     'calculateTax': {
         '@type': 'function',
-        '@parameters': {'amount': 'number'},
+        '@parameters': { 'amount': 'number' },
         'result': 'amount * taxRate'
     }
 };
@@ -425,70 +382,56 @@ The primary struct for building and manipulating the AST before compilation.
 
 - `new() -> Self`: Creates an empty model.
 - `append_source(code: &str) -> Result<(), ParseErrors>`: Parses and appends source code to the model.
-- `set_expression(path: &str, expr: ExpressionEnum) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates an
-  expression.
-- `set_user_function(def: FunctionDefinition, context_path: Option<Vec<&str>>) -> Result<(), ContextQueryErrorEnum>`:
-  Inserts/updates a function.
-- `set_user_type(path: &str, body: UserTypeBody) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates a type
-  definition.
-- `set_invocation(path: &str, spec: InvocationSpec) -> Result<(), ContextQueryErrorEnum>`: Inserts a function
-  invocation.
+- `set_expression(path: &str, expr: ExpressionEnum) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates an expression.
+- `set_user_function(def: FunctionDefinition, context_path: Option<Vec<&str>>) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates a function.
+- `set_user_type(path: &str, body: UserTypeBody) -> Result<(), ContextQueryErrorEnum>`: Inserts/updates a type definition.
+- `set_invocation(path: &str, spec: InvocationSpec) -> Result<(), ContextQueryErrorEnum>`: Inserts a function invocation.
 - `remove_expression(path: &str) -> Result<(), ContextQueryErrorEnum>`: Removes an expression.
 - `remove_user_type(path: &str) -> Result<(), ContextQueryErrorEnum>`: Removes a type definition.
 - `remove_user_function(path: &str) -> Result<(), ContextQueryErrorEnum>`: Removes a user function.
-- `rename_entry(old_path: &str, new_path: &str) -> Result<(), ContextQueryErrorEnum>`: Renames an entity within its
-  context.
-- `get_expression(path: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum>`: Retrieves an expression
-  entry.
+- `rename_entry(old_path: &str, new_path: &str) -> Result<(), ContextQueryErrorEnum>`: Renames an entity within its context.
+- `get_expression(path: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum>`: Retrieves an expression entry.
 - `get_expression_type(path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the type of an expression.
 - `get_user_type(path: &str) -> Result<UserTypeBody, ContextQueryErrorEnum>`: Retrieves a user type definition.
-- `get_user_function(path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum>`: Retrieves a user function
-  entry.
+- `get_user_function(path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum>`: Retrieves a user function entry.
 - `to_runtime() -> Result<EdgeRulesRuntime, LinkingError>`: Consumes the model and compiles it into a runtime.
-- `to_runtime_snapshot() -> Result<EdgeRulesRuntime, LinkingError>`: Compiles the model into a runtime without consuming
-  it.
+- `to_runtime_snapshot() -> Result<EdgeRulesRuntime, LinkingError>`: Compiles the model into a runtime without consuming it.
 
 ### `DecisionService` (`crates/core`)
 
 Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-oriented execution.
 
 - `from_source(source: &str) -> Result<Self, EvalError>`: Creates a service from source code.
-- `from_context(context: Rc<RefCell<ContextObject>>) -> Result<Self, EvalError>`: Creates a service from an existing
-  context object.
+- `from_context(context: Rc<RefCell<ContextObject>>) -> Result<Self, EvalError>`: Creates a service from an existing context object.
 - `from_model(model: EdgeRulesModel) -> Result<Self, EvalError>`: Creates a service from a model.
 - `execute(&mut self, method: &str, request: ValueEnum) -> Result<ValueEnum, EvalError>`: Executes a service method.
 - `evaluate_field(&mut self, path: &str) -> Result<ValueEnum, EvalError>`: Evaluates a specific field path.
-- `get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the linked type of a
-  field.
-- `rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), EvalError>`: Renames an entry within the
-  service.
+- `get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the linked type of a field.
+- `rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), EvalError>`: Renames an entry within the service.
 - `ensure_linked(&mut self) -> Result<(), EvalError>`: Ensures the underlying runtime is linked and up-to-date.
-- `get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>>`: Returns `Rc<RefCell<EdgeRulesModel>>` for mutation (requires
-  `mutable_decision_service` feature).
+- `get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>>`: Returns `Rc<RefCell<EdgeRulesModel>>` for mutation (requires `mutable_decision_service` feature).
 
 ## Limitations
 
-1. **Single Active Service (WASM)**: The WASM binding currently uses a thread-local singleton for the active
-   `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
+1. **Single Active Service (WASM)**: The WASM binding currently uses a thread-local singleton for the active `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
 
 # Next Steps:
 
--[ ] Instead of three methods `evaluateAll`, `evaluateExpression`, and `evaluateField`, provide a single method
- `evaluate`:
-    - [ ] New `evaluete` method accepts code in string or portable format, and an optional field path.
-    - [ ] If field path is provided, evaluates that field; otherwise, evaluates the entire model.
-    - [ ] It could be that in `wasm_convert.rs`, old methods `evaluate_all_inner` and `evaluate_field_inner` are
-      merged into a single `evaluate_inner` method that accepts both code and portable with optional field path.
-    - [ ] If provided code is properly wrapped with `{}` treat it as a full model; otherwise, treat it as a single
-      expression.
-        - [ ] For a single expression evaluation, use existing `evaluate_expression_str`
-    - [ ] If single expression is provided and user accidentally provides optional field path, throw an error indicating
-      field path is not applicable.
-    - [ ] Deprecate `evaluateAll`, `evaluateExpression`, and `evaluateField` methods, replace all tests to use a single
-      `evaluate` method.
-- [ ] Update documentation and examples to reflect the new `evaluate` method.
-- [ ] Update JavaScript and Rust (if needed) tests.
-- [ ] Add additional tests where portable is accepted as an input for a new `evaluate` method.
-- [ ] Write unhappy path tests for the new `evaluate` method when user provides single expression with field path.
+- [x] Instead of three methods `evaluateAll`, `evaluateExpression`, and `evaluateField`, provide a single method `evaluate`:
+    - [x] New `evaluate` method accepts code in string or portable format, and an optional field path.
+    - [x] If field path is provided, evaluates that field; otherwise, evaluates the entire model.
+    - [x] It could be that in `wasm_convert.rs`, old methods `evaluate_all_inner` and `evaluate_field_inner` are merged into a single `evaluate_inner` method that accepts both code and portable with optional field path.
+    - [x] If provided code is properly wrapped with `{}` treat it as a full model; otherwise, treat it as a single expression.
+        - [x] For a single expression evaluation, use existing `evaluate_expression_str`
+    - [x] If single expression is provided and user accidentally provides optional field path, throw an error indicating field path is not applicable.
+    - [x] Deprecate `evaluateAll`, `evaluateExpression`, and `evaluateField` methods, replace all tests to use a single `evaluate` method.
+- [x] Update documentation and examples to reflect the new `evaluate` method.
+- [x] Update JavaScript and Rust (if needed) tests.
+- [x] Add additional tests where portable is accepted as an input for a new `evaluate` method.
+- [x] Write unhappy path tests for the new `evaluate` method when user provides single expression with field path.
+- [x] Check tasks if completed. Check if unhappy tests are also written for `evaluate` method in JavaScript.
+- [x] `DecisionEngine` markdown documentation is a bit messy with gaps - fix the formatting.
+- [x] Fix variable does not need to be mutable crates/wasm/src/wasm_convert.rs:40:13 let mut service = model_from_portable(input)?; - maybe other linting errors still exist?
+- [ ] Run just test-node again - check if any problems.

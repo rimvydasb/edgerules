@@ -37,7 +37,7 @@ pub fn evaluate_inner(input: &JsValue, field: Option<String>) -> Result<JsValue,
             value.to_js().map_err(PortableError::from)
         }
     } else {
-        let mut service = model_from_portable(input)?;
+        let service = model_from_portable(input)?;
         let runtime = service.to_runtime().map_err(PortableError::from)?;
 
         if let Some(f) = field {
