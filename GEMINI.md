@@ -1,4 +1,4 @@
-# EdgeRules Project: Gemini Manual
+# EdgeRules Project Guidelines for AI Agents
 
 This document provides a comprehensive guide for AI agents to understand, build, and contribute to the EdgeRules
 project. It serves as the single source of truth for project structure, commands, and coding standards.
