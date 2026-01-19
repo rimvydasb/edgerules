@@ -155,59 +155,91 @@ Represents a call to a user function within the model structure.
 
 ### `DecisionEngine` (Stateless)
 
+
+
 Stateless utility for quick evaluation. These methods do not persist any state between calls.
 
-#### `evaluateAll(code: string): object`
 
-Evaluates all fields in the provided EdgeRules DSL string.
 
-* **Parameters:**
-    * `code`: The EdgeRules DSL source code.
-* **Returns:** A JavaScript object representing the fully evaluated context.
-* **Throws:**
-    * `PortableError`: If there are syntax errors, linking errors (e.g., circular dependencies), or runtime evaluation
-      errors.
+#### `evaluate(input: string | object, field?: string): any`
 
-#### `evaluateExpression(code: string): any`
 
-Evaluates a single standalone expression string.
 
-* **Parameters:**
-    * `code`: The expression to evaluate (e.g., `"1 + 2"` or `"sum([1, 2, 3])"`).
-* **Returns:** The result of the expression (primitive or object).
-* **Throws:**
-    * `PortableError`: If the expression is invalid or execution fails.
+Evaluates the provided EdgeRules code or portable model.
 
-#### `evaluateField(code: string, field: string): any`
 
-Parses the provided model code and evaluates a specific field path within it.
 
-* **Parameters:**
-    * `code`: The EdgeRules DSL source code.
-    * `field`: The dot-separated path to the field to evaluate (e.g., `"calculations.total"`).
-* **Returns:** The evaluated value of the specified field.
-* **Throws:**
-    * `PortableError`: If the code is invalid, the field does not exist, or evaluation fails.
+*   **Parameters:**
+
+    *   `input`: The EdgeRules DSL source code (string) or a Portable Context object.
+
+        *   If `input` is a string:
+
+            *   If it is wrapped in `{}` (e.g., `{ a: 1 }`), it is treated as a full model.
+
+            *   Otherwise (e.g., `1 + 2`), it is treated as a single expression.
+
+    *   `field`: (Optional) The dot-separated path to the field to evaluate.
+
+        *   If provided, only this field is evaluated.
+
+        *   **Note:** Field path is not applicable if `input` is a single expression string.
+
+*   **Returns:**
+
+    *   If `field` is provided: The result of that field.
+
+    *   If `input` is a single expression (and no `field`): The result of the expression.
+
+    *   If `input` is a model (and no `field`): The fully evaluated context object.
+
+*   **Throws:**
+
+    *   `PortableError`: For syntax errors, linking errors, runtime errors, or invalid usage (e.g., field path with expression).
+
+
 
 #### `printExpressionJs(code: string): string`
 
+
+
 (Requires `to_js` feature) Transpiles an EdgeRules expression into a JavaScript expression.
 
-* **Parameters:**
-    * `code`: The EdgeRules expression to transpile.
-* **Returns:** A string containing the equivalent JavaScript code.
-* **Throws:**
-    * `PortableError`: If the expression cannot be parsed or transpiled.
+
+
+*   **Parameters:**
+
+    *   `code`: The EdgeRules expression to transpile.
+
+*   **Returns:** A string containing the equivalent JavaScript code.
+
+*   **Throws:**
+
+    *   `PortableError`: If the expression cannot be parsed or transpiled.
+
+
 
 #### `printModelJs(code: string): string`
 
+
+
 (Requires `to_js` feature) Transpiles an entire EdgeRules model into a JavaScript module/object.
 
-* **Parameters:**
-    * `code`: The EdgeRules DSL model code.
-* **Returns:** A string containing the equivalent JavaScript code.
-* **Throws:**
-    * `PortableError`: If the model cannot be parsed or transpiled.
+
+
+*   **Parameters:**
+
+    *   `code`: The EdgeRules DSL model code.
+
+*   **Returns:** A string containing the equivalent JavaScript code.
+
+*   **Throws:**
+
+    *   `PortableError`: If the model cannot be parsed or transpiled.
+
+
+
+> **Deprecated:** `evaluateAll`, `evaluateExpression`, and `evaluateField` are deprecated in favor of `evaluate`.
 
 ### `DecisionService` (Stateful)
 

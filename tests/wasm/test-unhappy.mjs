@@ -30,7 +30,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
         delete error.message;
         
         assert.deepEqual(error, {
@@ -55,7 +55,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
         delete error.message;
 
         assert.deepEqual(error, {
@@ -76,7 +76,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
         delete error.message;
 
         assert.deepEqual(error, {
@@ -92,6 +92,11 @@ describe('Unhappy Paths & Error Handling', () => {
         });
     });
 
+    it('evaluate expression with field throws', () => {
+        const error = getError(() => wasm.DecisionEngine.evaluate('1 + 1', 'someField'));
+        assert.match(error.message, /Field path is not applicable/);
+    });
+
     describe('Runtime Location Errors', () => {
         it('reports location for root field runtime error', () => {
             const code = `
@@ -100,7 +105,7 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+            const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
             delete error.message;
 
             assert.deepEqual(error, {
@@ -125,7 +130,7 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+            const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
             delete error.message;
 
             assert.deepEqual(error, {
@@ -155,7 +160,7 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'result'));
+            const error = getError(() => wasm.DecisionEngine.evaluate(code, 'result'));
             delete error.message;
 
             assert.deepEqual(error, {

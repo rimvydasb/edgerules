@@ -102,7 +102,7 @@ describeToJs('Roundtrip comparison', () => {
         it(`matches runtime for ${src}`, () => {
             const js = wasm.DecisionEngine.printExpressionJs(src);
             const jsResult = evaluate(js);
-            const runtimeResult = wasm.DecisionEngine.evaluateExpression(src);
+            const runtimeResult = wasm.DecisionEngine.evaluate(src);
             assert.deepStrictEqual(jsResult, runtimeResult);
             assert.deepStrictEqual(jsResult, expected);
         });
