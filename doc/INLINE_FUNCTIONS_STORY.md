@@ -4,18 +4,24 @@
 The goal is to enhance the EdgeRules language with two key features to improve developer experience and encapsulation capabilities:
 
 1.  **Inline Functions**: Support for concise function definitions without requiring braces for single-expression bodies.
-    *   Syntax: `func myInline(a): a + a`
-    *   Behavior: Implicitly wraps the expression in a context with a `return` field.
+    *   Syntax:
+        ```edgerules
+        func myInline(a): a + a
+        ```
+    *   **Behavior**:
+        *   The function body is a single expression.
+        *   Internal implementation may wrap this, but **introspection** (via `get` methods or Portable Format) must preserve the inline nature.
+        *   If the function is defined as inline, retrieving its source/definition must show it as inline (e.g., just the expression), not as a wrapped object `{ return: ... }`.
 
 2.  **Explicit Return Scoping**: Support for a specific `return` field in function bodies to define the exact return value, allowing internal variables to be hidden.
     *   Syntax:
-        ```
+        ```edgerules
         func myFunc(a): {
             internalVar: a * 2;
             return: internalVar + 1
         }
         ```
-    *   Behavior: If `return` is present, only its value is returned. If not, the whole context is returned (legacy behavior).
+    *   **Behavior**: If `return` is present, only its value is returned. If not, the whole context is returned (legacy behavior).
 
 ## Analysis
 
@@ -39,6 +45,7 @@ The goal is to enhance the EdgeRules language with two key features to improve d
     *   Check if the expression is a `StaticObject`.
         *   **Yes:** Use it as the function body (existing behavior).
         *   **No:** Wrap the expression in a new `ContextObject` structure equivalent to `{ return: <expression> }`.
+        *   **Crucial:** Ensure that the AST node or metadata generated for this function records that it was created as an inline function, so that serialization/introspection can restore it correctly (as `a+a`, not `{return: a+a}`).
 
 ### 3. Runtime Evaluation (Return Scoping)
 **File:** `crates/core/src/ast/user_function_call.rs`
@@ -55,7 +62,10 @@ The goal is to enhance the EdgeRules language with two key features to improve d
 - [ ] **Parser Update**: Modify `crates/core/src/tokenizer/parser.rs` to allow `return` as a field name when followed by `:`.
 - [ ] **Builder Update**: Modify `crates/core/src/tokenizer/builder.rs` to implement implicit `{ return: ... }` wrapping for inline function bodies.
 - [ ] **Runtime Update**: Modify `crates/core/src/ast/user_function_call.rs` to implement the return value extraction logic.
-- [ ] **Testing**:
+- [ ] **Introspection/WASM Testing**:
+    - [ ] Create or update WASM tests (Node.js) to verify that inline functions are introspected correctly.
+    - [ ] Ensure that `getType` or equivalent methods return the correct structure for inline functions (not exposing the internal `return` wrapper).
+- [ ] **Core Testing**:
     - [ ] Create `crates/core-tests/tests/inline_functions_tests.rs`.
     - [ ] Test inline function definition: `func add(a, b): a + b`.
     - [ ] Test explicit return scoping: `func calc(x): { tmp: x*2; return: tmp+1 }` (ensure `tmp` is not returned).
