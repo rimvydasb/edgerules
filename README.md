@@ -113,6 +113,8 @@ Stateless evaluation methods are grouped under the `DecisionEngine` namespace:
   a JavaScript value.
 - `DecisionEngine.evaluateField(code: string, field: string) -> any` – loads `code`, then evaluates a specific
   field/path.
+- `DecisionEngine.printExpressionJs(code: string) -> string` – transpiles an expression to JavaScript code.
+- `DecisionEngine.printModelJs(code: string) -> string` – transpiles a model to JavaScript code.
 
 ### Stateful API (DecisionService)
 
