@@ -142,4 +142,5 @@ returned. User defined functions with return or without remain fully compatible 
     - [ ] Test backward compatibility (returning full objects).
     - [ ] Test nested returns.
 - [ ] If function has only `return` field, ensure it will collapse to `InlineUserFunction` during parsing and AST
-  building.
+  building. You must test it in Rust with `obj.borrow().to_string()` where `obj` is `ContextObject`. This to string
+  method prints the whole function body so: `func f(a): { return: a + a }` must print as `func f(a): a + a`.
