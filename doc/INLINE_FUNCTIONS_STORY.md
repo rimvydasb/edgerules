@@ -36,10 +36,13 @@ Instead of wrapping the expression into a `StaticObject` immediately during pars
     *   `create_context`: This method will perform the normalization for execution. It should create a temporary `ContextObject` containing the expression (implicitly assigned to `return` or a reserved field) so that the existing `FunctionContext` machinery can execute it.
 
 4.  **Portable API & Serialization:**
-    *   **Constraint**: `PortableFunctionDefinition` structure (JSON) should not change. It expects a body object.
-    *   **Export (Serialization)**: When `InlineFunctionDefinition` is serialized to Portable Format, it must be **expanded**. The body must be serialized as a JSON object containing a single field named `return` with the expression as its value.
-        *   Example: `func f(a): a+a` -> `{ "name": "f", "args": ["a"], "body": { "return": "a+a" } }`.
-    *   **Import (Deserialization)**: When loading from Portable Format, if a function body contains **only** a `return` field (and no other fields), it should be **collapsed** into an `InlineFunctionDefinition` in the AST. This optimizes the internal representation and ensures consistent behavior.
+    *   **Constraint**: `PortableFunctionDefinition` structure (JSON) cannot be arbitrarily changed.
+    *   **Export (Serialization)**: When `InlineFunctionDefinition` is serialized to Portable Format, it must be **expanded** to a structure compliant with the Portable schema (likely an object/map).
+        *   The mapping is: `InlineUserFunction(expr)` -> `PortableFunctionDefinition` where the body contains a key `return` mapping to `expr`.
+        *   Example: `func f(a): a+a` -> `{ "f": { "@type": "function", "@parameters": {"a": null}, "return": "a+a" } }`.
+    *   **Import (Deserialization)**: When loading from Portable Format, we optimize for the internal AST representation.
+        *   If a function body contains **only** a `return` field (and no other fields), it should be deserialized into an `InlineUserFunction` (collapsed representation).
+        *   If it contains other fields, it remains a standard `UserFunction`.
 
 ### Tasks
 - [ ] **AST Update**: Add `InlineFunctionDefinition` struct and `DefinitionEnum::InlineUserFunction`.
