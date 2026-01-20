@@ -79,5 +79,8 @@ fn runtime_error_deep_dependency_chain() {
     assert!(err.stage().is_some());
     // The location should point to the source of the error, not the top-level field
     assert_eq!(err.location(), vec!["source", "value"]);
-    assert_eq!(err.expression().map(|s| s.as_str()), Some("date('invalid')"));
+    assert_eq!(
+        err.expression().map(|s| s.as_str()),
+        Some("date('invalid')")
+    );
 }

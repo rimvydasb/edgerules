@@ -6,8 +6,15 @@ fn period_addition_overflow_u32() {
     // This should fail with Error 106 (PeriodTooLarge) in the result construction.
     let evaluated = eval_all("value: period('P200000000Y') + period('P200000000Y')");
     // Message should be "Period value is too large... (Error code: 106)"
-    assert!(evaluated.contains("106"), "Expected error code 106, got: {}", evaluated);
-    assert!(!evaluated.contains("Period addition overflowed"), "Should not hit i128 overflow check");
+    assert!(
+        evaluated.contains("106"),
+        "Expected error code 106, got: {}",
+        evaluated
+    );
+    assert!(
+        !evaluated.contains("Period addition overflowed"),
+        "Should not hit i128 overflow check"
+    );
 }
 
 #[test]
@@ -18,8 +25,15 @@ fn period_subtraction_overflow_u32() {
     // Result -4.8B months.
     // Abs(4.8B) > u32::MAX.
     let evaluated = eval_all("value: period('-P200000000Y') - period('P200000000Y')");
-    assert!(evaluated.contains("106"), "Expected error code 106, got: {}", evaluated);
-    assert!(!evaluated.contains("Period subtraction overflowed"), "Should not hit i128 overflow check");
+    assert!(
+        evaluated.contains("106"),
+        "Expected error code 106, got: {}",
+        evaluated
+    );
+    assert!(
+        !evaluated.contains("Period subtraction overflowed"),
+        "Should not hit i128 overflow check"
+    );
 }
 
 #[test]
@@ -32,14 +46,23 @@ fn date_plus_duration_overflow() {
     // 20000 years in seconds: 631152000000.
     let evaluated = eval_all("value: date('2020-01-01') + duration('PT631152000000S')");
     // Expect "Date adjustment with duration overflowed"
-    assert!(evaluated.contains("Date adjustment with duration overflowed"), "Got: {}", evaluated);
+    assert!(
+        evaluated.contains("Date adjustment with duration overflowed"),
+        "Got: {}",
+        evaluated
+    );
 }
 
 #[test]
 fn datetime_plus_duration_overflow() {
-    let evaluated = eval_all("value: datetime('2020-01-01T00:00:00') + duration('PT631152000000S')");
+    let evaluated =
+        eval_all("value: datetime('2020-01-01T00:00:00') + duration('PT631152000000S')");
     // Expect "Datetime adjustment with duration overflowed"
-    assert!(evaluated.contains("Datetime adjustment with duration overflowed"), "Got: {}", evaluated);
+    assert!(
+        evaluated.contains("Datetime adjustment with duration overflowed"),
+        "Got: {}",
+        evaluated
+    );
 }
 
 #[test]
@@ -49,7 +72,11 @@ fn date_plus_period_days_overflow() {
     // Date 2020 + 10950 years = 12970. Overflow.
     let evaluated = eval_all("value: date('2020-01-01') + period('P4000000D')");
     // Expect "Date adjustment with period overflowed"
-    assert!(evaluated.contains("Date adjustment with period overflowed"), "Got: {}", evaluated);
+    assert!(
+        evaluated.contains("Date adjustment with period overflowed"),
+        "Got: {}",
+        evaluated
+    );
 }
 
 mod utilities;

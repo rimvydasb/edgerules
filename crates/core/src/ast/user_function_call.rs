@@ -139,7 +139,10 @@ impl StaticLink for UserFunctionCall {
                 let mut resolved_type = match arg_link_result {
                     Ok(t) => t,
                     Err(err) => {
-                        if matches!(err.kind(), crate::typesystem::errors::LinkingErrorEnum::NotLinkedYet) {
+                        if matches!(
+                            err.kind(),
+                            crate::typesystem::errors::LinkingErrorEnum::NotLinkedYet
+                        ) {
                             ValueType::UndefinedType
                         } else {
                             return Err(err);

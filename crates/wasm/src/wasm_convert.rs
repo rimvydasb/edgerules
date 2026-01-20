@@ -27,7 +27,10 @@ fn execute_or_evaluate(
                 )));
             }
 
-            let definition_result = method.borrow().function_definition.create_context(vec![], None);
+            let definition_result = method
+                .borrow()
+                .function_definition
+                .create_context(vec![], None);
 
             let runtime = service.to_runtime().map_err(PortableError::from)?;
 

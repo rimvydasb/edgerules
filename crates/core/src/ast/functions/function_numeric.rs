@@ -29,18 +29,22 @@ pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
             if n <= 0.0 {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "ln of non-positive number",
+                ))))
             } else {
                 Ok(NumberValue(Real(n.ln())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             if n <= 0 {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "ln of non-positive number",
+                ))))
             } else {
                 Ok(NumberValue(Real((n as f64).ln())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -50,18 +54,22 @@ pub fn eval_log10(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
             if n <= 0.0 {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "log10 of non-positive number",
+                ))))
             } else {
                 Ok(NumberValue(Real(n.log10())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             if n <= 0 {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "log10 of non-positive number",
+                ))))
             } else {
                 Ok(NumberValue(Real((n as f64).log10())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -76,7 +84,10 @@ pub fn eval_exp(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
-pub fn eval_pi(_args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_pi(
+    _args: Vec<Result<ValueEnum, RuntimeError>>,
+    _ret: ValueType,
+) -> Result<ValueEnum, RuntimeError> {
     Ok(NumberValue(Real(PI)))
 }
 
@@ -129,19 +140,23 @@ pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
             if !(-1.0..=1.0).contains(&n) {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "asin input out of range [-1, 1]",
+                ))))
             } else {
                 Ok(NumberValue(Real(n.asin())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             let val = n as f64;
-             if !(-1.0..=1.0).contains(&val) {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
+            if !(-1.0..=1.0).contains(&val) {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "asin input out of range [-1, 1]",
+                ))))
             } else {
                 Ok(NumberValue(Real(val.asin())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -151,19 +166,23 @@ pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
             if !(-1.0..=1.0).contains(&n) {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "acos input out of range [-1, 1]",
+                ))))
             } else {
                 Ok(NumberValue(Real(n.acos())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             let val = n as f64;
-             if !(-1.0..=1.0).contains(&val) {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
+            if !(-1.0..=1.0).contains(&val) {
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
+                    "acos input out of range [-1, 1]",
+                ))))
             } else {
                 Ok(NumberValue(Real(val.acos())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -207,8 +226,8 @@ pub fn eval_round(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 1 or 2 arguments
-    let number = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let number =
+        get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
@@ -247,8 +266,8 @@ pub fn eval_round_up(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 1 or 2 arguments
-    let number = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let number =
+        get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
@@ -288,8 +307,8 @@ pub fn eval_round_down(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 1 or 2 arguments
-    let number = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let number =
+        get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
@@ -355,7 +374,9 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
+                if r2 == 0.0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let rem = r1 % r2;
                 let res = if rem != 0.0 && rem.signum() != r2.signum() {
                     rem + r2
@@ -363,9 +384,11 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                     rem
                 };
                 Ok(NumberValue(Real(res)))
-            },
+            }
             (Int(i1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let rem = i1 % i2;
                 let res = if rem != 0 && rem.signum() != i2.signum() {
                     rem + i2
@@ -373,9 +396,11 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                     rem
                 };
                 Ok(NumberValue(Int(res)))
-            },
+            }
             (Real(r1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let r2 = i2 as f64;
                 let rem = r1 % r2;
                 let res = if rem != 0.0 && rem.signum() != r2.signum() {
@@ -384,9 +409,11 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                     rem
                 };
                 Ok(NumberValue(Real(res)))
-            },
+            }
             (Int(i1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
+                if r2 == 0.0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let r1 = i1 as f64;
                 let rem = r1 % r2;
                 let res = if rem != 0.0 && rem.signum() != r2.signum() {
@@ -395,7 +422,7 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                     rem
                 };
                 Ok(NumberValue(Real(res)))
-            },
+            }
         }
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
@@ -407,11 +434,15 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
+                if r2 == 0.0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 Ok(NumberValue(Real((r1 / r2).floor())))
-            },
+            }
             (Int(i1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let d = i1 / i2;
                 let r = i1 % i2;
                 let res = if (r > 0 && i2 < 0) || (r < 0 && i2 > 0) {
@@ -420,15 +451,19 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
                     d
                 };
                 Ok(NumberValue(Int(res)))
-            },
+            }
             (Real(r1), Int(i2)) => {
-                 if i2 == 0 { return RuntimeError::division_by_zero().into(); }
-                 Ok(NumberValue(Real((r1 / (i2 as f64)).floor())))
-            },
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
+                Ok(NumberValue(Real((r1 / (i2 as f64)).floor())))
+            }
             (Int(i1), Real(r2)) => {
-                 if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
-                 Ok(NumberValue(Real(((i1 as f64) / r2).floor())))
-            },
+                if r2 == 0.0 {
+                    return RuntimeError::division_by_zero().into();
+                }
+                Ok(NumberValue(Real(((i1 as f64) / r2).floor())))
+            }
         }
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
@@ -466,17 +501,23 @@ pub fn eval_clamp(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 arguments
-    let n = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let min = get_number(&vals[1])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let max = get_number(&vals[2])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let n =
+        get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let min =
+        get_number(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let max =
+        get_number(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
 
     // If any is SV, return SV
-    if let SV(sv) = n { return Ok(NumberValue(SV(sv))); }
-    if let SV(sv) = min { return Ok(NumberValue(SV(sv))); }
-    if let SV(sv) = max { return Ok(NumberValue(SV(sv))); }
+    if let SV(sv) = n {
+        return Ok(NumberValue(SV(sv)));
+    }
+    if let SV(sv) = min {
+        return Ok(NumberValue(SV(sv)));
+    }
+    if let SV(sv) = max {
+        return Ok(NumberValue(SV(sv)));
+    }
 
     // min(max(n, min), max) logic
     let lower = if n < min { min } else { n };
@@ -498,7 +539,8 @@ pub fn validate_binary_number_number(left: ValueType, right: ValueType) -> Link<
 
 pub fn validate_round_args(args: Vec<ValueType>) -> Link<()> {
     if args.is_empty() || args.len() > 2 {
-        return LinkingError::other_error("round functions expect 1 or 2 arguments".to_string()).into();
+        return LinkingError::other_error("round functions expect 1 or 2 arguments".to_string())
+            .into();
     }
     LinkingError::expect_type(None, args[0].clone(), &[NumberType])?;
     if args.len() == 2 {
@@ -523,7 +565,6 @@ pub fn validate_zero_args(args: Vec<ValueType>) -> Link<()> {
     }
     Ok(())
 }
-
 
 #[derive(Clone, Copy)]
 enum ExtremaOrder {

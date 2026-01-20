@@ -9,16 +9,14 @@ pub use utilities::*;
 #[test]
 fn test_unary_numeric_validation() {
     let numeric_funcs = [
-        "abs", "floor", "ceiling", "trunc", "sqrt", "ln", "log10", "exp",
-        "degrees", "radians", "sin", "cos", "tan", "asin", "acos", "atan"
+        "abs", "floor", "ceiling", "trunc", "sqrt", "ln", "log10", "exp", "degrees", "radians",
+        "sin", "cos", "tan", "asin", "acos", "atan",
     ];
 
     for func in numeric_funcs {
         // 0 args -> Parse Error
         let code = format!("{{ value: {}() }}", func);
-        parse_error_contains(&code, &[
-            &format!("Function '{}' got no arguments", func)
-        ]);
+        parse_error_contains(&code, &[&format!("Function '{}' got no arguments", func)]);
 
         // Wrong type -> Link Error
         let code = format!("{{ value: {}('abc') }}", func);
@@ -42,16 +40,19 @@ fn test_unary_numeric_validation() {
 #[test]
 fn test_unary_string_validation() {
     let string_funcs = [
-        "length", "toUpperCase", "toLowerCase", "trim",
-        "toBase64", "fromBase64", "sanitizeFilename"
+        "length",
+        "toUpperCase",
+        "toLowerCase",
+        "trim",
+        "toBase64",
+        "fromBase64",
+        "sanitizeFilename",
     ];
 
     for func in string_funcs {
         // 0 args -> Parse Error
         let code = format!("{{ value: {}() }}", func);
-        parse_error_contains(&code, &[
-            &format!("Function '{}' got no arguments", func)
-        ]);
+        parse_error_contains(&code, &[&format!("Function '{}' got no arguments", func)]);
 
         // Wrong type -> Link Error
         let code = format!("{{ value: {}(123) }}", func);
@@ -88,7 +89,9 @@ fn test_unary_list_validation() {
             LinkingErrorEnum::TypesNotCompatible(
                 None,
                 ValueType::StringType,
-                Some(vec![ValueType::ListType(Some(Box::new(ValueType::NumberType)))]),
+                Some(vec![ValueType::ListType(Some(Box::new(
+                    ValueType::NumberType,
+                )))]),
             ),
         );
     }
@@ -107,35 +110,51 @@ fn test_unary_list_validation() {
             LinkingErrorEnum::TypesNotCompatible(
                 None,
                 ValueType::StringType,
-                Some(vec![ValueType::ListType(Some(Box::new(ValueType::BooleanType)))]),
+                Some(vec![ValueType::ListType(Some(Box::new(
+                    ValueType::BooleanType,
+                )))]),
             ),
         );
     }
 
     // Generic list functions
-    let list_funcs = ["count", "mode", "distinctValues", "duplicateValues", "flatten", "isEmpty", "sort", "sortDescending", "reverse"];
+    let list_funcs = [
+        "count",
+        "mode",
+        "distinctValues",
+        "duplicateValues",
+        "flatten",
+        "isEmpty",
+        "sort",
+        "sortDescending",
+        "reverse",
+    ];
     for func in list_funcs {
         let code = format!("{{ value: {}() }}", func);
         parse_error_contains(&code, &[&format!("Function '{}' got no arguments", func)]);
 
         // count is special, accepts range or number too
         if func == "count" {
-             let code = format!("{{ value: {}('abc') }}", func);
-             link_error_location(
+            let code = format!("{{ value: {}('abc') }}", func);
+            link_error_location(
                 &code,
                 &["value"],
                 &format!("{}('abc')", func),
                 LinkingErrorEnum::TypesNotCompatible(
                     None,
                     ValueType::StringType,
-                    Some(vec![ValueType::NumberType, ValueType::RangeType, ValueType::ListType(Some(Box::new(ValueType::NumberType)))]),
-                )
+                    Some(vec![
+                        ValueType::NumberType,
+                        ValueType::RangeType,
+                        ValueType::ListType(Some(Box::new(ValueType::NumberType))),
+                    ]),
+                ),
             );
         } else {
             let code = format!("{{ value: {}('abc') }}", func);
             // reverse accepts strings too
             if func != "reverse" {
-                 link_error_location(
+                link_error_location(
                     &code,
                     &["value"],
                     &format!("{}('abc')", func),
@@ -157,23 +176,27 @@ fn test_unary_list_validation() {
 #[test]
 fn test_unary_date_validation() {
     let date_funcs = [
-        "date", "time", "datetime", "duration", "period",
-        "dayOfWeek", "monthOfYear", "lastDayOfMonth"
+        "date",
+        "time",
+        "datetime",
+        "duration",
+        "period",
+        "dayOfWeek",
+        "monthOfYear",
+        "lastDayOfMonth",
     ];
 
     for func in date_funcs {
         // 0 args -> Parse Error
         let code = format!("{{ value: {}() }}", func);
-        parse_error_contains(&code, &[
-            &format!("Function '{}' got no arguments", func)
-        ]);
+        parse_error_contains(&code, &[&format!("Function '{}' got no arguments", func)]);
 
         // Wrong type -> Link Error
         // Parsers expect string
         let parse_funcs = ["date", "time", "datetime", "duration", "period"];
         if parse_funcs.contains(&func) {
-             let code = format!("{{ value: {}(123) }}", func);
-             link_error_location(
+            let code = format!("{{ value: {}(123) }}", func);
+            link_error_location(
                 &code,
                 &["value"],
                 &format!("{}(123)", func),
@@ -185,8 +208,8 @@ fn test_unary_date_validation() {
             );
         } else {
             // Helpers expect date
-             let code = format!("{{ value: {}(123) }}", func);
-             link_error_location(
+            let code = format!("{{ value: {}(123) }}", func);
+            link_error_location(
                 &code,
                 &["value"],
                 &format!("{}(123)", func),
@@ -210,7 +233,13 @@ fn test_binary_validation() {
     let math_funcs = ["modulo", "idiv", "atan2"];
     for func in math_funcs {
         let code = format!("{{ value: {}(1) }}", func);
-        parse_error_contains(&code, &[&format!("Binary function '{}' expected 2 arguments, but got 1", func)]);
+        parse_error_contains(
+            &code,
+            &[&format!(
+                "Binary function '{}' expected 2 arguments, but got 1",
+                func
+            )],
+        );
 
         let code = format!("{{ value: {}(1, 'a') }}", func);
         link_error_location(
@@ -226,10 +255,23 @@ fn test_binary_validation() {
     }
 
     // String
-    let string_funcs = ["startsWith", "endsWith", "split", "regexSplit", "substringBefore", "substringAfter"];
+    let string_funcs = [
+        "startsWith",
+        "endsWith",
+        "split",
+        "regexSplit",
+        "substringBefore",
+        "substringAfter",
+    ];
     for func in string_funcs {
         let code = format!("{{ value: {}(1) }}", func);
-        parse_error_contains(&code, &[&format!("Binary function '{}' expected 2 arguments, but got 1", func)]);
+        parse_error_contains(
+            &code,
+            &[&format!(
+                "Binary function '{}' expected 2 arguments, but got 1",
+                func
+            )],
+        );
 
         let code = format!("{{ value: {}('a', 1) }}", func);
         link_error_location(
@@ -248,7 +290,13 @@ fn test_binary_validation() {
     let string_num_funcs = ["charAt", "charCodeAt", "repeat"];
     for func in string_num_funcs {
         let code = format!("{{ value: {}(1) }}", func);
-        parse_error_contains(&code, &[&format!("Binary function '{}' expected 2 arguments, but got 1", func)]);
+        parse_error_contains(
+            &code,
+            &[&format!(
+                "Binary function '{}' expected 2 arguments, but got 1",
+                func
+            )],
+        );
 
         let code = format!("{{ value: {}('a', 'b') }}", func);
         link_error_location(
@@ -268,10 +316,16 @@ fn test_binary_validation() {
     for func in mixed_funcs {
         // ... (indexOf is special, can be list or string)
         if func == "lastIndexOf" {
-             let code = format!("{{ value: {}(1) }}", func);
-             parse_error_contains(&code, &[&format!("Binary function '{}' expected 2 arguments, but got 1", func)]);
-             let code = format!("{{ value: {}(1, 'a') }}", func);
-             link_error_location(
+            let code = format!("{{ value: {}(1) }}", func);
+            parse_error_contains(
+                &code,
+                &[&format!(
+                    "Binary function '{}' expected 2 arguments, but got 1",
+                    func
+                )],
+            );
+            let code = format!("{{ value: {}(1, 'a') }}", func);
+            link_error_location(
                 &code,
                 &["value"],
                 &format!("{}(1,'a')", func),
@@ -286,8 +340,11 @@ fn test_binary_validation() {
 
     // Date
     let code = "{ value: calendarDiff(1) }";
-    parse_error_contains(&code, &["Binary function 'calendarDiff' expected 2 arguments"]);
-    
+    parse_error_contains(
+        &code,
+        &["Binary function 'calendarDiff' expected 2 arguments"],
+    );
+
     let code = "{ value: calendarDiff(date('2021-01-01'), 1) }";
     link_error_location(
         &code,
@@ -312,7 +369,7 @@ fn test_extrema_validation() {
         // Type mismatch (mixed types)
         let code = format!("{{ value: {}(1, 'a') }}", func);
         if func == "sum" {
-             link_error_location(
+            link_error_location(
                 &code,
                 &["value"],
                 &format!("{}(1, 'a')", func),
@@ -323,14 +380,20 @@ fn test_extrema_validation() {
                 ),
             );
         } else {
-             link_error_location(
+            link_error_location(
                 &code,
                 &["value"],
                 &format!("{}(1, 'a')", func),
                 LinkingErrorEnum::TypesNotCompatible(
                     None,
                     ValueType::StringType,
-                    Some(vec![ValueType::NumberType, ValueType::DateType, ValueType::TimeType, ValueType::DateTimeType, ValueType::DurationType]),
+                    Some(vec![
+                        ValueType::NumberType,
+                        ValueType::DateType,
+                        ValueType::TimeType,
+                        ValueType::DateTimeType,
+                        ValueType::DurationType,
+                    ]),
                 ),
             );
         }

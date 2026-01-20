@@ -38,7 +38,8 @@ pub(crate) fn regex_replace_js(
     let s_js = JsValue::from_str(s);
     let host_s: &HostObject = s_js.unchecked_ref();
     let out = host_s.replace(&re, repl).map_err(|e| format!("{:?}", e))?;
-    out.as_string().ok_or_else(|| "replace did not return a string".to_string())
+    out.as_string()
+        .ok_or_else(|| "replace did not return a string".to_string())
 }
 
 pub(crate) fn regex_split_js(
@@ -51,13 +52,15 @@ pub(crate) fn regex_split_js(
     let s_js = JsValue::from_str(s);
     let host_s: &HostObject = s_js.unchecked_ref();
     let array_val = host_s.split(&re).map_err(|e| format!("{:?}", e))?;
-    
-    let len_val = js_sys::Reflect::get(&array_val, &JsValue::from_str("length")).map_err(|e| format!("{:?}", e))?;
+
+    let len_val = js_sys::Reflect::get(&array_val, &JsValue::from_str("length"))
+        .map_err(|e| format!("{:?}", e))?;
     let len = len_val.as_f64().unwrap_or(0.0) as u32;
-    
+
     let mut parts = Vec::with_capacity(len as usize);
     for i in 0..len {
-        let p_val = js_sys::Reflect::get(&array_val, &JsValue::from_f64(i as f64)).map_err(|e| format!("{:?}", e))?;
+        let p_val = js_sys::Reflect::get(&array_val, &JsValue::from_f64(i as f64))
+            .map_err(|e| format!("{:?}", e))?;
         if let Some(p) = p_val.as_string() {
             parts.push(p);
         }

@@ -330,7 +330,9 @@ fn render_expression(
                 render_expression(right, scope, fallback_scope)
             )
         }
-        ExpressionEnum::StaticObject(obj) => render_context_object(&obj.borrow(), "ctx", None, None),
+        ExpressionEnum::StaticObject(obj) => {
+            render_context_object(&obj.borrow(), "ctx", None, None)
+        }
         ExpressionEnum::ObjectField(name, right) => {
             format!(
                 "({{{}: {}}})",
@@ -473,15 +475,19 @@ fn render_context_object(
 
     for name in obj.get_field_names() {
         if let Some(expr_entry) = obj.expressions.get(name) {
-            let expr_js =
-                render_expression(&expr_entry.borrow().expression, Some(scope), closure_scope.or(parent_scope));
+            let expr_js = render_expression(
+                &expr_entry.borrow().expression,
+                Some(scope),
+                closure_scope.or(parent_scope),
+            );
             lines.push(format!("{}[{}] = {};", scope, quote_key(name), expr_js));
             continue;
         }
 
         if let Some(child) = obj.node().get_child(name) {
             let nested_scope = format!("{}_{}", scope, sanitize_identifier(name));
-            let nested_js = render_context_object(&child.borrow(), &nested_scope, Some(scope), closure_scope);
+            let nested_js =
+                render_context_object(&child.borrow(), &nested_scope, Some(scope), closure_scope);
             lines.push(format!("const {} = {};", nested_scope, nested_js));
             lines.push(format!(
                 "{}[{}] = {};",
@@ -571,8 +577,12 @@ fn render_execution_context(
                     ));
                 }
                 let body_ctx = def.get_body().expect("function body available");
-                let body_js =
-                    render_context_object(&body_ctx.borrow(), &body_scope, Some(&arg_scope), Some(scope_name));
+                let body_js = render_context_object(
+                    &body_ctx.borrow(),
+                    &body_scope,
+                    Some(&arg_scope),
+                    Some(scope_name),
+                );
                 lines.push(format!("    const body = {};", body_js));
                 lines.push("    return body;".to_string());
                 lines.push("};".to_string());
@@ -773,7 +783,9 @@ mod tests {
     #[test]
     fn renders_nested_function_with_closure() {
         let mut model = EdgeRulesModel::new();
-        model.append_source(r#"
+        model
+            .append_source(
+                r#"
             {
                 func outer(x): {
                     func inner(y): x + y
@@ -781,7 +793,9 @@ mod tests {
                 }
                 value: outer(10)
             }
-        "#).expect("parse");
+        "#,
+            )
+            .expect("parse");
         let js = to_js_model(&mut model).expect("to_js");
         // Verify that x is resolved via the closure scope
         assert!(js.contains("inner"));

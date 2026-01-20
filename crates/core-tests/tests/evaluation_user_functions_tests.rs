@@ -1,13 +1,13 @@
 mod utilities;
-use edge_rules::test_support::expr;
-pub use utilities::*;
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
-use edge_rules::typesystem::values::ValueEnum;
-use edge_rules::link::node_data::ContentHolder;
-use edge_rules::ast::user_function_call::UserFunctionCall;
-use edge_rules::ast::token::ExpressionEnum;
 use edge_rules::ast::metaphors::metaphor::UserFunction;
+use edge_rules::ast::token::ExpressionEnum;
+use edge_rules::ast::user_function_call::UserFunctionCall;
+use edge_rules::link::node_data::ContentHolder;
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::test_support::expr;
 use edge_rules::typesystem::types::TypedValue;
+use edge_rules::typesystem::values::ValueEnum;
+pub use utilities::*;
 
 // Dedicated coverage for user-defined functions (custom functions)
 
@@ -23,7 +23,7 @@ fn execute_no_arg_function_root_manual() {
     let runtime = model.to_runtime().unwrap();
 
     let result = runtime.call_method("main", vec![]).unwrap();
-    
+
     if let ValueEnum::Reference(ctx) = result {
         let borrowed = ctx.borrow();
         let val = borrowed.get("result").unwrap();
@@ -44,17 +44,23 @@ fn execute_no_arg_function_nested_manual() {
     "#;
     let mut model = EdgeRulesModel::new();
     model.append_source(code).unwrap();
-    
+
     let method_entry = model.get_user_function("nested.getVal").unwrap();
-    let definition = method_entry.borrow().function_definition.create_context(vec![], None).unwrap();
+    let definition = method_entry
+        .borrow()
+        .function_definition
+        .create_context(vec![], None)
+        .unwrap();
 
     let runtime = model.to_runtime().unwrap();
 
     let mut call = UserFunctionCall::new("nested.getVal".to_string(), vec![]);
     call.return_type = Ok(definition.get_type());
     call.definition = Ok(definition);
-    
-    let result = runtime.evaluate_expression(ExpressionEnum::from(call)).unwrap();
+
+    let result = runtime
+        .evaluate_expression(ExpressionEnum::from(call))
+        .unwrap();
 
     if let ValueEnum::Reference(ctx) = result {
         let borrowed = ctx.borrow();
@@ -79,7 +85,7 @@ fn unhappy_execute_no_arg_function_with_arg() {
     // Call with 1 argument
     let args = vec![ExpressionEnum::from(1)];
     let result = runtime.call_method("main", args);
-    
+
     match result {
         Err(e) => {
             let msg = format!("{}", e);
@@ -102,7 +108,7 @@ fn unhappy_execute_arg_function_with_no_arg() {
 
     // Call with 0 arguments
     let result = runtime.call_method("add", vec![]);
-    
+
     match result {
         Err(e) => {
             let msg = format!("{}", e);

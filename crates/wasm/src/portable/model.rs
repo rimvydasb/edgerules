@@ -816,12 +816,8 @@ fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
             } else {
                 name
             };
-            set_prop(
-                &obj,
-                key,
-                &serialize_expression(&expr.borrow().expression)?,
-            )
-            .map_err(|_| PortableError::new("Failed to set expression"))?;
+            set_prop(&obj, key, &serialize_expression(&expr.borrow().expression)?)
+                .map_err(|_| PortableError::new("Failed to set expression"))?;
             continue;
         }
         if let Some(child) = ctx.node().get_child(name) {

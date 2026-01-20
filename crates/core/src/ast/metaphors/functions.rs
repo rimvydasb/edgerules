@@ -138,9 +138,11 @@ impl InlineFunctionDefinition {
         }
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression(RETURN_EXPRESSION, body).map_err(|err| {
-            ParseErrorEnum::OtherError(format!("Failed to build inline function body: {}", err))
-        })?;
+        builder
+            .add_expression(RETURN_EXPRESSION, body)
+            .map_err(|err| {
+                ParseErrorEnum::OtherError(format!("Failed to build inline function body: {}", err))
+            })?;
         if arguments.iter().any(|p| p.name == "it") {
             builder.set_allow_it(true);
         }
@@ -157,10 +159,11 @@ impl InlineFunctionDefinition {
 
     pub fn set_parent(&self, parent: &Rc<RefCell<ContextObject>>) {
         *self.parent.borrow_mut() = Some(Rc::downgrade(parent));
-        self.cached_body.borrow_mut().node.node_type = crate::link::node_data::NodeDataEnum::Internal(
-            Rc::downgrade(parent),
-            Some(intern_field_name(self.name.as_str())),
-        );
+        self.cached_body.borrow_mut().node.node_type =
+            crate::link::node_data::NodeDataEnum::Internal(
+                Rc::downgrade(parent),
+                Some(intern_field_name(self.name.as_str())),
+            );
     }
 
     fn ensure_body(&self) -> Link<Rc<RefCell<ContextObject>>> {
@@ -242,11 +245,7 @@ impl UserFunction for InlineFunctionDefinition {
             .or_else(|| self.parent.borrow().clone())
             .unwrap_or_else(Weak::new);
 
-        Ok(FunctionContext::create_for(
-            body,
-            parameters,
-            parent_weak,
-        ))
+        Ok(FunctionContext::create_for(body, parameters, parent_weak))
     }
 }
 

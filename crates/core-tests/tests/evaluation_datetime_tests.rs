@@ -237,7 +237,10 @@ fn invalid_period_duration_combinations() {
 #[test]
 fn duration_literal_with_years_is_invalid() {
     let evaluated = eval_all("value: duration('P1Y')");
-    assert_string_contains!("[runtime] Failed to parse 'duration' from 'string'", &evaluated);
+    assert_string_contains!(
+        "[runtime] Failed to parse 'duration' from 'string'",
+        &evaluated
+    );
 }
 
 #[test]

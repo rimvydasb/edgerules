@@ -1,7 +1,9 @@
 use crate::ast::Link;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::types::ValueType::{DateTimeType, DateType, DurationType, PeriodType, StringType};
+use crate::typesystem::types::ValueType::{
+    DateTimeType, DateType, DurationType, PeriodType, StringType,
+};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
@@ -189,7 +191,9 @@ pub fn parse_period_iso8601(s: &str) -> Result<PeriodValue, RuntimeError> {
                         days = num;
                         saw_any = true;
                     }
-                    b'T' | b'H' | b'S' => return RuntimeError::parsing_from_string(PeriodType, 0).into(),
+                    b'T' | b'H' | b'S' => {
+                        return RuntimeError::parsing_from_string(PeriodType, 0).into()
+                    }
                     _ => return RuntimeError::parsing_from_string(PeriodType, 0).into(),
                 }
                 idx += 1;
@@ -239,9 +243,8 @@ fn shift_date_by_months_safe(
 
     time::Date::from_calendar_date(
         new_year as i32,
-        Month::try_from(new_month_u8).map_err(|_| {
-            RuntimeError::parsing_code(DateType, DateType, 102)
-        })?,
+        Month::try_from(new_month_u8)
+            .map_err(|_| RuntimeError::parsing_code(DateType, DateType, 102))?,
         new_day,
     )
     .map_err(|_| RuntimeError::parsing_code(DateType, DateType, 103))

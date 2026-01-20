@@ -1,3 +1,39 @@
+//! # Linker Module
+//!
+//! The linker is responsible for resolving all field references and type checking
+//! expressions in the EdgeRules AST. It performs a dependency-aware traversal of
+//! the context object graph to:
+//!
+//! 1. Link variable references to their definitions
+//! 2. Infer and validate types for all expressions
+//! 3. Detect cyclic references that would cause infinite loops
+//!
+//! ## Algorithm
+//!
+//! The linker uses a **lock-based cycle detection** mechanism:
+//! - Fields are locked during linking using `node.lock_field(name)`
+//! - Attempting to link an already-locked field triggers `CyclicReference` error
+//! - Fields are unlocked after successful linking
+//!
+//! This approach has O(1) cycle detection but requires careful lock management.
+//!
+//! ## Error Handling
+//!
+//! Linking errors include location tracking to help users identify the problematic
+//! expression in their DSL code:
+//!
+//! ```text
+//! LinkingError: Field not found
+//!   at: ["DecisionService", "calculatePrice", "discount"]
+//!   expression: "discount * 0.1"
+//! ```
+//!
+//! ## WASM Considerations
+//!
+//! - Uses `Rc<RefCell<>>` for shared ownership (no `Arc` needed in single-threaded WASM)
+//! - Locks are not mutex-based, just RefCell borrow tracking
+//! - Minimal stack usage: recursive linking limited by DSL depth (typically <10 levels)
+
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
@@ -22,6 +58,32 @@ use std::rc::Rc;
 // - is responsible for linking all the expressions in the AST.
 
 // @Todo: is it possible or necessary to prevent re-execution of the same code?
+/// Links all expressions in a context object, performing type inference and
+/// cycle detection.
+///
+/// This function recursively processes all fields in the context object:
+/// - Expression fields are type-checked and linked to their dependencies
+/// - Object references are validated for cyclic dependencies
+/// - Method definitions are processed
+///
+/// # Arguments
+///
+/// * `context` - The root context object to link
+///
+/// # Returns
+///
+/// * `Ok(context)` - Successfully linked context (same as input)
+/// * `Err(LinkingError)` - Cyclic reference or type error detected
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let context = ContextObject::new(/* ... */);
+/// match link_parts(Rc::clone(&context)) {
+///     Ok(_) => println!("Linking successful"),
+///     Err(e) => eprintln!("Linking failed: {}", e),
+/// }
+/// ```
 pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<ContextObject>>> {
     //trace!("link_parts: {}(..)", context.borrow().node().node_type);
 
@@ -83,7 +145,11 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                 linked_type?;
             }
             ObjectRef(reference) => {
-                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or("<child>");
+                let assigned_name = reference
+                    .borrow()
+                    .node()
+                    .get_assigned_to_field()
+                    .unwrap_or("<child>");
                 if reference.try_borrow_mut().is_ok() {
                     references.push((name, reference));
                 } else {
@@ -95,7 +161,11 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                 }
             }
             Definition(ObjectType(reference)) => {
-                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or("<definition>");
+                let assigned_name = reference
+                    .borrow()
+                    .node()
+                    .get_assigned_to_field()
+                    .unwrap_or("<definition>");
                 if reference.try_borrow_mut().is_ok() {
                     references.push((name, reference));
                 } else {
@@ -412,7 +482,8 @@ pub fn browse<'a, T: Node<T>>(
 
     // Path is 1
     if path.len() == 1 {
-        let field_name = path.first().unwrap();
+        // SAFETY: We just checked path.len() == 1
+        let field_name = path.first().expect("path has exactly one element");
         return if find_root {
             let result = get_till_root(ctx, field_name)?;
             Ok(BrowseResult::Found(result))

@@ -233,4 +233,3 @@ fn inline_function_shadowing_it_alias() {
         "[2, 3]"
     );
 }
-

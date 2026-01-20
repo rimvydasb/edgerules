@@ -94,7 +94,10 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 );
             }
             '+' | '-' | '*' | '×' | '÷' | '^' | '%' => {
-                let extracted = source.next_char().unwrap();
+                // SAFETY: peek() matched these symbols, so next_char() must succeed
+                let Some(extracted) = source.next_char() else {
+                    continue; // Should never happen, but handle gracefully
+                };
 
                 // Detect unary context for '-'
                 let mut priority = match extracted {
@@ -275,7 +278,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 };
 
                                 if is_field {
-                                    ast_builder.push_element(VariableLink::new_unlinked(literal).into());
+                                    ast_builder
+                                        .push_element(VariableLink::new_unlinked(literal).into());
                                     after_colon = false;
                                     continue;
                                 }
@@ -457,14 +461,17 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         build_comparator,
                     );
                 } else {
-                    ast_builder.push_element(error_token!(
-                        "Unrecognized comparator after '{}'",
-                        source.next_char().unwrap()
-                    ));
+                    // SAFETY: peek() matched '<', so next_char() must succeed
+                    let ch = source.next_char().unwrap_or('<');
+                    ast_builder
+                        .push_element(error_token!("Unrecognized comparator after '{}'", ch));
                 }
             }
             '"' | '\'' => {
-                let string_starter = source.next_char().unwrap();
+                // SAFETY: peek() matched quote, so next_char() must succeed
+                let Some(string_starter) = source.next_char() else {
+                    continue; // Should never happen, but handle gracefully
+                };
 
                 let literal = source.get_all_till(string_starter);
 
@@ -472,10 +479,9 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 after_colon = false;
             }
             _ => {
-                ast_builder.push_element(error_token!(
-                    "unexpected character '{}'",
-                    source.next_char().unwrap()
-                ));
+                // SAFETY: peek() matched a character, so next_char() must succeed
+                let ch = source.next_char().unwrap_or('?');
+                ast_builder.push_element(error_token!("unexpected character '{}'", ch));
             }
         }
     }

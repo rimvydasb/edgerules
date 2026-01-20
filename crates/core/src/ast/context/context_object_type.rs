@@ -109,7 +109,10 @@ impl StaticLink for EObjectContent<ContextObject> {
                     Err(_) => {
                         let ctx_ref = ctx.borrow();
                         let context_name = ctx_ref.node().node_type.to_string();
-                        return Err(LinkingError::new(CyclicReference(context_name, "function".to_string())));
+                        return Err(LinkingError::new(CyclicReference(
+                            context_name,
+                            "function".to_string(),
+                        )));
                     }
                 };
                 if let Ok(field_type) = &borrowed.field_type {

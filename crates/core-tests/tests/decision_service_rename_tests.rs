@@ -8,14 +8,14 @@ fn test_rename_simple_field() {
         input: 10
     "#;
     let mut service = DecisionService::from_source(source).unwrap();
-    
+
     // Rename 'input' to 'output'
     service.rename_entry("input", "output").unwrap();
-    
+
     // Check that 'input' is gone and 'output' exists with correct type/value
     let result = service.get_linked_type("input");
     assert!(result.is_err());
-    
+
     let type_info = service.get_linked_type("output").unwrap();
     assert!(matches!(type_info, ValueType::NumberType));
 
@@ -35,7 +35,9 @@ fn test_rename_nested_field() {
     let mut service = DecisionService::from_source(source).unwrap();
 
     // Rename 'config.retries' to 'config.attempts'
-    service.rename_entry("config.retries", "config.attempts").unwrap();
+    service
+        .rename_entry("config.retries", "config.attempts")
+        .unwrap();
 
     let result = service.get_linked_type("config.retries");
     assert!(result.is_err());
