@@ -65,10 +65,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                         }
                         Err(_) => {
                             let context_name = context.borrow().node().node_type.to_string();
-                            Err(LinkingError::new(CyclicReference(
-                                context_name,
-                                name.to_string(),
-                            )))
+                            Err(LinkingError::cyclic_reference(&context_name, name))
                         }
                     }
                 };
@@ -82,28 +79,23 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
 
                 linked_type?;
             }
-            ObjectRef(reference) => {
-                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or("<child>");
+            val @ (ObjectRef(_) | Definition(ObjectType(_))) => {
+                let (reference, default_name) = match val {
+                    ObjectRef(r) => (r, "<child>"),
+                    Definition(ObjectType(r)) => (r, "<definition>"),
+                    _ => unreachable!(),
+                };
+
+                let assigned_name = reference
+                    .borrow()
+                    .node()
+                    .get_assigned_to_field()
+                    .unwrap_or(default_name);
                 if reference.try_borrow_mut().is_ok() {
-                    references.push((name, reference));
+                    references.push((name, reference.clone()));
                 } else {
                     let context_name = context.borrow().node.node_type.to_string();
-                    return Err(LinkingError::new(CyclicReference(
-                        context_name,
-                        assigned_name.to_string(),
-                    )));
-                }
-            }
-            Definition(ObjectType(reference)) => {
-                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or("<definition>");
-                if reference.try_borrow_mut().is_ok() {
-                    references.push((name, reference));
-                } else {
-                    let context_name = context.borrow().node.node_type.to_string();
-                    return Err(LinkingError::new(CyclicReference(
-                        context_name,
-                        assigned_name.to_string(),
-                    )));
+                    return Err(LinkingError::cyclic_reference(&context_name, assigned_name));
                 }
             }
             _ => {

@@ -166,8 +166,8 @@ returned. User defined functions with return or without remain fully compatible 
 
 ## Review
 
-- [ ] Duplicated code after `if reference.try_borrow_mut().is_ok() {...`
-- [ ] `CyclicReference` should have a factory in `LinkingError`: LinkingError::cyclic_reference
+- [x] Duplicated code after `if reference.try_borrow_mut().is_ok() {...`
+- [x] `CyclicReference` should have a factory in `LinkingError`: LinkingError::cyclic_reference
 - [x] Find a complex code under `Treat as keyword only when not starting an assignment field`. Investigate why
   `left_side` and `after_colon` are not used instead - they will give an information of the position of `return`
   keyword. (see parser.rs)

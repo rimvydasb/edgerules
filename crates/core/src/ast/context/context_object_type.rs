@@ -8,7 +8,6 @@ use crate::ast::Link;
 use crate::link::linker::link_parts;
 use crate::link::node_data::Node;
 use crate::typesystem::errors::LinkingError;
-use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use core::fmt;
@@ -96,10 +95,7 @@ impl StaticLink for EObjectContent<ContextObject> {
                     } else {
                         field_name
                     };
-                    Err(LinkingError::new(CyclicReference(
-                        context_name,
-                        field_label,
-                    )))
+                    Err(LinkingError::cyclic_reference(&context_name, &field_label))
                 }
             },
             UserFunctionRef(metaphor) => {
@@ -109,7 +105,7 @@ impl StaticLink for EObjectContent<ContextObject> {
                     Err(_) => {
                         let ctx_ref = ctx.borrow();
                         let context_name = ctx_ref.node().node_type.to_string();
-                        return Err(LinkingError::new(CyclicReference(context_name, "function".to_string())));
+                        return Err(LinkingError::cyclic_reference(&context_name, "function"));
                     }
                 };
                 if let Ok(field_type) = &borrowed.field_type {

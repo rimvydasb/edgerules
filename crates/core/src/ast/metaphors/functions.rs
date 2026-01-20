@@ -90,12 +90,7 @@ impl UserFunction for FunctionDefinition {
             let mut body = match self.body.try_borrow_mut() {
                 Ok(b) => b,
                 Err(_) => {
-                    return Err(LinkingError::new(
-                        crate::typesystem::errors::LinkingErrorEnum::CyclicReference(
-                            "function".to_string(),
-                            self.name.clone(),
-                        ),
-                    ));
+                    return Err(LinkingError::cyclic_reference("function", &self.name));
                 }
             };
             body.parameters = parameters.clone();
@@ -225,12 +220,7 @@ impl UserFunction for InlineFunctionDefinition {
             let mut borrowed = match body.try_borrow_mut() {
                 Ok(b) => b,
                 Err(_) => {
-                    return Err(LinkingError::new(
-                        crate::typesystem::errors::LinkingErrorEnum::CyclicReference(
-                            "function".to_string(),
-                            self.name.clone(),
-                        ),
-                    ));
+                    return Err(LinkingError::cyclic_reference("function", &self.name));
                 }
             };
             borrowed.parameters = parameters.clone();

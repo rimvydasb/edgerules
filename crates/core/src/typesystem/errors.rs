@@ -481,6 +481,10 @@ impl LinkingError {
         LinkingError::new(FieldNotFound(object.to_string(), field.to_string()))
     }
 
+    pub fn cyclic_reference(object: &str, field: &str) -> Self {
+        LinkingError::new(CyclicReference(object.to_string(), field.to_string()))
+    }
+
     pub fn different_types(subject: Option<String>, type1: ValueType, type2: ValueType) -> Self {
         LinkingError::new(DifferentTypesDetected(subject, type1, type2))
     }
