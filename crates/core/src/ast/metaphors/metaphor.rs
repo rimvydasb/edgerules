@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::rc::Rc;
