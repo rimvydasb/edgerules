@@ -1,3 +1,40 @@
+//! # Portable Model Serialization Module
+//!
+//! This module handles serialization and deserialization of EdgeRules decision models
+//! to/from a portable JSON format. This enables:
+//! - **Persistence**: Save compiled models to disk or database
+//! - **Transfer**: Send models between server and browser
+//! - **Versioning**: Models can be versioned and migrated
+//! - **Caching**: Pre-compiled models can be cached for faster startup
+//!
+//! ## Portable Model Format
+//!
+//! The portable format is a JSON structure that preserves:
+//! - All field definitions and their types
+//! - Expression ASTs in a serialized form
+//! - Method signatures and implementations
+//! - Type definitions and relationships
+//!
+//! ## Serialization Process
+//!
+//! 1. **Traverse AST**: Walk the context object graph
+//! 2. **Extract Metadata**: Collect field names, types, and expressions
+//! 3. **Serialize Expressions**: Convert AST nodes to portable representation
+//! 4. **Generate JSON**: Create JavaScript-compatible object
+//!
+//! ## Deserialization Process
+//!
+//! 1. **Parse JSON**: Read portable model structure
+//! 2. **Reconstruct AST**: Rebuild expression tree from serialized form
+//! 3. **Link Types**: Re-establish type relationships
+//! 4. **Validate**: Ensure model integrity
+//!
+//! ## WASM Considerations
+//!
+//! - Uses JavaScript objects directly (no intermediate string parsing)
+//! - Minimal stack usage: streaming serialization where possible
+//! - Binary size: ~3-5 KB for serialization logic
+
 use crate::portable::error::PortableError;
 use crate::utils::{get_prop, is_object, set_prop};
 use edge_rules::ast::context::context_object::ContextObject;

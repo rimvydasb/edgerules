@@ -1,3 +1,39 @@
+//! # Error Handling Module
+//!
+//! This module provides a sophisticated error handling system for EdgeRules that supports:
+//! - **Error stacking**: Errors can accumulate context as they propagate up the call stack
+//! - **Location tracking**: Errors track their location in the DSL code
+//! - **Stage tracking**: Errors know whether they occurred during Linking or Runtime
+//! - **Expression context**: Failed expressions are preserved for debugging
+//!
+//! ## Design Philosophy
+//!
+//! Instead of using string-based errors, EdgeRules uses **structured error enums**:
+//! - `LinkingErrorEnum`: Errors during type checking and reference resolution
+//! - `RuntimeErrorEnum`: Errors during expression evaluation
+//! - `ParseErrorEnum`: Errors during DSL parsing
+//!
+//! This approach provides:
+//! - Type safety: Pattern matching ensures all error cases are handled
+//! - Better diagnostics: Specific error variants carry relevant context
+//! - Smaller binary size: Fixed-size enums vs. heap-allocated strings
+//!
+//! ## Error Stacking Example
+//!
+//! ```text
+//! RuntimeError: Division by zero
+//!   at: ["Order", "calculateDiscount", "percentage"]
+//!   expression: "amount / 0"
+//!   stage: Runtime
+//!   context: ["evaluating field 'percentage'", "in object 'Order'"]
+//! ```
+//!
+//! ## WASM Considerations
+//!
+//! - Uses `#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]` to skip Debug in WASM
+//! - Errors serialize to JavaScript objects for WASM interop
+//! - Error codes defined in `ERROR_CODES_SPEC.md` for stable error identification
+
 use crate::ast::context::duplicate_name_error::DuplicateNameError;
 use crate::ast::functions::function_types::EFunctionType;
 use std::fmt;

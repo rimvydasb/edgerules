@@ -1,3 +1,40 @@
+//! # Portable Error Serialization Module
+//!
+//! This module handles serialization of Rust errors to JavaScript-compatible objects
+//! for WASM interop. It converts EdgeRules' structured error types into plain
+//! JavaScript objects that can be easily consumed by JavaScript/TypeScript code.
+//!
+//! ## Serialization Strategy
+//!
+//! Rust errors are converted to JavaScript objects with this structure:
+//!
+//! ```javascript
+//! {
+//!   stage: "Linking" | "Runtime" | "Parse",
+//!   message: "Human-readable error message",
+//!   error: {
+//!     type: "FieldNotFound" | "TypesNotCompatible" | "DivisionByZero" | ...,
+//!     // Type-specific fields (e.g., field, object, expectedType, actualType)
+//!   },
+//!   location: ["DecisionService", "method", "field"],
+//!   expression: "original DSL expression that failed",
+//!   context: ["additional context line 1", "line 2"]
+//! }
+//! ```
+//!
+//! ## Benefits
+//!
+//! - **Type Safety**: JavaScript can pattern match on error.type
+//! - **Internationalization**: Error codes enable translation
+//! - **Debugging**: Full context preserved (location, expression, stack)
+//! - **Structured**: Avoid parsing error strings
+//!
+//! ## WASM Binary Size
+//!
+//! - Each error variant adds ~50-100 bytes to serialization code
+//! - Total impact: ~2-3 KB for all error types
+//! - Trade-off: Better developer experience vs. minimal size increase
+
 use crate::utils;
 use edge_rules::ast::context::duplicate_name_error::DuplicateNameError;
 use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EvalError, ParseErrors};
