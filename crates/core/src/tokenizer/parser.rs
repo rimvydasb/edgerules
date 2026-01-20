@@ -266,13 +266,16 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                             "return" => {
                                 // Treat as keyword only when not starting an assignment field
-                                let mut iter = source.iter.clone();
-                                while matches!(iter.peek(), Some(' ' | '\t' | '\r')) {
-                                    iter.next();
-                                }
-                                if matches!(iter.peek(), Some(&C_ASSIGN)) {
-                                    ast_builder
-                                        .push_element(VariableLink::new_unlinked(literal).into());
+                                let is_field = match source.peek() {
+                                    Some(&C_ASSIGN) => true,
+                                    Some(c) if c.is_whitespace() => {
+                                        matches!(source.peek_skip_whitespace(), Some(C_ASSIGN))
+                                    }
+                                    _ => false,
+                                };
+
+                                if is_field {
+                                    ast_builder.push_element(VariableLink::new_unlinked(literal).into());
                                     after_colon = false;
                                     continue;
                                 }
