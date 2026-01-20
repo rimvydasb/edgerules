@@ -60,19 +60,19 @@ expression.
 
 ### Tasks
 
-- [ ] **AST Update**: Add `InlineFunctionDefinition` struct and `DefinitionEnum::InlineUserFunction`.
-- [ ] **Parser Update**: Modify `build_assignment` in `tokenizer/builder.rs` to produce `InlineUserFunction` for inline
+- [x] **AST Update**: Add `InlineFunctionDefinition` struct and `DefinitionEnum::InlineUserFunction`.
+- [x] **Parser Update**: Modify `build_assignment` in `tokenizer/builder.rs` to produce `InlineUserFunction` for inline
   bodies.
-- [ ] **Serialization Update**: Implement `to_portable` for `InlineUserFunction` (expanding to `{return: ...}`) and
+- [x] **Serialization Update**: Implement `to_portable` for `InlineUserFunction` (expanding to `{return: ...}`) and
   update `from_portable` to detect return-only bodies (collapsing to `InlineUserFunction`).
-- [ ] **Testing Strategy**:
-    - [ ] **Rust**: Verify AST construction for inline syntax.
-    - [ ] **Rust**: Verify execution of inline functions (correct wrapping).
-    - [ ] **WASM/JS**: Test Round-trip Serialization: `Inline -> Portable (expanded) -> Inline`.
-    - [ ] **WASM/JS**: Test that `getFunction` returns the expanded Portable definition for inline functions (Rule: API
+- [x] **Testing Strategy**:
+    - [x] **Rust**: Verify AST construction for inline syntax.
+    - [x] **Rust**: Verify execution of inline functions (correct wrapping).
+    - [x] **WASM/JS**: Test Round-trip Serialization: `Inline -> Portable (expanded) -> Inline`.
+    - [x] **WASM/JS**: Test that `getFunction` returns the expanded Portable definition for inline functions (Rule: API
       returns Portable structure).
-    - [ ] **WASM/JS**: Test that importing a "return-only" Portable definition behaves as an inline function.
-    - [ ] **Rust**: Add nested execution tests as below:
+    - [x] **WASM/JS**: Test that importing a "return-only" Portable definition behaves as an inline function.
+    - [x] **Rust**: Add nested execution tests as below:
 
 ```edgerules
 {
@@ -82,10 +82,10 @@ expression.
 }
 ```
 
-- [ ] Explorer edge cases and check if all tests pass.
-- [ ] Support optional type annotations, e.g., `func f(a: number): a + a`
-- [ ] Check tasks if completed.
-- [ ] Once again review completed tasks and ensure that all edge cases are covered and happy tests exists as well.
+- [x] Explorer edge cases and check if all tests pass.
+- [x] Support optional type annotations, e.g., `func f(a: number): a + a`
+- [x] Check tasks if completed.
+- [x] Once again review completed tasks and ensure that all edge cases are covered and happy tests exists as well.
 
 **Edge cases to consider:**
 
@@ -138,28 +138,36 @@ returned. User defined functions with return or without remain fully compatible 
 
 ### Tasks
 
-- [ ] **Parser Update**: Modify `parser.rs` to allow `return` as a field key. Note that parser has `left_side` and
+- [x] **Parser Update**: Modify `parser.rs` to allow `return` as a field key. Note that parser has `left_side` and
   `after_colon` variables. We already have reserved word `return` that is used in for statement, but it is reserved only
   on the `after_colon` side, meanwhile on the `left_side` it is just a normal field name. Ensure that `return` can be
   used as a normal field name.
-- [ ] **Runtime Update**: Modify `UserFunctionCall::eval` to implement the return value extraction logic.
-- [ ] **Linking Update**: Modify `UserFunctionCall::link` to resolve the return type based on the presence of the
+- [x] **Runtime Update**: Modify `UserFunctionCall::eval` to implement the return value extraction logic.
+- [x] **Linking Update**: Modify `UserFunctionCall::link` to resolve the return type based on the presence of the
   `return` field in the function body context.
-- [ ] **Core Testing**:
-    - [ ] Test explicit return scoping (hiding internal vars).
-    - [ ] Test backward compatibility (returning full objects).
-    - [ ] Test nested returns.
-- [ ] If function has only `return` field, ensure it will collapse to `InlineUserFunction` during parsing and AST
+- [x] **Core Testing**:
+    - [x] Test explicit return scoping (hiding internal vars).
+    - [x] Test backward compatibility (returning full objects).
+    - [x] Test nested returns.
+- [x] If function has only `return` field, ensure it will collapse to `InlineUserFunction` during parsing and AST
   building. You must test it in Rust with `obj.borrow().to_string()` where `obj` is `ContextObject`. This to string
   method prints the whole function body so: `func f(a): { return: a + a }` must print as `func f(a): a + a`.
-- [ ] Only the top-level `return` field in a function body context is used for value extraction. Write a test to assert
+- [x] Only the top-level `return` field in a function body context is used for value extraction. Write a test to assert
   that. Also, return field can be used in simple not a function context, e.g.: `obj: { return: 5 + 5 }`, but then it is
   used as a normal field: `obj.return` returns `10` and `obj` returns the whole context object: `{ return: 10 }`. Assert
   that in Rust.
-- [ ] If function has a field `return`, then function cannot be called such as `func f(): { return: 5; other: 10 }` and
+- [x] If function has a field `return`, then function cannot be called such as `func f(): { return: 5; other: 10 }` and
   then called as `f().other` or even `f().return` because `f()` returns `5` not the whole, so it should raise simple
   field not found error during linking.
-- [ ] Ensure WASM APIs still work well, especially `set` method that can set function definitions and extend return
+- [x] Ensure WASM APIs still work well, especially `set` method that can set function definitions and extend return
   body: `service.set('f.return', 0.25);` or `service.set('complexFunction.return.oneMoreFiled', 100);`.
-- [ ] Check tasks if completed.
-- [ ] Once again review completed tasks and ensure that all edge cases are covered and happy tests exists as well.
+- [x] Check tasks if completed.
+- [x] Once again review completed tasks and ensure that all edge cases are covered and happy tests exists as well.
+
+## Review
+
+- [ ] Duplicated code after `if reference.try_borrow_mut().is_ok() {...`
+- [ ] `CyclicReference` should have a factory in `LinkingError`
+- [ ] Find a complex code under `Treat as keyword only when not starting an assignment field`. Investigate why
+  `left_side` and `after_colon` are not used instead - they will give an information of the position of `return`
+  keyword. (see parser.rs)

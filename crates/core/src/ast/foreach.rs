@@ -229,9 +229,7 @@ impl EvaluatableExpression for ForFunction {
                 self.iterate_objects(values, Rc::clone(&context))
             }
             RangeValue(range) => self.iterate_range(range, Rc::clone(&context)),
-            _other => {
-                RuntimeError::internal_integrity_error(400).into()
-            }
+            _other => RuntimeError::internal_integrity_error(400).into(),
         }
     }
 }

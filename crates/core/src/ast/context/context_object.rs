@@ -2,7 +2,7 @@ use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::context::metadata::Metadata;
-use crate::ast::metaphors::functions::FunctionDefinition;
+use crate::ast::metaphors::functions::UserFunctionDefinition;
 use crate::ast::token::ExpressionEnum;
 use crate::ast::token::{ComplexTypeRef, UserTypeBody};
 use crate::ast::Link;
@@ -40,12 +40,12 @@ impl From<ExpressionEntry> for Rc<RefCell<ExpressionEntry>> {
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct MethodEntry {
-    pub function_definition: FunctionDefinition,
+    pub function_definition: UserFunctionDefinition,
     pub field_type: Link<ValueType>,
 }
 
-impl From<FunctionDefinition> for MethodEntry {
-    fn from(value: FunctionDefinition) -> Self {
+impl From<UserFunctionDefinition> for MethodEntry {
+    fn from(value: UserFunctionDefinition) -> Self {
         MethodEntry {
             function_definition: value,
             field_type: LinkingError::not_linked().into(),
@@ -83,6 +83,8 @@ pub struct ContextObject {
     pub context_type: Option<ValueType>,
 
     pub metadata: Option<Metadata>,
+
+    pub allow_it: bool,
 }
 
 impl Node<ContextObject> for ContextObject {
@@ -310,9 +312,9 @@ impl ContextObject {
 
     pub fn add_user_function(
         parent: &Rc<RefCell<ContextObject>>,
-        definition: FunctionDefinition,
+        definition: UserFunctionDefinition,
     ) -> Result<(), DuplicateNameError> {
-        let interned = intern_field_name(definition.name.as_str());
+        let interned = intern_field_name(definition.get_name().as_str());
         let method_entry: Rc<RefCell<MethodEntry>> = MethodEntry::from(definition).into();
 
         {
@@ -324,10 +326,11 @@ impl ContextObject {
         }
 
         {
-            let body = {
-                let method_ref = method_entry.borrow();
-                Rc::clone(&method_ref.function_definition.body)
-            };
+            let body = method_entry
+                .borrow()
+                .function_definition
+                .get_body()
+                .map_err(|_| DuplicateNameError::new(NameKind::Function, interned))?;
             body.borrow_mut().node.node_type =
                 NodeDataEnum::Internal(Rc::downgrade(parent), Some(interned));
         }
@@ -340,7 +343,8 @@ impl ContextObject {
         old_name: &str,
         new_name: &str,
     ) -> Result<bool, DuplicateNameError> {
-        let exists = self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
+        let exists =
+            self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
         if !exists {
             return Ok(false);
         }
@@ -360,11 +364,12 @@ impl ContextObject {
         if let Some(entry) = self.metaphors.remove(old_name) {
             {
                 let mut borrowed = entry.borrow_mut();
-                borrowed.function_definition.name = new_name.to_string();
-                let body = &borrowed.function_definition.body;
-                let mut body_borrowed = body.borrow_mut();
-                if let NodeDataEnum::Internal(_, ref mut alias) = body_borrowed.node.node_type {
-                    *alias = Some(new_interned);
+                borrowed.function_definition.set_name(new_name.to_string());
+                if let Ok(body) = borrowed.function_definition.get_body() {
+                    let mut body_borrowed = body.borrow_mut();
+                    if let NodeDataEnum::Internal(_, ref mut alias) = body_borrowed.node.node_type {
+                        *alias = Some(new_interned);
+                    }
                 }
             }
             self.metaphors.insert(new_interned, entry);

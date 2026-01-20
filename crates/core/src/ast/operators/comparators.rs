@@ -344,26 +344,26 @@ impl ComparatorOperator {
             (DurationVariant(Value(a)), NotEquals, DurationVariant(Value(b))) => {
                 Ok(BooleanValue(a != b))
             }
-            (DurationVariant(Value(a)), Less, DurationVariant(Value(b))) => match self
-                .duration_ordering(a, b)
-            {
-                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
-                None => RuntimeError::internal_integrity_error(150).into(),
-            },
-            (DurationVariant(Value(a)), Greater, DurationVariant(Value(b))) => match self
-                .duration_ordering(a, b)
-            {
-                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
-                None => RuntimeError::internal_integrity_error(151).into(),
-            },
-            (DurationVariant(Value(a)), LessEquals, DurationVariant(Value(b))) => match self
-                .duration_ordering(a, b)
-            {
-                Some(ordering) => Ok(BooleanValue(
-                    ordering == Ordering::Less || ordering == Ordering::Equal,
-                )),
-                None => RuntimeError::internal_integrity_error(152).into(),
-            },
+            (DurationVariant(Value(a)), Less, DurationVariant(Value(b))) => {
+                match self.duration_ordering(a, b) {
+                    Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
+                    None => RuntimeError::internal_integrity_error(150).into(),
+                }
+            }
+            (DurationVariant(Value(a)), Greater, DurationVariant(Value(b))) => {
+                match self.duration_ordering(a, b) {
+                    Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
+                    None => RuntimeError::internal_integrity_error(151).into(),
+                }
+            }
+            (DurationVariant(Value(a)), LessEquals, DurationVariant(Value(b))) => {
+                match self.duration_ordering(a, b) {
+                    Some(ordering) => Ok(BooleanValue(
+                        ordering == Ordering::Less || ordering == Ordering::Equal,
+                    )),
+                    None => RuntimeError::internal_integrity_error(152).into(),
+                }
+            }
             (DurationVariant(Value(a)), GreaterEquals, DurationVariant(Value(b))) => {
                 match self.duration_ordering(a, b) {
                     Some(ordering) => Ok(BooleanValue(

@@ -13,7 +13,7 @@ pub fn resolve_context_path(
             if let Some(child) = ctx.node().get_child(segment) {
                 Some(child)
             } else if let Some(function) = ctx.get_function(segment) {
-                Some(Rc::clone(&function.borrow().function_definition.body))
+                function.borrow().function_definition.get_body().ok()
             } else {
                 None
             }

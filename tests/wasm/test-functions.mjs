@@ -68,4 +68,59 @@ describe('Function Execution via Evaluate', () => {
         const result = wasm.DecisionEngine.evaluate(model, 'myFunc');
         assert.deepStrictEqual(result, { result: 20 });
     });
+
+    it('round-trips inline functions correctly', () => {
+        const code = `{ func f(a): a + a }`;
+        const service = new wasm.DecisionService(code);
+        const f = service.get('f');
+        
+        // Inline function should be expanded to standard portable format with "return" field
+        assert.strictEqual(f['@type'], 'function');
+        assert.deepStrictEqual(f['@parameters'], { a: null });
+        assert.strictEqual(f['return'], "(a + a)");
+
+        // Round-trip: set it back and verify it still works
+        service.set('f2', f);
+        const result = service.execute('f2', 10);
+        assert.strictEqual(result, 20);
+    });
+
+    it('supports setting return field on function body', () => {
+        const code = `{ func f(a): a + a }`;
+        const service = new wasm.DecisionService(code);
+        
+        // Current result: f(10) -> 20
+        assert.strictEqual(service.execute('f', 10), 20);
+
+        // Update return field: f(a): a * 3
+        service.set('f.return', 'a * 3');
+        assert.strictEqual(service.execute('f', 10), 30);
+
+        // Add another field to body
+        service.set('f.extra', 100);
+        const fullF = service.get('f');
+        assert.strictEqual(fullF.extra, 100);
+        assert.strictEqual(fullF.return, 'a * 3');
+        
+        // Still returns only the return field
+        assert.strictEqual(service.execute('f', 10), 30);
+    });
+
+    it('collapses return-only portable definition to inline function', () => {
+        const model = {
+            "f": {
+                "@type": "function",
+                "@parameters": { "x": null },
+                "return": "x * x"
+            }
+        };
+        const service = new wasm.DecisionService(model);
+        // Verify it works
+        assert.strictEqual(service.execute('f', 4), 16);
+        
+        // Verify it's considered inline (internal check via get)
+        const f = service.get('f');
+        assert.strictEqual(f.return, "x * x");
+        assert.strictEqual(Object.keys(f).filter(k => !k.startsWith('@')).length, 1);
+    });
 });

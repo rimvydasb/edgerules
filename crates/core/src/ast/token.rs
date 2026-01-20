@@ -1,7 +1,7 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
-use crate::ast::metaphors::functions::FunctionDefinition;
+use crate::ast::metaphors::functions::{FunctionDefinition, InlineFunctionDefinition};
 use crate::ast::operators::comparators::ComparatorEnum;
 use crate::ast::operators::logical_operators::LogicalOperatorEnum;
 use crate::ast::operators::math_operators::{MathOperatorEnum, Operator};
@@ -12,7 +12,7 @@ use crate::ast::token::EToken::*;
 use crate::ast::token::EUnparsedToken::*;
 use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::ValueEnum::*;
-use crate::ast::utils::array_to_code_sep;
+use crate::ast::utils::{array_to_code_sep, trim};
 use crate::ast::variable::VariableLink;
 use crate::ast::Link;
 use crate::tokenizer::C_ASSIGN;
@@ -166,6 +166,7 @@ impl EToken {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum DefinitionEnum {
     UserFunction(FunctionDefinition),
+    InlineUserFunction(InlineFunctionDefinition),
     UserType(UserTypeDefinition),
 }
 
@@ -173,6 +174,7 @@ impl Display for DefinitionEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             UserFunction(m) => write!(f, "{}", m),
+            DefinitionEnum::InlineUserFunction(m) => write!(f, "{}", m),
             DefinitionEnum::UserType(t) => write!(f, "type {}: {}", t.name, t.body),
         }
     }
@@ -325,18 +327,6 @@ impl Display for EUnparsedToken {
             ComparatorToken(value) => write!(f, "{}", value),
         }
     }
-}
-
-fn trim(s: &str, start: char, end: char) -> &str {
-    let mut start_idx = 0;
-    let mut end_idx = s.len() - 1;
-
-    if s.chars().nth(start_idx) == Some(start) && s.chars().nth(end_idx) == Some(end) {
-        start_idx += 1;
-        end_idx -= 1;
-    }
-
-    &s[start_idx..=end_idx]
 }
 
 impl Display for ExpressionEnum {

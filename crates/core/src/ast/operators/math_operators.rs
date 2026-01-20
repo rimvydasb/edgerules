@@ -317,7 +317,7 @@ impl MathOperator {
                         } else {
                             Ok(NumberEnum::from(left.pow(right as u32)))
                         }
-                    },
+                    }
                     (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i32))),
                     (Int(left), Real(right)) => Ok(NumberEnum::from((left as f64).powf(right))),
                     (Real(left), Real(right)) => Ok(NumberEnum::from(left.powf(right))),

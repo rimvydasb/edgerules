@@ -99,9 +99,9 @@ impl DecisionService {
     }
 
     pub fn get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
-        let _ = self.ensure_runtime().map_err(|err| {
-            ContextQueryErrorEnum::ContextNotFoundError(err.to_string())
-        })?;
+        let _ = self
+            .ensure_runtime()
+            .map_err(|err| ContextQueryErrorEnum::ContextNotFoundError(err.to_string()))?;
         EdgeRulesRuntime::new(Rc::clone(&self.static_context)).get_type(path)
     }
 

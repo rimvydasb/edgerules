@@ -104,12 +104,19 @@ impl StaticLink for EObjectContent<ContextObject> {
             },
             UserFunctionRef(metaphor) => {
                 // @Todo: there's no Rust test that covers this place - must to add one
-                let mut borrowed = metaphor.borrow_mut();
+                let mut borrowed = match metaphor.try_borrow_mut() {
+                    Ok(b) => b,
+                    Err(_) => {
+                        let ctx_ref = ctx.borrow();
+                        let context_name = ctx_ref.node().node_type.to_string();
+                        return Err(LinkingError::new(CyclicReference(context_name, "function".to_string())));
+                    }
+                };
                 if let Ok(field_type) = &borrowed.field_type {
                     return Ok(field_type.clone());
                 }
 
-                let body = Rc::clone(&borrowed.function_definition.body);
+                let body = borrowed.function_definition.get_body()?;
                 link_parts(Rc::clone(&body))?;
 
                 let field_type = ValueType::ObjectType(body);

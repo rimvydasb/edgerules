@@ -14,8 +14,8 @@ use crate::typesystem::errors::ParseErrorEnum::{
     UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
-    DivisionByZero, EvalError, InternalIntegrityError, RuntimeCyclicReference, RuntimeFieldNotFound,
-    TypeNotSupported, ValueParsingError,
+    DivisionByZero, EvalError, InternalIntegrityError, RuntimeCyclicReference,
+    RuntimeFieldNotFound, TypeNotSupported, ValueParsingError,
 };
 use crate::typesystem::types::ValueType;
 

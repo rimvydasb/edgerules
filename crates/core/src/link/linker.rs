@@ -2,7 +2,6 @@ use crate::ast::context::context_object::{ContextObject, ExpressionEntry, Method
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
 use crate::ast::expression::StaticLink;
-use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::{build_location_from_execution_context, ExecutionContext};
@@ -84,10 +83,28 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                 linked_type?;
             }
             ObjectRef(reference) => {
-                references.push((name, reference));
+                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or("<child>");
+                if reference.try_borrow_mut().is_ok() {
+                    references.push((name, reference));
+                } else {
+                    let context_name = context.borrow().node.node_type.to_string();
+                    return Err(LinkingError::new(CyclicReference(
+                        context_name,
+                        assigned_name.to_string(),
+                    )));
+                }
             }
             Definition(ObjectType(reference)) => {
-                references.push((name, reference));
+                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or("<definition>");
+                if reference.try_borrow_mut().is_ok() {
+                    references.push((name, reference));
+                } else {
+                    let context_name = context.borrow().node.node_type.to_string();
+                    return Err(LinkingError::new(CyclicReference(
+                        context_name,
+                        assigned_name.to_string(),
+                    )));
+                }
             }
             _ => {
                 // User functions will be linked when the call will be detected

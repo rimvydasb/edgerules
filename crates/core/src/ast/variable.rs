@@ -186,8 +186,11 @@ impl StaticLink for VariableLink {
         if !is_linked(&self.variable_type) {
             // Alias: `it` resolves to the current context variable type if set by the caller
             if self.path.len() == 1 && self.path[0] == "it" {
-                if let Some(context_type) = &context.borrow().context_type {
+                let borrowed = context.borrow();
+                if let Some(context_type) = &borrowed.context_type {
                     return Ok(context_type.clone());
+                } else if borrowed.allow_it {
+                    return Ok(ValueType::UndefinedType);
                 } else {
                     return LinkingError::not_linked().into();
                 }

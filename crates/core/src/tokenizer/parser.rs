@@ -110,17 +110,19 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     let is_unary = if let Some(token) = ast_builder.last_token() {
                         !matches!(
                             token,
-                            Expression(_) | Unparsed(BracketOpen) | Unparsed(Literal(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
+                            Expression(_)
+                                | Unparsed(BracketOpen)
+                                | Unparsed(Literal(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
                         )
                     } else {
                         true
                     };
-                    
+
                     // Double check logic:
                     // 1 - 2 -> last is 1 (Expression). is_unary = false. Binary.
                     // 1 * -2 -> last is * (MathOperatorToken). is_unary = true. Unary.
                     // (-2) -> ( starts level. last is None (if start) or operator before (. is_unary = true.
-                    
+
                     if is_unary {
                         priority = UnaryPriority;
                     }
@@ -263,6 +265,18 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             }
 
                             "return" => {
+                                // Treat as keyword only when not starting an assignment field
+                                let mut iter = source.iter.clone();
+                                while matches!(iter.peek(), Some(' ' | '\t' | '\r')) {
+                                    iter.next();
+                                }
+                                if matches!(iter.peek(), Some(&C_ASSIGN)) {
+                                    ast_builder
+                                        .push_element(VariableLink::new_unlinked(literal).into());
+                                    after_colon = false;
+                                    continue;
+                                }
+
                                 ast_builder.merge();
                                 ast_builder.dec_level();
                                 ast_builder.push_node(

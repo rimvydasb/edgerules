@@ -7,6 +7,7 @@ use edge_rules::link::node_data::ContentHolder;
 use edge_rules::ast::user_function_call::UserFunctionCall;
 use edge_rules::ast::token::ExpressionEnum;
 use edge_rules::ast::metaphors::metaphor::UserFunction;
+use edge_rules::typesystem::types::TypedValue;
 
 // Dedicated coverage for user-defined functions (custom functions)
 
@@ -45,11 +46,12 @@ fn execute_no_arg_function_nested_manual() {
     model.append_source(code).unwrap();
     
     let method_entry = model.get_user_function("nested.getVal").unwrap();
-    let definition = method_entry.borrow().function_definition.create_context(vec![]).unwrap();
+    let definition = method_entry.borrow().function_definition.create_context(vec![], None).unwrap();
 
     let runtime = model.to_runtime().unwrap();
 
     let mut call = UserFunctionCall::new("nested.getVal".to_string(), vec![]);
+    call.return_type = Ok(definition.get_type());
     call.definition = Ok(definition);
     
     let result = runtime.evaluate_expression(ExpressionEnum::from(call)).unwrap();

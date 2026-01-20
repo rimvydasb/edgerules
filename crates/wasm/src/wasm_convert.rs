@@ -5,6 +5,7 @@ use edge_rules::ast::metaphors::metaphor::UserFunction;
 use edge_rules::ast::token::ExpressionEnum;
 use edge_rules::ast::user_function_call::UserFunctionCall;
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::typesystem::types::TypedValue;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
 
@@ -14,20 +15,28 @@ fn execute_or_evaluate(
 ) -> Result<JsValue, PortableError> {
     if let Some(f) = &field {
         if let Ok(method) = service.get_user_function(f) {
-            if !method.borrow().function_definition.arguments.is_empty() {
+            if !method
+                .borrow()
+                .function_definition
+                .get_parameters()
+                .is_empty()
+            {
                 return Err(PortableError::new(format!(
                     "Function '{}' requires arguments and cannot be evaluated via evaluate. Use DecisionService instead.",
                     f
                 )));
             }
 
-            let definition_result = method.borrow().function_definition.create_context(vec![]);
+            let definition_result = method.borrow().function_definition.create_context(vec![], None);
 
             let runtime = service.to_runtime().map_err(PortableError::from)?;
 
             let mut call = UserFunctionCall::new(f.clone(), vec![]);
             match definition_result {
-                Ok(def) => call.definition = Ok(def),
+                Ok(def) => {
+                    call.return_type = Ok(def.get_type());
+                    call.definition = Ok(def);
+                }
                 Err(err) => return Err(PortableError::from(err)),
             }
 

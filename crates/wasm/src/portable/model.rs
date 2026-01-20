@@ -3,8 +3,12 @@ use crate::utils::{get_prop, is_object, set_prop};
 use edge_rules::ast::context::context_object::ContextObject;
 use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
 use edge_rules::ast::context::context_object_type::FormalParameter;
+use edge_rules::ast::context::function_context::RETURN_EXPRESSION;
 use edge_rules::ast::context::metadata::Metadata;
-use edge_rules::ast::metaphors::functions::FunctionDefinition;
+use edge_rules::ast::metaphors::functions::{
+    FunctionDefinition, InlineFunctionDefinition, UserFunctionDefinition,
+};
+use edge_rules::ast::metaphors::metaphor::UserFunction;
 use edge_rules::ast::sequence::CollectionExpression;
 use edge_rules::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
 use edge_rules::ast::user_function_call::UserFunctionCall;
@@ -13,6 +17,7 @@ use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, Inv
 use edge_rules::tokenizer::parser;
 use edge_rules::typesystem::types::number::NumberEnum;
 use edge_rules::typesystem::values::ValueEnum;
+use edge_rules::utils::intern_field_name;
 use js_sys::{Array, Object};
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -38,7 +43,11 @@ pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, Portabl
         match classify_entry(&value) {
             PortableKind::Function(def_obj) => {
                 let definition = parse_function_definition(&name, &def_obj)?;
-                apply_function(&mut model, definition)?;
+                let def_enum = match definition {
+                    UserFunctionDefinition::Function(f) => DefinitionEnum::UserFunction(f),
+                    UserFunctionDefinition::Inline(i) => DefinitionEnum::InlineUserFunction(i),
+                };
+                model.ast_root.add_definition(def_enum)?;
             }
             PortableKind::Invocation(inv_obj) => {
                 let spec = parse_invocation_spec(&inv_obj)?;
@@ -104,19 +113,20 @@ pub fn apply_portable_entry(
             let definition = parse_function_definition(&function_name, &def_obj)?;
             apply_function_with_path(model, context_path, definition)?;
         }
-                PortableKind::Invocation(inv_obj) => {
-                    let (_context_path, name) = split_path(path)?;
-                    if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
-                        return Err(PortableError::new(
-                            "Invocation definition cannot be an array element",
-                        ));
-                    }
-                    let spec = parse_invocation_spec(&inv_obj)?;
-                    model.set_invocation(path, spec)?;
-                }
-                PortableKind::Type(def_obj) => {
-                    let (_context_path, name) = split_path(path)?;
-                    if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {                return Err(PortableError::new(
+        PortableKind::Invocation(inv_obj) => {
+            let (_context_path, name) = split_path(path)?;
+            if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
+                return Err(PortableError::new(
+                    "Invocation definition cannot be an array element",
+                ));
+            }
+            let spec = parse_invocation_spec(&inv_obj)?;
+            model.set_invocation(path, spec)?;
+        }
+        PortableKind::Type(def_obj) => {
+            let (_context_path, name) = split_path(path)?;
+            if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
+                return Err(PortableError::new(
                     "Type definition cannot be an array element",
                 ));
             }
@@ -167,17 +177,23 @@ pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(
         match &mut borrowed.expression {
             ExpressionEnum::Collection(col) => {
                 if index >= col.elements.len() {
-                    return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                        Some(format!("Index {} out of bounds", index)),
-                    )));
+                    return Err(PortableError::from(
+                        ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                            "Index {} out of bounds",
+                            index
+                        ))),
+                    ));
                 }
                 col.elements.remove(index);
                 return Ok(());
             }
             _ => {
-                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                    Some(format!("Field '{}' is not an array", full_array_path)),
-                )));
+                return Err(PortableError::from(
+                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                        "Field '{}' is not an array",
+                        full_array_path
+                    ))),
+                ));
             }
         }
     }
@@ -227,16 +243,22 @@ pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue,
         match &borrowed.expression {
             ExpressionEnum::Collection(col) => {
                 if index >= col.elements.len() {
-                    return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                        Some(format!("Index {} out of bounds", index)),
-                    )));
+                    return Err(PortableError::from(
+                        ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                            "Index {} out of bounds",
+                            index
+                        ))),
+                    ));
                 }
                 return serialize_expression(&col.elements[index]);
             }
             _ => {
-                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                    Some(format!("Field '{}' is not an array", full_array_path)),
-                )));
+                return Err(PortableError::from(
+                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                        "Field '{}' is not an array",
+                        full_array_path
+                    ))),
+                ));
             }
         }
     }
@@ -283,12 +305,12 @@ fn set_array_element(
         ExpressionEnum::Collection(col) => {
             let len = col.elements.len();
             if index > len {
-                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                    Some(format!(
+                return Err(PortableError::from(
+                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
                         "Index {} is out of bounds for array of length {} (no gaps allowed)",
                         index, len
-                    )),
-                )));
+                    ))),
+                ));
             } else if index == len {
                 col.elements.push(value);
             } else {
@@ -296,9 +318,12 @@ fn set_array_element(
             }
             Ok(())
         }
-        _ => Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-            Some(format!("Field '{}' is not an array", array_path)),
-        ))),
+        _ => Err(PortableError::from(
+            ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                "Field '{}' is not an array",
+                array_path
+            ))),
+        )),
     }
 }
 
@@ -314,9 +339,12 @@ fn parse_path_target(name: &str) -> Result<PathTarget, PortableError> {
             let index_str = name[start_bracket + 1..name.len() - 1].trim();
 
             if array_name.is_empty() {
-                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(
-                    Some(format!("Invalid array path '{}'", name)),
-                )));
+                return Err(PortableError::from(
+                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                        "Invalid array path '{}'",
+                        name
+                    ))),
+                ));
             }
 
             let index = index_str
@@ -371,7 +399,7 @@ fn object_field_iter(obj: &JsValue) -> Vec<(String, JsValue)> {
 fn parse_function_definition(
     name: &str,
     obj: &JsValue,
-) -> Result<FunctionDefinition, PortableError> {
+) -> Result<UserFunctionDefinition, PortableError> {
     let mut parameters = Vec::new();
     if let Some(params) = get_prop(obj, "@parameters") {
         if !is_object(&params) {
@@ -393,9 +421,32 @@ fn parse_function_definition(
             parameters.push(FormalParameter::with_type_ref(param_name.to_string(), tref));
         }
     }
-    let body_builder = parse_context_builder(obj, true)?;
-    let body = body_builder.build();
-    FunctionDefinition::build(name.to_string(), parameters, body).map_err(PortableError::from)
+    let builder = parse_context_builder(obj, true)?;
+
+    // Inline collapse: single return field, no children, no functions
+    let return_name = intern_field_name("return");
+    if builder.get_field_names().len() == 1
+        && builder.get_child_context(return_name).is_none()
+        && builder.get_user_function(return_name).is_none()
+        && builder.get_expression(return_name).is_some()
+    {
+        let expr = {
+            let expr_ref = builder.get_expression(return_name).expect("checked above");
+            let mut borrowed = expr_ref.borrow_mut();
+            std::mem::replace(
+                &mut borrowed.expression,
+                ExpressionEnum::Value(ValueEnum::BooleanValue(false)),
+            )
+        };
+        let inline = InlineFunctionDefinition::build(name.to_string(), parameters, expr)
+            .map_err(PortableError::from)?;
+        return Ok(UserFunctionDefinition::Inline(inline));
+    }
+
+    let body = builder.build();
+    let function = FunctionDefinition::build(name.to_string(), parameters, body)
+        .map_err(PortableError::from)?;
+    Ok(UserFunctionDefinition::Function(function))
 }
 
 fn parse_type_definition(obj: &JsValue) -> Result<UserTypeBody, PortableError> {
@@ -475,7 +526,11 @@ fn parse_context_builder(
         match classify_entry(&value) {
             PortableKind::Function(def_obj) => {
                 let definition = parse_function_definition(&name, &def_obj)?;
-                builder.add_definition(DefinitionEnum::UserFunction(definition))?;
+                let def_enum = match definition {
+                    UserFunctionDefinition::Function(f) => DefinitionEnum::UserFunction(f),
+                    UserFunctionDefinition::Inline(i) => DefinitionEnum::InlineUserFunction(i),
+                };
+                builder.add_definition(def_enum)?;
             }
             PortableKind::Invocation(inv_obj) => {
                 let expr = parse_invocation_expression(&inv_obj)?;
@@ -608,17 +663,10 @@ fn split_path(path: &str) -> Result<(Option<Vec<String>>, String), PortableError
     Ok((Some(segments), name))
 }
 
-fn apply_function(
-    model: &mut EdgeRulesModel,
-    definition: FunctionDefinition,
-) -> Result<(), PortableError> {
-    model.set_user_function(definition, None)?;
-    Ok(())
-}
 fn apply_function_with_path(
     model: &mut EdgeRulesModel,
     context: Option<Vec<String>>,
-    definition: FunctionDefinition,
+    definition: UserFunctionDefinition,
 ) -> Result<(), PortableError> {
     if let Some(path) = context {
         let segments: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
@@ -699,20 +747,28 @@ fn serialize_type_body(body: &UserTypeBody) -> Result<JsValue, PortableError> {
         }
     }
 }
-fn serialize_function(definition: &FunctionDefinition) -> Result<JsValue, PortableError> {
-    let obj = context_to_object(&definition.body.borrow())?;
-    set_prop(&obj, "@type", &JsValue::from_str("function"))
+fn serialize_function(definition: &UserFunctionDefinition) -> Result<JsValue, PortableError> {
+    let body = definition.get_body().map_err(PortableError::from)?;
+    let body_obj = context_to_object(&body.borrow())?;
+    let params = definition.get_parameters();
+
+    set_prop(&body_obj, "@type", &JsValue::from_str("function"))
         .map_err(|_| PortableError::new("Failed to set function metadata"))?;
-    if !definition.arguments.is_empty() {
-        let params = Object::new();
-        for param in &definition.arguments {
-            set_prop(&params, &param.name, &JsValue::from_str(&param.to_string()))
+    if !params.is_empty() {
+        let params_obj = Object::new();
+        for param in params.iter() {
+            let type_val = if param.parameter_type.is_undefined() {
+                JsValue::NULL
+            } else {
+                JsValue::from_str(&param.parameter_type.to_string())
+            };
+            set_prop(&params_obj, &param.name, &type_val)
                 .map_err(|_| PortableError::new("Failed to set parameter"))?;
         }
-        set_prop(&obj, "@parameters", &params)
+        set_prop(&body_obj, "@parameters", &params_obj)
             .map_err(|_| PortableError::new("Failed to attach parameters"))?;
     }
-    Ok(obj)
+    Ok(body_obj)
 }
 
 fn context_builder_to_object(builder: &ContextObjectBuilder) -> Result<JsValue, PortableError> {
@@ -755,9 +811,14 @@ fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
 
     for &name in ctx.get_field_names().iter() {
         if let Some(expr) = ctx.expressions.get(name) {
+            let key = if name == RETURN_EXPRESSION {
+                "return"
+            } else {
+                name
+            };
             set_prop(
                 &obj,
-                name,
+                key,
                 &serialize_expression(&expr.borrow().expression)?,
             )
             .map_err(|_| PortableError::new("Failed to set expression"))?;
@@ -877,7 +938,7 @@ mod tests {
         let entry = model.get_expression("list").unwrap();
         let borrowed = entry.borrow();
         if let ExpressionEnum::Collection(c) = &borrowed.expression {
-             assert_eq!(c.elements.len(), 1);
+            assert_eq!(c.elements.len(), 1);
         }
     }
 }

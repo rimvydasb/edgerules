@@ -3,8 +3,8 @@ use crate::ast::context::context_object_type::EObjectContent;
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum;
-use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::types::ValueType::{DurationType, PeriodType};
+use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt;
@@ -253,38 +253,26 @@ impl DurationValue {
             .checked_add(
                 i128::from(days)
                     .checked_mul(SECONDS_PER_DAY)
-                    .ok_or_else(|| {
-                        RuntimeError::parsing_from_string(DurationType, 110)
-                    })?,
+                    .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 110))?,
             )
-            .ok_or_else(|| {
-                RuntimeError::parsing_from_string(DurationType, 114)
-            })?;
+            .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 114))?;
         total = total
             .checked_add(
                 i128::from(hours)
                     .checked_mul(SECONDS_PER_HOUR)
-                    .ok_or_else(|| {
-                        RuntimeError::parsing_from_string(DurationType, 111)
-                    })?,
+                    .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 111))?,
             )
-            .ok_or_else(|| {
-                RuntimeError::parsing_from_string(DurationType, 114)
-            })?;
+            .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 114))?;
         total = total
             .checked_add(
                 i128::from(minutes)
                     .checked_mul(SECONDS_PER_MINUTE)
-                    .ok_or_else(|| {
-                        RuntimeError::parsing_from_string(DurationType, 112)
-                    })?,
+                    .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 112))?,
             )
-            .ok_or_else(|| {
-                RuntimeError::parsing_from_string(DurationType, 114)
-            })?;
-        total = total.checked_add(i128::from(seconds)).ok_or_else(|| {
-            RuntimeError::parsing_from_string(DurationType, 113)
-        })?;
+            .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 114))?;
+        total = total
+            .checked_add(i128::from(seconds))
+            .ok_or_else(|| RuntimeError::parsing_from_string(DurationType, 113))?;
 
         if total < 0 {
             return RuntimeError::parsing_from_string(DurationType, 115).into();
@@ -446,9 +434,7 @@ impl PeriodValue {
         let total_months = i128::from(years)
             .checked_mul(MONTHS_PER_YEAR)
             .and_then(|v| v.checked_add(i128::from(months)))
-            .ok_or_else(|| {
-                RuntimeError::parsing_from_string(PeriodType, 105)
-            })?;
+            .ok_or_else(|| RuntimeError::parsing_from_string(PeriodType, 105))?;
 
         PeriodValue::from_total_parts(total_months, i128::from(days), negative)
     }

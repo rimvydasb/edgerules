@@ -235,6 +235,7 @@ impl StaticLink for ExpressionFilter {
                 let element_type = flatten_list_type(element_type);
 
                 builder.set_context_type(element_type.clone());
+                builder.set_allow_it(true);
 
                 let method_context = builder.build();
 

@@ -58,6 +58,13 @@ pub enum ValueType {
 }
 
 impl ValueType {
+    pub fn ptr_eq(&self, other: &ValueType) -> bool {
+        match (self, other) {
+            (ValueType::ObjectType(a), ValueType::ObjectType(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+
     pub fn get_list_type(&self) -> Option<ValueType> {
         match self {
             ValueType::ListType(Some(list_type)) => Some(*list_type.clone()),
