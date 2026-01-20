@@ -65,6 +65,13 @@ impl DecisionService {
             .map_err(EvalError::from)
     }
 
+    /// Evaluates a field by path in the decision service.
+    /// Mainly used for testing.
+    pub fn evaluate_field(&mut self, path: &str) -> Result<ValueEnum, EvalError> {
+        let runtime = self.ensure_runtime()?;
+        runtime.evaluate_field(path).map_err(EvalError::from)
+    }
+
     #[cfg(feature = "mutable_decision_service")]
     pub fn get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>> {
         self.runtime_dirty = true;
@@ -91,8 +98,19 @@ impl DecisionService {
         Ok(EdgeRulesRuntime::new(Rc::clone(&self.static_context)))
     }
 
-    pub fn get_linked_type(&self, path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
+    pub fn get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
+        let _ = self
+            .ensure_runtime()
+            .map_err(|err| ContextQueryErrorEnum::ContextNotFoundError(err.to_string()))?;
         EdgeRulesRuntime::new(Rc::clone(&self.static_context)).get_type(path)
+    }
+
+    pub fn rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), EvalError> {
+        self.runtime_dirty = true;
+        self.model
+            .borrow_mut()
+            .rename_entry(old_path, new_path)
+            .map_err(EvalError::from)
     }
 
     #[cfg_attr(not(all(target_arch = "wasm32", feature = "wasm")), allow(dead_code))]

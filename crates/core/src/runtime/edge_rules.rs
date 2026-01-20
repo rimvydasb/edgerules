@@ -2,7 +2,7 @@ use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::DuplicateNameError;
-use crate::ast::expression::StaticLink;
+use crate::ast::expression::{EvaluatableExpression, StaticLink};
 use crate::ast::token::EToken;
 use crate::ast::token::EToken::{Definition, Expression};
 use crate::ast::token::ExpressionEnum::ObjectField;
@@ -23,7 +23,7 @@ use std::rc::Rc;
 
 pub use crate::ast::context::context_object::{ExpressionEntry, MethodEntry};
 pub use crate::ast::context::context_object_builder::ContextObjectBuilder;
-pub use crate::ast::metaphors::functions::FunctionDefinition;
+pub use crate::ast::metaphors::functions::{FunctionDefinition, UserFunctionDefinition};
 pub use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 pub use crate::link::linker::link_parts;
 //--------------------------------------------------------------------------------------------------
@@ -247,6 +247,8 @@ impl Default for EdgeRulesModel {
     }
 }
 
+type ParentResolution<'a> = (Option<Rc<RefCell<ContextObject>>>, &'a str);
+
 /// Reusable model holder that can be later converted to runtime to be executed.
 /// Model is reused across multiple executions.
 impl EdgeRulesModel {
@@ -340,7 +342,7 @@ impl EdgeRulesModel {
     fn resolve_parent<'a>(
         &self,
         field_path: &'a str,
-    ) -> Result<(Option<Rc<RefCell<ContextObject>>>, &'a str), ContextQueryErrorEnum> {
+    ) -> Result<ParentResolution<'a>, ContextQueryErrorEnum> {
         let path = FieldPath::parse(field_path)?;
         if path.is_root() {
             Ok((None, path.leaf()))
@@ -477,9 +479,10 @@ impl EdgeRulesModel {
 
     pub fn set_user_function(
         &mut self,
-        definition: FunctionDefinition,
+        definition: UserFunctionDefinition,
         context_path: Option<Vec<&str>>,
     ) -> Result<(), ContextQueryErrorEnum> {
+        let name = definition.get_name();
         if let Some(path) = context_path {
             if path.is_empty() {
                 return self.insert_root_user_function(definition);
@@ -488,7 +491,7 @@ impl EdgeRulesModel {
             let parent = self.resolve_context_or_error(path.as_slice())?;
 
             {
-                parent.borrow_mut().remove_field(definition.name.as_str());
+                parent.borrow_mut().remove_field(name.as_str());
             }
 
             return ContextObject::add_user_function(&parent, definition)
@@ -529,6 +532,51 @@ impl EdgeRulesModel {
         function.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(function_path.to_string()))
     }
 
+    pub fn rename_entry(
+        &mut self,
+        old_path: &str,
+        new_path: &str,
+    ) -> Result<(), ContextQueryErrorEnum> {
+        let old_path_parsed = FieldPath::parse(old_path)?;
+        let old_name = old_path_parsed.leaf();
+
+        let new_path_parsed = FieldPath::parse(new_path)?;
+        let new_name = new_path_parsed.leaf();
+
+        // Validate that both paths are in the same context
+        let same_context = if old_path_parsed.is_root() {
+            new_path_parsed.is_root()
+        } else {
+            !new_path_parsed.is_root()
+                && old_path_parsed.parent_segments() == new_path_parsed.parent_segments()
+        };
+
+        if !same_context {
+            return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                "Renaming must be within the same context. Cannot rename '{}' to '{}'",
+                old_path, new_path
+            ))));
+        }
+
+        let (parent_opt, _) = self.resolve_parent(old_path)?;
+
+        let result = match parent_opt {
+            Some(parent) => {
+                let mut borrowed = parent.borrow_mut();
+                borrowed.rename_field(old_name, new_name)
+            }
+            None => self.ast_root.rename_field(old_name, new_name),
+        };
+
+        match result {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(ContextQueryErrorEnum::EntryNotFoundError(
+                old_path.to_string(),
+            )),
+            Err(dup) => Err(ContextQueryErrorEnum::DuplicateNameError(dup)),
+        }
+    }
+
     pub fn merge_context_object(
         &mut self,
         object: Rc<RefCell<ContextObject>>,
@@ -558,18 +606,23 @@ impl EdgeRulesModel {
     ) -> Option<Rc<RefCell<ContextObject>>> {
         let function_name = path_segments.first()?;
         let function = self.ast_root.get_user_function(function_name)?;
-        let current = Rc::clone(&function.borrow().function_definition.body);
+        let current = function.borrow().function_definition.get_body().ok()?;
 
         resolve_context_path(current, &path_segments[1..])
     }
 
     fn insert_root_user_function(
         &mut self,
-        definition: FunctionDefinition,
+        definition: UserFunctionDefinition,
     ) -> Result<(), ContextQueryErrorEnum> {
-        self.ast_root.remove_field(definition.name.as_str());
+        let name = definition.get_name();
+        self.ast_root.remove_field(name.as_str());
+        let def_enum = match definition {
+            UserFunctionDefinition::Function(f) => DefinitionEnum::UserFunction(f),
+            UserFunctionDefinition::Inline(i) => DefinitionEnum::InlineUserFunction(i),
+        };
         self.ast_root
-            .add_definition(DefinitionEnum::UserFunction(definition))
+            .add_definition(def_enum)
             .map(|_| ())
             .map_err(ContextQueryErrorEnum::from)
     }
@@ -588,7 +641,10 @@ impl EdgeRulesModel {
             }
             ParsedItem::Definition(definition) => match definition {
                 DefinitionEnum::UserFunction(definition) => self
-                    .set_user_function(definition, None)
+                    .set_user_function(UserFunctionDefinition::Function(definition), None)
+                    .map_err(Self::context_update_error)?,
+                DefinitionEnum::InlineUserFunction(definition) => self
+                    .set_user_function(UserFunctionDefinition::Inline(definition), None)
                     .map_err(Self::context_update_error)?,
                 DefinitionEnum::UserType(user_type) => self
                     .set_user_type(user_type.name.as_str(), user_type.body)
@@ -676,8 +732,10 @@ impl EdgeRulesRuntime {
         name: &str,
         args: Vec<ExpressionEnum>,
     ) -> Result<ValueEnum, RuntimeError> {
-        let call = UserFunctionCall::new(name.to_string(), args);
-        self.evaluate_expression(ExpressionEnum::from(call))
+        let mut call = UserFunctionCall::new(name.to_string(), args);
+        call.link(Rc::clone(&self.static_tree))
+            .map_err(|err| RuntimeError::eval_error(err.to_string()))?;
+        call.eval(Rc::clone(&self.context))
     }
 
     pub fn evaluate_expression(
@@ -709,11 +767,13 @@ impl EdgeRulesRuntime {
                 if let Ok(EObjectContent::UserFunctionRef(metaphor)) =
                     self.static_tree.borrow().get(name)
                 {
-                    if metaphor.borrow().field_type.is_err() {
-                        let body = Rc::clone(&metaphor.borrow().function_definition.body);
-                        let _ = link_parts(Rc::clone(&body));
-                        let vt = ValueType::ObjectType(body);
-                        metaphor.borrow_mut().field_type = Ok(vt);
+                    let mut method = metaphor.borrow_mut();
+                    if method.field_type.is_err() {
+                        if let Ok(body) = method.function_definition.get_body() {
+                            let _ = link_parts(Rc::clone(&body));
+                            let vt = ValueType::ObjectType(body);
+                            method.field_type = Ok(vt);
+                        }
                     }
                 }
             }
@@ -747,11 +807,16 @@ impl EdgeRulesRuntime {
                     if let Ok(vt) = &entry_mut.field_type {
                         return Ok(vt.clone());
                     }
-                    let body = Rc::clone(&entry_mut.function_definition.body);
-                    let _ = link_parts(Rc::clone(&body));
-                    let vt = ValueType::ObjectType(body);
-                    entry_mut.field_type = Ok(vt.clone());
-                    Ok(vt)
+                    if let Ok(body) = entry_mut.function_definition.get_body() {
+                        let _ = link_parts(Rc::clone(&body));
+                        let vt = ValueType::ObjectType(body);
+                        entry_mut.field_type = Ok(vt.clone());
+                        Ok(vt)
+                    } else {
+                        Err(ContextQueryErrorEnum::EntryNotFoundError(
+                            field_path.to_string(),
+                        ))
+                    }
                 }
                 EObjectContent::ObjectRef(obj) => Ok(ValueType::ObjectType(Rc::clone(&obj))),
                 EObjectContent::Definition(vt) => Ok(vt),

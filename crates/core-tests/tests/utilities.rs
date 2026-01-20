@@ -70,6 +70,7 @@ pub fn exe_field(runtime: &EdgeRulesRuntime, path: &str) -> String {
 }
 
 pub fn get_runtime(code: &str) -> EdgeRulesRuntime {
+    init_logger();
     let mut service = EdgeRulesModel::new();
     match service.append_source(&wrap_in_object(code)) {
         Ok(()) => match service.to_runtime() {
@@ -95,6 +96,7 @@ pub fn eval_all(code: &str) -> String {
 }
 
 pub fn eval_field(code: &str, field: &str) -> String {
+    init_logger();
     let mut service = EdgeRulesModel::new();
     match service.append_source(&wrap_in_object(code)) {
         Ok(()) => match service.to_runtime() {
@@ -145,6 +147,7 @@ pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
 
 /// For tests that must assert link errors (e.g., cyclic/self ref, missing field).
 pub fn link_error_contains(code: &str, needles: &[&str]) {
+    init_logger();
     let mut service = EdgeRulesModel::new();
     let _ = service.append_source(code);
 
@@ -183,17 +186,18 @@ pub fn link_error_location(
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
             assert_eq!(
-                err.location, expected,
+                err.location(),
+                expected,
                 "location mismatch for code:\n{code}"
             );
             assert_eq!(
-                err.expression.as_deref(),
+                err.expression().map(|s| s.as_str()),
                 Some(expected_expression),
                 "expression mismatch for code:\n{code}"
             );
-            assert!(err.stage.is_some());
-            assert_eq!(err.error, error);
-            err.location
+            assert!(err.stage().is_some());
+            assert_eq!(err.kind(), &error);
+            err.location().to_vec()
         }
     }
 }

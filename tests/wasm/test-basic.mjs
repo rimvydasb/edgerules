@@ -7,37 +7,37 @@ describe('Basic Evaluation', () => {
         wasm.init_panic_hook();
     });
 
-    it('evaluate_field simple arithmetic', () => {
-        const result = wasm.DecisionEngine.evaluateField('{ x : 1; y : x + 2 }', 'y');
+    it('evaluate field simple arithmetic', () => {
+        const result = wasm.DecisionEngine.evaluate('{ x : 1; y : x + 2 }', 'y');
         assert.deepStrictEqual(result, 3);
     });
 
-    it('evaluate_expression simple arithmetic', () => {
-        const result = wasm.DecisionEngine.evaluateExpression('2 + 3');
+    it('evaluate expression simple arithmetic', () => {
+        const result = wasm.DecisionEngine.evaluate('2 + 3');
         assert.deepStrictEqual(result, 5);
     });
 
     it('regexReplace', () => {
-        const result = wasm.DecisionEngine.evaluateExpression(`regexReplace('Hello 123 world 456', '\\d+', 'X', 'g')`);
+        const result = wasm.DecisionEngine.evaluate(`regexReplace('Hello 123 world 456', '\\d+', 'X', 'g')`);
         assert.deepStrictEqual(result, 'Hello X world X');
     });
 
     it('regexSplit', () => {
-        const split = wasm.DecisionEngine.evaluateExpression(`regexSplit('one   two\tthree', '\\s+')`);
+        const split = wasm.DecisionEngine.evaluate(`regexSplit('one   two\tthree', '\\s+')`);
         assert.deepStrictEqual(split, ['one', 'two', 'three']);
     });
 
     it('base64 functions', () => {
-        const b64 = wasm.DecisionEngine.evaluateExpression(`toBase64('FEEL')`);
+        const b64 = wasm.DecisionEngine.evaluate(`toBase64('FEEL')`);
         assert.deepStrictEqual(b64, 'RkVFTA==');
 
-        const from = wasm.DecisionEngine.evaluateExpression(`fromBase64('RkVFTA==')`);
+        const from = wasm.DecisionEngine.evaluate(`fromBase64('RkVFTA==')`);
         assert.deepStrictEqual(from, 'FEEL');
     });
 
 
     it('complex evaluation with filter', () => {
-        const result = wasm.DecisionEngine.evaluateField(
+        const result = wasm.DecisionEngine.evaluate(
             `
             {
                 type Person: { name: <string>; age: <number>; tags: <string[]> }
@@ -62,8 +62,8 @@ describe('Basic Evaluation', () => {
         });
     });
 
-    it('evaluate_all', () => {
-        const result = wasm.DecisionEngine.evaluateAll(`
+    it('evaluate full model', () => {
+        const result = wasm.DecisionEngine.evaluate(`
         {
             sales: [10, 20, 8, 7, 1, 10, 6, 78, 0, 8, 0, 8]
             salesCount: count(sales)
@@ -83,5 +83,17 @@ describe('Basic Evaluation', () => {
         assert.strictEqual(salesCount, 12);
         assert.strictEqual(best, 94);
     });
-});
 
+    it('evaluate portable model', () => {
+        const portable = {
+            "x": 10,
+            "y": "x + 5"
+        };
+        
+        const result = wasm.DecisionEngine.evaluate(portable);
+        assert.strictEqual(result.y, 15);
+        
+        const resultField = wasm.DecisionEngine.evaluate(portable, 'y');
+        assert.strictEqual(resultField, 15);
+    });
+});

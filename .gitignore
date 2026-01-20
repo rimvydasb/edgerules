@@ -28,3 +28,8 @@ Thumbs.db
 **/mutants.out*/
 *.jar
 *.class
+
+# Local environment files
+.gemini/
+.geminiignore
+.github

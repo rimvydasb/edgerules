@@ -4,7 +4,6 @@ use crate::ast::context::context_object_type::EObjectContent::{
 };
 use crate::link::node_data::NodeDataEnum::{Child, Internal, Isolated, Root};
 use crate::typesystem::errors::LinkingError;
-use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
 use crate::utils::bracket_unwrap;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -183,11 +182,7 @@ impl<T: Node<T>> NodeData<T> {
     pub fn lock_field(&self, field: &'static str) -> Result<(), LinkingError> {
         trace!("lock_field: {}.{}", self.node_type, field);
         if self.is_field_locked(field) {
-            return LinkingError::new(CyclicReference(
-                self.node_type.to_string(),
-                field.to_string(),
-            ))
-            .into();
+            return LinkingError::cyclic_reference(&self.node_type.to_string(), field).into();
         }
         self.object_field_locks.borrow_mut().insert(field);
 

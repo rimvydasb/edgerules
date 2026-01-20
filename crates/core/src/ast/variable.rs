@@ -130,7 +130,7 @@ impl EvaluatableExpression for VariableLink {
         let browse_result = match browse(start_ctx, path_vec, find_root) {
             Ok(res) => res,
             Err(link_err) => {
-                if let LinkingErrorEnum::FieldNotFound(_, field) = &link_err.error {
+                if let LinkingErrorEnum::FieldNotFound(_, field) = link_err.kind() {
                     let expected_type = self
                         .variable_type
                         .clone()
@@ -147,7 +147,7 @@ impl EvaluatableExpression for VariableLink {
             |ctx, result, _remaining| match result.borrow().expression.eval(Rc::clone(&ctx)) {
                 Ok(intermediate) => Ok(intermediate.into()),
                 Err(err) => {
-                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = err.kind() {
                         let expected_type = match self.variable_type.clone() {
                             Ok(value_type) => value_type,
                             Err(_) => ValueType::UndefinedType,
@@ -186,8 +186,11 @@ impl StaticLink for VariableLink {
         if !is_linked(&self.variable_type) {
             // Alias: `it` resolves to the current context variable type if set by the caller
             if self.path.len() == 1 && self.path[0] == "it" {
-                if let Some(context_type) = &context.borrow().context_type {
+                let borrowed = context.borrow();
+                if let Some(context_type) = &borrowed.context_type {
                     return Ok(context_type.clone());
+                } else if borrowed.allow_it {
+                    return Ok(ValueType::UndefinedType);
                 } else {
                     return LinkingError::not_linked().into();
                 }
@@ -237,16 +240,17 @@ impl StaticLink for VariableLink {
                         match result.borrow_mut().expression.link(Rc::clone(&ctx)) {
                             Ok(linked_type) => Ok(EObjectContent::Definition(linked_type)),
                             Err(mut err) => {
-                                if err.location.is_empty() {
+                                if err.location().is_empty() {
                                     if let Some(name) = field_name {
-                                        err.location = build_location_from_context(&ctx, name);
+                                        *err.location_mut() =
+                                            build_location_from_context(&ctx, name);
                                     }
                                 }
-                                if err.expression.is_none() {
-                                    err.expression = Some(expression_display);
+                                if !err.has_expression() {
+                                    err.set_expression(expression_display);
                                 }
-                                if err.stage.is_none() {
-                                    err.stage = Some(ErrorStage::Linking);
+                                if !err.has_stage() {
+                                    err.set_stage(ErrorStage::Linking);
                                 }
                                 Err(err)
                             }
@@ -264,19 +268,19 @@ impl StaticLink for VariableLink {
                             self.variable_type = Ok(resolved);
                         }
                         Err(mut err) => {
-                            if err.location.is_empty() {
-                                err.location = build_location_from_context(
+                            if err.location().is_empty() {
+                                *err.location_mut() = build_location_from_context(
                                     &value_type.context,
                                     value_type.field_name,
                                 );
                             }
-                            if err.expression.is_none() {
-                                err.expression = Some(value_type.content.to_string());
+                            if !err.has_expression() {
+                                err.set_expression(value_type.content.to_string());
                             }
-                            if err.stage.is_none() {
-                                err.stage = Some(ErrorStage::Linking);
+                            if !err.has_stage() {
+                                err.set_stage(ErrorStage::Linking);
                             }
-                            return Err(err).into();
+                            return Err(err);
                         }
                     }
                 }

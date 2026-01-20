@@ -8,7 +8,6 @@ use crate::ast::Link;
 use crate::link::linker::link_parts;
 use crate::link::node_data::Node;
 use crate::typesystem::errors::LinkingError;
-use crate::typesystem::errors::LinkingErrorEnum::CyclicReference;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use core::fmt;
@@ -96,20 +95,24 @@ impl StaticLink for EObjectContent<ContextObject> {
                     } else {
                         field_name
                     };
-                    Err(LinkingError::new(CyclicReference(
-                        context_name,
-                        field_label,
-                    )))
+                    Err(LinkingError::cyclic_reference(&context_name, &field_label))
                 }
             },
             UserFunctionRef(metaphor) => {
                 // @Todo: there's no Rust test that covers this place - must to add one
-                let mut borrowed = metaphor.borrow_mut();
+                let mut borrowed = match metaphor.try_borrow_mut() {
+                    Ok(b) => b,
+                    Err(_) => {
+                        let ctx_ref = ctx.borrow();
+                        let context_name = ctx_ref.node().node_type.to_string();
+                        return Err(LinkingError::cyclic_reference(&context_name, "function"));
+                    }
+                };
                 if let Ok(field_type) = &borrowed.field_type {
                     return Ok(field_type.clone());
                 }
 
-                let body = Rc::clone(&borrowed.function_definition.body);
+                let body = borrowed.function_definition.get_body()?;
                 link_parts(Rc::clone(&body))?;
 
                 let field_type = ValueType::ObjectType(body);

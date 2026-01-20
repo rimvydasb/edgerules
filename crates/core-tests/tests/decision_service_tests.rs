@@ -16,7 +16,7 @@ fn build_request_value(source: &str) -> ValueEnum {
 }
 
 fn value_to_string(value: &ValueEnum) -> String {
-    value.to_string().replace('\n', "").replace(' ', "")
+    value.to_string().replace(['\n', ' '], "")
 }
 
 #[cfg(feature = "mutable_decision_service")]

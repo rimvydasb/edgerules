@@ -6,7 +6,7 @@ fn test_get_linked_type_simple_field() {
     let source = r#"
         input: 10
     "#;
-    let service = DecisionService::from_source(source).unwrap();
+    let mut service = DecisionService::from_source(source).unwrap();
     let type_info = service.get_linked_type("input").unwrap();
 
     assert!(matches!(type_info, ValueType::NumberType));
@@ -20,7 +20,7 @@ fn test_get_linked_type_nested_field() {
             timeout: 500
         }
     "#;
-    let service = DecisionService::from_source(source).unwrap();
+    let mut service = DecisionService::from_source(source).unwrap();
 
     let retries_type = service.get_linked_type("config.retries").unwrap();
     assert!(matches!(retries_type, ValueType::NumberType));
@@ -36,7 +36,7 @@ fn test_get_linked_type_user_function() {
             res: a + b
         }
     "#;
-    let service = DecisionService::from_source(source).unwrap();
+    let mut service = DecisionService::from_source(source).unwrap();
 
     let func_type = service.get_linked_type("add").unwrap();
     // User functions are currently represented as ObjectType pointing to their body context
@@ -55,7 +55,7 @@ fn test_get_linked_type_user_type() {
             age: <number>
         }
     "#;
-    let service = DecisionService::from_source(source).unwrap();
+    let mut service = DecisionService::from_source(source).unwrap();
 
     let type_info = service.get_linked_type("Person").unwrap();
     if let ValueType::ObjectType(_) = type_info {
@@ -73,7 +73,7 @@ fn test_get_linked_type_wildcard() {
         func calc(): { res: 20 }
     }
     "#;
-    let service = DecisionService::from_source(source).unwrap();
+    let mut service = DecisionService::from_source(source).unwrap();
 
     let root_type = service.get_linked_type("*").unwrap();
     if let ValueType::ObjectType(_) = root_type {
@@ -86,7 +86,7 @@ fn test_get_linked_type_wildcard() {
 #[test]
 fn test_get_linked_type_not_found() {
     let source = "input: 1";
-    let service = DecisionService::from_source(source).unwrap();
+    let mut service = DecisionService::from_source(source).unwrap();
 
     let result = service.get_linked_type("non_existent");
     assert!(result.is_err());

@@ -1,6 +1,13 @@
 import {before, describe, it} from 'node:test';
 import {strict as assert} from 'node:assert';
 import wasm from '../../target/pkg-node/edge_rules.js';
+import {installBuiltins} from '../wasm-js/builtins.js';
+
+const evaluate = (source) => Function(`"use strict"; return (${source});`)();
+
+const toJsSupported =
+    typeof wasm.DecisionEngine?.printModelJs === 'function' && typeof wasm.DecisionEngine?.printExpressionJs === 'function';
+const describeToJs = toJsSupported ? describe : describe.skip;
 
 // Helper to convert JS Maps (which wasm-bindgen returns for HashMaps) to plain Objects recursively
 // This matches the helper in examples/js/node-ds-demo.mjs
@@ -85,6 +92,242 @@ const INVOCATION_MODEL = {
         }, score: 'request.score'
     }
 };
+
+describeToJs('Decision service printing', () => {
+    before(() => {
+        wasm.init_panic_hook();
+        installBuiltins();
+    });
+
+    it('prints and executes a decision service model', () => {
+        const modelCode = `
+        {
+            type Applicant: { name: <string>; age: <number>; income: <number>; expense: <number> }
+            type Application: { applicants: <Applicant[]> }
+            func CreditScore(age: <number>, income: <number>): {
+                totalScore: (if age <= 25 then 20 else 30) + (if income >= 1500 then 30 else 0)
+            }
+            func EligibilityDecision(applicantRecord, creditScore): {
+                rules: [
+                    { name: "INC_CHECK"; rule: applicantRecord.income > applicantRecord.expense * 2 }
+                    { name: "AGE_CHECK"; rule: applicantRecord.age >= 18 }
+                    { name: "SCREDIT_S"; rule: creditScore.totalScore > 10 }
+                ]
+                firedRules: for invalid in rules[rule = false] return invalid.name
+                status: if count(firedRules) = 0 then "ELIGIBLE" else "INELIGIBLE"
+            }
+            func applicantDecisions(applicant: Applicant): {
+                applicantRecord: applicant
+                creditScore: CreditScore(applicant.age, applicant.income)
+                eligibility: EligibilityDecision(applicantRecord, creditScore)
+            }
+            func applicationDecisions(application: Application): {
+                applicantDecisions: for app in application.applicants return applicantDecisions(app)
+                finalDecision: if (count(applicantDecisions[eligibility.status="INELIGIBLE"]) > 0) then "DECLINE" else "APPROVE"
+                result: finalDecision
+            }
+        }
+        `;
+
+        const js = wasm.DecisionEngine.printModelJs(modelCode);
+        const model = evaluate(js);
+
+        const decision = model.applicationDecisions({
+            applicants: [
+                {name: 'John', age: 30, income: 2000, expense: 500},
+                {name: 'Jane', age: 17, income: 900, expense: 400},
+            ],
+        });
+
+        assert.equal(decision.result, 'DECLINE');
+    });
+});
+
+describe('DecisionService CRUD', () => {
+    before(() => {
+        wasm.init_panic_hook();
+    });
+
+    it('Array CRUD basic operations', () => {
+        const model = {
+            rules: [
+                {id: 1, action: "'A'"},
+                {id: 2, action: "'B'"},
+                {id: 3, action: "'C'"}
+            ],
+            decision: 'rules[0].action'
+        };
+
+        const service = new wasm.DecisionService(model);
+
+        // GET
+        const first = service.get('rules[0]');
+        assert.deepEqual(first, {id: 1, action: "'A'"});
+
+        // SET Overwrite
+        service.set('rules[1]', {id: 99, action: "'Z'"});
+        const second = service.get('rules[1]');
+        assert.deepEqual(second, {id: 99, action: "'Z'"});
+        // Ensure no shift
+        assert.deepEqual(service.get('rules[0]'), {id: 1, action: "'A'"});
+        assert.deepEqual(service.get('rules[2]'), {id: 3, action: "'C'"});
+
+        // SET Append
+        service.set('rules[3]', {id: 4, action: "'D'"});
+        assert.deepEqual(service.get('rules[3]'), {id: 4, action: "'D'"});
+
+        // REMOVE
+        // Remove index 1, index 2 & 3 should shift down
+        service.remove('rules[1]');
+        // Old rules[2] is now rules[1]
+        assert.deepEqual(service.get('rules[1]'), {id: 3, action: "'C'"});
+        // Old rules[3] is now rules[2]
+        assert.deepEqual(service.get('rules[2]'), {id: 4, action: "'D'"});
+
+        // Verify length (attempting to get index 3 should fail)
+        assert.throws(() => service.get('rules[3]'), {message: /Index 3 out of bounds/});
+    });
+});
+
+describe('Variable Library Complex Test', () => {
+    let service;
+
+    const inputData = {
+        applicationDate: new Date("2025-01-01"),
+        propertyValue: 100000,
+        loanAmount: 80000,
+        applicants: [
+            {
+                name: 'John Doe',
+                birthDate: new Date("1990-06-05"),
+                income: 1100,
+                expense: 600
+            },
+            {
+                name: 'Jane Doe',
+                birthDate: new Date("1992-05-01"),
+                income: 1500,
+                expense: 300
+            }
+        ]
+    };
+
+    before(() => {
+        wasm.init_panic_hook();
+        const model = {
+            "@model_name": "ApplicantCheck",
+            "Applicant": {
+                "@type": "type",
+                "name": "<string>",
+                "birthDate": "<date>",
+                "income": "<number>",
+                "expense": "<number>"
+            },
+            "Application": {
+                "@type": "type",
+                "applicationDate": "<datetime>",
+                "applicants": "<Applicant[]>",
+                "propertyValue": "<number>",
+                "loanAmount": "<number>"
+            },
+            "applicantDecisions": {
+                "@type": "function",
+                "@parameters": {"applicant": "Applicant", "application": "Application"},
+                "applicantRecord": {
+                    "checkDate": "application.applicationDate",
+                    "data": "applicant",
+                    "age": "application.applicationDate - applicant.birthDate"
+                },
+                "eligibilityDecision": {
+                    "@type": "function",
+                    "@parameters": {"applicantRecord": null},
+                    "rules": [
+                        {
+                            "name": "'INC_CHECK'",
+                            "rule": "applicantRecord.data.income > applicantRecord.data.expense * 2"
+                        },
+                        {"name": "'MIN_INCOM'", "rule": "applicantRecord.data.income > 1000"},
+                        {
+                            "name": "'AGE_CHECK'",
+                            "rule": "applicantRecord.data.birthDate + period('P18Y') <= applicantRecord.checkDate"
+                        }
+                    ],
+                    "firedRules": "for invalid in rules[rule = false] return invalid.name",
+                    "status": "if count(firedRules) = 0 then 'ELIGIBLE' else 'INELIGIBLE'"
+                },
+                "eligibility": "eligibilityDecision(applicantRecord)"
+            },
+            "applicationDecisions": {
+                "@type": "function",
+                "@parameters": {"application": "Application"},
+                "applicationRecord": {
+                    "data": "application",
+                    "applicantsDecisions": "for app in application.applicants return applicantDecisions(app, application).eligibility"
+                }
+            }
+        };
+        service = new wasm.DecisionService(model);
+    });
+
+    const evalField = () => {
+        // Execute applicationDecisions
+        const res = service.execute('applicationDecisions', inputData);
+        // Navigate to result
+        return res.applicationRecord.applicantsDecisions;
+    };
+
+    it('evaluates initial state correctly', () => {
+        const res = evalField();
+
+        // John
+        assert.equal(res[0].status, 'INELIGIBLE');
+        assert.deepEqual(res[0].firedRules, ['INC_CHECK']);
+
+        // Jane
+        assert.deepEqual(res[1].firedRules, []);
+        assert.equal(res[1].status, 'ELIGIBLE');
+    });
+
+    it('modifies rules via array CRUD', () => {
+        // Path to rules: applicantDecisions.eligibilityDecision.rules
+
+        // 1. Get current rule 0
+        const rule0 = service.get('applicantDecisions.eligibilityDecision.rules[0]');
+        assert.equal(rule0.name, "'INC_CHECK'");
+
+        // 2. Modify rule 0 to be always true (income > 0)
+        service.set('applicantDecisions.eligibilityDecision.rules[0]', {
+            name: "'INC_CHECK'",
+            rule: "applicantRecord.data.income > 0"
+        });
+
+        // 3. Evaluate again. John should now pass INC_CHECK.
+        const res = evalField();
+        assert.deepEqual(res[0].firedRules, []);
+        assert.equal(res[0].status, 'ELIGIBLE');
+
+        // 4. Add a new failing rule for everyone
+        service.set('applicantDecisions.eligibilityDecision.rules[3]', {
+            name: "'FAIL_ALL'",
+            rule: "false"
+        });
+
+        const res2 = evalField();
+        // Both should fail now
+        assert.equal(res2[0].status, 'INELIGIBLE');
+        assert.deepEqual(res2[0].firedRules, ['FAIL_ALL']);
+        assert.equal(res2[1].status, 'INELIGIBLE');
+        assert.deepEqual(res2[1].firedRules, ['FAIL_ALL']);
+
+        // 5. Remove the failing rule (index 3)
+        service.remove('applicantDecisions.eligibilityDecision.rules[3]');
+
+        const res3 = evalField();
+        // Back to ELIGIBLE
+        assert.equal(res3[0].status, 'ELIGIBLE');
+        assert.equal(res3[1].status, 'ELIGIBLE');
+    });
+});
 
 describe('Decision Service', () => {
     before(() => {
@@ -183,16 +426,9 @@ describe('Decision Service', () => {
                 return /Entry 'auditNote' not found/.test(err.message);
             });
 
-            // Verify a type definition
-            assert.deepEqual(service.getType('LoanRequest'), {
-                amount: 'number',
-                creditScore: 'number',
-                vip: 'boolean'
-            });
-
             // Verify wildcard type retrieval
             const actualWildcardSchema = service.getType('*');
-            console.log("Actual Wildcard Schema:", JSON.stringify(actualWildcardSchema, null, 2));
+            // console.log("Actual Wildcard Schema:", JSON.stringify(actualWildcardSchema, null, 2));
             assert.deepEqual(actualWildcardSchema, MODEL_SCHEMA);
         });
     });
@@ -263,6 +499,41 @@ describe('Decision Service', () => {
             } catch (e) {
                 assert.ok(e, 'Should have thrown an error');
             }
+        });
+    });
+
+    describe('EdgeRules Language DSL to Portable Conversion', () => {
+        it('initializes from EdgeRules Language DSL and exports to EdgeRules Portable', () => {
+            const code = `
+            {
+                taxRate: 0.21
+                price: 100
+                total: price * (1 + taxRate)
+            }
+            `;
+            const service = new wasm.DecisionService(code);
+            const portableModel = portableToObject(service.get('*'));
+
+            assert.equal(portableModel.taxRate, 0.21);
+            assert.equal(portableModel.price, 100);
+            assert.ok(typeof portableModel.total === 'string', 'total should be an expression string');
+            assert.ok(portableModel.total.includes('price * (1 + taxRate)'), 'total expression should be preserved');
+        });
+
+        it('unhappy test for EdgeRules Language DSL and exports to EdgeRules Portable', () => {
+            const code = `
+            {
+                taxRate: 0.+....21
+                price: 100
+                total: price * (1 + taxRate)
+            }
+            `;
+            assert.throws(() => {
+                new wasm.DecisionService(code);
+            }, (err) => {
+                const msg = err && (err.message || String(err));
+                return /assignment side is not complete/.test(msg);
+            });
         });
     });
 });

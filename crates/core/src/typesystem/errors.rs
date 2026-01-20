@@ -14,7 +14,8 @@ use crate::typesystem::errors::ParseErrorEnum::{
     UnexpectedLiteral, UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
-    EvalError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported, UnexpectedError,
+    DivisionByZero, EvalError, InternalIntegrityError, RuntimeCyclicReference,
+    RuntimeFieldNotFound, TypeNotSupported, ValueParsingError,
 };
 use crate::typesystem::types::ValueType;
 
@@ -51,7 +52,7 @@ pub trait ErrorStack<T: Display>: Sized {
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
-pub struct GeneralStackedError<T: Display> {
+struct ErrorData<T: Display> {
     pub error: T,
     pub context: Vec<String>,
     pub location: Vec<String>,
@@ -59,28 +60,79 @@ pub struct GeneralStackedError<T: Display> {
     pub stage: Option<ErrorStage>,
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq, Clone)]
+pub struct GeneralStackedError<T: Display> {
+    inner: Box<ErrorData<T>>,
+}
+
+impl<T: Display> GeneralStackedError<T> {
+    pub fn kind(&self) -> &T {
+        &self.inner.error
+    }
+
+    pub fn context(&self) -> &[String] {
+        &self.inner.context
+    }
+
+    pub fn location(&self) -> &[String] {
+        &self.inner.location
+    }
+
+    pub fn expression(&self) -> Option<&String> {
+        self.inner.expression.as_ref()
+    }
+
+    pub fn stage(&self) -> Option<&ErrorStage> {
+        self.inner.stage.as_ref()
+    }
+
+    pub fn location_mut(&mut self) -> &mut Vec<String> {
+        &mut self.inner.location
+    }
+
+    pub fn set_expression(&mut self, expression: String) {
+        self.inner.expression = Some(expression);
+    }
+
+    pub fn set_stage(&mut self, stage: ErrorStage) {
+        self.inner.stage = Some(stage);
+    }
+
+    pub fn has_expression(&self) -> bool {
+        self.inner.expression.is_some()
+    }
+
+    pub fn has_stage(&self) -> bool {
+        self.inner.stage.is_some()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T: Display + fmt::Debug> std::error::Error for GeneralStackedError<T> {}
+
 impl<T: Display> ErrorStack<T> for GeneralStackedError<T> {
     fn update_context(&mut self, content: String) {
-        self.context.push(content);
+        self.inner.context.push(content);
     }
 
     fn get_context(&self) -> &Vec<String> {
-        &self.context
+        &self.inner.context
     }
 
     fn get_error_type(&self) -> &T {
-        &self.error
+        &self.inner.error
     }
 }
 
 impl<T: Display> Display for GeneralStackedError<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.error.to_string())?;
+        write!(f, "{}", self.inner.error)?;
         let mut index = 0;
-        if !self.context.is_empty() {
+        if !self.inner.context.is_empty() {
             write!(f, "\nContext:\n")?;
 
-            for context in &self.context {
+            for context in &self.inner.context {
                 index += 1;
                 writeln!(f, "  {}. {}", index, context)?;
             }
@@ -94,21 +146,23 @@ pub type RuntimeError = GeneralStackedError<RuntimeErrorEnum>;
 
 impl RuntimeError {
     pub fn new(error: RuntimeErrorEnum) -> Self {
-        RuntimeError {
-            error,
-            context: vec![],
-            location: vec![],
-            expression: None,
-            stage: Some(ErrorStage::Runtime),
+        GeneralStackedError {
+            inner: Box::new(ErrorData {
+                error,
+                context: vec![],
+                location: vec![],
+                expression: None,
+                stage: Some(ErrorStage::Runtime),
+            }),
         }
     }
 
-    pub fn unexpected(message: String) -> Self {
-        RuntimeError::new(UnexpectedError(message))
+    pub fn internal_integrity_error(code: u16) -> Self {
+        RuntimeError::new(InternalIntegrityError(code))
     }
 
-    pub fn eval_error(message: String) -> Self {
-        RuntimeError::new(EvalError(message.to_string()))
+    pub fn eval_error(message: impl Into<String>) -> Self {
+        RuntimeError::new(EvalError(message.into()))
     }
 
     pub fn cyclic_reference(field: &str, object: &str) -> Self {
@@ -124,6 +178,22 @@ impl RuntimeError {
 
     pub fn type_not_supported(current: ValueType) -> Self {
         RuntimeError::new(TypeNotSupported(current))
+    }
+
+    pub fn parsing(from: ValueType, to: ValueType) -> Self {
+        RuntimeError::new(ValueParsingError(from, to, 0))
+    }
+
+    pub fn parsing_code(from: ValueType, to: ValueType, code: u8) -> Self {
+        RuntimeError::new(ValueParsingError(from, to, code))
+    }
+
+    pub fn parsing_from_string(to: ValueType, code: u8) -> Self {
+        RuntimeError::new(ValueParsingError(ValueType::StringType, to, code))
+    }
+
+    pub fn division_by_zero() -> Self {
+        RuntimeError::new(DivisionByZero)
     }
 }
 
@@ -287,8 +357,19 @@ impl ParseErrorEnum {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq, Clone)]
 pub enum RuntimeErrorEnum {
+    // @Todo: ideally all eval errors must be eliminated and replaced with specific errors
     // message
     EvalError(String),
+
+    // value parsing error occurs when parsing typed values from strings, e.g. `eval_duration`, to duration or other type
+    // @Todo: this error should occur only when string is passed to a typed value parser, TBC, TBA
+    // @Todo: need to develop linking aware constant string parsing, e.g. @P2D and report errors during linking, TBC, TBA
+    // See ERROR_CODES_SPEC.md for details and update with new codes as needed.
+    // fromType, toType, errorCode
+    ValueParsingError(ValueType, ValueType, u8),
+
+    // e.g., division by zero
+    DivisionByZero,
 
     // field, object
     RuntimeCyclicReference(String, String),
@@ -302,15 +383,29 @@ pub enum RuntimeErrorEnum {
     /// It could be possible that in is not reproducible with tests, but find out if it happens in real world
     TypeNotSupported(ValueType),
 
-    /// This error never appears in normal runtime, but used as a guard for maybe unlinked references.
-    /// This error also means development mistake and will not be covered by tests.
-    UnexpectedError(String),
+    // Unexpected development errors. See ERROR_CODES_SPEC.md for details and update with new codes as needed.
+    // These errors may not ever happen, because these situation are covered by linking phase.
+    // Internal integrity error enum is introduced to avoid unreachable! panics in runtime.
+    // errorCode
+    InternalIntegrityError(u16),
 }
 
 impl Display for RuntimeErrorEnum {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             EvalError(message) => write!(f, "[runtime] {}", message),
+            ValueParsingError(from, to, code) => {
+                if *code > 0 {
+                    write!(
+                        f,
+                        "[runtime] Failed to parse '{}' from '{}'. (Error code: {})",
+                        to, from, code
+                    )
+                } else {
+                    write!(f, "[runtime] Failed to parse '{}' from '{}'", to, from)
+                }
+            }
+            DivisionByZero => write!(f, "[runtime] Division by zero"),
             TypeNotSupported(value_type) => {
                 write!(f, "[runtime] Type '{}' is not supported", value_type)
             }
@@ -322,8 +417,8 @@ impl Display for RuntimeErrorEnum {
             RuntimeFieldNotFound(object, field) => {
                 write!(f, "[runtime] Field '{}' not found in {}", field, object)
             }
-            UnexpectedError(message) => {
-                write!(f, "[runtime] Unexpected error: {}", message)
+            InternalIntegrityError(code) => {
+                write!(f, "[runtime] Internal integrity error: code {}", code)
             }
         }
     }
@@ -363,12 +458,14 @@ pub type LinkingError = GeneralStackedError<LinkingErrorEnum>;
 
 impl LinkingError {
     pub fn new(error: LinkingErrorEnum) -> Self {
-        LinkingError {
-            error,
-            context: vec![],
-            location: vec![],
-            expression: None,
-            stage: Some(ErrorStage::Linking),
+        GeneralStackedError {
+            inner: Box::new(ErrorData {
+                error,
+                context: vec![],
+                location: vec![],
+                expression: None,
+                stage: Some(ErrorStage::Linking),
+            }),
         }
     }
 
@@ -376,12 +473,16 @@ impl LinkingError {
         LinkingError::new(NotLinkedYet)
     }
 
-    pub fn other_error(message: String) -> Self {
-        LinkingError::new(OtherLinkingError(message))
+    pub fn other_error(message: impl Into<String>) -> Self {
+        LinkingError::new(OtherLinkingError(message.into()))
     }
 
     pub fn field_not_found(object: &str, field: &str) -> Self {
         LinkingError::new(FieldNotFound(object.to_string(), field.to_string()))
+    }
+
+    pub fn cyclic_reference(object: &str, field: &str) -> Self {
+        LinkingError::new(CyclicReference(object.to_string(), field.to_string()))
     }
 
     pub fn different_types(subject: Option<String>, type1: ValueType, type2: ValueType) -> Self {
@@ -500,17 +601,17 @@ impl From<DuplicateNameError> for RuntimeError {
 
 impl RuntimeError {
     fn into_runtime(error: LinkingError) -> Self {
-        let mut runtime_error = match &error.error {
+        let mut runtime_error = match &error.inner.error {
             FieldNotFound(object, field) => RuntimeError::field_not_found(object, field),
             CyclicReference(object, field) => RuntimeError::cyclic_reference(object, field),
-            NotLinkedYet => RuntimeError::unexpected(format!("{}", error)),
-            _ => RuntimeError::eval_error(error.error.to_string()),
+            NotLinkedYet => RuntimeError::eval_error(format!("{}", error)),
+            _ => RuntimeError::eval_error(error.inner.error.to_string()),
         };
 
-        runtime_error.context = error.context.clone();
-        runtime_error.location = error.location.clone();
-        runtime_error.expression = error.expression.clone();
-        runtime_error.stage = Some(ErrorStage::Runtime);
+        runtime_error.inner.context = error.inner.context.clone();
+        runtime_error.inner.location = error.inner.location.clone();
+        runtime_error.inner.expression = error.inner.expression.clone();
+        runtime_error.inner.stage = Some(ErrorStage::Runtime);
 
         runtime_error
     }

@@ -6,6 +6,7 @@ use edge_rules::ast::expression::EvaluatableExpression;
 use edge_rules::ast::foreach::ForFunction;
 use edge_rules::ast::functions::function_types::{BinaryFunction, MultiFunction, UnaryFunction};
 use edge_rules::ast::ifthenelse::IfThenElseFunction;
+use edge_rules::ast::metaphors::metaphor::UserFunction;
 use edge_rules::ast::operators::comparators::{ComparatorEnum, ComparatorOperator};
 use edge_rules::ast::operators::logical_operators::{LogicalOperator, LogicalOperatorEnum};
 use edge_rules::ast::operators::math_operators::{
@@ -329,7 +330,7 @@ fn render_expression(
                 render_expression(right, scope, fallback_scope)
             )
         }
-        ExpressionEnum::StaticObject(obj) => render_context_object(&obj.borrow(), "ctx", None),
+        ExpressionEnum::StaticObject(obj) => render_context_object(&obj.borrow(), "ctx", None, None),
         ExpressionEnum::ObjectField(name, right) => {
             format!(
                 "({{{}: {}}})",
@@ -461,21 +462,26 @@ fn render_function_definition_args(args: &[FormalParameter]) -> String {
     format!("[{}]", params.join(", "))
 }
 
-fn render_context_object(obj: &ContextObject, scope: &str, parent_scope: Option<&str>) -> String {
+fn render_context_object(
+    obj: &ContextObject,
+    scope: &str,
+    parent_scope: Option<&str>,
+    closure_scope: Option<&str>,
+) -> String {
     let mut lines = Vec::new();
     lines.push(format!("const {} = {{}};", scope));
 
     for name in obj.get_field_names() {
         if let Some(expr_entry) = obj.expressions.get(name) {
             let expr_js =
-                render_expression(&expr_entry.borrow().expression, Some(scope), parent_scope);
+                render_expression(&expr_entry.borrow().expression, Some(scope), closure_scope.or(parent_scope));
             lines.push(format!("{}[{}] = {};", scope, quote_key(name), expr_js));
             continue;
         }
 
         if let Some(child) = obj.node().get_child(name) {
             let nested_scope = format!("{}_{}", scope, sanitize_identifier(name));
-            let nested_js = render_context_object(&child.borrow(), &nested_scope, Some(scope));
+            let nested_js = render_context_object(&child.borrow(), &nested_scope, Some(scope), closure_scope);
             lines.push(format!("const {} = {};", nested_scope, nested_js));
             lines.push(format!(
                 "{}[{}] = {};",
@@ -488,17 +494,19 @@ fn render_context_object(obj: &ContextObject, scope: &str, parent_scope: Option<
 
         if let Some(method) = obj.metaphors.get(name) {
             let def = &method.borrow().function_definition;
-            let args_js = render_function_definition_args(&def.arguments);
+            let args_js = render_function_definition_args(def.get_parameters());
+            let body_ctx = def.get_body().expect("function body available");
             let body_js = render_context_object(
-                &def.body.borrow(),
+                &body_ctx.borrow(),
                 &format!("{}_{}", scope, "fn"),
                 Some(scope),
+                closure_scope,
             );
             lines.push(format!(
                 "{}[{}] = {{ name: {}, args: {}, body: {} }};",
                 scope,
                 quote_key(name),
-                quote_str(def.name.as_str()),
+                quote_str(def.get_name().as_str()),
                 args_js,
                 body_js
             ));
@@ -545,14 +553,14 @@ fn render_execution_context(
                 let fn_var = format!(
                     "{}_fn_{}",
                     scope_name,
-                    sanitize_identifier(def.name.as_str())
+                    sanitize_identifier(def.get_name().as_str())
                 );
                 let arg_scope = format!("{}_args", fn_var);
                 let body_scope = format!("{}_body", fn_var);
 
                 lines.push(format!("const {} = (...__args) => {{", fn_var));
                 lines.push(format!("    const {} = {{}};", arg_scope));
-                for (idx, arg) in def.arguments.iter().enumerate() {
+                for (idx, arg) in def.get_parameters().iter().enumerate() {
                     let arg_ident = sanitize_identifier(arg.name.as_str());
                     lines.push(format!("    const {} = __args[{}];", arg_ident, idx));
                     lines.push(format!(
@@ -562,8 +570,9 @@ fn render_execution_context(
                         arg_ident
                     ));
                 }
+                let body_ctx = def.get_body().expect("function body available");
                 let body_js =
-                    render_context_object(&def.body.borrow(), &body_scope, Some(&arg_scope));
+                    render_context_object(&body_ctx.borrow(), &body_scope, Some(&arg_scope), Some(scope_name));
                 lines.push(format!("    const body = {};", body_js));
                 lines.push("    return body;".to_string());
                 lines.push("};".to_string());
@@ -619,7 +628,7 @@ impl ToJs for ExpressionEnum {
 
 impl ToJs for ContextObject {
     fn to_js(&self) -> String {
-        render_context_object(self, "ctx", None)
+        render_context_object(self, "ctx", None, None)
     }
 }
 
@@ -759,5 +768,23 @@ mod tests {
             assert!(js.contains("Array.isArray(source)"));
             assert!(js.contains("compute("));
         }
+    }
+
+    #[test]
+    fn renders_nested_function_with_closure() {
+        let mut model = EdgeRulesModel::new();
+        model.append_source(r#"
+            {
+                func outer(x): {
+                    func inner(y): x + y
+                    return: inner(x)
+                }
+                value: outer(10)
+            }
+        "#).expect("parse");
+        let js = to_js_model(&mut model).expect("to_js");
+        // Verify that x is resolved via the closure scope
+        assert!(js.contains("inner"));
+        assert!(js.contains("x"));
     }
 }

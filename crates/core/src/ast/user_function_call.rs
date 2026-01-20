@@ -1,16 +1,20 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::function_context::FunctionContext;
+use crate::ast::context::function_context::RETURN_EXPRESSION;
 use crate::ast::expression::{CastCall, EvaluatableExpression, StaticLink};
 use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::{ComplexTypeRef, ExpressionEnum};
 use crate::ast::utils::array_to_code_sep;
 use crate::ast::{is_linked, Link};
 use crate::link::linker;
+use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
-use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::Reference;
+use crate::utils::intern_field_name;
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -48,15 +52,33 @@ impl EvaluatableExpression for UserFunctionCall {
 
         match &self.definition {
             Ok(definition) => {
-                let eval_context = definition.create_eval_context(values)?;
+                let eval_context = definition.create_eval_context(values, Rc::clone(&context))?;
                 ExecutionContext::eval_all_fields(&eval_context)?;
+
+                let return_key = intern_field_name("return");
+                if let Ok(content) = eval_context.borrow().get(return_key) {
+                    return eval_content_to_value(content);
+                }
+
+                let hidden_return = intern_field_name(RETURN_EXPRESSION);
+                if let Ok(content) = eval_context.borrow().get(hidden_return) {
+                    return eval_content_to_value(content);
+                }
+
                 Ok(Reference(eval_context))
             }
-            Err(error) => Err(RuntimeError::unexpected(format!(
-                "{}: {}",
-                self.name, error
-            ))),
+            Err(_error) => Err(RuntimeError::internal_integrity_error(403)),
         }
+    }
+}
+
+fn eval_content_to_value(
+    content: EObjectContent<ExecutionContext>,
+) -> Result<ValueEnum, RuntimeError> {
+    match content {
+        EObjectContent::ConstantValue(v) => Ok(v),
+        EObjectContent::ObjectRef(ctx) => Ok(ValueEnum::Reference(ctx)),
+        _ => Err(RuntimeError::internal_integrity_error(403)),
     }
 }
 
@@ -90,7 +112,7 @@ impl StaticLink for UserFunctionCall {
             let (declared_parameters, function_body_ctx) = {
                 let borrowed = definition.borrow();
                 let params = borrowed.function_definition.get_parameters().clone();
-                let body = Rc::clone(&borrowed.function_definition.body);
+                let body = borrowed.function_definition.get_body()?;
                 (params, body)
             };
 
@@ -100,7 +122,7 @@ impl StaticLink for UserFunctionCall {
             {
                 // Link the argument within the current call context. Passing the function's own context is disallowed to
                 // prevent accidental self-references before the function body is evaluated.
-                let arg_type = if let ExpressionEnum::Variable(var) = input_argument {
+                let arg_link_result = if let ExpressionEnum::Variable(var) = input_argument {
                     if var.path.len() == 1 && var.path[0] == ctx_name {
                         LinkingError::other_error(format!(
                             "Cannot pass context `{}` as argument to function `{}` defined in the same context",
@@ -113,10 +135,20 @@ impl StaticLink for UserFunctionCall {
                 } else {
                     input_argument.link(Rc::clone(&ctx))
                 };
-                let mut resolved_type = arg_type?;
+
+                let mut resolved_type = match arg_link_result {
+                    Ok(t) => t,
+                    Err(err) => {
+                        if matches!(err.kind(), crate::typesystem::errors::LinkingErrorEnum::NotLinkedYet) {
+                            ValueType::UndefinedType
+                        } else {
+                            return Err(err);
+                        }
+                    }
+                };
 
                 if let ValueType::ObjectType(obj) = &resolved_type {
-                    linker::link_parts(Rc::clone(obj))?;
+                    let _ = linker::link_parts(Rc::clone(obj));
                 }
 
                 if let Some(tref) = parameter.declared_type() {
@@ -155,13 +187,28 @@ impl StaticLink for UserFunctionCall {
             self.definition = Ok(definition
                 .borrow()
                 .function_definition
-                .create_context(parameters)?);
+                .create_context(parameters, Some(Rc::clone(&ctx)))?);
+
+            // Determine return type respecting explicit return field when present
+            let return_key = intern_field_name("return");
+            let hidden_return = intern_field_name(RETURN_EXPRESSION);
+            let mut rt: Option<ValueType> = None;
+            if let Ok(_) = linker::link_parts(Rc::clone(&function_body_ctx)) {
+                let borrowed_body = function_body_ctx.borrow();
+                if let Some(entry) = borrowed_body
+                    .expressions
+                    .get(return_key)
+                    .or_else(|| borrowed_body.expressions.get(hidden_return))
+                {
+                    if let Ok(ft) = &entry.borrow().field_type {
+                        rt = Some(ft.clone());
+                    }
+                }
+            }
+            self.return_type = Ok(rt.unwrap_or(ValueType::ObjectType(function_body_ctx)));
         }
 
-        match &self.definition {
-            Ok(ok) => Ok(ok.get_type()),
-            Err(err) => Err(err.clone()),
-        }
+        self.return_type.clone()
     }
 }
 

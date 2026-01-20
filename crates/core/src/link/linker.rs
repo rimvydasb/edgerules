@@ -2,7 +2,6 @@ use crate::ast::context::context_object::{ContextObject, ExpressionEntry, Method
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
 use crate::ast::expression::StaticLink;
-use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::{build_location_from_execution_context, ExecutionContext};
@@ -50,23 +49,23 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                                     Ok(field_type)
                                 }
                                 Err(mut err) => {
-                                    if err.location.is_empty() {
-                                        err.location = build_location_from_context(&context, name);
+                                    if err.location().is_empty() {
+                                        *err.location_mut() =
+                                            build_location_from_context(&context, name);
                                     }
-                                    if err.expression.is_none() {
-                                        err.expression = Some(expression_display);
+                                    if !err.has_expression() {
+                                        err.set_expression(expression_display);
                                     }
-                                    err.stage = Some(ErrorStage::Linking);
+                                    if !err.has_stage() {
+                                        err.set_stage(ErrorStage::Linking);
+                                    }
                                     Err(err)
                                 }
                             }
                         }
                         Err(_) => {
                             let context_name = context.borrow().node().node_type.to_string();
-                            Err(LinkingError::new(CyclicReference(
-                                context_name,
-                                name.to_string(),
-                            )))
+                            Err(LinkingError::cyclic_reference(&context_name, name))
                         }
                     }
                 };
@@ -80,11 +79,24 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
 
                 linked_type?;
             }
-            ObjectRef(reference) => {
-                references.push((name, reference));
-            }
-            Definition(ObjectType(reference)) => {
-                references.push((name, reference));
+            val @ (ObjectRef(_) | Definition(ObjectType(_))) => {
+                let (reference, default_name) = match val {
+                    ObjectRef(r) => (r, "<child>"),
+                    Definition(ObjectType(r)) => (r, "<definition>"),
+                    _ => unreachable!(),
+                };
+
+                let assigned_name = reference
+                    .borrow()
+                    .node()
+                    .get_assigned_to_field()
+                    .unwrap_or(default_name);
+                if reference.try_borrow_mut().is_ok() {
+                    references.push((name, reference.clone()));
+                } else {
+                    let context_name = context.borrow().node.node_type.to_string();
+                    return Err(LinkingError::cyclic_reference(&context_name, assigned_name));
+                }
             }
             _ => {
                 // User functions will be linked when the call will be detected
@@ -214,18 +226,23 @@ pub fn get_till_root<T: Node<T>>(
         Ok(finding) => {
             result = Ok(BrowseResultFound::new(Rc::clone(&ctx), interned, finding));
         }
-        Err(LinkingError {
-            error: FieldNotFound(obj_name, field),
-            ..
-        }) => match ctx.borrow().node().node_type.get_parent() {
-            None => {
-                //error!("get_till_root: Cannot find {} in {} and object upgrade is not possible for `{:?}`", field, obj_name, ctx.borrow().node().node_type);
-                result = Err(LinkingError::new(FieldNotFound(obj_name, field)));
+        Err(err) if matches!(err.kind(), FieldNotFound(_, _)) => {
+            if let FieldNotFound(obj_name, field) = err.kind() {
+                match ctx.borrow().node().node_type.get_parent() {
+                    None => {
+                        result = Err(LinkingError::new(FieldNotFound(
+                            obj_name.clone(),
+                            field.clone(),
+                        )));
+                    }
+                    Some(parent) => {
+                        result = get_till_root(parent, name);
+                    }
+                }
+            } else {
+                result = Err(err);
             }
-            Some(parent) => {
-                result = get_till_root(parent, name);
-            }
-        },
+        }
         Err(error) => {
             result = Err(error);
         }
@@ -268,14 +285,14 @@ impl BrowseResultFound<ExecutionContext> {
                 let result = match value.borrow().expression.eval(Rc::clone(&self.context)) {
                     Ok(v) => Ok(v),
                     Err(mut err) => {
-                        if err.location.is_empty() {
-                            err.location = build_location_from_execution_context(
+                        if err.location().is_empty() {
+                            *err.location_mut() = build_location_from_execution_context(
                                 &self.context,
                                 self.field_name,
                             );
                         }
-                        if err.expression.is_none() {
-                            err.expression = Some(value.borrow().expression.to_string());
+                        if !err.has_expression() {
+                            err.set_expression(value.borrow().expression.to_string());
                         }
                         Err(err)
                     }

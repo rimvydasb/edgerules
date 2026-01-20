@@ -3,8 +3,8 @@ use crate::ast::context::context_object_type::FormalParameter;
 use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::context::metadata::Metadata;
-use crate::ast::metaphors::metaphor::UserFunction;
-use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
+use crate::ast::metaphors::functions::UserFunctionDefinition;
+use crate::ast::token::DefinitionEnum::{InlineUserFunction, UserFunction as UserFunctionDef};
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
 use crate::typesystem::types::ValueType;
@@ -27,6 +27,7 @@ pub struct ContextObjectBuilder {
     node_type: NodeDataEnum<ContextObject>,
     defined_types: HashMap<String, UserTypeBody>,
     metadata: Option<Metadata>,
+    allow_it: bool,
 }
 
 impl Default for ContextObjectBuilder {
@@ -48,6 +49,7 @@ impl ContextObjectBuilder {
             parameters: Vec::new(),
             defined_types: HashMap::new(),
             metadata: None,
+            allow_it: false,
         }
     }
 
@@ -63,7 +65,13 @@ impl ContextObjectBuilder {
             parameters: Vec::new(),
             defined_types: HashMap::new(),
             metadata: None,
+            allow_it: false,
         }
+    }
+
+    pub fn set_allow_it(&mut self, allow: bool) -> &mut Self {
+        self.allow_it = allow;
+        self
     }
 
     pub fn set_parameters(&mut self, parameters: Vec<FormalParameter>) -> &mut Self {
@@ -119,11 +127,22 @@ impl ContextObjectBuilder {
     ) -> Result<&mut Self, DuplicateNameError> {
         match field {
             UserFunctionDef(m) => {
-                let name = m.get_name();
+                let definition = UserFunctionDefinition::Function(m);
+                let name = definition.get_name();
                 trace!(">>> inserting function {:?}", name);
                 let interned = intern_field_name(name.as_str());
                 self.insert_field_name(interned, NameKind::Function)?;
-                self.metaphors.insert(interned, MethodEntry::from(m).into());
+                self.metaphors
+                    .insert(interned, MethodEntry::from(definition).into());
+            }
+            InlineUserFunction(m) => {
+                let definition = UserFunctionDefinition::Inline(m);
+                let name = definition.get_name();
+                trace!(">>> inserting function {:?}", name);
+                let interned = intern_field_name(name.as_str());
+                self.insert_field_name(interned, NameKind::Function)?;
+                self.metaphors
+                    .insert(interned, MethodEntry::from(definition).into());
             }
             DefinitionEnum::UserType(t) => {
                 self.insert_type_definition(t.name, t.body)?;
@@ -292,6 +311,59 @@ impl ContextObjectBuilder {
         true
     }
 
+    pub fn rename_field(
+        &mut self,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<bool, DuplicateNameError> {
+        let exists =
+            self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
+        if !exists {
+            return Ok(false);
+        }
+
+        if self.field_name_set.contains(new_name) || self.defined_types.contains_key(new_name) {
+            return Err(DuplicateNameError::new(NameKind::Field, new_name));
+        }
+
+        let new_interned = intern_field_name(new_name);
+
+        if let Some(val) = self.fields.remove(old_name) {
+            self.fields.insert(new_interned, val);
+        }
+
+        if let Some(val) = self.metaphors.remove(old_name) {
+            {
+                let mut borrowed = val.borrow_mut();
+                borrowed.function_definition.set_name(new_name.to_string());
+                if let Ok(body) = borrowed.function_definition.get_body() {
+                    let mut body_borrowed = body.borrow_mut();
+                    if let NodeDataEnum::Internal(_, ref mut alias) = body_borrowed.node.node_type {
+                        *alias = Some(new_interned);
+                    }
+                }
+            }
+            self.metaphors.insert(new_interned, val);
+        }
+
+        if let Some(val) = self.childs.remove(old_name) {
+            self.childs.insert(new_interned, val);
+        }
+
+        if let Some(val) = self.defined_types.remove(old_name) {
+            self.defined_types.insert(new_name.to_string(), val);
+        }
+
+        if self.field_name_set.remove(old_name) {
+            self.field_name_set.insert(new_interned);
+            if let Some(pos) = self.field_names.iter().position(|&x| x == old_name) {
+                self.field_names[pos] = new_interned;
+            }
+        }
+
+        Ok(true)
+    }
+
     pub fn get_field_names(&self) -> Vec<&'static str> {
         self.field_names.clone()
     }
@@ -307,6 +379,7 @@ impl ContextObjectBuilder {
             context_type: self.context_type,
             defined_types: self.defined_types,
             metadata: self.metadata,
+            allow_it: self.allow_it,
         };
 
         let ctx = Rc::new(RefCell::new(obj));
@@ -326,12 +399,14 @@ impl ContextObjectBuilder {
                 let (body, alias) = {
                     let method_ref = method.borrow();
                     (
-                        Rc::clone(&method_ref.function_definition.body),
-                        intern_field_name(method_ref.function_definition.name.as_str()),
+                        method_ref.function_definition.get_body(),
+                        intern_field_name(method_ref.function_definition.get_name().as_str()),
                     )
                 };
-                body.borrow_mut().node.node_type =
-                    NodeDataEnum::Internal(parent.clone(), Some(alias));
+                if let Ok(body) = body {
+                    body.borrow_mut().node.node_type =
+                        NodeDataEnum::Internal(parent.clone(), Some(alias));
+                }
             }
         }
 

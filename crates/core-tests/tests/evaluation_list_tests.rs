@@ -155,3 +155,39 @@ fn list_numeric_unhappy_paths() {
         &["unexpected", "number"],
     );
 }
+
+#[test]
+fn list_boolean_and_matrix_evaluation() {
+    // List of boolean expressions referencing sibling 'a'
+    assert_eval_all(
+        r#"
+        {
+            a: 1
+            list: [a > 0, a < 5]
+        }
+        "#,
+        &["{", "a: 1", "list: [true, true]", "}"],
+    );
+
+    // Matrix of boolean expressions referencing sibling 'a' and 'b'
+    assert_eval_all(
+        r#"
+        {
+            a: 2
+            b: 6
+            matrix: [
+                [a > 1, a < 5],
+                [b > 1, b < 7],
+                [a + b > 5, a + b < 5]
+            ]
+        }
+        "#,
+        &[
+            "{",
+            "a: 2",
+            "b: 6",
+            "matrix: [[true, true], [true, true], [true, false]]",
+            "}",
+        ],
+    );
+}

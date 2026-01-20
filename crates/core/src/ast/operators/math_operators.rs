@@ -302,22 +302,34 @@ impl MathOperator {
                                right: NumberEnum|
              -> Result<NumberEnum, RuntimeError> { Ok(left * right) },
             Division => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                match right {
+                    NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
+                    NumberEnum::Real(r) if r == 0.0 => return Err(RuntimeError::division_by_zero()),
+                    _ => {}
+                }
                 Ok(left / right)
             },
             Power => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
                 match (left, right) {
-                    (Int(left), Int(right)) => Ok(NumberEnum::from(left.pow(right as u32))),
+                    (Int(left), Int(right)) => {
+                        if right < 0 {
+                            Ok(NumberEnum::from((left as f64).powf(right as f64)))
+                        } else {
+                            Ok(NumberEnum::from(left.pow(right as u32)))
+                        }
+                    }
                     (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i32))),
-                    (Int(left), Real(right)) => Ok(NumberEnum::from(left.pow(right as u32))),
+                    (Int(left), Real(right)) => Ok(NumberEnum::from((left as f64).powf(right))),
                     (Real(left), Real(right)) => Ok(NumberEnum::from(left.powf(right))),
-                    (left, right) => RuntimeError::eval_error(format!(
-                        "Operator '^' is not implemented for '{} ^ {}'",
-                        left, right
-                    ))
-                    .into(),
+                    _ => RuntimeError::internal_integrity_error(100).into(),
                 }
             },
             Modulus => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
+                match right {
+                    NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
+                    NumberEnum::Real(r) if r == 0.0 => return Err(RuntimeError::division_by_zero()),
+                    _ => {}
+                }
                 Ok(left % right)
             },
         };
@@ -342,25 +354,16 @@ fn operate_duration_values(
 ) -> Result<ErDurationValue, RuntimeError> {
     match operator {
         MathOperatorEnum::Addition | MathOperatorEnum::Subtraction => {}
-        other => {
-            return Err(RuntimeError::eval_error(format!(
-                "Unsupported operator '{}' for duration values",
-                other.as_str()
-            )))
-        }
+        _ => return Err(RuntimeError::internal_integrity_error(101).into()),
     }
 
     let left_seconds = left.signed_seconds();
     let right_seconds = right.signed_seconds();
 
     let total = if matches!(operator, MathOperatorEnum::Addition) {
-        left_seconds
-            .checked_add(right_seconds)
-            .ok_or_else(|| RuntimeError::eval_error("Duration addition overflowed".to_string()))?
+        left_seconds + right_seconds
     } else {
-        left_seconds.checked_sub(right_seconds).ok_or_else(|| {
-            RuntimeError::eval_error("Duration subtraction overflowed".to_string())
-        })?
+        left_seconds - right_seconds
     };
 
     ErDurationValue::from_signed_seconds(total)
@@ -373,35 +376,16 @@ fn operate_period_values(
 ) -> Result<ErPeriodValue, RuntimeError> {
     match operator {
         MathOperatorEnum::Addition | MathOperatorEnum::Subtraction => {}
-        other => {
-            return Err(RuntimeError::eval_error(format!(
-                "Unsupported operator '{}' for period values",
-                other.as_str()
-            )))
-        }
+        _ => return Err(RuntimeError::internal_integrity_error(102).into()),
     }
 
     let (left_months, left_days) = left.signed_components();
     let (right_months, right_days) = right.signed_components();
 
     let (months_total, days_total) = if matches!(operator, MathOperatorEnum::Addition) {
-        (
-            left_months.checked_add(right_months).ok_or_else(|| {
-                RuntimeError::eval_error("Period addition overflowed".to_string())
-            })?,
-            left_days.checked_add(right_days).ok_or_else(|| {
-                RuntimeError::eval_error("Period addition overflowed".to_string())
-            })?,
-        )
+        (left_months + right_months, left_days + right_days)
     } else {
-        (
-            left_months.checked_sub(right_months).ok_or_else(|| {
-                RuntimeError::eval_error("Period subtraction overflowed".to_string())
-            })?,
-            left_days.checked_sub(right_days).ok_or_else(|| {
-                RuntimeError::eval_error("Period subtraction overflowed".to_string())
-            })?,
-        )
+        (left_months - right_months, left_days - right_days)
     };
 
     ErPeriodValue::from_signed_parts(months_total, days_total)
@@ -609,11 +593,7 @@ impl EvaluatableExpression for MathOperator {
                     let result = apply_duration_to_date(*date, duration, &self.data.operator)?;
                     Ok(DateTimeValue(ValueOrSv::Value(result)))
                 } else {
-                    RuntimeError::eval_error(format!(
-                        "Operator '{}' is not implemented for date and duration values",
-                        self.data.operator
-                    ))
-                    .into()
+                    RuntimeError::internal_integrity_error(103).into()
                 }
             }
             (DurationVariant(ValueOrSv::Value(duration)), DateValue(ValueOrSv::Value(date)))
@@ -631,11 +611,7 @@ impl EvaluatableExpression for MathOperator {
                         apply_duration_to_datetime(*datetime, duration, &self.data.operator)?;
                     Ok(DateTimeValue(ValueOrSv::Value(result)))
                 } else {
-                    RuntimeError::eval_error(format!(
-                        "Operator '{}' is not implemented for datetime and duration values",
-                        self.data.operator
-                    ))
-                    .into()
+                    RuntimeError::internal_integrity_error(104).into()
                 }
             }
             (
@@ -651,11 +627,7 @@ impl EvaluatableExpression for MathOperator {
                     let result = apply_duration_to_time(*time, duration, &self.data.operator)?;
                     Ok(TimeValue(ValueOrSv::Value(result)))
                 } else {
-                    RuntimeError::eval_error(format!(
-                        "Operator '{}' is not implemented for time and duration values",
-                        self.data.operator
-                    ))
-                    .into()
+                    RuntimeError::internal_integrity_error(105).into()
                 }
             }
             (DurationVariant(ValueOrSv::Value(duration)), TimeValue(ValueOrSv::Value(time)))
@@ -668,11 +640,7 @@ impl EvaluatableExpression for MathOperator {
                 if matches!(self.data.operator, Subtraction) =>
             {
                 let diff_days = (*left - *right).whole_days();
-                let seconds = i128::from(diff_days).checked_mul(86_400).ok_or_else(|| {
-                    RuntimeError::eval_error(
-                        "Date difference overflowed duration range".to_string(),
-                    )
-                })?;
+                let seconds = i128::from(diff_days) * 86_400;
                 let duration = ErDurationValue::from_signed_seconds(seconds)?;
                 Ok(DurationVariant(ValueOrSv::Value(duration)))
             }
@@ -717,11 +685,7 @@ impl EvaluatableExpression for MathOperator {
                     let result = apply_period_to_date(*date, period, &self.data.operator)?;
                     Ok(DateValue(ValueOrSv::Value(result)))
                 } else {
-                    RuntimeError::eval_error(format!(
-                        "Operator '{}' is not implemented for date and period values",
-                        self.data.operator
-                    ))
-                    .into()
+                    RuntimeError::internal_integrity_error(106).into()
                 }
             }
             (PeriodVariant(ValueOrSv::Value(period)), DateValue(ValueOrSv::Value(date)))
@@ -738,11 +702,7 @@ impl EvaluatableExpression for MathOperator {
                     let result = apply_period_to_datetime(*datetime, period, &self.data.operator)?;
                     Ok(DateTimeValue(ValueOrSv::Value(result)))
                 } else {
-                    RuntimeError::eval_error(format!(
-                        "Operator '{}' is not implemented for datetime and period values",
-                        self.data.operator
-                    ))
-                    .into()
+                    RuntimeError::internal_integrity_error(107).into()
                 }
             }
             (
@@ -755,17 +715,9 @@ impl EvaluatableExpression for MathOperator {
             }
             (DurationVariant(ValueOrSv::Value(_)), PeriodVariant(ValueOrSv::Value(_)))
             | (PeriodVariant(ValueOrSv::Value(_)), DurationVariant(ValueOrSv::Value(_))) => {
-                RuntimeError::eval_error(format!(
-                    "Cannot apply '{}' between period and duration values",
-                    self.data.operator
-                ))
-                .into()
+                RuntimeError::internal_integrity_error(108).into()
             }
-            _ => RuntimeError::eval_error(format!(
-                "Operator '{}' is not implemented for '{} {} {}'",
-                self.data.operator, left_token, self.data.operator, right_token
-            ))
-            .into(),
+            _ => RuntimeError::internal_integrity_error(109).into(),
         }
     }
 }
@@ -831,9 +783,7 @@ impl EvaluatableExpression for NegationOperator {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
         match self.left.eval(context)? {
             NumberValue(number) => Ok(NumberValue(number.negate())),
-            value => {
-                RuntimeError::eval_error(format!("Cannot negate '{}'", value.get_type())).into()
-            }
+            _ => RuntimeError::internal_integrity_error(110).into(),
         }
     }
 }

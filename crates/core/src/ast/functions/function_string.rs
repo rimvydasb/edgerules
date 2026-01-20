@@ -170,9 +170,7 @@ pub fn eval_substring(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if !(vals.len() == 2 || vals.len() == 3) {
-        return RuntimeError::eval_error("substring expects 2 or 3 args".to_string()).into();
-    }
+    // validation ensures 2 or 3 arguments
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let start =
@@ -257,9 +255,7 @@ pub fn eval_replace(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if !(vals.len() == 3 || vals.len() == 4) {
-        return RuntimeError::eval_error("replace expects 3 or 4 arguments".to_string()).into();
-    }
+    // validation ensures 3 or 4 arguments
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let pattern =
@@ -323,9 +319,7 @@ pub fn eval_replace_first(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.len() != 3 {
-        return RuntimeError::eval_error("replaceFirst expects 3 arguments".to_string()).into();
-    }
+    // validation ensures 3 arguments
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let pattern =
@@ -353,9 +347,7 @@ pub fn eval_replace_last(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if vals.len() != 3 {
-        return RuntimeError::eval_error("replaceLast expects 3 arguments".to_string()).into();
-    }
+    // validation ensures 3 arguments
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let pattern =
@@ -427,7 +419,7 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
     not(all(target_arch = "wasm32", feature = "wasm"))
 ))]
 pub fn eval_regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(200).into()
 }
 
 #[cfg(feature = "base64_functions")]
@@ -459,7 +451,7 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     not(all(target_arch = "wasm32", feature = "wasm"))
 ))]
 pub fn eval_to_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(202).into()
 }
 #[cfg(feature = "base64_functions")]
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
@@ -495,7 +487,7 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     not(all(target_arch = "wasm32", feature = "wasm"))
 ))]
 pub fn eval_from_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("base64_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(203).into()
 }
 #[cfg(feature = "regex_functions")]
 pub fn eval_regex_replace(
@@ -503,9 +495,7 @@ pub fn eval_regex_replace(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if !(vals.len() == 3 || vals.len() == 4) {
-        return RuntimeError::eval_error("replace expects 3 or 4 args".to_string()).into();
-    }
+    // validation ensures 3 or 4 arguments
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let pattern =
@@ -539,9 +529,7 @@ pub fn eval_regex_replace(
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    if !(vals.len() == 3 || vals.len() == 4) {
-        return RuntimeError::eval_error("replace expects 3 or 4 args".to_string()).into();
-    }
+    // validation ensures 3 or 4 arguments
     let s =
         as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let pattern =
@@ -569,7 +557,7 @@ pub fn eval_regex_replace(
     _args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
-    RuntimeError::eval_error("regex_functions feature is disabled".to_string()).into()
+    RuntimeError::internal_integrity_error(201).into()
 }
 
 pub fn eval_char_at(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {

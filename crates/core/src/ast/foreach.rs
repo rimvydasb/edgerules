@@ -12,7 +12,7 @@ use crate::link::node_data::{NodeData, NodeDataEnum};
 use crate::runtime::execution_context::*;
 use crate::tokenizer::utils::Either;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
-use crate::typesystem::types::{Integer, TypedValue, ValueType};
+use crate::typesystem::types::{Integer, ValueType};
 use crate::typesystem::values::ValueEnum::{Array, RangeValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
 use crate::utils::context_unwrap;
@@ -99,19 +99,13 @@ impl ForFunction {
     ) -> Result<ValueEnum, RuntimeError> {
         let mut result: Vec<ValueEnum> = Vec::new();
 
+        // @Todo: solve this code duplication:
         let element_type = match self.return_type.clone()? {
             ValueType::ListType(item_type) => item_type
                 .as_ref()
                 .map(|inner| (**inner).clone())
                 .unwrap_or(ValueType::UndefinedType),
-            err => {
-                // @Todo: it should be linking error, not a runtime
-                return RuntimeError::eval_error(format!(
-                    "Cannot iterate through non list type `{}`",
-                    err
-                ))
-                .into();
-            }
+            other => return RuntimeError::type_not_supported(other).into(),
         };
 
         for loop_value in values {
@@ -129,7 +123,7 @@ impl ForFunction {
             match map_value {
                 Ok(val) => result.push(val),
                 Err(err) => {
-                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = err.kind() {
                         let missing =
                             missing_for_type(&element_type, Some(field.as_str()), &parent)?;
                         result.push(missing);
@@ -153,18 +147,13 @@ impl ForFunction {
     ) -> Result<ValueEnum, RuntimeError> {
         let mut result: Vec<ValueEnum> = Vec::new();
 
+        // @Todo: solve this code duplication:
         let element_type = match self.return_type.clone()? {
             ValueType::ListType(item_type) => item_type
                 .as_ref()
                 .map(|inner| (**inner).clone())
                 .unwrap_or(ValueType::UndefinedType),
-            err => {
-                return RuntimeError::eval_error(format!(
-                    "Cannot iterate through non list type `{}`",
-                    err
-                ))
-                .into();
-            }
+            other => return RuntimeError::type_not_supported(other).into(),
         };
 
         for ctx_ref in values {
@@ -183,7 +172,7 @@ impl ForFunction {
             match map_value {
                 Ok(val) => result.push(val),
                 Err(err) => {
-                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = &err.error {
+                    if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = err.kind() {
                         let missing =
                             missing_for_type(&element_type, Some(field.as_str()), &parent)?;
                         result.push(missing);
@@ -240,9 +229,7 @@ impl EvaluatableExpression for ForFunction {
                 self.iterate_objects(values, Rc::clone(&context))
             }
             RangeValue(range) => self.iterate_range(range, Rc::clone(&context)),
-            other => {
-                RuntimeError::eval_error(format!("Cannot iterate {}", other.get_type())).into()
-            }
+            _other => RuntimeError::internal_integrity_error(400).into(),
         }
     }
 }

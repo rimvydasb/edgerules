@@ -16,6 +16,8 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+use std::rc::Weak;
+
 /// Function context can be created as an internally scoped: that means no upper context browse is possible.
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone)]
@@ -26,6 +28,8 @@ pub struct AbstractFunctionContext<B: PartialEq> {
     pub body: Rc<RefCell<B>>,
     /// Context can have requirements to be executed. If context is a function body, then requirements are parameters
     pub parameters: Vec<FormalParameter>,
+    /// Parent context for closures
+    pub parent: Weak<RefCell<ContextObject>>,
 }
 
 pub type FunctionContext = AbstractFunctionContext<ContextObject>;
@@ -46,12 +50,19 @@ impl ContentHolder<ContextObject> for FunctionContext {
             return Ok(Definition(runtime_type));
         }
 
-        match self.body.borrow().get(name)? {
-            ObjectRef(object) => Ok(ObjectRef(Rc::clone(&object))),
-            ConstantValue(value) => Ok(ConstantValue(value)),
-            ExpressionRef(value) => Ok(ExpressionRef(value)),
-            UserFunctionRef(value) => Ok(UserFunctionRef(value)),
-            Definition(definition) => Ok(Definition(definition)),
+        match self.body.borrow().get(name) {
+            Ok(ObjectRef(object)) => Ok(ObjectRef(Rc::clone(&object))),
+            Ok(ConstantValue(value)) => Ok(ConstantValue(value)),
+            Ok(ExpressionRef(value)) => Ok(ExpressionRef(value)),
+            Ok(UserFunctionRef(value)) => Ok(UserFunctionRef(value)),
+            Ok(Definition(definition)) => Ok(Definition(definition)),
+            Err(err) => {
+                if let Some(parent) = self.parent.upgrade() {
+                    parent.borrow().get(name)
+                } else {
+                    Err(err)
+                }
+            }
         }
     }
 
@@ -85,11 +96,16 @@ impl Display for FunctionContext {
 pub const RETURN_EXPRESSION: &str = "_return";
 
 impl FunctionContext {
-    pub fn create_for(body: Rc<RefCell<ContextObject>>, parameters: Vec<FormalParameter>) -> Self {
+    pub fn create_for(
+        body: Rc<RefCell<ContextObject>>,
+        parameters: Vec<FormalParameter>,
+        parent: Weak<RefCell<ContextObject>>,
+    ) -> Self {
         Self {
             body,
             parameters,
             node: NodeData::new(NodeDataEnum::Isolated()),
+            parent,
         }
     }
 
@@ -101,21 +117,48 @@ impl FunctionContext {
         let mut builder = ContextObjectBuilder::new_internal(Rc::clone(&parent));
 
         builder.set_parameters(parameters.clone());
+        if parameters.iter().any(|p| p.name == "it") {
+            builder.set_allow_it(true);
+        }
 
         builder.add_expression(RETURN_EXPRESSION, expression)?;
 
+        let body = builder.build();
+        let parent_weak = Rc::downgrade(&parent);
+
         Ok(Self {
-            body: builder.build(),
+            body,
             parameters,
             node: NodeData::new(NodeDataEnum::Isolated()),
+            parent: parent_weak,
         })
     }
 
     pub fn create_eval_context(
         &self,
         input: Vec<Result<ValueEnum, RuntimeError>>,
+        parent_exec: Rc<RefCell<ExecutionContext>>,
     ) -> Result<Rc<RefCell<ExecutionContext>>, RuntimeError> {
-        let ctx = ExecutionContext::create_isolated_context(Rc::clone(&self.body));
+        let ctx = if let Some(parent_static) = self.parent.upgrade() {
+            // Find the correct parent execution context by matching the static context
+            let mut cursor = Some(Rc::clone(&parent_exec));
+            let mut found_exec = None;
+            while let Some(curr) = cursor {
+                if Rc::ptr_eq(&curr.borrow().object, &parent_static) {
+                    found_exec = Some(curr);
+                    break;
+                }
+                cursor = curr.borrow().node.node_type.get_parent();
+            }
+
+            if let Some(parent) = found_exec {
+                ExecutionContext::create_temp_child_context(parent, Rc::clone(&self.body))
+            } else {
+                ExecutionContext::create_isolated_context(Rc::clone(&self.body))
+            }
+        } else {
+            ExecutionContext::create_isolated_context(Rc::clone(&self.body))
+        };
 
         input
             .into_iter()
@@ -127,6 +170,11 @@ impl FunctionContext {
                     arg.name,
                     &value
                 );
+                if arg.name == "it" {
+                    if let Ok(v) = &value {
+                        ctx.borrow_mut().context_variable = Some(v.clone());
+                    }
+                }
                 ctx.borrow()
                     .stack_insert(intern_field_name(arg.name.as_str()), value);
             });

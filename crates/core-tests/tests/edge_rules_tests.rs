@@ -1,6 +1,6 @@
 use edge_rules::runtime::edge_rules::{
     ContextObjectBuilder, ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError,
-    ExpressionEnum, ParseErrors,
+    ExpressionEnum, ParseErrors, UserFunctionDefinition,
 };
 use edge_rules::runtime::ToSchema;
 use edge_rules::test_support::NumberEnum::Int;
@@ -152,7 +152,7 @@ impl TestServiceBuilder {
         }
 
         if let Some(errors) = &self.linking_errors {
-            assert_eq!(expected, errors.error, "Testing:\n{}", self.original_code);
+            assert_eq!(&expected, errors.kind(), "Testing:\n{}", self.original_code);
         } else {
             panic!(
                 "Expected linking error, but got no errors: `{}`",
@@ -615,7 +615,7 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
     )
     .expect("build root function");
     service
-        .set_user_function(root_fn, None)
+        .set_user_function(UserFunctionDefinition::Function(root_fn), None)
         .expect("set root user function");
     assert!(service.get_user_function("inc").is_ok());
 
@@ -640,7 +640,10 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
     )
     .expect("build nested function");
     service
-        .set_user_function(nested_fn, Some(vec!["other"]))
+        .set_user_function(
+            UserFunctionDefinition::Function(nested_fn),
+            Some(vec!["other"]),
+        )
         .expect("set nested user function");
     assert!(service.get_user_function("other.compute").is_ok());
 
@@ -654,12 +657,14 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
 
     let err = service
         .set_user_function(
-            FunctionDefinition::build(
-                "missing".to_string(),
-                vec![],
-                ContextObjectBuilder::new().build(),
-            )
-            .expect("build missing function"),
+            UserFunctionDefinition::Function(
+                FunctionDefinition::build(
+                    "missing".to_string(),
+                    vec![],
+                    ContextObjectBuilder::new().build(),
+                )
+                .expect("build missing function"),
+            ),
             Some(vec!["missing"]),
         )
         .expect_err("missing context should fail");

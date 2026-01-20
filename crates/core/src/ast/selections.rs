@@ -145,7 +145,7 @@ impl ExpressionFilter {
                     }
                 }
             } else {
-                RuntimeError::eval_error(format!("Cannot select a value with '{}'", method)).into()
+                RuntimeError::internal_integrity_error(401).into()
             }
         }
     }
@@ -159,8 +159,13 @@ impl ExpressionFilter {
             Ok(BooleanValue(true)) => Ok(true),
             Ok(BooleanValue(false)) => Ok(false),
             Ok(_) => Ok(false),
-            Err(err) => match err.error {
-                RuntimeErrorEnum::RuntimeFieldNotFound(_, _) => Ok(false),
+            Err(err) => match err.kind() {
+                RuntimeErrorEnum::RuntimeFieldNotFound(_, field) => {
+                    if field == "it" {
+                        return Ok(false);
+                    }
+                    Err(err)
+                }
                 _ => Err(err),
             },
         };
@@ -230,6 +235,7 @@ impl StaticLink for ExpressionFilter {
                 let element_type = flatten_list_type(element_type);
 
                 builder.set_context_type(element_type.clone());
+                builder.set_allow_it(true);
 
                 let method_context = builder.build();
 
@@ -508,12 +514,7 @@ impl EvaluatableExpression for FieldSelection {
                     _ => RuntimeError::field_not_found(name.as_str(), "period").into(),
                 }
             }
-            _ => RuntimeError::eval_error(format!(
-                "Cannot select '{}' because data type is {} and not an object",
-                self.source,
-                source_value.get_type()
-            ))
-            .into(),
+            _ => RuntimeError::internal_integrity_error(402).into(),
         }
     }
 }

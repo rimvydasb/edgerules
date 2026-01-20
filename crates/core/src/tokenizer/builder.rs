@@ -230,25 +230,28 @@ pub mod factory {
         BUILT_IN_ALL_FUNCTIONS, MULTI_BUILT_IN_FUNCTIONS, UNARY_BUILT_IN_FUNCTIONS,
     };
     use crate::ast::ifthenelse::IfThenElseFunction;
-    use crate::ast::metaphors::functions::FunctionDefinition;
+    use crate::ast::metaphors::functions::{FunctionDefinition, InlineFunctionDefinition};
     use crate::ast::operators::comparators::ComparatorOperator;
     use crate::ast::operators::logical_operators::{LogicalOperator, LogicalOperatorEnum};
     use crate::ast::operators::math_operators::{MathOperator, MathOperatorEnum, NegationOperator};
     use crate::ast::selections::{ExpressionFilter, FieldSelection};
     use crate::ast::sequence::CollectionExpression;
-    // use crate::ast::token::DefinitionEnum::UserFunction as UserFunctionDef;
+    use crate::ast::token::DefinitionEnum::{InlineUserFunction, UserFunction as UserFunctionDef};
     use crate::ast::token::EToken;
     use crate::ast::token::EToken::*;
     use crate::ast::token::EUnparsedToken::*;
     use crate::ast::token::ExpressionEnum::*;
     use crate::ast::token::*;
     use crate::ast::user_function_call::UserFunctionCall;
+    use crate::link::node_data::Node;
     use crate::tokenizer::parser::parse_type;
     use crate::tokenizer::utils::*;
     use crate::typesystem::errors::ParseErrorEnum;
     use crate::typesystem::errors::ParseErrorEnum::{
         FunctionWrongNumberOfArguments, UnexpectedToken, WrongFormat,
     };
+    use crate::typesystem::values::ValueEnum;
+    use crate::utils::intern_field_name;
     use std::cell::RefCell;
     use std::collections::vec_deque::VecDeque;
     use std::rc::Rc;
@@ -355,11 +358,43 @@ pub mod factory {
                 Unparsed(FunctionDefinitionLiteral(function_name, arguments)),
                 Expression(StaticObject(object)),
             ) => {
-                // let plain = SimpleObject::try_unwrap(object)
-                //     .map_err(|_err| WrongFormat(format!("'{}' failed to construct", function_name)))?;
+                let try_collapse_inline = {
+                    let obj_ref = object.borrow();
+                    if obj_ref.metaphors.is_empty()
+                        && obj_ref.node().get_childs().borrow().is_empty()
+                        && obj_ref.expressions.len() == 1
+                    {
+                        let return_key = intern_field_name("return");
+                        if let Some(entry) = obj_ref.expressions.get(return_key) {
+                            let mut entry_ref = entry.borrow_mut();
+                            Some(std::mem::replace(
+                                &mut entry_ref.expression,
+                                ExpressionEnum::Value(ValueEnum::BooleanValue(false)),
+                            ))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                };
 
-                let function = FunctionDefinition::build(function_name, arguments, object)?;
-                Ok(Definition(DefinitionEnum::UserFunction(function)))
+                if let Some(inline_body) = try_collapse_inline {
+                    let function =
+                        InlineFunctionDefinition::build(function_name, arguments, inline_body)?;
+                    Ok(Definition(InlineUserFunction(function)))
+                } else {
+                    let function = FunctionDefinition::build(function_name, arguments, object)?;
+                    Ok(Definition(UserFunctionDef(function)))
+                }
+            }
+            (
+                Unparsed(FunctionDefinitionLiteral(function_name, arguments)),
+                Expression(non_object_body),
+            ) => {
+                let function =
+                    InlineFunctionDefinition::build(function_name, arguments, non_object_body)?;
+                Ok(Definition(InlineUserFunction(function)))
             }
             (Unparsed(FunctionDefinitionLiteral(name, _)), _) => Err(WrongFormat(format!(
                 "function '{}' body is not defined",
@@ -452,28 +487,17 @@ pub mod factory {
             }
         }
 
-        if !arguments.is_empty() {
-            if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
-                return Ok(Expression(
-                    MultiFunction::build(function.clone(), arguments).into(),
-                ));
-            }
+        if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
+            return Ok(Expression(
+                MultiFunction::build(function.clone(), arguments).into(),
+            ));
         }
 
         match BUILT_IN_ALL_FUNCTIONS.get(name) {
-            None => {
-                if !arguments.is_empty() {
-                    Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
-                        name_string,
-                        arguments,
-                    )))))
-                } else {
-                    Err(WrongFormat(format!(
-                        "{} function does not have any arguments",
-                        name
-                    )))
-                }
-            }
+            None => Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
+                name_string,
+                arguments,
+            ))))),
             Some(finding) => Err(FunctionWrongNumberOfArguments(
                 name.to_string(),
                 finding.clone(),

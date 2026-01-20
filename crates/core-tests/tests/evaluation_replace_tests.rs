@@ -23,3 +23,4 @@ fn test_replace_case_insensitive_non_ascii() {
 
 mod utilities;
 pub use utilities::*;
+

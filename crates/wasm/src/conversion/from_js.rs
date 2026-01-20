@@ -28,6 +28,9 @@ impl FromJs for ValueEnum {
             if !number.is_finite() {
                 return Err("Only finite numbers are supported".to_string());
             }
+            if number.fract() == 0.0 {
+                return Ok(ValueEnum::from(number as i64));
+            }
             return Ok(ValueEnum::from(number));
         }
 

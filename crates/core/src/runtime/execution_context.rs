@@ -304,11 +304,12 @@ impl ExecutionContext {
                     let result = match value {
                         Ok(v) => Ok(v),
                         Err(mut err) => {
-                            if err.location.is_empty() {
-                                err.location = build_location_from_execution_context(ctx, name);
+                            if err.location().is_empty() {
+                                *err.location_mut() =
+                                    build_location_from_execution_context(ctx, name);
                             }
-                            if err.expression.is_none() {
-                                err.expression = Some(expression.borrow().expression.to_string());
+                            if !err.has_expression() {
+                                err.set_expression(expression.borrow().expression.to_string());
                             }
                             Err(err)
                         }

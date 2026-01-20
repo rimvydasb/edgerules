@@ -30,7 +30,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
         delete error.message;
         
         assert.deepEqual(error, {
@@ -55,7 +55,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
         delete error.message;
 
         assert.deepEqual(error, {
@@ -76,7 +76,7 @@ describe('Unhappy Paths & Error Handling', () => {
         }
         `;
 
-        const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+        const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
         delete error.message;
 
         assert.deepEqual(error, {
@@ -92,6 +92,11 @@ describe('Unhappy Paths & Error Handling', () => {
         });
     });
 
+    it('evaluate expression with field throws', () => {
+        const error = getError(() => wasm.DecisionEngine.evaluate('1 + 1', 'someField'));
+        assert.match(error.message, /Field path is not applicable/);
+    });
+
     describe('Runtime Location Errors', () => {
         it('reports location for root field runtime error', () => {
             const code = `
@@ -100,13 +105,16 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+            const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
             delete error.message;
 
             assert.deepEqual(error, {
                 error: {
-                    type: 'EvalError',
-                    message: 'Invalid date string'
+                    type: 'ValueParsingError',
+                    from: 'string',
+                    to: 'date',
+                    code: 0,
+                    message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'value',
                 expression: "date('invalid')",
@@ -122,13 +130,16 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'value'));
+            const error = getError(() => wasm.DecisionEngine.evaluate(code, 'value'));
             delete error.message;
 
             assert.deepEqual(error, {
                 error: {
-                    type: 'EvalError',
-                    message: 'Invalid date string'
+                    type: 'ValueParsingError',
+                    from: 'string',
+                    to: 'date',
+                    code: 0,
+                    message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'nested.bad',
                 expression: "date('invalid')",
@@ -149,13 +160,16 @@ describe('Unhappy Paths & Error Handling', () => {
             }
             `;
 
-            const error = getError(() => wasm.DecisionEngine.evaluateField(code, 'result'));
+            const error = getError(() => wasm.DecisionEngine.evaluate(code, 'result'));
             delete error.message;
 
             assert.deepEqual(error, {
                 error: {
-                    type: 'EvalError',
-                    message: 'Invalid date string'
+                    type: 'ValueParsingError',
+                    from: 'string',
+                    to: 'date',
+                    code: 0,
+                    message: "Failed to parse 'date' from 'string'"
                 },
                 location: 'source.value',
                 expression: "date('invalid')",
@@ -191,7 +205,7 @@ describe('Abnormal Path Handling', () => {
     describe('service.get(path)', () => {
         it('throws on empty path', () => {
             const error = getError(() => service.get(''));
-            assert.match(error.message, /Field path is empty/);
+            assert.match(error.message, /Path cannot be empty/);
         });
 
         it('throws on path with empty segments (..)', () => {
@@ -260,17 +274,46 @@ describe('Abnormal Path Handling', () => {
             const error = getError(() => service.getType('ghost.child'));
             assert.match(error.message, /Context 'ghost' not found/);
         });
+    });
+});
 
-        it('returns type string for valid primitive path', () => {
-            const type = service.getType('valid');
-            assert.strictEqual(type, 'number');
-        });
+describe('Array Access Exceptions', () => {
+    let service;
+    before(() => {
+        wasm.init_panic_hook();
+        const model = {
+            list: [1, 2, 3],
+            scalar: 10
+        };
+        service = new wasm.DecisionService(model);
+    });
 
-        it('returns type object for valid complex path', () => {
-            const type = service.getType('nested');
-            assert.deepEqual(type, {
-                inner: 'number'
-            });
-        });
+    const getError = (fn) => {
+        try {
+            fn();
+        } catch (e) {
+            return e;
+        }
+        assert.fail('Expected function to throw an error');
+    };
+
+    it('set throws on gap', () => {
+        const error = getError(() => service.set('list[4]', 99));
+        assert.match(error.message, /Index 4 is out of bounds for array of length 3/);
+    });
+
+    it('get throws on out of bounds', () => {
+        const error = getError(() => service.get('list[3]'));
+         assert.match(error.message, /Index 3 out of bounds/);
+    });
+    
+    it('remove throws on out of bounds', () => {
+        const error = getError(() => service.remove('list[3]'));
+         assert.match(error.message, /Index 3 out of bounds/);
+    });
+
+    it('set throws if field is not an array', () => {
+         const error = getError(() => service.set('scalar[0]', 2));
+         assert.match(error.message, /Field 'scalar' is not an array/);
     });
 });

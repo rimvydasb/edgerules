@@ -50,7 +50,7 @@ fn js_request_to_value(js: &JsValue) -> Result<ValueEnum, PortableError> {
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }
-#[cfg(all(not(feature = "console_error_panic_hook")))]
+#[cfg(not(feature = "console_error_panic_hook"))]
 #[wasm_bindgen]
 pub fn init_panic_hook() {}
 
@@ -59,25 +59,9 @@ pub struct DecisionEngine;
 
 #[wasm_bindgen]
 impl DecisionEngine {
-    #[wasm_bindgen(js_name = "evaluateAll")]
-    pub fn evaluate_all(code: &str) -> JsValue {
-        match wasm_convert::evaluate_all_inner(code) {
-            Ok(value) => value,
-            Err(err) => throw_portable_error(err),
-        }
-    }
-
-    #[wasm_bindgen(js_name = "evaluateExpression")]
-    pub fn evaluate_expression(code: &str) -> JsValue {
-        match wasm_convert::evaluate_expression_inner(code) {
-            Ok(value) => value,
-            Err(err) => throw_portable_error(err),
-        }
-    }
-
-    #[wasm_bindgen(js_name = "evaluateField")]
-    pub fn evaluate_field(code: &str, field: &str) -> JsValue {
-        match wasm_convert::evaluate_field_inner(code, field) {
+    #[wasm_bindgen]
+    pub fn evaluate(input: &JsValue, field: Option<String>) -> JsValue {
+        match wasm_convert::evaluate_inner(input, field) {
             Ok(value) => value,
             Err(err) => throw_portable_error(err),
         }
@@ -109,10 +93,18 @@ pub struct DecisionService;
 impl DecisionService {
     #[wasm_bindgen(constructor)]
     pub fn new(model: &JsValue) -> DecisionService {
-        let controller = match DecisionServiceController::from_portable(model) {
-            Ok(ctrl) => ctrl,
-            Err(err) => throw_portable_error(err),
+        let controller = if let Some(source) = model.as_string() {
+            match DecisionServiceController::from_source(&source) {
+                Ok(ctrl) => ctrl,
+                Err(err) => throw_portable_error(err),
+            }
+        } else {
+            match DecisionServiceController::from_portable(model) {
+                Ok(ctrl) => ctrl,
+                Err(err) => throw_portable_error(err),
+            }
         };
+
         set_decision_service(controller);
         DecisionService
     }
@@ -147,6 +139,13 @@ impl DecisionService {
 
     pub fn remove(&self, path: &str) -> bool {
         match with_decision_service(|svc| svc.remove_entry(path)) {
+            Ok(_) => true,
+            Err(err) => throw_portable_error(err),
+        }
+    }
+
+    pub fn rename(&self, old_path: &str, new_path: &str) -> bool {
+        match with_decision_service(|svc| svc.rename_entry(old_path, new_path)) {
             Ok(_) => true,
             Err(err) => throw_portable_error(err),
         }

@@ -2,58 +2,29 @@
 
 use wasm_bindgen::prelude::*;
 
-// Inline JS glue to leverage host RegExp and base64 on Web/Node without pulling heavier Rust
-// crates into the WASM build.
-#[wasm_bindgen(inline_js = r#"
-export function __er_regex_replace(s, pattern, flags, repl) {
-  try {
-    const re = new RegExp(pattern, flags || 'g');
-    return String(s).replace(re, repl);
-  } catch (e) {
-    return "__er_err__:" + String(e);
-  }
-}
-
-export function __er_regex_split(s, pattern, flags) {
-  try {
-    const re = new RegExp(pattern, flags || 'g');
-    const SEP = "\u001F"; // Unit Separator as rarely-used delimiter
-    const parts = String(s).split(re).map(p => p.split(SEP).join(SEP + SEP));
-    return parts.join(SEP);
-  } catch (e) {
-    return "__er_err__:" + String(e);
-  }
-}
-
-export function __er_to_base64(s) {
-  try {
-    if (typeof btoa === 'function') {
-      return btoa(String(s));
-    }
-    // Node.js
-    return Buffer.from(String(s), 'utf-8').toString('base64');
-  } catch (e) {
-    return "__er_err__:" + String(e);
-  }
-}
-
-export function __er_from_base64(s) {
-  try {
-    if (typeof atob === 'function') {
-      return atob(String(s));
-    }
-    // Node.js
-    return Buffer.from(String(s), 'base64').toString('utf-8');
-  } catch (e) {
-    return "__er_err__:" + String(e);
-  }
-}
-"#)]
+#[wasm_bindgen]
 extern "C" {
-    fn __er_regex_replace(s: &str, pattern: &str, flags: &str, repl: &str) -> String;
-    fn __er_regex_split(s: &str, pattern: &str, flags: &str) -> String;
-    fn __er_to_base64(s: &str) -> String;
-    fn __er_from_base64(s: &str) -> String;
+    #[wasm_bindgen(js_name = RegExp)]
+    pub type HostRegExp;
+    #[wasm_bindgen(constructor, js_class = "RegExp", catch)]
+    fn new(pattern: &str, flags: &str) -> Result<HostRegExp, JsValue>;
+
+    #[wasm_bindgen(js_name = Object)]
+    pub type HostObject;
+    #[wasm_bindgen(method, structural, catch)]
+    fn replace(this: &HostObject, re: &HostRegExp, repl: &str) -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(method, structural, catch)]
+    fn split(this: &HostObject, re: &HostRegExp) -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(method, structural, js_name = toString, catch)]
+    fn to_string_with_enc(this: &HostObject, enc: &str) -> Result<String, JsValue>;
+
+    #[wasm_bindgen(catch)]
+    fn btoa(s: &str) -> Result<String, JsValue>;
+    #[wasm_bindgen(catch)]
+    fn atob(s: &str) -> Result<String, JsValue>;
+
+    #[wasm_bindgen(js_namespace = Buffer, js_name = from, catch)]
+    fn buffer_from(s: &str, enc: &str) -> Result<HostObject, JsValue>;
 }
 
 pub(crate) fn regex_replace_js(
@@ -63,12 +34,11 @@ pub(crate) fn regex_replace_js(
     repl: &str,
 ) -> Result<String, String> {
     let f = flags.unwrap_or("g");
-    let out = __er_regex_replace(s, pattern, f, repl);
-    if let Some(msg) = out.strip_prefix("__er_err__:") {
-        Err(msg.to_string())
-    } else {
-        Ok(out)
-    }
+    let re = HostRegExp::new(pattern, f).map_err(|e| format!("{:?}", e))?;
+    let s_js = JsValue::from_str(s);
+    let host_s: &HostObject = s_js.unchecked_ref();
+    let out = host_s.replace(&re, repl).map_err(|e| format!("{:?}", e))?;
+    out.as_string().ok_or_else(|| "replace did not return a string".to_string())
 }
 
 pub(crate) fn regex_split_js(
@@ -77,48 +47,44 @@ pub(crate) fn regex_split_js(
     flags: Option<&str>,
 ) -> Result<Vec<String>, String> {
     let f = flags.unwrap_or("g");
-    let out = __er_regex_split(s, pattern, f);
-    if let Some(msg) = out.strip_prefix("__er_err__:") {
-        Err(msg.to_string())
-    } else {
-        let sep = '\u{001F}';
-        let mut parts: Vec<String> = Vec::new();
-        let mut current = String::new();
-        let mut chars = out.chars().peekable();
-        while let Some(c) = chars.next() {
-            if c == sep {
-                if let Some(next) = chars.peek() {
-                    if *next == sep {
-                        current.push(sep);
-                        chars.next();
-                        continue;
-                    }
-                }
-                parts.push(current);
-                current = String::new();
-            } else {
-                current.push(c);
-            }
+    let re = HostRegExp::new(pattern, f).map_err(|e| format!("{:?}", e))?;
+    let s_js = JsValue::from_str(s);
+    let host_s: &HostObject = s_js.unchecked_ref();
+    let array_val = host_s.split(&re).map_err(|e| format!("{:?}", e))?;
+    
+    let len_val = js_sys::Reflect::get(&array_val, &JsValue::from_str("length")).map_err(|e| format!("{:?}", e))?;
+    let len = len_val.as_f64().unwrap_or(0.0) as u32;
+    
+    let mut parts = Vec::with_capacity(len as usize);
+    for i in 0..len {
+        let p_val = js_sys::Reflect::get(&array_val, &JsValue::from_f64(i as f64)).map_err(|e| format!("{:?}", e))?;
+        if let Some(p) = p_val.as_string() {
+            parts.push(p);
         }
-        parts.push(current);
-        Ok(parts)
     }
+    Ok(parts)
 }
 
 pub(crate) fn to_base64_js(s: &str) -> Result<String, String> {
-    let out = __er_to_base64(s);
-    if let Some(msg) = out.strip_prefix("__er_err__:") {
-        Err(msg.to_string())
-    } else {
-        Ok(out)
+    if let Ok(out) = btoa(s) {
+        return Ok(out);
     }
+    if let Ok(buf) = buffer_from(s, "utf-8") {
+        if let Ok(out) = buf.to_string_with_enc("base64") {
+            return Ok(out);
+        }
+    }
+    Err("No base64 implementation found (btoa or Buffer)".to_string())
 }
 
 pub(crate) fn from_base64_js(s: &str) -> Result<String, String> {
-    let out = __er_from_base64(s);
-    if let Some(msg) = out.strip_prefix("__er_err__:") {
-        Err(msg.to_string())
-    } else {
-        Ok(out)
+    if let Ok(out) = atob(s) {
+        return Ok(out);
     }
+    if let Ok(buf) = buffer_from(s, "base64") {
+        if let Ok(out) = buf.to_string_with_enc("utf-8") {
+            return Ok(out);
+        }
+    }
+    Err("No base64 implementation found (atob or Buffer)".to_string())
 }

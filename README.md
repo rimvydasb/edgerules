@@ -107,12 +107,15 @@ EdgeRules provides a structured, object-oriented API for Web and Node.js environ
 
 Stateless evaluation methods are grouped under the `DecisionEngine` namespace:
 
-- `DecisionEngine.evaluateAll(code: string) -> object` – loads model code and returns the fully evaluated model as JSON
-  output.
-- `DecisionEngine.evaluateExpression(code: string) -> any` – evaluates a standalone expression and returns the result as
-  a JavaScript value.
-- `DecisionEngine.evaluateField(code: string, field: string) -> any` – loads `code`, then evaluates a specific
-  field/path.
+- `DecisionEngine.evaluate(input: string | object, field?: string) -> any` – evaluates the provided EdgeRules code or portable model.
+    - If `input` is a string wrapped in `{}`, it treats it as a model.
+    - If `input` is a string (not wrapped in `{}`), it treats it as an expression.
+    - If `input` is an object, it treats it as a portable model.
+    - If `field` is provided, it evaluates that specific field (not applicable for expressions).
+- `DecisionEngine.printExpressionJs(code: string) -> string` – transpiles an expression to JavaScript code.
+- `DecisionEngine.printModelJs(code: string) -> string` – transpiles a model to JavaScript code.
+
+> **Deprecated:** `evaluateAll`, `evaluateExpression`, and `evaluateField` are supported but deprecated.
 
 ### Stateful API (DecisionService)
 
