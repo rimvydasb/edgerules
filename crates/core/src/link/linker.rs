@@ -480,20 +480,25 @@ pub fn browse<'a, T: Node<T>>(
         ));
     }
 
-    // Path is 1
-    if path.len() == 1 {
-        // SAFETY: We just checked path.len() == 1
-        let field_name = path.first().expect("path has exactly one element");
-        return if find_root {
-            let result = get_till_root(ctx, field_name)?;
-            Ok(BrowseResult::Found(result))
-        } else {
-            Ok(BrowseResult::found(
-                Rc::clone(&ctx),
-                field_name,
-                ctx.borrow().get(field_name)?,
-            ))
-        };
+    // Use pattern matching for better safety and idiomatic Rust
+    match path {
+        // Single element path
+        [field_name] => {
+            return if find_root {
+                let result = get_till_root(ctx, field_name)?;
+                Ok(BrowseResult::Found(result))
+            } else {
+                Ok(BrowseResult::found(
+                    Rc::clone(&ctx),
+                    field_name,
+                    ctx.borrow().get(field_name)?,
+                ))
+            };
+        }
+        // Multi-element path
+        _ => {
+            // Continue with path traversal below
+        }
     }
 
     // Path > 1

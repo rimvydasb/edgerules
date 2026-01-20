@@ -821,7 +821,12 @@ fn context_builder_to_object(builder: &ContextObjectBuilder) -> Result<JsValue, 
                 name,
                 &serialize_expression(&expr.borrow().expression)?,
             )
-            .map_err(|_| PortableError::new("Failed to set expression"))?;
+            .map_err(|_| {
+                PortableError::new(format!(
+                    "Failed to set expression for inline function '{}'",
+                    name
+                ))
+            })?;
             continue;
         }
         if let Some(child) = builder.get_child_context(name) {
@@ -853,8 +858,9 @@ fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
             } else {
                 name
             };
-            set_prop(&obj, key, &serialize_expression(&expr.borrow().expression)?)
-                .map_err(|_| PortableError::new("Failed to set expression"))?;
+            set_prop(&obj, key, &serialize_expression(&expr.borrow().expression)?).map_err(
+                |_| PortableError::new(format!("Failed to set expression for field '{}'", name)),
+            )?;
             continue;
         }
         if let Some(child) = ctx.node().get_child(name) {

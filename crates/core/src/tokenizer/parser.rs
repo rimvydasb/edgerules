@@ -95,12 +95,12 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             }
             '+' | '-' | '*' | '×' | '÷' | '^' | '%' => {
                 // SAFETY: peek() matched these symbols, so next_char() must succeed
-                let Some(extracted) = source.next_char() else {
+                let Some(operator_char) = source.next_char() else {
                     continue; // Should never happen, but handle gracefully
                 };
 
                 // Detect unary context for '-'
-                let mut priority = match extracted {
+                let mut priority = match operator_char {
                     '+' => Plus,
                     '-' => Minus,
                     '*' | '×' | '÷' | '%' => DivideMultiply,
@@ -108,7 +108,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     _ => ErrorPriority,
                 };
 
-                if extracted == '-' {
+                if operator_char == '-' {
                     // If start of stream or previous token was not an expression, it's unary
                     let is_unary = if let Some(token) = ast_builder.last_token() {
                         !matches!(
@@ -133,7 +133,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                 ast_builder.push_node(
                     priority as u32,
-                    MathOperatorEnum::build_from_char(extracted),
+                    MathOperatorEnum::build_from_char(operator_char),
                     build_any_operator,
                 );
             }
