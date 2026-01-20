@@ -320,7 +320,7 @@ fn test_complex_discount_calculation() {
     let code = r#"
         {
             func calculateDiscount(productType): {
-                availableDiscounts: [0.20, 0.10, 0.11]
+                availableDiscounts: [0.20, 0.10, 0.16]
                 activeCampaignDiscount: 0.05
                 activeCampaign: "SUMMER_SALE"
                 baseDiscount: availableDiscounts[productType - 1]
@@ -345,6 +345,6 @@ fn test_complex_discount_calculation() {
     );
     assert_eq!(
         inline(eval_field(code, "discount3")),
-        inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.16}")
+        inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.21000000000000002}")
     );
 }
