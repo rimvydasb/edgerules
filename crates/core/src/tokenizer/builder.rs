@@ -324,7 +324,7 @@ pub mod factory {
                         TypePlaceholder(_) => { /* ok: typed field in type body */ }
                         Variable(alias_link) => {
                             entry.expression =
-                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name()));
+                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name(), None));
                         }
                         _ => {
                             return Err(WrongFormat(format!(
@@ -344,7 +344,7 @@ pub mod factory {
                 let field_name = link.get_name();
                 if is_type_stmt {
                     if let Variable(alias_link) = right {
-                        let type_ref = ComplexTypeRef::Alias(alias_link.get_name());
+                        let type_ref = ComplexTypeRef::Alias(alias_link.get_name(), None);
                         return Ok(Expression(ObjectField(
                             field_name,
                             Box::new(TypePlaceholder(type_ref)),

@@ -14,6 +14,8 @@ use crate::tokenizer::builder::factory::*;
 use crate::tokenizer::builder::ASTBuilder;
 use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
+use crate::typesystem::errors::ParseErrorEnum;
+use crate::typesystem::types::TypedValue;
 use std::borrow::Cow;
 
 const RANGE_LITERAL: &str = "..";
@@ -22,7 +24,9 @@ const OBJECT_LITERAL: &str = "OBJECT";
 const DOT_LITERAL: &str = ".";
 
 use crate::typesystem::types::ValueType;
+use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::NumberValue;
+use crate::typesystem::types::string::StringEnum;
 
 /// @TODO brackets counting and error returning
 pub fn tokenize(input: &str) -> VecDeque<EToken> {
@@ -447,8 +451,10 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 // @Todo: simplify operator acquisition
                 if *symbol == '<' && after_colon {
                     source.next_char();
-                    let tref = parse_complex_type_in_angle(&mut source);
-                    ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
+                    match parse_complex_type_in_angle(&mut source) {
+                        Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref))),
+                        Err(err) => ast_builder.push_element(EToken::ParseError(err)),
+                    }
                     after_colon = false;
                 } else if let Some(comparator) = ComparatorEnum::parse(&mut source) {
                     ast_builder.push_node(
@@ -485,18 +491,152 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
     ast_builder.finalize().0
 }
 
-fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
+pub fn parse_complex_type_in_angle(source: &mut CharStream) -> Result<ComplexTypeRef, ParseErrorEnum> {
     let mut name = String::new();
-    while let Some(c) = source.peek().cloned() {
-        if c == '>' {
-            source.next_char();
+    while let Some(symbol) = source.peek().cloned() {
+        if symbol == '>' || symbol == ',' {
             break;
         } else {
-            name.push(c);
+            name.push(symbol);
             source.next_char();
         }
     }
-    parse_type(name.trim())
+    let mut type_ref = parse_type(name.trim());
+
+    source.skip_whitespace();
+    if let Some(',') = source.peek() {
+        source.next_char();
+        source.skip_whitespace();
+        parse_default_value(&mut type_ref, source)?;
+    }
+
+    if let Some('>') = source.peek() {
+        source.next_char();
+    } else {
+        return Err(ParseErrorEnum::WrongFormat(
+            "Missing closing '>' in type reference".to_string(),
+        ));
+    }
+
+    Ok(type_ref)
+}
+
+fn parse_default_value(
+    type_ref: &mut ComplexTypeRef,
+    source: &mut CharStream,
+) -> Result<(), ParseErrorEnum> {
+    let val = match source.peek() {
+        Some('[') => {
+            source.next_char();
+            source.skip_whitespace();
+            let mut elements = Vec::new();
+            while let Some(&symbol) = source.peek() {
+                if symbol == ']' {
+                    source.next_char();
+                    break;
+                }
+                let element = if symbol == '"' || symbol == '\'' {
+                    let quote = source.next_char().unwrap();
+                    ValueEnum::StringValue(StringEnum::from(source.get_all_till(quote)))
+                } else if symbol.is_numeric() || symbol == '-' {
+                    ValueEnum::NumberValue(source.get_number())
+                } else {
+                    let literal = source.get_alphanumeric();
+                    if literal == "true" {
+                        ValueEnum::BooleanValue(true)
+                    } else if literal == "false" {
+                        ValueEnum::BooleanValue(false)
+                    } else {
+                        return Err(ParseErrorEnum::WrongFormat(format!(
+                            "Unsupported element in list default: {}",
+                            literal
+                        )));
+                    }
+                };
+                elements.push(element);
+                source.skip_whitespace();
+                if let Some(',') = source.peek() {
+                    source.next_char();
+                    source.skip_whitespace();
+                }
+            }
+
+            let item_type = if let Some(first) = elements.first() {
+                first.get_type()
+            } else {
+                ValueType::UndefinedType
+            };
+
+            Some(ValueEnum::Array(
+                crate::typesystem::values::ArrayValue::PrimitivesArray {
+                    values: elements,
+                    item_type,
+                },
+            ))
+        }
+        Some('"') | Some('\'') => {
+            let quote = source.next_char().unwrap();
+            Some(ValueEnum::StringValue(StringEnum::from(source.get_all_till(quote))))
+        }
+        Some('t') | Some('f') => {
+            let literal = source.get_alphanumeric();
+            if literal == "true" {
+                Some(ValueEnum::BooleanValue(true))
+            } else if literal == "false" {
+                Some(ValueEnum::BooleanValue(false))
+            } else {
+                return Err(ParseErrorEnum::WrongFormat(format!(
+                    "Invalid boolean default: {}",
+                    literal
+                )));
+            }
+        }
+        Some(symbol) if symbol.is_numeric() || *symbol == '-' => {
+            Some(ValueEnum::NumberValue(source.get_number()))
+        }
+        _ => None,
+    };
+
+    if let Some(mut value) = val {
+        match type_ref {
+            ComplexTypeRef::BuiltinType(val_type, ref mut default_opt) => {
+                let actual_ty = value.get_type();
+                if actual_ty != *val_type && !matches!(val_type, ValueType::UndefinedType) {
+                    return Err(ParseErrorEnum::WrongFormat(format!(
+                        "Default value type mismatch: expected {}, got {}",
+                        val_type, actual_ty
+                    )));
+                }
+                *default_opt = Some(value);
+            }
+            ComplexTypeRef::List(ref inner, ref mut default_opt) => {
+                let actual_ty = value.get_type();
+                if !matches!(actual_ty, ValueType::ListType(_)) {
+                    return Err(ParseErrorEnum::WrongFormat(format!(
+                        "Default value type mismatch: expected list, got {}",
+                        actual_ty
+                    )));
+                }
+
+                // Refine item type for empty list default
+                if let ValueEnum::Array(crate::typesystem::values::ArrayValue::PrimitivesArray {
+                    ref mut item_type,
+                    ..
+                }) = value
+                {
+                    if let ComplexTypeRef::BuiltinType(val_type, _) = &**inner {
+                        *item_type = val_type.clone();
+                    }
+                }
+
+                *default_opt = Some(value);
+            }
+            ComplexTypeRef::Alias(_, ref mut default_opt) => {
+                *default_opt = Some(value);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
@@ -525,7 +665,7 @@ fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option
 
     let mut tref = parse_type(base);
     for _ in 0..layers {
-        tref = ComplexTypeRef::List(Box::new(tref));
+        tref = ComplexTypeRef::List(Box::new(tref), None);
     }
 
     Some(tref)
@@ -541,18 +681,18 @@ pub fn parse_type(name: &str) -> ComplexTypeRef {
     }
 
     let mut return_type = match string {
-        "number" => ComplexTypeRef::BuiltinType(ValueType::NumberType),
-        "string" => ComplexTypeRef::BuiltinType(ValueType::StringType),
-        "boolean" => ComplexTypeRef::BuiltinType(ValueType::BooleanType),
-        "date" => ComplexTypeRef::BuiltinType(ValueType::DateType),
-        "time" => ComplexTypeRef::BuiltinType(ValueType::TimeType),
-        "datetime" => ComplexTypeRef::BuiltinType(ValueType::DateTimeType),
-        "duration" => ComplexTypeRef::BuiltinType(ValueType::DurationType),
-        _ => ComplexTypeRef::Alias(string.to_owned()),
+        "number" => ComplexTypeRef::BuiltinType(ValueType::NumberType, None),
+        "string" => ComplexTypeRef::BuiltinType(ValueType::StringType, None),
+        "boolean" => ComplexTypeRef::BuiltinType(ValueType::BooleanType, None),
+        "date" => ComplexTypeRef::BuiltinType(ValueType::DateType, None),
+        "time" => ComplexTypeRef::BuiltinType(ValueType::TimeType, None),
+        "datetime" => ComplexTypeRef::BuiltinType(ValueType::DateTimeType, None),
+        "duration" => ComplexTypeRef::BuiltinType(ValueType::DurationType, None),
+        _ => ComplexTypeRef::Alias(string.to_owned(), None),
     };
 
     for _ in 0..layers {
-        return_type = ComplexTypeRef::List(Box::new(return_type));
+        return_type = ComplexTypeRef::List(Box::new(return_type), None);
     }
 
     return_type

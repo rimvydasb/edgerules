@@ -70,17 +70,30 @@ pub(crate) fn missing_for_type(
                     match content {
                         EObjectContent::ExpressionRef(entry) => {
                             // Determine field type via placeholder if present
+                            let mut default_value_opt = None;
                             let fty = match &entry.borrow().expression {
-                                TypePlaceholder(tref) => obj.borrow().resolve_type_ref(tref).ok(),
+                                TypePlaceholder(tref) => {
+                                    default_value_opt = match tref {
+                                        ComplexTypeRef::BuiltinType(_, val) => val.clone(),
+                                        ComplexTypeRef::Alias(_, val) => val.clone(),
+                                        ComplexTypeRef::List(_, val) => val.clone(),
+                                    };
+                                    obj.borrow().resolve_type_ref(tref).ok()
+                                }
                                 _ => None,
                             }
                             .unwrap_or(ValueType::UndefinedType);
-                            let child_origin_owned = field_name
-                                .filter(|parent| !parent.is_empty())
-                                .map(|parent| format!("{}.{}", parent, name));
-                            let child_origin = child_origin_owned.as_deref().or(Some(name));
-                            let default_value = missing_for_type(&fty, child_origin, ctx)?;
-                            builder.add_expression(name, default_value.into())?;
+
+                            if let Some(val) = default_value_opt {
+                                builder.add_expression(name, val.into())?;
+                            } else {
+                                let child_origin_owned = field_name
+                                    .filter(|parent| !parent.is_empty())
+                                    .map(|parent| format!("{}.{}", parent, name));
+                                let child_origin = child_origin_owned.as_deref().or(Some(name));
+                                let default_value = missing_for_type(&fty, child_origin, ctx)?;
+                                builder.add_expression(name, default_value.into())?;
+                            }
                         }
                         EObjectContent::ObjectRef(o) => {
                             let child_origin_owned = field_name
@@ -264,11 +277,17 @@ fn cast_value_to_type(
                                 .clone()
                                 .unwrap_or_else(|_| ValueType::UndefinedType);
                             // If expression is a TypePlaceholder, try to resolve from schema
+                            let mut default_val_opt = None;
                             if let TypePlaceholder(tref) = &entry.borrow().expression {
                                 expected_ty = schema
                                     .borrow()
                                     .resolve_type_ref(tref)
                                     .unwrap_or(ValueType::UndefinedType);
+                                default_val_opt = match tref {
+                                    ComplexTypeRef::BuiltinType(_, val) => val.clone(),
+                                    ComplexTypeRef::Alias(_, val) => val.clone(),
+                                    ComplexTypeRef::List(_, val) => val.clone(),
+                                };
                             }
                             // Get source field value and cast if possible
                             let casted = match src_exec.borrow().get(name) {
@@ -297,8 +316,8 @@ fn cast_value_to_type(
                                     Rc::clone(&ctx),
                                     field_origin,
                                 )?,
-                                Ok(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
-                                Err(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
+                                Ok(_) => default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?),
+                                Err(_) => default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?),
                             };
                             builder.add_expression(name, casted.into())?;
                         }
@@ -424,13 +443,22 @@ impl ExpressionEnum {
                 );
                 Ok(Reference(reference))
             }
-            TypePlaceholder(_tref) => {
-                // BLOCKED: no external context hookup; always Missing as per spec
-                Ok(ValueEnum::StringValue(
-                    crate::typesystem::types::string::StringEnum::from(
-                        typesystem::types::SpecialValueEnum::missing_for(None),
-                    ),
-                ))
+            TypePlaceholder(tref) => {
+                let default_val_opt = match tref {
+                    ComplexTypeRef::BuiltinType(_, val) => val.clone(),
+                    ComplexTypeRef::Alias(_, val) => val.clone(),
+                    ComplexTypeRef::List(_, val) => val.clone(),
+                };
+                if let Some(val) = default_val_opt {
+                    Ok(val)
+                } else {
+                    // BLOCKED: no external context hookup; always Missing as per spec
+                    Ok(ValueEnum::StringValue(
+                        crate::typesystem::types::string::StringEnum::from(
+                            typesystem::types::SpecialValueEnum::missing_for(None),
+                        ),
+                    ))
+                }
             }
         };
 

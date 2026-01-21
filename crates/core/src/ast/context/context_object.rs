@@ -186,8 +186,8 @@ impl ContextObject {
 
     pub fn resolve_type_ref(&self, tref: &ComplexTypeRef) -> Result<ValueType, LinkingError> {
         match tref {
-            ComplexTypeRef::BuiltinType(vt) => Ok(vt.clone()),
-            ComplexTypeRef::Alias(name) => {
+            ComplexTypeRef::BuiltinType(vt, _) => Ok(vt.clone()),
+            ComplexTypeRef::Alias(name, _) => {
                 let resolve_in = |ctx: &ContextObject| -> Link<Option<ValueType>> {
                     if let Some(def) = ctx.defined_types.get(name) {
                         let vt = match def {
@@ -217,7 +217,7 @@ impl ContextObject {
 
                 LinkingError::other_error(format!("Unknown type '{}'", name)).into()
             }
-            ComplexTypeRef::List(inner) => Ok(ValueType::ListType(Some(Box::new(
+            ComplexTypeRef::List(inner, _) => Ok(ValueType::ListType(Some(Box::new(
                 self.resolve_type_ref(inner)?,
             )))),
         }

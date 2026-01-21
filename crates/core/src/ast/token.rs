@@ -82,31 +82,35 @@ pub enum EUnparsedToken {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone, PartialEq)]
 pub enum ComplexTypeRef {
-    BuiltinType(ValueType),
-    Alias(String),
-    List(Box<ComplexTypeRef>),
+    BuiltinType(ValueType, Option<ValueEnum>),
+    Alias(String, Option<ValueEnum>),
+    List(Box<ComplexTypeRef>, Option<ValueEnum>),
 }
 
 impl ComplexTypeRef {
     pub fn undefined() -> Self {
-        ComplexTypeRef::BuiltinType(ValueType::UndefinedType)
+        ComplexTypeRef::BuiltinType(ValueType::UndefinedType, None)
     }
 
     pub fn is_undefined(&self) -> bool {
-        matches!(self, ComplexTypeRef::BuiltinType(ValueType::UndefinedType))
+        matches!(self, ComplexTypeRef::BuiltinType(ValueType::UndefinedType, _))
     }
 
     pub fn from_value_type(value_type: ValueType) -> Self {
-        ComplexTypeRef::BuiltinType(value_type)
+        ComplexTypeRef::BuiltinType(value_type, None)
     }
 }
 
+// @Todo: investigate if this code is even necessary:
 impl Display for ComplexTypeRef {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ComplexTypeRef::BuiltinType(vt) => write!(f, "{}", vt),
-            ComplexTypeRef::Alias(name) => write!(f, "{}", name),
-            ComplexTypeRef::List(inner) => write!(f, "list of {}", inner),
+            ComplexTypeRef::BuiltinType(vt, Some(default)) => write!(f, "{}, {}", vt, default),
+            ComplexTypeRef::BuiltinType(vt, None) => write!(f, "{}", vt),
+            ComplexTypeRef::Alias(name, Some(default)) => write!(f, "{}, {}", name, default),
+            ComplexTypeRef::Alias(name, None) => write!(f, "{}", name),
+            ComplexTypeRef::List(inner, Some(default)) => write!(f, "{}[], {}", inner, default),
+            ComplexTypeRef::List(inner, None) => write!(f, "{}[]", inner),
         }
     }
 }

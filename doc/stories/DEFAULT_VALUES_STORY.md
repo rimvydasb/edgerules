@@ -62,23 +62,23 @@ default value. This default value should only be supported for primitive types (
 
 ## Tasks
 
-- [ ] **AST Update**: Modify `ComplexTypeRef` to support `Option<ValueEnum>` for defaults.
-- [ ] **Parser Update**: Modify `parse_complex_type_in_angle` to parse and validate default values.
-- [ ] **Runtime Update**: Update `cast_value_to_type` to respect default values for missing fields.
-- [ ] **Evaluation Update**: Update `TypePlaceholder` evaluation to return the default value.
-- [ ] **Testing Strategy** (extend `evaluation_types.rs` tests):
-    - [ ] **Rust**: Verify AST parsing of various default value combinations.
-    - [ ] **Rust**: Test casting behavior where missing fields are replaced by defaults.
-    - [ ] **Rust**: Test nested object casting with defaults.
-    - [ ] **Rust**: Ensure invalid default types (e.g., `<number, "text">`) throw a proper parse error.
-- [ ] During parsing, it is important that default value matches the declared type. If there is a mismatch,
+- [x] **AST Update**: Modify `ComplexTypeRef` to support `Option<ValueEnum>` for defaults.
+- [x] **Parser Update**: Modify `parse_complex_type_in_angle` to parse and validate default values.
+- [x] **Runtime Update**: Update `cast_value_to_type` to respect default values for missing fields.
+- [x] **Evaluation Update**: Update `TypePlaceholder` evaluation to return the default value.
+- [x] **Testing Strategy** (extend `evaluation_types.rs` tests):
+    - [x] **Rust**: Verify AST parsing of various default value combinations.
+    - [x] **Rust**: Test casting behavior where missing fields are replaced by defaults.
+    - [x] **Rust**: Test nested object casting with defaults.
+    - [x] **Rust**: Ensure invalid default types (e.g., `<number, "text">`) throw a proper parse error.
+- [x] During parsing, it is important that default value matches the declared type. If there is a mismatch,
   `WrongFormat` error should be raised with a clear message. Add Rust tests to assert it.
-- [ ] For unsupported types, if defaults are provided, raise `UnexpectedToken` error during parsing. Add Rust tests to
+- [x] For unsupported types, if defaults are provided, raise `UnexpectedToken` error during parsing. Add Rust tests to
   assert it.
 
 ## Portable Support
 
-- [ ] Ensure Portable support for default values in type definitions such as:
+- [x] Ensure Portable support for default values in type definitions such as:
 
 ```json
 {
@@ -97,11 +97,11 @@ default value. This default value should only be supported for primitive types (
 }
 ```
 
-- [ ] Add tests where user changes default values in Portable type definitions and verify correct behavior during
+- [x] Add tests where user changes default values in Portable type definitions and verify correct behavior during
   casting and evaluation. For example, with WASM `set` API I change the default value of `income` from `0.0` to `1000.0`
   and verify that missing `income` fields yield `1000.0` after the change.
-- [ ] Add a test where I revoke the default value by setting it to nothing in Portable and verify that missing fields
+- [x] Add a test where I revoke the default value by setting it to nothing in Portable and verify that missing fields
   yield `Missing` again, e.g. `"income": "<number>"`.
-- [ ] Check if tasks are completed and mark them as done.
-- [ ] Review implemented code once again for maintainability and performance. For example, ensure that you're not using
+- [x] Check if tasks are completed and mark them as done.
+- [x] Review implemented code once again for maintainability and performance. For example, ensure that you're not using
   single letter arguments such as `if q == '"' || q == '\'' {`
