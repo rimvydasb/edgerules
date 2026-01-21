@@ -113,7 +113,11 @@ fn list_numeric_aggregates() {
     assert_value!("product([2,3,4])", "24");
     assert_value!("mean([1,2,3])", "2");
     assert_value!("median([1,2,3])", "2");
+    assert_value!("mean([10, 20])", "15");
+    assert_value!("median([1, 10, 5])", "5");
     assert_value!("stddev([2,4])", "1");
+    assert_value!("mode([1, 1, 2])", "[1]");
+    assert_value!("mode([1, 2])", "[1, 2]");
     assert_value!("mode([1,2,2,3])", "[2]");
 }
 

@@ -217,7 +217,7 @@ pub mod number {
     impl Display for NumberEnum {
         fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
             match self {
-                Real(value) => write!(f, "{}", value),
+                Real(value) => write!(f, "{}", value.normalize()),
                 Int(value) => write!(f, "{}", value),
                 SV(value) => write!(f, "{}", value),
             }

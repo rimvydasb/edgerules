@@ -250,7 +250,10 @@ impl<'a> CharStream<'a> {
         } else if number_string == "0" {
             NumberEnum::Int(0)
         } else {
-            NumberEnum::Int(number_string.parse::<Integer>().expect(NUMBER_PARSE_ERROR))
+            match number_string.parse::<Integer>() {
+                Ok(int_val) => NumberEnum::Int(int_val),
+                Err(_) => NumberEnum::Real(number_string.parse::<Float>().expect(NUMBER_PARSE_ERROR)),
+            }
         }
     }
 

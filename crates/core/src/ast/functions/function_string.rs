@@ -58,7 +58,7 @@ pub fn validate_multi_substring(args: Vec<ValueType>) -> Link<()> {
     }
     LinkingError::expect_type(None, args[0].clone(), &[StringType])?;
     for (i, t) in args.iter().enumerate().skip(1) {
-        LinkingError::expect_type(Some(format!("arg ਵਿਚ{}", i + 1)), t.clone(), &[NumberType])?;
+        LinkingError::expect_type(Some(format!("arg{}", i + 1)), t.clone(), &[NumberType])?;
     }
     Ok(())
 }
