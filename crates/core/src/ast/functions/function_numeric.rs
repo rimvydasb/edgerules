@@ -6,7 +6,7 @@ use crate::typesystem::types::number::NumberEnum::{Int, Real, SV};
 use crate::typesystem::types::ValueType::{
     DateTimeType, DateType, DurationType, ListType, NumberType, RangeType, TimeType, UndefinedType,
 };
-use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
+use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType, Float};
 use crate::typesystem::values::ValueEnum::{
     Array, DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue, RangeValue,
     TimeValue,
@@ -16,6 +16,8 @@ use crate::typesystem::values::{
 };
 use std::cmp::Ordering;
 use std::f64::consts::PI;
+use rust_decimal::prelude::*;
+use rust_decimal::MathematicalOps;
 
 // Helper to extract NumberEnum
 fn get_number(v: &ValueEnum) -> Option<NumberEnum> {
@@ -28,7 +30,7 @@ fn get_number(v: &ValueEnum) -> Option<NumberEnum> {
 pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
-            if n <= 0.0 {
+            if n <= Float::ZERO {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
             } else {
                 Ok(NumberValue(Real(n.ln())))
@@ -38,7 +40,8 @@ pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if n <= 0 {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
             } else {
-                Ok(NumberValue(Real((n as f64).ln())))
+                // ln() on Decimal takes f64? No, MathematicalOps adds ln() to Decimal
+                Ok(NumberValue(Real(Float::from(n).ln())))
             }
         },
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
@@ -49,7 +52,7 @@ pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_log10(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
-            if n <= 0.0 {
+            if n <= Float::ZERO {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
             } else {
                 Ok(NumberValue(Real(n.log10())))
@@ -59,7 +62,7 @@ pub fn eval_log10(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             if n <= 0 {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
             } else {
-                Ok(NumberValue(Real((n as f64).log10())))
+                Ok(NumberValue(Real(Float::from(n).log10())))
             }
         },
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
@@ -70,20 +73,20 @@ pub fn eval_log10(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_exp(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => Ok(NumberValue(Real(n.exp()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).exp()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real(Float::from(n).exp()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
 
 pub fn eval_pi(_args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
-    Ok(NumberValue(Real(PI)))
+    Ok(NumberValue(NumberEnum::from(PI)))
 }
 
 pub fn eval_degrees(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        NumberValue(Real(n)) => Ok(NumberValue(Real(n.to_degrees()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).to_degrees()))),
+        NumberValue(Real(n)) => Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).to_degrees()))),
+        NumberValue(Int(n)) => Ok(NumberValue(NumberEnum::from((n as f64).to_degrees()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -91,8 +94,8 @@ pub fn eval_degrees(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_radians(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        NumberValue(Real(n)) => Ok(NumberValue(Real(n.to_radians()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).to_radians()))),
+        NumberValue(Real(n)) => Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).to_radians()))),
+        NumberValue(Int(n)) => Ok(NumberValue(NumberEnum::from((n as f64).to_radians()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -101,7 +104,7 @@ pub fn eval_radians(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_sin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => Ok(NumberValue(Real(n.sin()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).sin()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real(Float::from(n).sin()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -110,7 +113,7 @@ pub fn eval_sin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_cos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => Ok(NumberValue(Real(n.cos()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).cos()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real(Float::from(n).cos()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -119,19 +122,20 @@ pub fn eval_cos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_tan(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => Ok(NumberValue(Real(n.tan()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).tan()))),
+        NumberValue(Int(n)) => Ok(NumberValue(Real(Float::from(n).tan()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
 
 pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    let one = Float::from(1);
     match value {
         NumberValue(Real(n)) => {
-            if !(-1.0..=1.0).contains(&n) {
+            if n.abs() > one {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
             } else {
-                Ok(NumberValue(Real(n.asin())))
+                Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).asin())))
             }
         },
         NumberValue(Int(n)) => {
@@ -139,7 +143,7 @@ pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
              if !(-1.0..=1.0).contains(&val) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
             } else {
-                Ok(NumberValue(Real(val.asin())))
+                Ok(NumberValue(NumberEnum::from(val.asin())))
             }
         },
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
@@ -148,12 +152,13 @@ pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 }
 
 pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
+    let one = Float::from(1);
     match value {
         NumberValue(Real(n)) => {
-            if !(-1.0..=1.0).contains(&n) {
+            if n.abs() > one {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
             } else {
-                Ok(NumberValue(Real(n.acos())))
+                Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).acos())))
             }
         },
         NumberValue(Int(n)) => {
@@ -161,7 +166,7 @@ pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
              if !(-1.0..=1.0).contains(&val) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
             } else {
-                Ok(NumberValue(Real(val.acos())))
+                Ok(NumberValue(NumberEnum::from(val.acos())))
             }
         },
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
@@ -171,8 +176,8 @@ pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_atan(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        NumberValue(Real(n)) => Ok(NumberValue(Real(n.atan()))),
-        NumberValue(Int(n)) => Ok(NumberValue(Real((n as f64).atan()))),
+        NumberValue(Real(n)) => Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).atan()))),
+        NumberValue(Int(n)) => Ok(NumberValue(NumberEnum::from((n as f64).atan()))),
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -182,10 +187,10 @@ pub fn eval_atan2(y_val: ValueEnum, x_val: ValueEnum) -> Result<ValueEnum, Runti
     if let (Some(y), Some(x)) = (get_number(&y_val), get_number(&x_val)) {
         match (y, x) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
-            (Real(y_f), Real(x_f)) => Ok(NumberValue(Real(y_f.atan2(x_f)))),
-            (Int(y_i), Int(x_i)) => Ok(NumberValue(Real((y_i as f64).atan2(x_i as f64)))),
-            (Real(y_f), Int(x_i)) => Ok(NumberValue(Real(y_f.atan2(x_i as f64)))),
-            (Int(y_i), Real(x_f)) => Ok(NumberValue(Real((y_i as f64).atan2(x_f)))),
+            (Real(y_f), Real(x_f)) => Ok(NumberValue(NumberEnum::from(y_f.to_f64().unwrap_or(0.0).atan2(x_f.to_f64().unwrap_or(0.0))))),
+            (Int(y_i), Int(x_i)) => Ok(NumberValue(NumberEnum::from((y_i as f64).atan2(x_i as f64)))),
+            (Real(y_f), Int(x_i)) => Ok(NumberValue(NumberEnum::from(y_f.to_f64().unwrap_or(0.0).atan2(x_i as f64)))),
+            (Int(y_i), Real(x_f)) => Ok(NumberValue(NumberEnum::from((y_i as f64).atan2(x_f.to_f64().unwrap_or(0.0))))),
         }
     } else {
         RuntimeError::type_not_supported(y_val.get_type()).into()
@@ -212,7 +217,7 @@ pub fn eval_round(
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
-            Some(Real(d)) => d as i64,
+            Some(Real(d)) => d.to_i64().unwrap_or(0),
             Some(SV(sv)) => return Ok(NumberValue(SV(sv))),
             _ => return RuntimeError::type_not_supported(vals[1].get_type()).into(),
         }
@@ -222,19 +227,18 @@ pub fn eval_round(
 
     match number {
         Real(n) => {
-            let multiplier = 10f64.powi(digits as i32);
-            let val = n * multiplier;
-            let rounded = val.round_ties_even();
-            Ok(NumberValue(Real(rounded / multiplier)))
+            // round_ties_even is default for round_dp? No, use explicit strategy.
+            Ok(NumberValue(Real(n.round_dp_with_strategy(digits as u32, RoundingStrategy::MidpointNearestEven))))
         }
         Int(n) => {
             if digits >= 0 {
                 Ok(NumberValue(Int(n)))
             } else {
-                let multiplier = 10f64.powi(digits as i32);
-                let val = (n as f64) * multiplier;
-                let rounded = val.round_ties_even();
-                Ok(NumberValue(Real(rounded / multiplier)))
+                // Rounding integer to negative digits (e.g. 150 round to -2 -> 200)
+                let multiplier = Float::from(10i64.pow((-digits) as u32));
+                let val = Float::from(n) / multiplier;
+                let rounded = val.round_dp_with_strategy(0, RoundingStrategy::MidpointNearestEven);
+                Ok(NumberValue(Real(rounded * multiplier)))
             }
         }
         SV(sv) => Ok(NumberValue(SV(sv))),
@@ -252,7 +256,7 @@ pub fn eval_round_up(
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
-            Some(Real(d)) => d as i64,
+            Some(Real(d)) => d.to_i64().unwrap_or(0),
             Some(SV(sv)) => return Ok(NumberValue(SV(sv))),
             _ => return RuntimeError::type_not_supported(vals[1].get_type()).into(),
         }
@@ -262,20 +266,22 @@ pub fn eval_round_up(
 
     match number {
         Real(n) => {
-            let multiplier = 10f64.powi(digits as i32);
-            let val = n * multiplier;
-            // Round away from zero: sign * ceil(abs)
-            let rounded = val.signum() * val.abs().ceil();
-            Ok(NumberValue(Real(rounded / multiplier)))
+            // Round away from zero: round_dp_with_strategy(RoundingStrategy::AwayFromZero) ?
+            // FEEL spec for round up? Usually it means Ceiling for positive?
+            // "Round up" often means away from zero in business context or Ceiling.
+            // DMN 1.3 spec: "round up(n, scale) = round(n, scale, "UP")" -> away from zero?
+            // Implementation was: sign * ceil(abs).
+            // Decimal::round_dp_with_strategy(digits, RoundingStrategy::AwayFromZero)?
+            Ok(NumberValue(Real(n.round_dp_with_strategy(digits as u32, RoundingStrategy::AwayFromZero))))
         }
         Int(n) => {
             if digits >= 0 {
                 Ok(NumberValue(Int(n)))
             } else {
-                let multiplier = 10f64.powi(digits as i32);
-                let val = (n as f64) * multiplier;
-                let rounded = val.signum() * val.abs().ceil();
-                Ok(NumberValue(Real(rounded / multiplier)))
+                let multiplier = Float::from(10i64.pow((-digits) as u32));
+                let val = Float::from(n) / multiplier;
+                let rounded = val.round_dp_with_strategy(0, RoundingStrategy::AwayFromZero);
+                Ok(NumberValue(Real(rounded * multiplier)))
             }
         }
         SV(sv) => Ok(NumberValue(SV(sv))),
@@ -293,7 +299,7 @@ pub fn eval_round_down(
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
-            Some(Real(d)) => d as i64,
+            Some(Real(d)) => d.to_i64().unwrap_or(0),
             Some(SV(sv)) => return Ok(NumberValue(SV(sv))),
             _ => return RuntimeError::type_not_supported(vals[1].get_type()).into(),
         }
@@ -303,20 +309,17 @@ pub fn eval_round_down(
 
     match number {
         Real(n) => {
-            let multiplier = 10f64.powi(digits as i32);
-            let val = n * multiplier;
-            // Round toward zero: trunc
-            let rounded = val.trunc();
-            Ok(NumberValue(Real(rounded / multiplier)))
+            // Round toward zero: ToZero
+            Ok(NumberValue(Real(n.round_dp_with_strategy(digits as u32, RoundingStrategy::ToZero))))
         }
         Int(n) => {
             if digits >= 0 {
                 Ok(NumberValue(Int(n)))
             } else {
-                let multiplier = 10f64.powi(digits as i32);
-                let val = (n as f64) * multiplier;
-                let rounded = val.trunc();
-                Ok(NumberValue(Real(rounded / multiplier)))
+                let multiplier = Float::from(10i64.pow((-digits) as u32));
+                let val = Float::from(n) / multiplier;
+                let rounded = val.round_dp_with_strategy(0, RoundingStrategy::ToZero);
+                Ok(NumberValue(Real(rounded * multiplier)))
             }
         }
         SV(sv) => Ok(NumberValue(SV(sv))),
@@ -355,9 +358,11 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
+                if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
                 let rem = r1 % r2;
-                let res = if rem != 0.0 && rem.signum() != r2.signum() {
+                // Match f64 behavior: if rem != 0 and rem.signum != r2.signum, add r2.
+                // Decimal has signum() via Signed trait.
+                let res = if rem != Float::ZERO && rem.signum() != r2.signum() {
                     rem + r2
                 } else {
                     rem
@@ -376,9 +381,9 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
             },
             (Real(r1), Int(i2)) => {
                 if i2 == 0 { return RuntimeError::division_by_zero().into(); }
-                let r2 = i2 as f64;
+                let r2 = Float::from(i2);
                 let rem = r1 % r2;
-                let res = if rem != 0.0 && rem.signum() != r2.signum() {
+                let res = if rem != Float::ZERO && rem.signum() != r2.signum() {
                     rem + r2
                 } else {
                     rem
@@ -386,10 +391,10 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
                 Ok(NumberValue(Real(res)))
             },
             (Int(i1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
-                let r1 = i1 as f64;
+                if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
+                let r1 = Float::from(i1);
                 let rem = r1 % r2;
-                let res = if rem != 0.0 && rem.signum() != r2.signum() {
+                let res = if rem != Float::ZERO && rem.signum() != r2.signum() {
                     rem + r2
                 } else {
                     rem
@@ -407,7 +412,7 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
+                if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
                 Ok(NumberValue(Real((r1 / r2).floor())))
             },
             (Int(i1), Int(i2)) => {
@@ -423,11 +428,11 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
             },
             (Real(r1), Int(i2)) => {
                  if i2 == 0 { return RuntimeError::division_by_zero().into(); }
-                 Ok(NumberValue(Real((r1 / (i2 as f64)).floor())))
+                 Ok(NumberValue(Real((r1 / Float::from(i2)).floor())))
             },
             (Int(i1), Real(r2)) => {
-                 if r2 == 0.0 { return RuntimeError::division_by_zero().into(); }
-                 Ok(NumberValue(Real(((i1 as f64) / r2).floor())))
+                 if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
+                 Ok(NumberValue(Real((Float::from(i1) / r2).floor())))
             },
         }
     } else {
@@ -438,12 +443,13 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
 pub fn eval_sqrt(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
-            if n < 0.0 {
+            if n < Float::ZERO {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
                     "sqrt of negative number",
                 ))))
             } else {
-                Ok(NumberValue(Real(n.sqrt())))
+                Ok(NumberValue(Real(n.sqrt().unwrap_or(Float::ZERO)))) // sqrt returns Option in some versions or Decimal? 
+                // MathematicalOps sqrt() returns Option<Decimal>.
             }
         }
         NumberValue(Int(n)) => {
@@ -452,7 +458,7 @@ pub fn eval_sqrt(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
                     "sqrt of negative number",
                 ))))
             } else {
-                Ok(NumberValue(Real((n as f64).sqrt())))
+                Ok(NumberValue(Real(Float::from(n).sqrt().unwrap_or(Float::ZERO))))
             }
         }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),

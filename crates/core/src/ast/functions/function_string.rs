@@ -16,6 +16,7 @@ use base64::{engine::general_purpose, Engine as _};
 #[cfg(feature = "regex_functions")]
 use regex::RegexBuilder;
 use std::rc::Rc;
+use rust_decimal::prelude::*;
 
 fn as_string(v: &ValueEnum) -> Option<String> {
     match v {
@@ -28,7 +29,7 @@ fn as_string(v: &ValueEnum) -> Option<String> {
 fn as_int(v: &ValueEnum) -> Option<i64> {
     match v {
         NumberValue(NumberEnum::Int(i)) => Some(*i),
-        NumberValue(NumberEnum::Real(r)) => Some(*r as i64),
+        NumberValue(NumberEnum::Real(r)) => r.to_i64(),
         NumberValue(NumberEnum::SV(_)) => Some(0),
         _ => None,
     }
@@ -705,7 +706,7 @@ pub fn eval_interpolate(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
                                 Ok(ValueEnum::StringValue(SString(s))) => out.push_str(&s),
                                 Ok(ValueEnum::StringValue(SChar(c))) => out.push(c),
                                 Ok(val) => out.push_str(&val.to_string()),
-                                Err(_) => {}
+                                Err(_) => {} // Ignore eval errors for interpolation
                             }
                         }
                         Ok(EObjectContent::ConstantValue(ValueEnum::StringValue(SString(s)))) => {
@@ -715,7 +716,7 @@ pub fn eval_interpolate(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
                             out.push(c)
                         }
                         Ok(EObjectContent::ConstantValue(v)) => out.push_str(&v.to_string()),
-                        _ => {}
+                        _ => {} // Ignore other types or errors
                     }
                     i = j + 1;
                     continue;

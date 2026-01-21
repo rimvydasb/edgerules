@@ -20,6 +20,7 @@ use edge_rules::typesystem::values::ValueEnum;
 use edge_rules::utils::intern_field_name;
 use js_sys::{Array, Object};
 use wasm_bindgen::{JsCast, JsValue};
+use rust_decimal::prelude::ToPrimitive;
 
 pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, PortableError> {
     if !is_object(portable) {
@@ -717,7 +718,7 @@ fn serialize_value(value: &ValueEnum) -> Result<JsValue, PortableError> {
         ValueEnum::BooleanValue(flag) => Ok(JsValue::from_bool(*flag)),
         ValueEnum::NumberValue(number) => match number {
             NumberEnum::Int(i) => Ok(JsValue::from_f64(*i as f64)),
-            NumberEnum::Real(r) => Ok(JsValue::from_f64(*r)),
+            NumberEnum::Real(r) => Ok(JsValue::from_f64(r.to_f64().unwrap_or(0.0))),
             NumberEnum::SV(_) => Ok(JsValue::from_str(&value.to_string())),
         },
         ValueEnum::StringValue(_) => Ok(JsValue::from_str(&value.to_string())),

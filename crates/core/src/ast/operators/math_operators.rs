@@ -14,7 +14,7 @@ use crate::typesystem::types::ValueType::StringType;
 use crate::typesystem::types::ValueType::{
     DateTimeType, DateType, DurationType, NumberType, PeriodType, TimeType,
 };
-use crate::typesystem::types::{TypedValue, ValueType};
+use crate::typesystem::types::{Float, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
     DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue,
@@ -23,6 +23,7 @@ use crate::typesystem::values::ValueEnum::{
 use crate::typesystem::values::{
     DurationValue as ErDurationValue, PeriodValue as ErPeriodValue, ValueOrSv,
 };
+use rust_decimal::prelude::*;
 use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::fmt;
@@ -50,6 +51,17 @@ pub struct OperatorData<T: Display> {
     pub operator: T,
     pub left: ExpressionEnum,
     pub right: ExpressionEnum,
+}
+
+impl Display for OperatorData<MathOperatorEnum> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.operator {
+            Multiplication | Division | Power => {
+                write!(f, "{} {} {}", self.left, self.operator, self.right)
+            }
+            _ => write!(f, "({} {} {})", self.left, self.operator, self.right),
+        }
+    }
 }
 
 impl<T: Display> OperatorData<T> {
@@ -88,6 +100,12 @@ pub enum MathOperatorEnum {
     Division,
     Power,
     Modulus,
+}
+
+impl Display for MathOperatorEnum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 impl MathOperatorEnum {
@@ -181,6 +199,12 @@ impl From<MathOperatorEnum> for EToken {
 pub struct MathOperator {
     pub data: OperatorData<MathOperatorEnum>,
     pub function: BinaryNumberFunction,
+}
+
+impl Display for MathOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.data, f)
+    }
 }
 
 impl TypedValue for MathOperator {
@@ -304,7 +328,9 @@ impl MathOperator {
             Division => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
                 match right {
                     NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
-                    NumberEnum::Real(r) if r == 0.0 => return Err(RuntimeError::division_by_zero()),
+                    NumberEnum::Real(r) if r == Float::ZERO => {
+                        return Err(RuntimeError::division_by_zero())
+                    }
                     _ => {}
                 }
                 Ok(left / right)
@@ -318,16 +344,22 @@ impl MathOperator {
                             Ok(NumberEnum::from(left.pow(right as u32)))
                         }
                     }
-                    (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i32))),
-                    (Int(left), Real(right)) => Ok(NumberEnum::from((left as f64).powf(right))),
-                    (Real(left), Real(right)) => Ok(NumberEnum::from(left.powf(right))),
+                    (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i64))),
+                    (Int(left), Real(right)) => {
+                        Ok(NumberEnum::from((left as f64).powf(right.to_f64().unwrap_or(0.0))))
+                    }
+                    (Real(left), Real(right)) => {
+                        Ok(NumberEnum::from(left.powf(right.to_f64().unwrap_or(0.0))))
+                    }
                     _ => RuntimeError::internal_integrity_error(100).into(),
                 }
             },
             Modulus => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
                 match right {
                     NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
-                    NumberEnum::Real(r) if r == 0.0 => return Err(RuntimeError::division_by_zero()),
+                    NumberEnum::Real(r) if r == Float::ZERO => {
+                        return Err(RuntimeError::division_by_zero())
+                    }
                     _ => {}
                 }
                 Ok(left % right)
@@ -718,33 +750,6 @@ impl EvaluatableExpression for MathOperator {
                 RuntimeError::internal_integrity_error(108).into()
             }
             _ => RuntimeError::internal_integrity_error(109).into(),
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------
-// Display
-//----------------------------------------------------------------------------------------------
-
-impl Display for MathOperator {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.data, f)
-    }
-}
-
-impl Display for MathOperatorEnum {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-impl Display for OperatorData<MathOperatorEnum> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.operator {
-            Multiplication | Division | Power => {
-                write!(f, "{} {} {}", self.left, self.operator, self.right)
-            }
-            _ => write!(f, "({} {} {})", self.left, self.operator, self.right),
         }
     }
 }

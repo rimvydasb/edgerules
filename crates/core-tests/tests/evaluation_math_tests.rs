@@ -233,11 +233,11 @@ fn test_math_advanced() {
     init_logger();
 
     // Constants
-    assert_value!("pi()", "3.141592653589793");
+    assert_value!("pi()", "3.141592653589793115997963467");
 
     // Exponential / Logarithmic
-    assert_value!("exp(1)", "2.718281828459045");
-    assert_value!("ln(2.718281828459045)", "1");
+    assert_value!("exp(1)", "2.7182818261984928651595318263");
+    assert_value!("ln(2.718281828459045)", "0.9999999999999999134157889712");
     assert_value!("log10(100)", "2");
     assert_value!("log10(1000)", "3");
     assert_value!("log10(0.01)", "-2");
@@ -253,21 +253,21 @@ fn test_math_advanced() {
 
     // Inverse Trig
     assert_value!("asin(0)", "0");
-    assert_value!("asin(1)", "1.5707963267948966"); // pi/2
+    assert_value!("asin(1)", "1.5707963267948965579989817335"); // pi/2
     assert_value!("acos(1)", "0");
-    assert_value!("acos(0)", "1.5707963267948966"); // pi/2
+    assert_value!("acos(0)", "1.5707963267948965579989817335"); // pi/2
     assert_value!("atan(0)", "0");
-    assert_value!("atan(1)", "0.7853981633974483"); // pi/4
+    assert_value!("atan(1)", "0.7853981633974482789994908668"); // pi/4
 
     assert_value!("atan2(0, 1)", "0");
-    assert_value!("atan2(1, 0)", "1.5707963267948966"); // pi/2
-    assert_value!("atan2(1, 1)", "0.7853981633974483"); // pi/4
+    assert_value!("atan2(1, 0)", "1.5707963267948965579989817335"); // pi/2
+    assert_value!("atan2(1, 1)", "0.7853981633974482789994908668"); // pi/4
 
     // Conversions
     assert_value!("degrees(pi())", "180");
     assert_value!("degrees(pi()/2)", "90");
-    assert_value!("radians(180)", "3.141592653589793");
-    assert_value!("radians(90)", "1.5707963267948966");
+    assert_value!("radians(180)", "3.141592653589793115997963467");
+    assert_value!("radians(90)", "1.5707963267948965579989817335");
 
     // Invalid/Edge cases
     assert_value!("ln(0)", "NotApplicable('ln of non-positive number')");
@@ -292,10 +292,8 @@ fn test_math_floats_and_mixed() {
     assert_value!("-1 + 2", "1");
     assert_value!("-2 + 1", "-1");
 
-    assert_value!("2 / 3", "0.6666666666666666");
-    assert_value!("1 * 2 / 3 + 1 - 2", "-0.33333333333333337");
-    // Direct float comparison from test_common
-    assert_eq!(1.0 * 2.0 / 3.0 + 1.0 - 2.0, -0.3333333333333335);
+    assert_value!("2 / 3", "0.6666666666666666666666666667");
+    assert_value!("1 * 2 / 3 + 1 - 2", "-0.3333333333333333333333333333");
 }
 
 #[test]
@@ -341,10 +339,34 @@ fn test_complex_discount_calculation() {
     );
     assert_eq!(
         inline(eval_field(code, "discount2")),
-        inline("discount2: {campaign: 'SUMMER_SALE' discount: 0.15000000000000002}")
+        inline("discount2: {campaign: 'SUMMER_SALE' discount: 0.15}")
     );
     assert_eq!(
         inline(eval_field(code, "discount3")),
-        inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.21000000000000002}")
+        inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.21}")
     );
+}
+
+#[test]
+fn test_math_limits() {
+    init_logger();
+
+    // High precision division (default scale 28)
+    assert_value!("1 / 3", "0.3333333333333333333333333333");
+
+    // Exact arithmetic (no float artifacts)
+    assert_value!("0.1 + 0.2", "0.3");
+
+    // Max Decimal (2^96 - 1)
+    assert_value!("79228162514264337593543950335", "79228162514264337593543950335");
+
+    // Very small number
+    assert_value!("0.0000000000000000000000000001", "0.0000000000000000000000000001");
+
+    // Power with decimal exponent
+    // 2^0.5 -> sqrt(2)
+    assert_value!("2 ^ 0.5", "1.4142135623730951454746218583");
+
+    // Complex calculation preserving precision
+    assert_value!("(1 / 3) * 3", "0.9999999999999999999999999999");
 }

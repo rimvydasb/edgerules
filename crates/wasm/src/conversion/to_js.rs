@@ -14,6 +14,7 @@ use js_sys::{Array, Object};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
+use rust_decimal::prelude::ToPrimitive;
 
 impl ToJs for ValueType {
     fn to_js(&self) -> Result<JsValue, RuntimeError> {
@@ -82,7 +83,7 @@ impl ToJs for ValueEnum {
         match self {
             ValueEnum::BooleanValue(flag) => Ok(JsValue::from_bool(*flag)),
             ValueEnum::NumberValue(number) => match number {
-                NumberEnum::Real(v) => Ok(JsValue::from_f64(*v)),
+                NumberEnum::Real(v) => Ok(JsValue::from_f64(v.to_f64().unwrap_or(0.0))),
                 NumberEnum::Int(v) => Ok(JsValue::from_f64(*v as f64)),
                 NumberEnum::SV(sv) => Ok(JsValue::from_str(&sv.to_string())),
             },
