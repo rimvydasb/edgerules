@@ -31,6 +31,7 @@ js-sys = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }
 log = { workspace = true }
 time = { workspace = true }
+rust_decimal = { version = "1.40.0", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }

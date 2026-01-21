@@ -161,7 +161,7 @@ impl Display for SpecialValueEnum {
     }
 }
 
-pub type Float = f64;
+pub type Float = rust_decimal::Decimal;
 
 pub type Integer = i64;
 
@@ -202,7 +202,7 @@ pub mod number {
 
         pub fn has_remaining(&self) -> bool {
             match self {
-                Real(value) => value.fract() != 0.0,
+                Real(value) => value.fract() != Float::ZERO,
                 _ => false,
             }
         }
@@ -231,8 +231,8 @@ pub mod number {
             match (self, rhs) {
                 (Real(a), Real(b)) => NumberEnum::from(a + b),
                 (Int(a), Int(b)) => NumberEnum::from(a + b),
-                (Real(a), Int(b)) => NumberEnum::from(a + (b as Float)),
-                (Int(a), Real(b)) => NumberEnum::from((a as Float) + b),
+                (Real(a), Int(b)) => NumberEnum::from(a + Float::from(b)),
+                (Int(a), Real(b)) => NumberEnum::from(Float::from(a) + b),
                 (SV(SpecialValueEnum::NotApplicable(_)), any) => any,
                 (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
@@ -248,8 +248,8 @@ pub mod number {
             match (self, rhs) {
                 (Real(a), Real(b)) => NumberEnum::from(a - b),
                 (Int(a), Int(b)) => NumberEnum::from(a - b),
-                (Real(a), Int(b)) => NumberEnum::from(a - (b as Float)),
-                (Int(a), Real(b)) => NumberEnum::from((a as Float) - b),
+                (Real(a), Int(b)) => NumberEnum::from(a - Float::from(b)),
+                (Int(a), Real(b)) => NumberEnum::from(Float::from(a) - b),
                 (SV(SpecialValueEnum::NotApplicable(_)), any) => any.negate(),
                 (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
@@ -265,8 +265,8 @@ pub mod number {
             match (self, rhs) {
                 (Real(a), Real(b)) => NumberEnum::from(a * b),
                 (Int(a), Int(b)) => NumberEnum::from(a * b),
-                (Real(a), Int(b)) => NumberEnum::from(a * (b as Float)),
-                (Int(a), Real(b)) => NumberEnum::from((a as Float) * b),
+                (Real(a), Int(b)) => NumberEnum::from(a * Float::from(b)),
+                (Int(a), Real(b)) => NumberEnum::from(Float::from(a) * b),
                 (SV(SpecialValueEnum::NotApplicable(_)), any) => any,
                 (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
@@ -281,9 +281,9 @@ pub mod number {
         fn div(self, rhs: Self) -> Self::Output {
             match (self, rhs) {
                 (Real(a), Real(b)) => NumberEnum::from(a / b),
-                (Int(a), Int(b)) => NumberEnum::from(a as Float / b as Float),
-                (Real(a), Int(b)) => NumberEnum::from(a / (b as Float)),
-                (Int(a), Real(b)) => NumberEnum::from((a as Float) / b),
+                (Int(a), Int(b)) => NumberEnum::from(Float::from(a) / Float::from(b)),
+                (Real(a), Int(b)) => NumberEnum::from(a / Float::from(b)),
+                (Int(a), Real(b)) => NumberEnum::from(Float::from(a) / b),
                 (SV(SpecialValueEnum::NotApplicable(field)), _any) => {
                     SV(SpecialValueEnum::NotApplicable(field))
                 }
@@ -301,8 +301,8 @@ pub mod number {
             match (self, rhs) {
                 (Real(a), Real(b)) => NumberEnum::from(a % b),
                 (Int(a), Int(b)) => NumberEnum::from(a % b),
-                (Real(a), Int(b)) => NumberEnum::from(a % (b as Float)),
-                (Int(a), Real(b)) => NumberEnum::from((a as Float) % b),
+                (Real(a), Int(b)) => NumberEnum::from(a % Float::from(b)),
+                (Int(a), Real(b)) => NumberEnum::from(Float::from(a) % b),
                 (SV(value @ SpecialValueEnum::Missing(_)), _any) => SV(value),
                 (any, SV(SpecialValueEnum::Missing(_))) => any,
                 (SV(any), _) => SV(any),
@@ -313,10 +313,21 @@ pub mod number {
 
     impl From<Float> for NumberEnum {
         fn from(value: Float) -> Self {
-            if value == 0.0 {
+            if value == Float::ZERO {
                 Int(0)
             } else {
                 Real(value)
+            }
+        }
+    }
+
+    impl From<f64> for NumberEnum {
+        fn from(value: f64) -> Self {
+            if value == 0.0 {
+                Int(0)
+            } else {
+                // Best effort conversion
+                Real(Float::from_f64_retain(value).unwrap_or(Float::ZERO))
             }
         }
     }
@@ -326,8 +337,8 @@ pub mod number {
             match (self, other) {
                 (Real(a), Real(b)) => a.partial_cmp(b),
                 (Int(a), Int(b)) => a.partial_cmp(b),
-                (Real(a), Int(b)) => a.partial_cmp(&(*b as Float)),
-                (Int(a), Real(b)) => (*a as Float).partial_cmp(b),
+                (Real(a), Int(b)) => a.partial_cmp(&(Float::from(*b))),
+                (Int(a), Real(b)) => Float::from(*a).partial_cmp(b),
                 (SV(SpecialValueEnum::Missing(_)), _any) => Some(Ordering::Less),
                 (_, SV(SpecialValueEnum::Missing(_))) => Some(Ordering::Greater),
                 _ => None,

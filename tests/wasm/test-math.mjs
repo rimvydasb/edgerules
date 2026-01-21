@@ -35,7 +35,7 @@ describe('Math Evaluation', () => {
         const discount2 = wasm.DecisionEngine.evaluate(code, "discount2");
         assert.deepStrictEqual(discount2, {
             campaign: 'SUMMER_SALE',
-            discount: 0.15000000000000002
+            discount: 0.15
         });
 
         const discount3 = wasm.DecisionEngine.evaluate(code, "discount3");
