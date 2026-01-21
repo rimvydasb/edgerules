@@ -71,6 +71,8 @@ default value. This default value should only be supported for primitive types (
     - [ ] **Rust**: Test casting behavior where missing fields are replaced by defaults.
     - [ ] **Rust**: Test nested object casting with defaults.
     - [ ] **Rust**: Ensure invalid default types (e.g., `<number, "text">`) throw a proper parse error.
+- [ ] During parsing, it is important that default value matches the declared type. If there is a mismatch,
+  `WrongFormat` error should be raised with a clear message. Add Rust tests to assert it.
 
 ## Portable Support
 
