@@ -7,17 +7,19 @@ use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum::{Char as SChar, String as SString};
 use crate::typesystem::types::ValueType::{BooleanType, ListType, NumberType, StringType};
-use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType};
+use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType, Float};
 use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::rc::Rc;
+use rust_decimal::prelude::*;
+use rust_decimal::MathematicalOps;
 
 fn as_int(v: &ValueEnum) -> Option<i64> {
     match v {
         NumberValue(NumberEnum::Int(i)) => Some(*i),
-        NumberValue(NumberEnum::Real(r)) => Some(*r as i64),
+        NumberValue(NumberEnum::Real(r)) => r.to_i64(),
         _ => None,
     }
 }
@@ -251,22 +253,23 @@ pub fn eval_mean(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
                 .into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
-            let mut sum = 0.0f64;
-            let mut count = 0.0f64;
+            let mut sum = Float::ZERO;
+            let mut count = Float::ZERO;
+            let one = Float::from(1);
             for v in values {
                 match v {
                     NumberValue(NumberEnum::Int(i)) => {
-                        sum += i as f64;
-                        count += 1.0;
+                        sum += Float::from(i);
+                        count += one;
                     }
                     NumberValue(NumberEnum::Real(r)) => {
                         sum += r;
-                        count += 1.0;
+                        count += one;
                     }
                     _ => return RuntimeError::type_not_supported(v.get_type()).into(),
                 }
             }
-            if count == 0.0 {
+            if count == Float::ZERO {
                 Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(
                     None,
                 ))))
@@ -293,10 +296,10 @@ pub fn eval_median(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
                     None,
                 ))));
             }
-            let mut nums: Vec<f64> = Vec::with_capacity(values.len());
+            let mut nums: Vec<Float> = Vec::with_capacity(values.len());
             for v in values.drain(..) {
                 match v {
-                    NumberValue(NumberEnum::Int(i)) => nums.push(i as f64),
+                    NumberValue(NumberEnum::Int(i)) => nums.push(Float::from(i)),
                     NumberValue(NumberEnum::Real(r)) => nums.push(r),
                     _ => return RuntimeError::type_not_supported(v.get_type()).into(),
                 }
@@ -306,7 +309,8 @@ pub fn eval_median(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             let med = if n % 2 == 1 {
                 nums[n / 2]
             } else {
-                (nums[n / 2 - 1] + nums[n / 2]) / 2.0
+                let two = Float::from(2);
+                (nums[n / 2 - 1] + nums[n / 2]) / two
             };
             Ok(NumberValue(NumberEnum::from(med)))
         }
@@ -329,18 +333,24 @@ pub fn eval_stddev(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
                     None,
                 ))));
             }
-            let mut nums: Vec<f64> = Vec::with_capacity(values.len());
+            let mut nums: Vec<Float> = Vec::with_capacity(values.len());
             for v in values {
                 match v {
-                    NumberValue(NumberEnum::Int(i)) => nums.push(i as f64),
+                    NumberValue(NumberEnum::Int(i)) => nums.push(Float::from(i)),
                     NumberValue(NumberEnum::Real(r)) => nums.push(r),
                     _ => return RuntimeError::type_not_supported(v.get_type()).into(),
                 }
             }
-            let mean = nums.iter().copied().sum::<f64>() / (nums.len() as f64);
-            let var =
-                nums.iter().map(|x| (x - mean) * (x - mean)).sum::<f64>() / (nums.len() as f64);
-            Ok(NumberValue(NumberEnum::from(var.sqrt())))
+            let count = Float::from(nums.len());
+            let mean = nums.iter().sum::<Float>() / count;
+            // Use iterator map and sum
+            let var = nums.iter().map(|x| {
+                let diff = *x - mean;
+                diff * diff
+            }).sum::<Float>() / count;
+            
+            // sqrt returns Option<Decimal> in MathematicalOps
+            Ok(NumberValue(NumberEnum::from(var.sqrt().unwrap_or(Float::ZERO))))
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }

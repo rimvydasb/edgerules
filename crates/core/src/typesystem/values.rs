@@ -380,12 +380,12 @@ impl DurationValue {
         self.signed_seconds()
     }
 
-    pub fn total_minutes(&self) -> f64 {
-        self.signed_seconds() as f64 / SECONDS_PER_MINUTE as f64
+    pub fn total_minutes(&self) -> Float {
+        Float::from(self.signed_seconds()) / Float::from(SECONDS_PER_MINUTE)
     }
 
-    pub fn total_hours(&self) -> f64 {
-        self.signed_seconds() as f64 / SECONDS_PER_HOUR as f64
+    pub fn total_hours(&self) -> Float {
+        Float::from(self.signed_seconds()) / Float::from(SECONDS_PER_HOUR)
     }
 }
 
@@ -551,7 +551,7 @@ pub(crate) fn number_value_from_i128(value: i128) -> ValueEnum {
     if value >= i64::MIN as i128 && value <= i64::MAX as i128 {
         ValueEnum::from(value as i64)
     } else {
-        ValueEnum::NumberValue(NumberEnum::from(value as f64))
+        ValueEnum::NumberValue(NumberEnum::from(Float::from(value)))
     }
 }
 
@@ -655,6 +655,12 @@ impl Display for ValueEnum {
 
 impl From<Float> for ValueEnum {
     fn from(value: Float) -> Self {
+        NumberValue(NumberEnum::from(value))
+    }
+}
+
+impl From<f64> for ValueEnum {
+    fn from(value: f64) -> Self {
         NumberValue(NumberEnum::from(value))
     }
 }

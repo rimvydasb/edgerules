@@ -444,7 +444,7 @@ fn duration_constant_inner_fields_are_accessible() {
             value: [days, hours, minutes, seconds, totalSeconds, totalMinutes, totalHours]
         }
         "#,
-        "[1, 2, 3, 4, 93784, 1563.0666666666666, 26.051111111111112]"
+        "[1, 2, 3, 4, 93784, 1563.0666666666666666666666667, 26.051111111111111111111111111]"
     );
 }
 

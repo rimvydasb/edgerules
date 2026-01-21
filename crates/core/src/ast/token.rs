@@ -301,6 +301,12 @@ impl From<Float> for ExpressionEnum {
     }
 }
 
+impl From<f64> for ExpressionEnum {
+    fn from(value: f64) -> Self {
+        NumberValue(NumberEnum::from(value)).into()
+    }
+}
+
 impl From<bool> for ExpressionEnum {
     fn from(value: bool) -> Self {
         BooleanValue(value).into()
