@@ -243,8 +243,6 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     Either::Left(literal) => {
                         match literal.as_str() {
                             "if" => {
-                                // just jumping upper with no turning back
-                                //ast_builder.incl_level();
                                 ast_builder.push_element(Unparsed(Literal(literal.into())));
                                 ast_builder.incl_level();
                             }
@@ -310,25 +308,25 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                             "not" => ast_builder.push_node(
                                 LogicalOperatorEnum::Not as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LogicalOperatorToken(LogicalOperatorEnum::Not)),
                                 build_logical_operator,
                             ),
 
                             "and" => ast_builder.push_node(
                                 LogicalOperatorEnum::And as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LogicalOperatorToken(LogicalOperatorEnum::And)),
                                 build_logical_operator,
                             ),
 
                             "or" => ast_builder.push_node(
                                 LogicalOperatorEnum::Or as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LogicalOperatorToken(LogicalOperatorEnum::Or)),
                                 build_logical_operator,
                             ),
 
                             "xor" => ast_builder.push_node(
                                 LogicalOperatorEnum::Xor as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LogicalOperatorToken(LogicalOperatorEnum::Xor)),
                                 build_logical_operator,
                             ),
 
