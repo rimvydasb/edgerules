@@ -28,7 +28,7 @@ use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::NumberValue;
 use crate::typesystem::types::string::StringEnum;
 
-/// @TODO brackets counting and error returning
+/// @Tbc brackets counting and error returning
 pub fn tokenize(input: &str) -> VecDeque<EToken> {
     let mut ast_builder = ASTBuilder::new();
     let mut source = CharStream::new(input);
@@ -42,6 +42,12 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
     let mut left_side = true;
     let mut after_colon = false;
+
+    // @Todo: does it worth having function_def_gate_open and type_def_gate_open to simplify further parsing?
+    // function_def_gate_open and type_def_gate_open can be integers that are alawys increased or decreased depending on ctx
+    // Also, maybe those def gate opens could help validate special situations, such as only under type gate we can open < > as
+    // type holders <string>, but not in any other case.
+
     //let length: usize = input.chars().count();
     //let mut position: usize = 0;
 
@@ -328,9 +334,11 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             ),
 
                             "func" => {
+                                // @Todo: the func is recognized, so it can be mapped to Unparsed::UserFunctionGateOpen
                                 ast_builder.push_element(Unparsed(Literal(literal.into())));
                             }
                             "type" => {
+                                // @Todo: the type is recognized, so it can be mapped to Unparsed::UserTypeDefinitionGateOpen
                                 ast_builder.push_element(Unparsed(Literal(literal.into())));
                             }
                             "as" => {
@@ -401,7 +409,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             }
             //----------------------------------------------------------------------------------
             '[' => {
-                // @Todo: implement range
+                // @Tbc: implement range
 
                 // can be 1. Array Start, 2. Filter, 3. Range Start
 
@@ -448,9 +456,10 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 after_colon = false;
             }
             '=' | '<' | '>' => {
-                // @Todo: simplify operator acquisition
                 if *symbol == '<' && after_colon {
                     source.next_char();
+                    // @Todo: investigate that, not sure if it make sense: type parsing should be done in builder.rs, investigate that
+                    // I'm expecting having something like build_function_definition, so it is build_type_definition_part // e.g. <string,"unknown">
                     match parse_complex_type_in_angle(&mut source) {
                         Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref))),
                         Err(err) => ast_builder.push_element(EToken::ParseError(err)),
