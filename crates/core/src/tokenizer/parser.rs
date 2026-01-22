@@ -191,8 +191,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 if ast_builder.last_variable().is_some() {
                     if let Some(function_var) = ast_builder.pop_last_variable() {
                         if left_side {
-                            let has_func_prefix = ast_builder.pop_literal_if("func")
-                                || ast_builder.pop_unparsed_if(UserFunctionGateOpen);
+                            let has_func_prefix = ast_builder.pop_unparsed_if(UserFunctionGateOpen);
 
                             if has_func_prefix {
                                 ast_builder.push_node(

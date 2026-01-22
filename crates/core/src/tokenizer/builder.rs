@@ -291,18 +291,12 @@ pub mod factory {
         })?;
 
         // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
-        let is_type_stmt = match left.back() {
-            Some(Unparsed(Literal(ref s))) if s.as_ref() == "type" => true,
-            Some(Unparsed(UserTypeDefinitionGateOpen)) => true,
-            _ => false,
-        };
+        let is_type_stmt = matches!(left.back(), Some(Unparsed(UserTypeDefinitionGateOpen)));
 
         match (left_token, right_token) {
             // Type alias: type Alias : <Type>
             (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) if is_type_stmt => {
-                if left.pop_left_as_expected("type").is_err() {
-                    let _ = left.pop_left_unparsed(UserTypeDefinitionGateOpen)?;
-                }
+                left.pop_left_unparsed(UserTypeDefinitionGateOpen)?;
                 Ok(Definition(DefinitionEnum::UserType(UserTypeDefinition {
                     name: link.get_name(),
                     body: UserTypeBody::TypeRef(tref),
@@ -314,9 +308,7 @@ pub mod factory {
             )),
             // Type alias with object body: type Alias : { ... }
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
-                if left.pop_left_as_expected("type").is_err() {
-                    let _ = left.pop_left_unparsed(UserTypeDefinitionGateOpen)?;
-                }
+                left.pop_left_unparsed(UserTypeDefinitionGateOpen)?;
 
                 // Enforce: no functions or executable expressions inside type definitions.
                 let field_entries: Vec<(&'static str, Rc<RefCell<ExpressionEntry>>)> = {
