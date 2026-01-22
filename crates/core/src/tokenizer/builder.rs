@@ -1,7 +1,8 @@
 use crate::ast::token::EToken;
 use crate::ast::token::EToken::Expression;
 use crate::ast::token::EToken::Unparsed;
-use crate::ast::token::EUnparsedToken::Literal;
+use crate::ast::token::EUnparsedToken;
+use crate::ast::token::EUnparsedToken::{Literal, UserTypeDefinitionGateOpen};
 use crate::ast::token::ExpressionEnum::{Value, Variable};
 use crate::ast::variable::VariableLink;
 use crate::tokenizer::utils::TokenChain;
@@ -165,6 +166,16 @@ impl ASTBuilder {
         false
     }
 
+    pub fn pop_unparsed_if(&mut self, expected: EUnparsedToken) -> bool {
+        if let Some(Unparsed(token)) = self.result.back() {
+            if *token == expected {
+                let _ = self.result.pop_back();
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn push_node(&mut self, priority: u32, token: EToken, factory: FactoryFunction) {
         let lvl = calc_level(priority, self.current_level);
 
@@ -280,15 +291,18 @@ pub mod factory {
         })?;
 
         // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
-        let is_type_stmt = matches!(
-            left.back(),
-            Some(Unparsed(Literal(ref s))) if s.as_ref() == "type"
-        );
+        let is_type_stmt = match left.back() {
+            Some(Unparsed(Literal(ref s))) if s.as_ref() == "type" => true,
+            Some(Unparsed(UserTypeDefinitionGateOpen)) => true,
+            _ => false,
+        };
 
         match (left_token, right_token) {
             // Type alias: type Alias : <Type>
             (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) if is_type_stmt => {
-                let _ = left.pop_left_as_expected("type");
+                if left.pop_left_as_expected("type").is_err() {
+                    let _ = left.pop_left_unparsed(UserTypeDefinitionGateOpen)?;
+                }
                 Ok(Definition(DefinitionEnum::UserType(UserTypeDefinition {
                     name: link.get_name(),
                     body: UserTypeBody::TypeRef(tref),
@@ -300,7 +314,9 @@ pub mod factory {
             )),
             // Type alias with object body: type Alias : { ... }
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
-                let _ = left.pop_left_as_expected("type");
+                if left.pop_left_as_expected("type").is_err() {
+                    let _ = left.pop_left_unparsed(UserTypeDefinitionGateOpen)?;
+                }
 
                 // Enforce: no functions or executable expressions inside type definitions.
                 let field_entries: Vec<(&'static str, Rc<RefCell<ExpressionEntry>>)> = {

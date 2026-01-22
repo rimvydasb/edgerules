@@ -191,8 +191,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 if ast_builder.last_variable().is_some() {
                     if let Some(function_var) = ast_builder.pop_last_variable() {
                         if left_side {
-                            // Enforce new syntax: function definitions must be prefixed with 'func'
-                            let has_func_prefix = ast_builder.pop_literal_if("func");
+                            let has_func_prefix = ast_builder.pop_literal_if("func")
+                                || ast_builder.pop_unparsed_if(UserFunctionGateOpen);
 
                             if has_func_prefix {
                                 ast_builder.push_node(
@@ -334,12 +334,10 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             ),
 
                             "func" => {
-                                // @Todo: the func is recognized, so it can be mapped to Unparsed::UserFunctionGateOpen
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(UserFunctionGateOpen));
                             }
                             "type" => {
-                                // @Todo: the type is recognized, so it can be mapped to Unparsed::UserTypeDefinitionGateOpen
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(UserTypeDefinitionGateOpen));
                             }
                             "as" => {
                                 // Insert cast operator and immediately parse trailing type

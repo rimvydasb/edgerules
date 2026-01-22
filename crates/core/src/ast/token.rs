@@ -74,6 +74,8 @@ pub enum EUnparsedToken {
     FunctionNameToken(VariableLink),
     FunctionDefinitionLiteral(String, Vec<FormalParameter>),
     TypeReferenceLiteral(ComplexTypeRef),
+    UserFunctionGateOpen,
+    UserTypeDefinitionGateOpen,
     MathOperatorToken(MathOperatorEnum),
     LogicalOperatorToken(LogicalOperatorEnum),
     ComparatorToken(ComparatorEnum),
@@ -335,6 +337,8 @@ impl Display for EUnparsedToken {
             MathOperatorToken(value) => write!(f, "{}", value),
             LogicalOperatorToken(value) => write!(f, "{}", value),
             ComparatorToken(value) => write!(f, "{}", value),
+            UserFunctionGateOpen => write!(f, "func"),
+            UserTypeDefinitionGateOpen => write!(f, "type"),
         }
     }
 }

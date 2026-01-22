@@ -1,6 +1,6 @@
 use crate::ast::token::EToken::{Expression, ParseError, Unparsed};
 use crate::ast::token::EUnparsedToken::Literal;
-use crate::ast::token::{EToken, ExpressionEnum};
+use crate::ast::token::{EToken, EUnparsedToken, ExpressionEnum};
 use crate::test_support::EToken::Definition;
 use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::errors::ParseErrorEnum::{
@@ -93,6 +93,17 @@ impl TokenChain {
     #[allow(dead_code)]
     pub fn pop_right_as_expected(&mut self, expected: &str) -> Result<String, ParseErrorEnum> {
         self.pop_as_expected_helper(|s| s.pop_front(), expected)
+    }
+
+    pub fn pop_left_unparsed(
+        &mut self,
+        expected: EUnparsedToken,
+    ) -> Result<EUnparsedToken, ParseErrorEnum> {
+        match self.pop_helper(|s| s.pop_back())? {
+            Unparsed(token) if token == expected => Ok(token),
+            Unparsed(token) => Err(UnexpectedToken(Box::new(Unparsed(token)), None)),
+            other => Err(UnexpectedToken(Box::new(other), None)),
+        }
     }
 
     fn pop_as_expected_helper<F>(
