@@ -917,7 +917,10 @@ pub mod factory {
         token: EToken,
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
-        let operator = LogicalOperatorEnum::try_from(token.into_string_or_literal()?.as_str())?;
+        let operator = match token {
+            Unparsed(LogicalOperatorToken(op)) => op,
+            _ => LogicalOperatorEnum::try_from(token.into_string_or_literal()?.as_str())?,
+        };
 
         // Support unary prefix: `not <expr>`
         if let LogicalOperatorEnum::Not = operator {
