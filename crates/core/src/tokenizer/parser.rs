@@ -452,13 +452,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             }
             '=' | '<' | '>' => {
                 if *symbol == '<' && after_colon {
+                    ast_builder.incl_level();
                     source.next_char();
-                    // @Todo: investigate that, not sure if it make sense: type parsing should be done in builder.rs, investigate that
-                    // I'm expecting having something like build_function_definition, so it is build_type_definition_part // e.g. <string,"unknown">
                     match parse_complex_type_in_angle(&mut source) {
                         Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref))),
                         Err(err) => ast_builder.push_element(EToken::ParseError(err)),
                     }
+                    ast_builder.merge();
+                    ast_builder.dec_level();
                     after_colon = false;
                 } else if let Some(comparator) = ComparatorEnum::parse(&mut source) {
                     ast_builder.push_node(
