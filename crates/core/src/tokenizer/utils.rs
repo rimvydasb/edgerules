@@ -1,5 +1,5 @@
 use crate::ast::token::EToken::{Expression, ParseError, Unparsed};
-use crate::ast::token::EUnparsedToken::Literal;
+use crate::ast::token::EUnparsedToken::LiteralToken;
 use crate::ast::token::{EToken, ExpressionEnum};
 use crate::test_support::EToken::Definition;
 use crate::typesystem::errors::ParseErrorEnum;
