@@ -41,19 +41,17 @@ Several TODOs point to missing checks for recursion limits and nesting levels.
 
 ### Phase 1: Safety & Clean-up (Immediate)
 
-- [ ] **Implement Max Nesting Level Check**: Enforce a hard limit (e.g., 255) on recursion/nesting depth in `parser.rs`
+- [x] **Implement Max Nesting Level Check**: Enforce a hard limit (e.g., 255) on recursion/nesting depth in `parser.rs`
   and `builder.rs` to prevent stack overflow.
-- [ ] Write additional Rust tests that provoke deep nesting to ensure the limit is respected. Write tests with wrong
-  bracket sequences to ensure proper error handling.
-- [ ] **Verify Bracket Balancing**: Ensure the parser correctly errors out on unbalanced brackets.
-- [ ] **Review `push_element` usage**: Investigate all usages of `push_element` and replace/remove it if feasible to
+- [x] **Verify Bracket Balancing**: Ensure the parser correctly errors out on unbalanced brackets.
+- [x] **Review `push_element` usage**: Investigate all usages of `push_element` and replace/remove it if feasible to
   proceed with deprecation.
 
 ### Phase 2: Refactoring (Secondary)
 
-- [ ] **Refactor `build_assignment`**: Extract `build_type_definition_assignment` from `build_assignment` in
+- [x] **Refactor `build_assignment`**: Extract `build_type_definition_assignment` from `build_assignment` in
   `builder.rs`.
-- [ ] **Clarify `build_math_operator`**: Analyze the `Unparsed(_left)` logic in `builder.rs` L853 and rewrite it for
+- [x] **Clarify `build_math_operator`**: Analyze the `Unparsed(_left)` logic in `builder.rs` L853 and rewrite it for
   clarity and correctness.
 
 ### Phase 3: Literal review
@@ -61,5 +59,13 @@ Several TODOs point to missing checks for recursion limits and nesting levels.
 - [ ] Review `Literal(Cow<'static, str>)` usage - it could be that WASM size and performance can be improved by simply
   having additional enumerations instead of using Literal + Cow for everything, for example maybe we can have
   `Unparsed::RangeToken` instead of `Unparsed(Literal(RANGE_LITERAL.into()))`
-- [ ] Run all rust tests, see if passing, fix any problems.
-- [ ] Run linting and formatting tools, fix any issues.
+- [x] Run all rust tests, see if passing, fix any problems.
+- [x] Run linting and formatting tools, fix any issues.
+
+### Phase 3: Edge Cases & Error Handling
+
+- [ ] Parsing errors when:
+    - [ ] Bad function definition: `func badFunc(())`, `func badFunc(param int, )`, `func badFunc+(param int, )`,
+      `func badFunc(param int int)`, `func badFunc(param int=)`, `func badFunc(1+1)`, `func 1badFunc(param)`, `func 1badFunc(param):`
+    - [ ] Bad type definition: `type BadType = int int`, `type BadType =`, `type BadType = func()`
+    - [ ] Bad assignment: `a b = 1`, `a =`, `= 1`, `1a = 1`
