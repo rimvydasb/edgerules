@@ -656,7 +656,7 @@ pub mod factory {
         while let Some(right_token) = right.pop_front() {
             match right_token {
                 Expression(expression) => args.push(expression),
-                Unparsed(Comma) => {
+                Unparsed(CommaToken) => {
                     if args.is_empty() {
                         right.clear(); // forgets all possible other errors
                         return Err(WrongFormat(
@@ -899,8 +899,8 @@ pub mod factory {
                     ComparatorOperator::build(comparator, left_token, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))
             }
-            (Unparsed(BracketOpen), Expression(right_token)) => {
-                left.push_back(Unparsed(BracketOpen));
+            (Unparsed(BracketOpenToken), Expression(right_token)) => {
+                left.push_back(Unparsed(BracketOpenToken));
                 let comparator_operator =
                     ComparatorOperator::build(comparator, ContextVariable, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))

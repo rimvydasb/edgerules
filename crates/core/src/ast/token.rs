@@ -162,7 +162,7 @@ impl PartialEq for EToken {
 impl EToken {
     pub fn into_string_or_literal(self) -> Result<String, ParseErrorEnum> {
         match self {
-            Unparsed(Literal(text)) => Ok(text.into_owned()),
+            Unparsed(LiteralToken(text)) => Ok(text.into_owned()),
             Expression(Value(StringValue(StringEnum::String(value)))) => Ok(value),
             ParseError(error) => Err(error),
             _ => Err(UnexpectedToken(Box::new(self), None)),

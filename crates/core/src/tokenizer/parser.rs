@@ -110,8 +110,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         !matches!(
                             token,
                             Expression(_)
-                                | Unparsed(BracketOpen)
-                                | Unparsed(Literal(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
+                                | Unparsed(BracketOpenToken)
+                                | Unparsed(LiteralToken(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
                         )
                     } else {
                         true
@@ -414,11 +414,15 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     };
 
                 if is_select {
-                    ast_builder.push_node(FilterArray as u32, Unparsed(BracketOpen), build_filter);
+                    ast_builder.push_node(
+                        FilterArray as u32,
+                        Unparsed(BracketOpenToken),
+                        build_filter,
+                    );
                 } else {
                     ast_builder.push_node(
                         FilterArray as u32,
-                        Unparsed(BracketOpen),
+                        Unparsed(BracketOpenToken),
                         build_sequence,
                     );
                 };
@@ -445,7 +449,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     // @Todo: investigate that, not sure if it make sense: type parsing should be done in builder.rs, investigate that
                     // I'm expecting having something like build_function_definition, so it is build_type_definition_part // e.g. <string,"unknown">
                     match parse_complex_type_in_angle(&mut source) {
-                        Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref))),
+                        Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(tref))),
                         Err(err) => ast_builder.push_element(EToken::ParseError(err)),
                     }
                     after_colon = false;
