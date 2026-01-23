@@ -232,7 +232,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             "if" => {
                                 // just jumping upper with no turning back
                                 //ast_builder.incl_level();
-                                 ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
