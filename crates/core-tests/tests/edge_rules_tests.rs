@@ -207,7 +207,7 @@ fn test_service() -> Result<(), EvalError> {
     }
 
     test_code("value").expect_parse_error(UnexpectedToken(
-        Box::new(EToken::Unparsed(EUnparsedToken::Comma)),
+        Box::new(EToken::Unparsed(EUnparsedToken::CommaToken)),
         None,
     ));
     test_code("value: 2 + 2").expect_num("value", Int(4));
