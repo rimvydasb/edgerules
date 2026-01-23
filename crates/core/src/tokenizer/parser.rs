@@ -239,7 +239,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             "then" => {
                                 ast_builder.merge();
                                 ast_builder.dec_level();
-                                 ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
