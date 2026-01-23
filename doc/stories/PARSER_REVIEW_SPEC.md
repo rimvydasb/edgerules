@@ -59,6 +59,5 @@ Several TODOs point to missing checks for recursion limits and nesting levels.
 ### Phase 3: Literal review
 
 - [ ] Review `Literal(Cow<'static, str>)` usage - it could be that WASM size and performance can be improved by simply
-  having
-  additional enumerations instead of using Literal + Cow for everything, for example maybe we can have
+  having additional enumerations instead of using Literal + Cow for everything, for example maybe we can have
   `Unparsed::RangeToken` instead of `Unparsed(Literal(RANGE_LITERAL.into()))`
