@@ -61,11 +61,8 @@ pub enum EPriorities {
     ErrorPriority = 99,
 }
 
-// @Todo implementation of Display
-/// constrains can be applied in:
-/// Constraint(EComparator, Box<EExpression>),
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[derive(Clone, PartialEq)]
+#[derive(PartialEq)]
 #[allow(dead_code)]
 pub enum EUnparsedToken {
     Comma,
