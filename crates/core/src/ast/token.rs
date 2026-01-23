@@ -68,12 +68,16 @@ pub enum EPriorities {
 #[derive(Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum EUnparsedToken {
-    Comma,
-    BracketOpen,
-    Literal(Cow<'static, str>),
+    CommaToken,
+    BracketOpenToken,
+    AssignToken,
+    RangeToken,
+    ObjectToken,
+    DotToken,
+    LiteralToken(Cow<'static, str>),
     FunctionNameToken(VariableLink),
-    FunctionDefinitionLiteral(String, Vec<FormalParameter>),
-    TypeReferenceLiteral(ComplexTypeRef),
+    FunctionDefinitionLiteralToken(String, Vec<FormalParameter>),
+    TypeReferenceLiteralToken(ComplexTypeRef),
     MathOperatorToken(MathOperatorEnum),
     LogicalOperatorToken(LogicalOperatorEnum),
     ComparatorToken(ComparatorEnum),
@@ -324,14 +328,18 @@ impl From<bool> for ExpressionEnum {
 impl Display for EUnparsedToken {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionDefinitionLiteral(text, args) => {
+            FunctionDefinitionLiteralToken(text, args) => {
                 write!(f, "{}({})", text, array_to_code_sep(args.iter(), ", "))
             }
-            TypeReferenceLiteral(r) => write!(f, "<{}>", r),
-            Literal(value) => write!(f, "{}", value),
+            TypeReferenceLiteralToken(r) => write!(f, "<{}>", r),
+            LiteralToken(value) => write!(f, "{}", value),
+            AssignToken => write!(f, ":"),
+            RangeToken => write!(f, ".."),
+            ObjectToken => write!(f, "OBJECT"),
+            DotToken => write!(f, "."),
             FunctionNameToken(value) => write!(f, "{}", value),
-            Comma => write!(f, ","),
-            BracketOpen => write!(f, "["),
+            CommaToken => write!(f, ","),
+            BracketOpenToken => write!(f, "["),
             MathOperatorToken(value) => write!(f, "{}", value),
             LogicalOperatorToken(value) => write!(f, "{}", value),
             ComparatorToken(value) => write!(f, "{}", value),
