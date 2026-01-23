@@ -70,6 +70,8 @@ pub enum EPriorities {
 pub enum EUnparsedToken {
     Comma,
     BracketOpen,
+    // @Todo: implement
+    //AssignToken,
     Literal(Cow<'static, str>),
     FunctionNameToken(VariableLink),
     FunctionDefinitionLiteral(String, Vec<FormalParameter>),

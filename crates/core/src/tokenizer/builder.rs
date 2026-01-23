@@ -266,6 +266,7 @@ pub mod factory {
         false
     }
 
+    // @Todo: refactor it and split to build_assignment, build_type_definition_assignment
     pub fn build_assignment(
         left: &mut TokenChain,
         _token: EToken,

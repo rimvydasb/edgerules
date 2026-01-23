@@ -23,10 +23,10 @@ const ASSIGN_LITERAL: &str = ":";
 const OBJECT_LITERAL: &str = "OBJECT";
 const DOT_LITERAL: &str = ".";
 
+use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::NumberValue;
-use crate::typesystem::types::string::StringEnum;
 
 /// @Tbc brackets counting and error returning
 pub fn tokenize(input: &str) -> VecDeque<EToken> {
@@ -40,13 +40,19 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
     //let mut seq_open: u32 = 0;
     //let mut ctx_open: u32 = 0;
 
+    // @Todo: level should be calculated to ensure that all brackets are closed
+    // @Todo: if max level (255) is exceeded, return error
+    let mut level: i8 = 0;
+
     let mut left_side = true;
     let mut after_colon = false;
 
-    // @Todo: does it worth having function_def_gate_open and type_def_gate_open to simplify further parsing?
-    // function_def_gate_open and type_def_gate_open can be integers that are alawys increased or decreased depending on ctx
+    // @Todo: does it worth having type_def_gate_open to simplify further parsing?
+    // type_def_gate_open can be integers that are alawys increased or decreased depending on ctx
     // Also, maybe those def gate opens could help validate special situations, such as only under type gate we can open < > as
     // type holders <string>, but not in any other case.
+    // @Todo: types can be nested, so type_def_gate_open increases the same as level. Consider type_def_gate_open if it is zero.
+    let mut type_def_gate_open : i8 = 0;
 
     //let length: usize = input.chars().count();
     //let mut position: usize = 0;
@@ -97,8 +103,11 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = false;
                 after_colon = true;
 
+                // @Todo: if type or function gates are open, add build_type_definition_assignment and build_function_assignment
+                // if none of gates open, use standard build_assignment
                 ast_builder.push_node(
                     Assign as u32,
+                    // @Todo: use Unparsed::AssignToken
                     Unparsed(Literal(ASSIGN_LITERAL.into())),
                     build_assignment,
                 );
@@ -285,7 +294,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 };
 
                                 if is_field {
-                                    ast_builder.push_element(VariableLink::new_unlinked(literal).into());
+                                    ast_builder
+                                        .push_element(VariableLink::new_unlinked(literal).into());
                                     after_colon = false;
                                     continue;
                                 }
@@ -340,6 +350,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             "type" => {
                                 // @Todo: the type is recognized, so it can be mapped to Unparsed::UserTypeDefinitionGateOpen
                                 ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                type_def_gate_open += 1;
                             }
                             "as" => {
                                 // Insert cast operator and immediately parse trailing type
@@ -500,7 +511,9 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
     ast_builder.finalize().0
 }
 
-pub fn parse_complex_type_in_angle(source: &mut CharStream) -> Result<ComplexTypeRef, ParseErrorEnum> {
+pub fn parse_complex_type_in_angle(
+    source: &mut CharStream,
+) -> Result<ComplexTypeRef, ParseErrorEnum> {
     let mut name = String::new();
     while let Some(symbol) = source.peek().cloned() {
         if symbol == '>' || symbol == ',' {
@@ -585,7 +598,9 @@ fn parse_default_value(
         }
         Some('"') | Some('\'') => {
             let quote = source.next_char().unwrap();
-            Some(ValueEnum::StringValue(StringEnum::from(source.get_all_till(quote))))
+            Some(ValueEnum::StringValue(StringEnum::from(
+                source.get_all_till(quote),
+            )))
         }
         Some('t') | Some('f') => {
             let literal = source.get_alphanumeric();
