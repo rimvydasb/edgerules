@@ -61,3 +61,5 @@ Several TODOs point to missing checks for recursion limits and nesting levels.
 - [ ] Review `Literal(Cow<'static, str>)` usage - it could be that WASM size and performance can be improved by simply
   having additional enumerations instead of using Literal + Cow for everything, for example maybe we can have
   `Unparsed::RangeToken` instead of `Unparsed(Literal(RANGE_LITERAL.into()))`
+- [ ] Run all rust tests, see if passing, fix any problems.
+- [ ] Run linting and formatting tools, fix any issues.
