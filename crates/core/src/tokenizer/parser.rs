@@ -18,11 +18,6 @@ use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::types::TypedValue;
 use std::borrow::Cow;
 
-const RANGE_LITERAL: &str = "..";
-const ASSIGN_LITERAL: &str = ":";
-const OBJECT_LITERAL: &str = "OBJECT";
-const DOT_LITERAL: &str = ".";
-
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::NumberValue;
@@ -65,11 +60,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         // two dots detected
                         source.next_char();
 
-                        ast_builder.push_node(
-                            RangePriority as u32,
-                            Unparsed(Literal(RANGE_LITERAL.into())),
-                            build_range,
-                        );
+                        ast_builder
+                            .push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
                     }
                 }
             }
@@ -97,11 +89,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = false;
                 after_colon = true;
 
-                ast_builder.push_node(
-                    Assign as u32,
-                    Unparsed(Literal(ASSIGN_LITERAL.into())),
-                    build_assignment,
-                );
+                ast_builder
+                    .push_node(Assign as u32, Unparsed(AssignToken), build_assignment);
             }
             '+' | '-' | '*' | '×' | '÷' | '^' | '%' => {
                 let extracted = source.next_char().unwrap();
@@ -121,8 +110,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         !matches!(
                             token,
                             Expression(_)
-                                | Unparsed(BracketOpen)
-                                | Unparsed(Literal(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
+                                | Unparsed(BracketOpenToken)
+                                | Unparsed(LiteralToken(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
                         )
                     } else {
                         true
@@ -153,11 +142,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = true;
                 after_colon = false;
 
-                ast_builder.push_node(
-                    ContextPriority as u32,
-                    Unparsed(Literal(OBJECT_LITERAL.into())),
-                    build_context,
-                );
+                ast_builder
+                    .push_node(ContextPriority as u32, Unparsed(ObjectToken), build_context);
 
                 //ctx_open += 1;
                 ast_builder.incl_level();
@@ -232,7 +218,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             ',' => {
                 source.next_char();
 
-                ast_builder.push_element(Unparsed(Comma));
+                ast_builder.push_element(Unparsed(CommaToken));
             }
             ' ' | '\t' | '\r' => {
                 source.next_char();
@@ -246,14 +232,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             "if" => {
                                 // just jumping upper with no turning back
                                 //ast_builder.incl_level();
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
                             "then" => {
                                 ast_builder.merge();
                                 ast_builder.dec_level();
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
@@ -262,15 +248,15 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                    Unparsed(Literal(literal.into())),
+                                     Unparsed(LiteralToken(literal.into())),
                                     build_if_then_else,
                                 )
                             }
 
-                            "for" => ast_builder.push_element(Unparsed(Literal(literal.into()))),
+                            "for" => ast_builder.push_element(Unparsed(LiteralToken(literal.into()))),
 
                             "in" => {
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
@@ -294,7 +280,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                    Unparsed(Literal(literal.into())),
+                                    Unparsed(LiteralToken(literal.into())),
                                     build_for_each_return,
                                 )
                             }
@@ -310,46 +296,46 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             }
 
                             "not" => ast_builder.push_node(
-                                LogicalOperatorEnum::Not as u32,
-                                Unparsed(Literal(literal.into())),
-                                build_logical_operator,
-                            ),
+                                 LogicalOperatorEnum::Not as u32,
+                                 Unparsed(LiteralToken(literal.into())),
+                                 build_logical_operator,
+                             ),
 
                             "and" => ast_builder.push_node(
                                 LogicalOperatorEnum::And as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                            ),
+                             ),
 
                             "or" => ast_builder.push_node(
                                 LogicalOperatorEnum::Or as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                            ),
+                             ),
 
                             "xor" => ast_builder.push_node(
                                 LogicalOperatorEnum::Xor as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                            ),
+                             ),
 
                             "func" => {
                                 // @Todo: the func is recognized, so it can be mapped to Unparsed::UserFunctionGateOpen
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                             }
                             "type" => {
                                 // @Todo: the type is recognized, so it can be mapped to Unparsed::UserTypeDefinitionGateOpen
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                             }
                             "as" => {
                                 // Insert cast operator and immediately parse trailing type
                                 ast_builder.push_node(
                                     CastPriority as u32,
-                                    Unparsed(Literal(literal.into())),
+                                    Unparsed(LiteralToken(literal.into())),
                                     build_cast,
                                 );
                                 let tref = parse_complex_type_no_angle(&mut source);
-                                ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(tref)));
                                 after_colon = false;
                             }
                             _ => {
@@ -358,8 +344,9 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                         literal.as_str(),
                                         &mut source,
                                     ) {
-                                        ast_builder
-                                            .push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                        ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(
+                                            tref,
+                                        )));
                                         after_colon = false;
                                         continue;
                                     }
@@ -392,17 +379,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                         ast_builder.push_element(Expression(ContextVariable));
                     } else {
-                        ast_builder.push_node(
-                            RangePriority as u32,
-                            Unparsed(Literal(RANGE_LITERAL.into())),
-                            build_range,
-                        );
+                        ast_builder
+                            .push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
                     }
                 } else {
                     // merge_left_if_can must already be called with ]
                     ast_builder.push_node(
                         FieldSelectionPriority as u32,
-                        Unparsed(Literal(DOT_LITERAL.into())),
+                        Unparsed(DotToken),
                         build_field_selection,
                     );
                 }
@@ -430,11 +414,15 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     };
 
                 if is_select {
-                    ast_builder.push_node(FilterArray as u32, Unparsed(BracketOpen), build_filter);
+                    ast_builder.push_node(
+                        FilterArray as u32,
+                        Unparsed(BracketOpenToken),
+                        build_filter,
+                    );
                 } else {
                     ast_builder.push_node(
                         FilterArray as u32,
-                        Unparsed(BracketOpen),
+                        Unparsed(BracketOpenToken),
                         build_sequence,
                     );
                 };
@@ -461,7 +449,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     // @Todo: investigate that, not sure if it make sense: type parsing should be done in builder.rs, investigate that
                     // I'm expecting having something like build_function_definition, so it is build_type_definition_part // e.g. <string,"unknown">
                     match parse_complex_type_in_angle(&mut source) {
-                        Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref))),
+                        Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(tref))),
                         Err(err) => ast_builder.push_element(EToken::ParseError(err)),
                     }
                     after_colon = false;
