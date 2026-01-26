@@ -215,7 +215,12 @@ pub enum ParseErrorEnum {
     /// Ordered stack of errors to preserve context
     Stacked(Vec<ParseErrorEnum>),
 
-    UnexpectedEnd,
+    UnexpectedEnd
+
+    /// @Todo:
+    /// for example date("2023-XX-10") will raise fromType:StringType toType:DateType
+    /// fromType, toType
+    /// CannotConvertValue(ValueType, ValueType)
 }
 
 impl Display for ParseErrorEnum {

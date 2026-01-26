@@ -212,11 +212,22 @@ ISO date and datetime strings.
 - [ ] Add another test that instead of JavaScript Date, strings are used. We must support:
     - [ ] date as `YYYY-MM-DD`
     - [ ] datetime as `YYYY-MM-DDTHH:MM:SS`
-    - [ ] Treat `2026-01-26T21:33:35Z` as `YYYY-MM-DDTHH:MM:SS`
-    - [ ] Treat `2026-01-26T21:33:35+00:00` as `YYYY-MM-DDTHH:MM:SS`
+    - [ ] Treat `2026-01-26T21:33:35Z`, `2026-01-26T21:33:35.000Z` or `2026-01-26T21:33:35+00:00` as
+      `YYYY-MM-DDTHH:MM:SS`. Write test cases for all of these.
     - [ ] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
     - [ ] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
 - [ ] Implement support in EdgeRules Portable for date and datetime strings as per above specification.
   Implementation should be straightforward: if field expects date or datetime, and string is provided, then simply use
-  `eval_date` or `eval_datetime` as implemented.
+  `parse_date_iso` or `parse_datetime_local` as implemented.
+- [ ] Use `ParseErrorEnum::CannotConvertValue(ValueType, ValueType)` for parsing problems. Map parsing errors to
+  `PortableError` to properly display. Write tests for invalid date/datetime/duration/time strings to ensure proper
+  error handling.
+- [ ] Implement support for duration and period strings in EdgeRules Portable format so user will be able to provide
+  duration and period values as strings.
+- [ ] Implement support for time strings in EdgeRules Portable format so user will be able to provide time values as
+  strings.
+- [ ] Add tests for duration, period, and time strings in EdgeRules Portable format.
 - [ ] Make sure tests are passing: Rust and JavaScript.
+- [ ] Review the code based on project priorities: Small WASM Size First, Small Stack Size Second, Performance Third,
+  Maintainability
+- [ ] Mark tasks that are completed.
