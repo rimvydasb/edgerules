@@ -39,8 +39,8 @@ hour (number), minute (number), second (number)
 
 ### datetime object properties
 
-year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7), 
-hour (number), minute (number), second (number), 
+year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7),
+hour (number), minute (number), second (number),
 time (time), date (date)
 
 ### duration object properties
@@ -56,10 +56,10 @@ totalMonths (number), totalDays (number)
 ### normalization and clarifications
 
 - period or duration properties will return normalized values:
-  - period("P18M").years = 1
-  - period("P18M").months = 6
-  - duration("PT90M").hours = 1
-  - duration("PT90M").minutes = 30
+    - period("P18M").years = 1
+    - period("P18M").months = 6
+    - duration("PT90M").hours = 1
+    - duration("PT90M").minutes = 30
 - period does not have totalYears, because existing property years is already normalized
 - duration does not have totalDays, because existing property days is already normalized
 - period and duration negative values are represented by negative properties (e.g. duration("-PT90M").minutes = -30)
@@ -71,7 +71,7 @@ duration("P4D"), duration("PT90M"), period("P18Y6M").
 
 ### Period
 
-> Period will be Java Period compatible and will be able to carry 
+> Period will be Java Period compatible and will be able to carry
 > years, months, days components only.
 
 - period("P1Y6M")     // 1 year 6 months
@@ -90,7 +90,7 @@ duration("P4D"), duration("PT90M"), period("P18Y6M").
 Is invalid and will produce runtime error while parsing duration strings:
 
 > **Todo:** at this time, it is not possible to have linking error, because strings are not investigated
-during AST building and linking phase
+> during AST building and linking phase
 
 ```edgerules
 value1: period("P18YT12H")    // invalid
@@ -196,3 +196,24 @@ You can also create durations using a literal syntax:
 
 - Literal support for durations (years, months, days, hours, minutes, seconds)
 - More date/time functions (e.g., adding support for week of year, quarter of year, etc.)
+
+# Next Steps
+
+Implement JSON date and datetime support for EdgeRules Portable format.
+Currently, as per `test-decision-service.mjs`, Portable works well with JavaScript Date objects, but lacks support for
+ISO date and datetime strings.
+
+- [ ] Add minimal test in `test-decision-service.mjs` that explores JavaScript Date and Date with time support without
+  zones. Later this test will be used for the development.
+  - [ ] Minimal decision service that is created with constants that have date and datetime values - use JavaScript Date objects.
+  - [ ] Minimal decision service request that sends date and datetime values as JavaScript Date objects.
+  - [ ] Run this test, it should work as per current implementation.
+- [ ] Add another test that instead of JavaScript Date, strings are used. We must support:
+  - [ ] date as `YYYY-MM-DD`
+  - [ ] datetime as `YYYY-MM-DDTHH:MM:SS`
+  - [ ] Treat `2026-01-26T21:33:35Z` as `YYYY-MM-DDTHH:MM:SS`
+  - [ ] Treat `2026-01-26T21:33:35+00:00` as `YYYY-MM-DDTHH:MM:SS`
+  - [ ] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
+  - [ ] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
+- [ ] Implement support in EdgeRules Portable for date and datetime strings as per above specification.
+- [ ] Make sure tests are passing: Rust and JavaScript.
