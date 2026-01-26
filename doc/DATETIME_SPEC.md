@@ -205,15 +205,18 @@ ISO date and datetime strings.
 
 - [ ] Add minimal test in `test-decision-service.mjs` that explores JavaScript Date and Date with time support without
   zones. Later this test will be used for the development.
-  - [ ] Minimal decision service that is created with constants that have date and datetime values - use JavaScript Date objects.
-  - [ ] Minimal decision service request that sends date and datetime values as JavaScript Date objects.
-  - [ ] Run this test, it should work as per current implementation.
+    - [ ] Minimal decision service that is created with constants that have date and datetime values - use JavaScript
+      Date objects.
+    - [ ] Minimal decision service request that sends date and datetime values as JavaScript Date objects.
+    - [ ] Run this test, it should work as per current implementation.
 - [ ] Add another test that instead of JavaScript Date, strings are used. We must support:
-  - [ ] date as `YYYY-MM-DD`
-  - [ ] datetime as `YYYY-MM-DDTHH:MM:SS`
-  - [ ] Treat `2026-01-26T21:33:35Z` as `YYYY-MM-DDTHH:MM:SS`
-  - [ ] Treat `2026-01-26T21:33:35+00:00` as `YYYY-MM-DDTHH:MM:SS`
-  - [ ] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
-  - [ ] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
+    - [ ] date as `YYYY-MM-DD`
+    - [ ] datetime as `YYYY-MM-DDTHH:MM:SS`
+    - [ ] Treat `2026-01-26T21:33:35Z` as `YYYY-MM-DDTHH:MM:SS`
+    - [ ] Treat `2026-01-26T21:33:35+00:00` as `YYYY-MM-DDTHH:MM:SS`
+    - [ ] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
+    - [ ] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
 - [ ] Implement support in EdgeRules Portable for date and datetime strings as per above specification.
+  Implementation should be straightforward: if field expects date or datetime, and string is provided, then simply use
+  `eval_date` or `eval_datetime` as implemented.
 - [ ] Make sure tests are passing: Rust and JavaScript.
