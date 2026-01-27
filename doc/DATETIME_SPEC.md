@@ -164,8 +164,8 @@ toString(duration("PT90M"))     // "PT1H30M"
 ## Restrictions:
 
 - No leap seconds
-- No timezones will be supported
-- No time offsets in time and date values for this implementation - only local time will be supported
+- No named timezones will be supported (e.g. 'America/New_York')
+- Time offsets ARE supported (e.g. '+02:00', 'Z')
 - No support for today() or now() functions, because EdgeRules are designed to be deterministic and work on the edge
   environment without access to a real-time clock
 - No nanoseconds or milliseconds support in this implementation, smallest unit is seconds
