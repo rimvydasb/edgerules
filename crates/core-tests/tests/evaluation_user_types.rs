@@ -975,4 +975,40 @@ fn invalid_cast_to_various_temporal_types_fails() {
     }
 }
 
+#[test]
+fn cast_string_array_to_temporal_array_via_decision_service() {
+    let model = r#"
+    {
+        type Request: {
+            dates: <datetime[]>
+        }
+        func check(r: Request): {
+            allValid: count(r.dates) = 2
+            firstYear: r.dates[0].year
+            secondYear: r.dates[1].year
+        }
+    }
+    "#;
+
+    let mut service = DecisionService::from_source(model).expect("service from source");
+
+    let request_code = r#"
+        dates: ['2026-01-26T10:00:00', '2027-02-27T11:00:00']
+    "#;
+
+    let mut request_model = EdgeRulesModel::new();
+    request_model
+        .append_source(&format!("{{ {} }}", request_code))
+        .unwrap();
+    let request_rt = request_model.to_runtime().unwrap();
+    let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
+
+    let response = service.execute("check", request).expect("execute");
+    let rendered = inline(response.to_string());
+
+    assert_string_contains!("allValid:true", &rendered);
+    assert_string_contains!("firstYear:2026", &rendered);
+    assert_string_contains!("secondYear:2027", &rendered);
+}
+
 
