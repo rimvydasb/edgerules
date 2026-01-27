@@ -1,4 +1,5 @@
 mod utilities;
+use edge_rules::runtime::decision_service::DecisionService;
 use edge_rules::runtime::{edge_rules::EdgeRulesModel, ToSchema};
 pub use utilities::*;
 
@@ -264,3 +265,99 @@ fn using_types_in_deeper_scope() {
         "applicationResponse:{oldAmount:1000newAmount:1001evenDeeper:{test:1006willItExplode:{yesItWill:2002willBeMissing:Missing('maxAmount')}}}"
     );
 }
+
+#[test]
+fn explicit_cast_to_temporal_types() {
+    assert_value!("'2026-01-26' as date", "2026-01-26");
+    assert_value!("'12:00:00' as time", "12:00:00");
+    assert_value!(
+        "'2026-01-26T21:33:35' as datetime",
+        "2026-01-26T21:33:35"
+    );
+    assert_value!("'P1DT1H' as duration", "P1DT1H");
+    assert_value!("'P1Y2M' as period", "P1Y2M");
+}
+
+#[test]
+fn cast_strings_to_temporal_types_via_decision_service() {
+    let model = r#"
+    {
+        type Request: {
+            date: <date>;
+            datetime: <datetime>;
+            time: <time>;
+            duration: <duration>;
+            period: <period>;
+        }
+        func check(r: Request): {
+            isDate: r.date = date('2026-01-26')
+            isDateTime: r.datetime = datetime('2026-01-26T21:33:35')
+            isTime: r.time = time('12:00:00')
+            isDuration: r.duration = duration('P1DT1H')
+            isPeriod: r.period = period('P1Y2M')
+        }
+    }
+    "#;
+
+    let mut service = DecisionService::from_source(model).expect("service from source");
+
+    let request_code = r#"
+        date: '2026-01-26'
+        datetime: '2026-01-26T21:33:35'
+        time: '12:00:00'
+        duration: 'P1DT1H'
+        period: 'P1Y2M'
+    "#;
+
+    let mut request_model = EdgeRulesModel::new();
+    request_model
+        .append_source(&format!("{{ {} }}", request_code))
+        .unwrap();
+    let request_rt = request_model.to_runtime().unwrap();
+    let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
+
+    let response = service.execute("check", request).expect("execute");
+    let rendered = inline(response.to_string());
+
+    assert_string_contains!("isDate:true", &rendered);
+    assert_string_contains!("isDateTime:true", &rendered);
+    assert_string_contains!("isTime:true", &rendered);
+    assert_string_contains!("isDuration:true", &rendered);
+    assert_string_contains!("isPeriod:true", &rendered);
+}
+
+#[test]
+fn invalid_cast_to_various_temporal_types_fails() {
+    let mut service = EdgeRulesModel::new();
+    service
+        .append_source(
+            r#"
+        {
+            v1: 'not-a-date' as date
+            v2: 'not-a-time' as time
+            v3: 'not-a-datetime' as datetime
+            v4: 'not-a-duration' as duration
+            v5: 'not-a-period' as period
+        }
+        "#,
+        )
+        .unwrap();
+    let runtime = service.to_runtime().unwrap();
+
+    for (field, target) in [
+        ("v1", "date"),
+        ("v2", "time"),
+        ("v3", "datetime"),
+        ("v4", "duration"),
+        ("v5", "period"),
+    ] {
+        let result = runtime.evaluate_field(field);
+        assert!(result.is_err(), "Expected error for {}", field);
+        let err_msg = result.unwrap_err().to_string();
+        assert_string_contains!(
+            &format!("Cannot convert value from type 'string' to type '{}'", target),
+            &err_msg
+        );
+    }
+}
+

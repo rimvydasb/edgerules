@@ -209,6 +209,8 @@ Implement JSON date and datetime support for EdgeRules Portable format by doing 
 Currently, as per `test-decision-service.mjs`, Portable works well with JavaScript Date objects, but lacks support for
 ISO date and datetime strings.
 
+## Phase 1
+
 - [x] Add minimal test in `test-decision-service.mjs` that explores JavaScript Date and Date with time support without
   zones. Later this test will be used for the development.
     - [x] Minimal decision service that is created with constants that have date and datetime values - use JavaScript
@@ -237,6 +239,8 @@ ISO date and datetime strings.
 - [x] Review the code based on project priorities: Small WASM Size First, Small Stack Size Second, Performance Third,
   Maintainability
 - [x] Mark tasks that are completed.
+
+## Phase 2
 
 - [ ] Update `parse_datetime_local` to be `parse_datetime_flexible` that will support (write Rust tests for it):
     - [ ] `YYYY-MM-DDTHH:MM:SS` (no offset) - existing
