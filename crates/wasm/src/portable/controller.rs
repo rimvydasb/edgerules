@@ -1,7 +1,6 @@
 use crate::portable::error::PortableError;
 use crate::portable::model::{
-    apply_portable_entry, get_portable_entry, model_from_portable, remove_portable_entry,
-    serialize_model,
+    apply_portable_entry, get_portable_entry, model_from_portable, remove_portable_entry, serialize_model,
 };
 use edge_rules::runtime::decision_service::DecisionService;
 use edge_rules::typesystem::types::ValueType;
@@ -24,11 +23,7 @@ impl DecisionServiceController {
         Ok(Self { service })
     }
 
-    pub fn execute_value(
-        &mut self,
-        method: &str,
-        request: ValueEnum,
-    ) -> Result<ValueEnum, PortableError> {
+    pub fn execute_value(&mut self, method: &str, request: ValueEnum) -> Result<ValueEnum, PortableError> {
         Ok(self.service.execute(method, request)?)
     }
 
@@ -79,9 +74,7 @@ impl DecisionServiceController {
         let model = self.service.get_model();
         {
             let mut borrowed = model.borrow_mut();
-            borrowed
-                .rename_entry(old_path, new_path)
-                .map_err(PortableError::from)?;
+            borrowed.rename_entry(old_path, new_path).map_err(PortableError::from)?;
         }
         self.service.ensure_linked()?;
         Ok(())
@@ -89,8 +82,6 @@ impl DecisionServiceController {
 
     pub fn get_entry_type(&mut self, path: &str) -> Result<ValueType, PortableError> {
         self.service.ensure_linked()?;
-        self.service
-            .get_linked_type(path)
-            .map_err(PortableError::from)
+        self.service.get_linked_type(path).map_err(PortableError::from)
     }
 }

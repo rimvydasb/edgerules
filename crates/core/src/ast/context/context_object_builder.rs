@@ -91,11 +91,7 @@ impl ContextObjectBuilder {
     // @Todo: check if field is not duplicated
     // @Todo: optimize by inserting by a number, not a field name
     // @Todo: return an error and propagate it to the top
-    pub fn add_expression(
-        &mut self,
-        field_name: &str,
-        field: ExpressionEnum,
-    ) -> Result<&mut Self, DuplicateNameError> {
+    pub fn add_expression(&mut self, field_name: &str, field: ExpressionEnum) -> Result<&mut Self, DuplicateNameError> {
         let field_name = intern_field_name(field_name);
         self.insert_field_name(field_name, NameKind::Field)?;
 
@@ -106,25 +102,17 @@ impl ContextObjectBuilder {
         }
 
         trace!(">>> inserting field {:?}", field_name);
-        self.fields
-            .insert(field_name, ExpressionEntry::from(field).into());
+        self.fields.insert(field_name, ExpressionEntry::from(field).into());
 
         Ok(self)
     }
 
-    pub fn set_expression(
-        &mut self,
-        field_name: &str,
-        expression: ExpressionEnum,
-    ) -> Result<(), DuplicateNameError> {
+    pub fn set_expression(&mut self, field_name: &str, expression: ExpressionEnum) -> Result<(), DuplicateNameError> {
         self.remove_field(field_name);
         self.add_expression(field_name, expression).map(|_| ())
     }
 
-    pub fn add_definition(
-        &mut self,
-        field: DefinitionEnum,
-    ) -> Result<&mut Self, DuplicateNameError> {
+    pub fn add_definition(&mut self, field: DefinitionEnum) -> Result<&mut Self, DuplicateNameError> {
         match field {
             UserFunctionDef(m) => {
                 let definition = UserFunctionDefinition::Function(m);
@@ -132,8 +120,7 @@ impl ContextObjectBuilder {
                 trace!(">>> inserting function {:?}", name);
                 let interned = intern_field_name(name.as_str());
                 self.insert_field_name(interned, NameKind::Function)?;
-                self.metaphors
-                    .insert(interned, MethodEntry::from(definition).into());
+                self.metaphors.insert(interned, MethodEntry::from(definition).into());
             }
             InlineUserFunction(m) => {
                 let definition = UserFunctionDefinition::Inline(m);
@@ -141,8 +128,7 @@ impl ContextObjectBuilder {
                 trace!(">>> inserting function {:?}", name);
                 let interned = intern_field_name(name.as_str());
                 self.insert_field_name(interned, NameKind::Function)?;
-                self.metaphors
-                    .insert(interned, MethodEntry::from(definition).into());
+                self.metaphors.insert(interned, MethodEntry::from(definition).into());
             }
             DefinitionEnum::UserType(t) => {
                 self.insert_type_definition(t.name, t.body)?;
@@ -157,19 +143,12 @@ impl ContextObjectBuilder {
 
     /// Appends another ContextObject into this builder.
     /// - Fails if there are duplicate field names.
-    pub fn append(
-        &mut self,
-        another: Rc<RefCell<ContextObject>>,
-    ) -> Result<&mut Self, DuplicateNameError> {
+    pub fn append(&mut self, another: Rc<RefCell<ContextObject>>) -> Result<&mut Self, DuplicateNameError> {
         let borrowed = another.borrow();
         let other_names = borrowed.get_field_names();
 
         for &name in &other_names {
-            let kind = if borrowed.metaphors.contains_key(&name) {
-                NameKind::Function
-            } else {
-                NameKind::Field
-            };
+            let kind = if borrowed.metaphors.contains_key(&name) { NameKind::Function } else { NameKind::Field };
 
             self.ensure_name_unique(name, kind)?;
         }
@@ -207,17 +186,11 @@ impl ContextObjectBuilder {
         Ok(self)
     }
 
-    pub fn merge_context_object(
-        &mut self,
-        object: Rc<RefCell<ContextObject>>,
-    ) -> Result<(), DuplicateNameError> {
+    pub fn merge_context_object(&mut self, object: Rc<RefCell<ContextObject>>) -> Result<(), DuplicateNameError> {
         self.append(object).map(|_| ())
     }
 
-    pub fn append_if_missing(
-        &mut self,
-        another: Rc<RefCell<ContextObject>>,
-    ) -> Result<&mut Self, DuplicateNameError> {
+    pub fn append_if_missing(&mut self, another: Rc<RefCell<ContextObject>>) -> Result<&mut Self, DuplicateNameError> {
         let borrowed = another.borrow();
         let childs_ref = borrowed.node().get_childs();
         let childs_ref = childs_ref.borrow();
@@ -249,9 +222,7 @@ impl ContextObjectBuilder {
         }
 
         for (key, value) in borrowed.defined_types.iter() {
-            self.defined_types
-                .entry(key.clone())
-                .or_insert_with(|| value.clone());
+            self.defined_types.entry(key.clone()).or_insert_with(|| value.clone());
         }
 
         Ok(self)
@@ -274,10 +245,7 @@ impl ContextObjectBuilder {
     }
 
     pub fn user_type_entries(&self) -> Vec<(String, UserTypeBody)> {
-        self.defined_types
-            .iter()
-            .map(|(name, body)| (name.clone(), body.clone()))
-            .collect()
+        self.defined_types.iter().map(|(name, body)| (name.clone(), body.clone())).collect()
     }
 
     pub fn set_user_type_definition(&mut self, name: String, body: UserTypeBody) {
@@ -311,13 +279,8 @@ impl ContextObjectBuilder {
         true
     }
 
-    pub fn rename_field(
-        &mut self,
-        old_name: &str,
-        new_name: &str,
-    ) -> Result<bool, DuplicateNameError> {
-        let exists =
-            self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
+    pub fn rename_field(&mut self, old_name: &str, new_name: &str) -> Result<bool, DuplicateNameError> {
+        let exists = self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
         if !exists {
             return Ok(false);
         }
@@ -404,8 +367,7 @@ impl ContextObjectBuilder {
                     )
                 };
                 if let Ok(body) = body {
-                    body.borrow_mut().node.node_type =
-                        NodeDataEnum::Internal(parent.clone(), Some(alias));
+                    body.borrow_mut().node.node_type = NodeDataEnum::Internal(parent.clone(), Some(alias));
                 }
             }
         }
@@ -415,8 +377,7 @@ impl ContextObjectBuilder {
             for (name, body) in type_defs.defined_types.iter() {
                 if let UserTypeBody::TypeObject(type_ctx) = body {
                     let alias = intern_field_name(name.as_str());
-                    type_ctx.borrow_mut().node.node_type =
-                        NodeDataEnum::Internal(Rc::downgrade(&ctx), Some(alias));
+                    type_ctx.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(&ctx), Some(alias));
                 }
             }
         }
@@ -424,11 +385,7 @@ impl ContextObjectBuilder {
         ctx
     }
 
-    fn ensure_name_unique(
-        &self,
-        field_name: &'static str,
-        kind: NameKind,
-    ) -> Result<(), DuplicateNameError> {
+    fn ensure_name_unique(&self, field_name: &'static str, kind: NameKind) -> Result<(), DuplicateNameError> {
         if self.field_name_set.contains(field_name) {
             return Err(DuplicateNameError::new(kind, field_name));
         }
@@ -436,11 +393,7 @@ impl ContextObjectBuilder {
         Ok(())
     }
 
-    fn insert_field_name(
-        &mut self,
-        field_name: &'static str,
-        kind: NameKind,
-    ) -> Result<(), DuplicateNameError> {
+    fn insert_field_name(&mut self, field_name: &'static str, kind: NameKind) -> Result<(), DuplicateNameError> {
         self.ensure_name_unique(field_name, kind)?;
 
         self.field_name_set.insert(field_name);
@@ -449,11 +402,7 @@ impl ContextObjectBuilder {
         Ok(())
     }
 
-    fn insert_type_definition(
-        &mut self,
-        name: String,
-        body: UserTypeBody,
-    ) -> Result<(), DuplicateNameError> {
+    fn insert_type_definition(&mut self, name: String, body: UserTypeBody) -> Result<(), DuplicateNameError> {
         if self.defined_types.contains_key(&name) {
             return Err(DuplicateNameError::new(NameKind::UserType, name));
         }

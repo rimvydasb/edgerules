@@ -739,17 +739,8 @@ pub struct BinaryFunction {
 }
 
 impl BinaryFunction {
-    pub fn build(
-        definition: BinaryFunctionDefinition,
-        left: ExpressionEnum,
-        right: ExpressionEnum,
-    ) -> Self {
-        BinaryFunction {
-            left,
-            right,
-            definition,
-            return_type: LinkingError::not_linked().into(),
-        }
+    pub fn build(definition: BinaryFunctionDefinition, left: ExpressionEnum, right: ExpressionEnum) -> Self {
+        BinaryFunction { left, right, definition, return_type: LinkingError::not_linked().into() }
     }
 }
 
@@ -792,11 +783,7 @@ pub struct UnaryFunction {
 
 impl UnaryFunction {
     pub fn build(definition: UnaryFunctionDefinition, arg: ExpressionEnum) -> Self {
-        UnaryFunction {
-            arg,
-            definition,
-            return_type: LinkingError::not_linked().into(),
-        }
+        UnaryFunction { arg, definition, return_type: LinkingError::not_linked().into() }
     }
 }
 
@@ -841,22 +828,13 @@ pub struct MultiFunction {
 
 impl MultiFunction {
     pub fn build(definition: MultiFunctionDefinition, args: Vec<ExpressionEnum>) -> Self {
-        MultiFunction {
-            args,
-            definition,
-            return_type: LinkingError::not_linked().into(),
-        }
+        MultiFunction { args, definition, return_type: LinkingError::not_linked().into() }
     }
 }
 
 impl Display for MultiFunction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}({})",
-            self.definition.name,
-            array_to_code_sep(self.args.iter(), ", ")
-        )
+        write!(f, "{}({})", self.definition.name, array_to_code_sep(self.args.iter(), ", "))
     }
 }
 

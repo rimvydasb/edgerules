@@ -30,10 +30,7 @@ pub struct DuplicateNameError {
 
 impl DuplicateNameError {
     pub fn new(kind: NameKind, name: impl Into<String>) -> Self {
-        DuplicateNameError {
-            kind,
-            name: name.into(),
-        }
+        DuplicateNameError { kind, name: name.into() }
     }
 }
 

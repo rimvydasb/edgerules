@@ -43,11 +43,7 @@ pub struct ForFunction {
 impl Display for ForFunction {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let return_expression = context_unwrap(self.return_expression.borrow().to_string());
-        write!(
-            f,
-            "for {} in {} return {}",
-            self.in_loop_variable, self.in_expression, return_expression
-        )
+        write!(f, "for {} in {} return {}", self.in_loop_variable, self.in_expression, return_expression)
     }
 }
 
@@ -86,10 +82,7 @@ impl ForFunction {
         obj.add_expression(self.in_loop_variable.as_str(), value)
             .map_err(|err| RuntimeError::eval_error(err.to_string()))?;
 
-        Ok(ExecutionContext::create_temp_child_context(
-            Rc::clone(parent),
-            obj.build(),
-        ))
+        Ok(ExecutionContext::create_temp_child_context(Rc::clone(parent), obj.build()))
     }
 
     fn iterate_values(
@@ -101,10 +94,9 @@ impl ForFunction {
 
         // @Todo: solve this code duplication:
         let element_type = match self.return_type.clone()? {
-            ValueType::ListType(item_type) => item_type
-                .as_ref()
-                .map(|inner| (**inner).clone())
-                .unwrap_or(ValueType::UndefinedType),
+            ValueType::ListType(item_type) => {
+                item_type.as_ref().map(|inner| (**inner).clone()).unwrap_or(ValueType::UndefinedType)
+            }
             other => return RuntimeError::type_not_supported(other).into(),
         };
 
@@ -124,8 +116,7 @@ impl ForFunction {
                 Ok(val) => result.push(val),
                 Err(err) => {
                     if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = err.kind() {
-                        let missing =
-                            missing_for_type(&element_type, Some(field.as_str()), &parent)?;
+                        let missing = missing_for_type(&element_type, Some(field.as_str()), &parent)?;
                         result.push(missing);
                     } else {
                         return Err(err);
@@ -134,10 +125,7 @@ impl ForFunction {
             }
         }
 
-        Ok(Array(ArrayValue::PrimitivesArray {
-            values: result,
-            item_type: element_type.clone(),
-        }))
+        Ok(Array(ArrayValue::PrimitivesArray { values: result, item_type: element_type.clone() }))
     }
 
     fn iterate_objects(
@@ -149,10 +137,9 @@ impl ForFunction {
 
         // @Todo: solve this code duplication:
         let element_type = match self.return_type.clone()? {
-            ValueType::ListType(item_type) => item_type
-                .as_ref()
-                .map(|inner| (**inner).clone())
-                .unwrap_or(ValueType::UndefinedType),
+            ValueType::ListType(item_type) => {
+                item_type.as_ref().map(|inner| (**inner).clone()).unwrap_or(ValueType::UndefinedType)
+            }
             other => return RuntimeError::type_not_supported(other).into(),
         };
 
@@ -173,8 +160,7 @@ impl ForFunction {
                 Ok(val) => result.push(val),
                 Err(err) => {
                     if let RuntimeErrorEnum::RuntimeFieldNotFound(_, field) = err.kind() {
-                        let missing =
-                            missing_for_type(&element_type, Some(field.as_str()), &parent)?;
+                        let missing = missing_for_type(&element_type, Some(field.as_str()), &parent)?;
                         result.push(missing);
                     } else {
                         return Err(err);
@@ -183,10 +169,7 @@ impl ForFunction {
             }
         }
 
-        Ok(Array(ArrayValue::PrimitivesArray {
-            values: result,
-            item_type: element_type.clone(),
-        }))
+        Ok(Array(ArrayValue::PrimitivesArray { values: result, item_type: element_type.clone() }))
     }
 
     fn iterate_range(
@@ -212,22 +195,15 @@ impl ForFunction {
             result.push(map_value?);
         }
 
-        Ok(Array(ArrayValue::PrimitivesArray {
-            values: result,
-            item_type: ValueType::NumberType,
-        }))
+        Ok(Array(ArrayValue::PrimitivesArray { values: result, item_type: ValueType::NumberType }))
     }
 }
 
 impl EvaluatableExpression for ForFunction {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
         match self.in_expression.eval(Rc::clone(&context))? {
-            Array(ArrayValue::PrimitivesArray { values, .. }) => {
-                self.iterate_values(values, Rc::clone(&context))
-            }
-            Array(ArrayValue::ObjectsArray { values, .. }) => {
-                self.iterate_objects(values, Rc::clone(&context))
-            }
+            Array(ArrayValue::PrimitivesArray { values, .. }) => self.iterate_values(values, Rc::clone(&context)),
+            Array(ArrayValue::ObjectsArray { values, .. }) => self.iterate_objects(values, Rc::clone(&context)),
             RangeValue(range) => self.iterate_range(range, Rc::clone(&context)),
             _other => RuntimeError::internal_integrity_error(400).into(),
         }
@@ -247,24 +223,16 @@ impl StaticLink for ForFunction {
                     .unwrap_or(ValueType::UndefinedType),
                 ValueType::RangeType => ValueType::NumberType,
                 _ => {
-                    return LinkingError::other_error(format!(
-                        "Cannot iterate through non list type `{}`",
-                        list_type
-                    ))
-                    .into();
+                    return LinkingError::other_error(format!("Cannot iterate through non list type `{}`", list_type))
+                        .into();
                 }
             };
 
             let parameter_type = ComplexTypeRef::from_value_type(item_type);
-            let for_parameter =
-                FormalParameter::with_type_ref(self.in_loop_variable.clone(), parameter_type);
+            let for_parameter = FormalParameter::with_type_ref(self.in_loop_variable.clone(), parameter_type);
 
-            self.return_expression
-                .borrow_mut()
-                .parameters
-                .push(for_parameter);
-            self.return_expression.borrow_mut().node =
-                NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&ctx), None));
+            self.return_expression.borrow_mut().parameters.push(for_parameter);
+            self.return_expression.borrow_mut().node = NodeData::new(NodeDataEnum::Internal(Rc::downgrade(&ctx), None));
 
             // @Todo: link_parts will fail with unknown field if return_expression refers list item field, for example:
             // for item in [{a:1},{}] return item.a

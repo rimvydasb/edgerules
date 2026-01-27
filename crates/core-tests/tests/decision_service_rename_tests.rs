@@ -8,14 +8,14 @@ fn test_rename_simple_field() {
         input: 10
     "#;
     let mut service = DecisionService::from_source(source).unwrap();
-    
+
     // Rename 'input' to 'output'
     service.rename_entry("input", "output").unwrap();
-    
+
     // Check that 'input' is gone and 'output' exists with correct type/value
     let result = service.get_linked_type("input");
     assert!(result.is_err());
-    
+
     let type_info = service.get_linked_type("output").unwrap();
     assert!(matches!(type_info, ValueType::NumberType));
 

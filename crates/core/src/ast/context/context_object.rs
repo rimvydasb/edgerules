@@ -25,10 +25,7 @@ pub struct ExpressionEntry {
 
 impl From<ExpressionEnum> for ExpressionEntry {
     fn from(expression: ExpressionEnum) -> Self {
-        ExpressionEntry {
-            expression,
-            field_type: LinkingError::not_linked().into(),
-        }
+        ExpressionEntry { expression, field_type: LinkingError::not_linked().into() }
     }
 }
 
@@ -46,10 +43,7 @@ pub struct MethodEntry {
 
 impl From<UserFunctionDefinition> for MethodEntry {
     fn from(value: UserFunctionDefinition) -> Self {
-        MethodEntry {
-            function_definition: value,
-            field_type: LinkingError::not_linked().into(),
-        }
+        MethodEntry { function_definition: value, field_type: LinkingError::not_linked().into() }
     }
 }
 
@@ -109,9 +103,7 @@ impl ContentHolder<ContextObject> for ContextObject {
         } else if let Some(content) = self.metaphors.get(name) {
             Ok(EObjectContent::UserFunctionRef(Rc::clone(content)))
         } else if let Some(parameter) = self.parameters.iter().find(|p| p.name == name) {
-            let runtime_type = parameter
-                .runtime_value_type()
-                .unwrap_or(ValueType::UndefinedType);
+            let runtime_type = parameter.runtime_value_type().unwrap_or(ValueType::UndefinedType);
             Ok(EObjectContent::Definition(runtime_type))
         } else {
             let object_name = {
@@ -217,16 +209,11 @@ impl ContextObject {
 
                 LinkingError::other_error(format!("Unknown type '{}'", name)).into()
             }
-            ComplexTypeRef::List(inner, _) => Ok(ValueType::ListType(Some(Box::new(
-                self.resolve_type_ref(inner)?,
-            )))),
+            ComplexTypeRef::List(inner, _) => Ok(ValueType::ListType(Some(Box::new(self.resolve_type_ref(inner)?)))),
         }
     }
 
-    fn alias_in_map(
-        map: &HashMap<String, UserTypeBody>,
-        target: &Rc<RefCell<ContextObject>>,
-    ) -> Option<String> {
+    fn alias_in_map(map: &HashMap<String, UserTypeBody>, target: &Rc<RefCell<ContextObject>>) -> Option<String> {
         map.iter().find_map(|(name, body)| match body {
             UserTypeBody::TypeObject(obj) if Rc::ptr_eq(obj, target) => Some(name.clone()),
             _ => None,
@@ -257,9 +244,7 @@ impl ContextObject {
 
     pub fn format_value_type(&self, value_type: &ValueType) -> String {
         match value_type {
-            ValueType::ObjectType(obj) => self
-                .find_alias_for_object(obj)
-                .unwrap_or_else(|| obj.borrow().to_schema()),
+            ValueType::ObjectType(obj) => self.find_alias_for_object(obj).unwrap_or_else(|| obj.borrow().to_schema()),
             ValueType::ListType(Some(inner)) => {
                 format!("{}[]", self.format_value_type(inner.as_ref()))
             }
@@ -295,16 +280,13 @@ impl ContextObject {
                     parent_mut.insert_field_name(interned, NameKind::Field)?;
                     parent_mut.node().add_child(interned, Rc::clone(&obj));
                 }
-                obj.borrow_mut().mut_node().node_type =
-                    NodeDataEnum::Child(interned, Rc::downgrade(parent));
+                obj.borrow_mut().mut_node().node_type = NodeDataEnum::Child(interned, Rc::downgrade(parent));
                 Ok(())
             }
             other => {
                 let mut parent_mut = parent.borrow_mut();
                 parent_mut.insert_field_name(interned, NameKind::Field)?;
-                parent_mut
-                    .expressions
-                    .insert(interned, ExpressionEntry::from(other).into());
+                parent_mut.expressions.insert(interned, ExpressionEntry::from(other).into());
                 Ok(())
             }
         }
@@ -320,9 +302,7 @@ impl ContextObject {
         {
             let mut parent_mut = parent.borrow_mut();
             parent_mut.insert_field_name(interned, NameKind::Function)?;
-            parent_mut
-                .metaphors
-                .insert(interned, Rc::clone(&method_entry));
+            parent_mut.metaphors.insert(interned, Rc::clone(&method_entry));
         }
 
         {
@@ -331,20 +311,14 @@ impl ContextObject {
                 .function_definition
                 .get_body()
                 .map_err(|_| DuplicateNameError::new(NameKind::Function, interned))?;
-            body.borrow_mut().node.node_type =
-                NodeDataEnum::Internal(Rc::downgrade(parent), Some(interned));
+            body.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(parent), Some(interned));
         }
 
         Ok(())
     }
 
-    pub fn rename_field(
-        &mut self,
-        old_name: &str,
-        new_name: &str,
-    ) -> Result<bool, DuplicateNameError> {
-        let exists =
-            self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
+    pub fn rename_field(&mut self, old_name: &str, new_name: &str) -> Result<bool, DuplicateNameError> {
+        let exists = self.field_name_set.contains(old_name) || self.defined_types.contains_key(old_name);
         if !exists {
             return Ok(false);
         }
@@ -412,32 +386,20 @@ impl ContextObject {
         Ok(true)
     }
 
-    pub fn set_user_type_definition(
-        parent: &Rc<RefCell<ContextObject>>,
-        name: &str,
-        body: UserTypeBody,
-    ) {
+    pub fn set_user_type_definition(parent: &Rc<RefCell<ContextObject>>, name: &str, body: UserTypeBody) {
         if let UserTypeBody::TypeObject(obj) = &body {
             let alias = intern_field_name(name);
-            obj.borrow_mut().node.node_type =
-                NodeDataEnum::Internal(Rc::downgrade(parent), Some(alias));
+            obj.borrow_mut().node.node_type = NodeDataEnum::Internal(Rc::downgrade(parent), Some(alias));
         }
 
-        parent
-            .borrow_mut()
-            .defined_types
-            .insert(name.to_string(), body);
+        parent.borrow_mut().defined_types.insert(name.to_string(), body);
     }
 
     pub fn remove_user_type_definition(parent: &Rc<RefCell<ContextObject>>, name: &str) -> bool {
         parent.borrow_mut().defined_types.remove(name).is_some()
     }
 
-    fn ensure_name_unique(
-        &self,
-        field_name: &'static str,
-        kind: NameKind,
-    ) -> Result<(), DuplicateNameError> {
+    fn ensure_name_unique(&self, field_name: &'static str, kind: NameKind) -> Result<(), DuplicateNameError> {
         if self.field_name_set.contains(field_name) {
             return Err(DuplicateNameError::new(kind, field_name));
         }
@@ -445,11 +407,7 @@ impl ContextObject {
         Ok(())
     }
 
-    fn insert_field_name(
-        &mut self,
-        field_name: &'static str,
-        kind: NameKind,
-    ) -> Result<(), DuplicateNameError> {
+    fn insert_field_name(&mut self, field_name: &'static str, kind: NameKind) -> Result<(), DuplicateNameError> {
         self.ensure_name_unique(field_name, kind)?;
         self.field_name_set.insert(field_name);
         self.all_field_names.push(field_name);

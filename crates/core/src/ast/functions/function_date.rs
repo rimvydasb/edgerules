@@ -5,8 +5,7 @@ use crate::typesystem::types::ValueType::{DateTimeType, DateType, DurationType, 
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
-    DateTimeValue, DateValue, DurationValue as DurationVariant, PeriodValue as PeriodVariant,
-    StringValue, TimeValue,
+    DateTimeValue, DateValue, DurationValue as DurationVariant, PeriodValue as PeriodVariant, StringValue, TimeValue,
 };
 use crate::typesystem::values::ValueOrSv;
 use crate::typesystem::values::{DurationValue, PeriodValue};
@@ -40,8 +39,7 @@ pub fn parse_datetime_flexible(s: &str) -> Option<OffsetDateTime> {
     }
 
     // 2. Try Date + Time with offset but NO seconds (e.g., 2026-01-27T10:00+02:00)
-    let fmt_no_sec_offset =
-        format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour]:[offset_minute]");
+    let fmt_no_sec_offset = format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour]:[offset_minute]");
     if let Ok(odt) = OffsetDateTime::parse(s, &fmt_no_sec_offset) {
         return Some(odt);
     }
@@ -54,8 +52,7 @@ pub fn parse_datetime_flexible(s: &str) -> Option<OffsetDateTime> {
     }
 
     // Try with milliseconds
-    let fmt_prim_ms =
-        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]");
+    let fmt_prim_ms = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]");
     if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim_ms) {
         return Some(dt.assume_utc());
     }
@@ -120,9 +117,7 @@ pub fn parse_duration_iso8601(s: &str) -> Result<DurationValue, RuntimeError> {
             if idx < bytes.len() {
                 match bytes[idx] {
                     b'Y' => return RuntimeError::parsing_from_string(DurationType, 0).into(),
-                    b'M' if !in_time => {
-                        return RuntimeError::parsing_from_string(DurationType, 0).into()
-                    }
+                    b'M' if !in_time => return RuntimeError::parsing_from_string(DurationType, 0).into(),
                     b'D' => {
                         days = num;
                         saw_any = true;
@@ -241,10 +236,7 @@ pub fn parse_period_iso8601(s: &str) -> Result<PeriodValue, RuntimeError> {
     PeriodValue::from_components(years, months, days, negative)
 }
 
-fn shift_date_by_months_safe(
-    date: time::Date,
-    months_delta: i64,
-) -> Result<time::Date, RuntimeError> {
+fn shift_date_by_months_safe(date: time::Date, months_delta: i64) -> Result<time::Date, RuntimeError> {
     if months_delta == 0 {
         return Ok(date);
     }
@@ -271,9 +263,7 @@ fn shift_date_by_months_safe(
 
     time::Date::from_calendar_date(
         new_year as i32,
-        Month::try_from(new_month_u8).map_err(|_| {
-            RuntimeError::parsing_code(DateType, DateType, 102)
-        })?,
+        Month::try_from(new_month_u8).map_err(|_| RuntimeError::parsing_code(DateType, DateType, 102))?,
         new_day,
     )
     .map_err(|_| RuntimeError::parsing_code(DateType, DateType, 103))
@@ -291,11 +281,7 @@ pub fn return_period_type_binary(_: ValueType, _: ValueType) -> ValueType {
 pub fn eval_calendar_diff(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match (left, right) {
         (DateValue(ValueOrSv::Value(start)), DateValue(ValueOrSv::Value(end))) => {
-            let (negative, earlier, later) = if start <= end {
-                (false, start, end)
-            } else {
-                (true, end, start)
-            };
+            let (negative, earlier, later) = if start <= end { (false, start, end) } else { (true, end, start) };
 
             let mut months_total = i64::from(later.year() - earlier.year()) * 12
                 + i64::from(later.month() as i32 - earlier.month() as i32);
@@ -310,11 +296,7 @@ pub fn eval_calendar_diff(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum
             }
 
             let day_diff = (later - anchor).whole_days();
-            let period = PeriodValue::from_total_parts(
-                i128::from(months_total),
-                i128::from(day_diff),
-                negative,
-            )?;
+            let period = PeriodValue::from_total_parts(i128::from(months_total), i128::from(day_diff), negative)?;
             Ok(PeriodVariant(ValueOrSv::Value(period)))
         }
         (_left_value, _right_value) => RuntimeError::internal_integrity_error(300).into(),
@@ -430,8 +412,7 @@ pub fn eval_datetime(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_duration(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let StringValue(ref s) = value {
         if let StringEnum::String(raw) = s.clone() {
-            return parse_duration_iso8601(raw.as_str())
-                .map(|dur| DurationVariant(ValueOrSv::Value(dur)));
+            return parse_duration_iso8601(raw.as_str()).map(|dur| DurationVariant(ValueOrSv::Value(dur)));
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()
@@ -440,8 +421,7 @@ pub fn eval_duration(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_period(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let StringValue(ref s) = value {
         if let StringEnum::String(raw) = s.clone() {
-            return parse_period_iso8601(raw.as_str())
-                .map(|per| PeriodVariant(ValueOrSv::Value(per)));
+            return parse_period_iso8601(raw.as_str()).map(|per| PeriodVariant(ValueOrSv::Value(per)));
         }
     }
     RuntimeError::type_not_supported(value.get_type()).into()

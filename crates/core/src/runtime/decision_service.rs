@@ -3,9 +3,7 @@ use crate::ast::expression::cast_value_to_type;
 use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::ExpressionEnum;
 use crate::link::linker::link_parts;
-use crate::runtime::edge_rules::{
-    ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, MethodEntry,
-};
+use crate::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, MethodEntry};
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
@@ -27,11 +25,7 @@ impl DecisionService {
         let mut model = EdgeRulesModel::new();
         model.merge_context_object(Rc::clone(&context))?;
 
-        Ok(Self {
-            model: Rc::new(RefCell::new(model)),
-            static_context: context,
-            runtime_dirty: false,
-        })
+        Ok(Self { model: Rc::new(RefCell::new(model)), static_context: context, runtime_dirty: false })
     }
 
     /// Parses EdgeRules DSL source and links it into a reusable decision service.
@@ -42,11 +36,7 @@ impl DecisionService {
     }
 
     /// Executes a decision-service method with the provided request payload.
-    pub fn execute(
-        &mut self,
-        service_method: &str,
-        decision_request: ValueEnum,
-    ) -> Result<ValueEnum, EvalError> {
+    pub fn execute(&mut self, service_method: &str, decision_request: ValueEnum) -> Result<ValueEnum, EvalError> {
         let method_path = Self::clean_method_name(service_method)?;
         let runtime_method_name = Self::runtime_method_name(&method_path);
 
@@ -56,34 +46,24 @@ impl DecisionService {
             let params = borrowed.function_definition.get_parameters();
             let count = params.len();
             // Get the declared type of the single argument if available
-            let type_opt = if count == 1 {
-                params[0].declared_type().cloned()
-            } else {
-                None
-            };
+            let type_opt = if count == 1 { params[0].declared_type().cloned() } else { None };
             (count, type_opt)
         };
         Self::ensure_single_argument(&method_path, parameter_count)?;
 
         let runtime = self.ensure_runtime()?;
-        
+
         let final_request = if let Some(tref) = param_type_opt {
-            let expected_type = runtime.context.borrow().object.borrow().resolve_type_ref(&tref).unwrap_or(ValueType::UndefinedType);
-            cast_value_to_type(
-                decision_request, 
-                expected_type, 
-                Rc::clone(&runtime.context), 
-                Some("Request")
-            ).map_err(EvalError::from)?
+            let expected_type =
+                runtime.context.borrow().object.borrow().resolve_type_ref(&tref).unwrap_or(ValueType::UndefinedType);
+            cast_value_to_type(decision_request, expected_type, Rc::clone(&runtime.context), Some("Request"))
+                .map_err(EvalError::from)?
         } else {
             decision_request
         };
 
         runtime
-            .call_method(
-                runtime_method_name,
-                vec![ExpressionEnum::from(final_request)],
-            )
+            .call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)])
             .map_err(EvalError::from)
     }
 
@@ -121,18 +101,13 @@ impl DecisionService {
     }
 
     pub fn get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
-        let _ = self
-            .ensure_runtime()
-            .map_err(|err| ContextQueryErrorEnum::ContextNotFoundError(err.to_string()))?;
+        let _ = self.ensure_runtime().map_err(|err| ContextQueryErrorEnum::ContextNotFoundError(err.to_string()))?;
         EdgeRulesRuntime::new(Rc::clone(&self.static_context)).get_type(path)
     }
 
     pub fn rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), EvalError> {
         self.runtime_dirty = true;
-        self.model
-            .borrow_mut()
-            .rename_entry(old_path, new_path)
-            .map_err(EvalError::from)
+        self.model.borrow_mut().rename_entry(old_path, new_path).map_err(EvalError::from)
     }
 
     #[cfg_attr(not(all(target_arch = "wasm32", feature = "wasm")), allow(dead_code))]
@@ -140,10 +115,7 @@ impl DecisionService {
         self.ensure_runtime().map(|_| ())
     }
 
-    fn resolve_method_entry(
-        &self,
-        method_path: &str,
-    ) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
+    fn resolve_method_entry(&self, method_path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
         self.model.borrow().get_user_function(method_path)
     }
 
@@ -160,9 +132,7 @@ impl DecisionService {
     fn clean_method_name(service_method: &str) -> Result<String, EvalError> {
         let trimmed = service_method.trim();
         if trimmed.is_empty() {
-            return Err(Self::config_error(
-                "Decision service method name cannot be empty",
-            ));
+            return Err(Self::config_error("Decision service method name cannot be empty"));
         }
         Ok(trimmed.to_string())
     }

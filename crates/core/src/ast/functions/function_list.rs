@@ -7,14 +7,14 @@ use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum::{Char as SChar, String as SString};
 use crate::typesystem::types::ValueType::{BooleanType, ListType, NumberType, StringType};
-use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType, Float};
+use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, StringValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
+use rust_decimal::prelude::*;
+use rust_decimal::MathematicalOps;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::rc::Rc;
-use rust_decimal::prelude::*;
-use rust_decimal::MathematicalOps;
 
 fn as_int(v: &ValueEnum) -> Option<i64> {
     match v {
@@ -26,34 +26,23 @@ fn as_int(v: &ValueEnum) -> Option<i64> {
 
 fn clone_array_parts(value: &ValueEnum) -> Result<(Vec<ValueEnum>, ValueType), RuntimeError> {
     match value {
-        ValueEnum::Array(ArrayValue::PrimitivesArray { values, item_type }) => {
-            Ok((values.clone(), item_type.clone()))
-        }
+        ValueEnum::Array(ArrayValue::PrimitivesArray { values, item_type }) => Ok((values.clone(), item_type.clone())),
         ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok((Vec::new(), ValueType::UndefinedType)),
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(Rc::clone(
-                object_type,
-            ))))
-            .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(Rc::clone(object_type)))).into()
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
 
-fn build_array_from_parts(
-    values: Vec<ValueEnum>,
-    mut item_type: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+fn build_array_from_parts(values: Vec<ValueEnum>, mut item_type: ValueType) -> Result<ValueEnum, RuntimeError> {
     if matches!(item_type, ValueType::UndefinedType) {
         if let Some(first) = values.first() {
             item_type = first.get_type();
         }
     }
 
-    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
-        values,
-        item_type,
-    }))
+    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values, item_type }))
 }
 
 fn merge_item_type(target: &mut ValueType, candidate: ValueType) -> Result<(), RuntimeError> {
@@ -80,10 +69,7 @@ fn flatten_list_value_type_owned(value_type: ValueType) -> ValueType {
     }
 }
 
-fn merge_item_type_from_value(
-    target: &mut ValueType,
-    value: &ValueEnum,
-) -> Result<(), RuntimeError> {
+fn merge_item_type_from_value(target: &mut ValueType, value: &ValueEnum) -> Result<(), RuntimeError> {
     merge_item_type(target, value.get_type())
 }
 
@@ -109,24 +95,20 @@ pub fn validate_unary_list_numbers(arg: ValueType) -> Link<()> {
             Some(vec![ListType(Some(Box::new(NumberType)))]),
         )
         .into(),
-        other => LinkingError::expect_type(None, other, &[ListType(Some(Box::new(NumberType)))])
-            .map(|_| ()),
+        other => LinkingError::expect_type(None, other, &[ListType(Some(Box::new(NumberType)))]).map(|_| ()),
     }
 }
 
 pub fn validate_unary_boolean_list(arg: ValueType) -> Link<()> {
     match arg {
-        ListType(Some(inner)) => {
-            LinkingError::expect_type(None, *inner, &[BooleanType]).map(|_| ())
-        }
+        ListType(Some(inner)) => LinkingError::expect_type(None, *inner, &[BooleanType]).map(|_| ()),
         ListType(None) => LinkingError::types_not_compatible(
             None,
             ValueType::ListType(None),
             Some(vec![ListType(Some(Box::new(BooleanType)))]),
         )
         .into(),
-        other => LinkingError::expect_type(None, other, &[ListType(Some(Box::new(BooleanType)))])
-            .map(|_| ()),
+        other => LinkingError::expect_type(None, other, &[ListType(Some(Box::new(BooleanType)))]).map(|_| ()),
     }
 }
 
@@ -203,8 +185,7 @@ pub fn eval_contains_mixed(left: ValueEnum, right: ValueEnum) -> Result<ValueEnu
             Ok(BooleanValue(values.iter().any(|v| v == &right)))
         }
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         other => strf::eval_contains(other, right),
     }
@@ -212,12 +193,11 @@ pub fn eval_contains_mixed(left: ValueEnum, right: ValueEnum) -> Result<ValueEnu
 
 pub fn eval_product(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(NumberEnum::SV(
-            SpecialValueEnum::missing_for(None),
-        ))),
+        ValueEnum::Array(ArrayValue::EmptyUntyped) => {
+            Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))))
+        }
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
             let mut acc: Option<NumberEnum> = None;
@@ -233,9 +213,7 @@ pub fn eval_product(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             }
             match acc {
                 Some(total) => Ok(NumberValue(total)),
-                None => Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(
-                    None,
-                )))),
+                None => Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None)))),
             }
         }
         NumberValue(n) => Ok(NumberValue(n)),
@@ -245,12 +223,11 @@ pub fn eval_product(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_mean(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(NumberEnum::SV(
-            SpecialValueEnum::missing_for(None),
-        ))),
+        ValueEnum::Array(ArrayValue::EmptyUntyped) => {
+            Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))))
+        }
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
             let mut sum = Float::ZERO;
@@ -270,9 +247,7 @@ pub fn eval_mean(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
                 }
             }
             if count == Float::ZERO {
-                Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(
-                    None,
-                ))))
+                Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))))
             } else {
                 Ok(NumberValue(NumberEnum::from(sum / count)))
             }
@@ -283,18 +258,15 @@ pub fn eval_mean(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_median(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(NumberEnum::SV(
-            SpecialValueEnum::missing_for(None),
-        ))),
+        ValueEnum::Array(ArrayValue::EmptyUntyped) => {
+            Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))))
+        }
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { mut values, .. }) => {
             if values.is_empty() {
-                return Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(
-                    None,
-                ))));
+                return Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))));
             }
             let mut nums: Vec<Float> = Vec::with_capacity(values.len());
             for v in values.drain(..) {
@@ -320,18 +292,15 @@ pub fn eval_median(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_stddev(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(NumberEnum::SV(
-            SpecialValueEnum::missing_for(None),
-        ))),
+        ValueEnum::Array(ArrayValue::EmptyUntyped) => {
+            Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))))
+        }
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
             if values.is_empty() {
-                return Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(
-                    None,
-                ))));
+                return Ok(NumberValue(NumberEnum::SV(SpecialValueEnum::missing_for(None))));
             }
             let mut nums: Vec<Float> = Vec::with_capacity(values.len());
             for v in values {
@@ -344,11 +313,15 @@ pub fn eval_stddev(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             let count = Float::from(nums.len());
             let mean = nums.iter().sum::<Float>() / count;
             // Use iterator map and sum
-            let var = nums.iter().map(|x| {
-                let diff = *x - mean;
-                diff * diff
-            }).sum::<Float>() / count;
-            
+            let var = nums
+                .iter()
+                .map(|x| {
+                    let diff = *x - mean;
+                    diff * diff
+                })
+                .sum::<Float>()
+                / count;
+
             // sqrt returns Option<Decimal> in MathematicalOps
             Ok(NumberValue(NumberEnum::from(var.sqrt().unwrap_or(Float::ZERO))))
         }
@@ -358,12 +331,9 @@ pub fn eval_stddev(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_mode(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        ValueEnum::Array(ArrayValue::EmptyUntyped) => {
-            Ok(ValueEnum::Array(ArrayValue::EmptyUntyped))
-        }
+        ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(ValueEnum::Array(ArrayValue::EmptyUntyped)),
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, item_type }) => {
             let mut uniques: Vec<ValueEnum> = Vec::new();
@@ -392,8 +362,7 @@ pub fn eval_all(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(BooleanValue(true)),
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
             for v in values {
@@ -413,8 +382,7 @@ pub fn eval_any(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         ValueEnum::Array(ArrayValue::EmptyUntyped) => Ok(BooleanValue(false)),
         ValueEnum::Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         ValueEnum::Array(ArrayValue::PrimitivesArray { values, .. }) => {
             for v in values {
@@ -430,32 +398,25 @@ pub fn eval_any(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
-pub fn eval_sublist(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_sublist(args: Vec<Result<ValueEnum, RuntimeError>>, ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 2 or 3 arguments
     let (items, source_item_type) = match &vals[0] {
         ValueEnum::Array(array) => match array {
             ArrayValue::ObjectsArray { object_type, .. } => {
-                return RuntimeError::type_not_supported(ValueType::list_of(
-                    ValueType::ObjectType(Rc::clone(object_type)),
-                ))
+                return RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(Rc::clone(
+                    object_type,
+                ))))
                 .into();
             }
             ArrayValue::PrimitivesArray { .. } | ArrayValue::EmptyUntyped => {
                 let item_type = array.item_type().unwrap_or(ValueType::UndefinedType);
-                (
-                    array.clone_primitive_values().unwrap_or_default(),
-                    item_type,
-                )
+                (array.clone_primitive_values().unwrap_or_default(), item_type)
             }
         },
         other => return RuntimeError::type_not_supported(other.get_type()).into(),
     };
-    let start =
-        as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?; // 1-based
+    let start = as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?; // 1-based
     let len_opt = if vals.len() == 3 {
         Some(as_int(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?)
     } else {
@@ -489,26 +450,20 @@ pub fn validate_multi_sublist(args: Vec<ValueType>) -> Link<()> {
     Ok(())
 }
 
-pub fn eval_append(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_append(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     // validation ensures at least 1 argument
     let vals = into_valid(args)?;
     let (mut items, mut item_type) = match &vals[0] {
         ValueEnum::Array(array) => match array {
             ArrayValue::ObjectsArray { object_type, .. } => {
-                return RuntimeError::type_not_supported(ValueType::list_of(
-                    ValueType::ObjectType(Rc::clone(object_type)),
-                ))
+                return RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(Rc::clone(
+                    object_type,
+                ))))
                 .into();
             }
             ArrayValue::PrimitivesArray { .. } | ArrayValue::EmptyUntyped => {
                 let item_type = array.item_type().unwrap_or(ValueType::UndefinedType);
-                (
-                    array.clone_primitive_values().unwrap_or_default(),
-                    item_type,
-                )
+                (array.clone_primitive_values().unwrap_or_default(), item_type)
             }
         },
         _ => return RuntimeError::type_not_supported(vals[0].get_type()).into(),
@@ -545,10 +500,7 @@ pub fn eval_concatenate(
     for value in vals {
         match value {
             Array(ArrayValue::EmptyUntyped) => {}
-            Array(ArrayValue::PrimitivesArray {
-                values,
-                item_type: array_item_type,
-            }) => {
+            Array(ArrayValue::PrimitivesArray { values, item_type: array_item_type }) => {
                 merge_item_type(&mut item_type, array_item_type.clone())?;
                 for v in values {
                     merge_item_type_from_value(&mut item_type, &v)?;
@@ -556,10 +508,7 @@ pub fn eval_concatenate(
                 }
             }
             Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-                return RuntimeError::type_not_supported(ValueType::list_of(
-                    ValueType::ObjectType(object_type),
-                ))
-                .into();
+                return RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into();
             }
             other => return RuntimeError::type_not_supported(other.get_type()).into(),
         }
@@ -570,8 +519,7 @@ pub fn eval_concatenate(
 
 pub fn validate_multi_concatenate(args: Vec<ValueType>) -> Link<()> {
     if args.is_empty() {
-        return LinkingError::other_error("concatenate expects at least 1 argument".to_string())
-            .into();
+        return LinkingError::other_error("concatenate expects at least 1 argument".to_string()).into();
     }
     let mut base_item: Option<ValueType> = None;
     for t in args {
@@ -593,8 +541,7 @@ pub fn eval_insert_before(
     // validation ensures 3 arguments
 
     let (mut items, mut item_type) = clone_array_parts(&vals[0])?;
-    let pos =
-        as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let pos = as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
     let idx = ((pos - 1).max(0) as usize).min(items.len());
 
     let value = vals[2].clone();
@@ -627,20 +574,14 @@ pub fn eval_remove(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
             }
             build_array_from_parts(res, item_type)
         }
-        Array(ArrayValue::ObjectsArray {
-            values,
-            object_type,
-        }) => {
+        Array(ArrayValue::ObjectsArray { values, object_type }) => {
             let mut res: Vec<Rc<RefCell<ExecutionContext>>> = Vec::with_capacity(values.len());
             for (i, v) in values.into_iter().enumerate() {
                 if (i as i64) != (pos - 1) {
                     res.push(v);
                 }
             }
-            Ok(Array(ArrayValue::ObjectsArray {
-                values: res,
-                object_type,
-            }))
+            Ok(Array(ArrayValue::ObjectsArray { values: res, object_type }))
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -649,22 +590,13 @@ pub fn eval_remove(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
 pub fn eval_reverse_mixed(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         Array(ArrayValue::EmptyUntyped) => Ok(Array(ArrayValue::EmptyUntyped)),
-        Array(ArrayValue::PrimitivesArray {
-            mut values,
-            item_type,
-        }) => {
+        Array(ArrayValue::PrimitivesArray { mut values, item_type }) => {
             values.reverse();
             Ok(Array(ArrayValue::PrimitivesArray { values, item_type }))
         }
-        Array(ArrayValue::ObjectsArray {
-            mut values,
-            object_type,
-        }) => {
+        Array(ArrayValue::ObjectsArray { mut values, object_type }) => {
             values.reverse();
-            Ok(Array(ArrayValue::ObjectsArray {
-                values,
-                object_type,
-            }))
+            Ok(Array(ArrayValue::ObjectsArray { values, object_type }))
         }
         other => strf::eval_reverse(other),
     }
@@ -672,9 +604,7 @@ pub fn eval_reverse_mixed(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 
 pub fn eval_index_of_mixed(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match left {
-        Array(ArrayValue::EmptyUntyped) => {
-            build_array_from_parts(Vec::new(), ValueType::NumberType)
-        }
+        Array(ArrayValue::EmptyUntyped) => build_array_from_parts(Vec::new(), ValueType::NumberType),
         Array(ArrayValue::PrimitivesArray { values, .. }) => {
             let mut pos: Vec<ValueEnum> = Vec::new();
             for (i, v) in values.into_iter().enumerate() {
@@ -685,17 +615,13 @@ pub fn eval_index_of_mixed(left: ValueEnum, right: ValueEnum) -> Result<ValueEnu
             build_array_from_parts(pos, ValueType::NumberType)
         }
         Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         other => strf::eval_index_of(other, right),
     }
 }
 
-pub fn eval_union(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_union(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     let mut out: Vec<ValueEnum> = Vec::new();
     let mut item_type = ValueType::UndefinedType;
@@ -703,10 +629,7 @@ pub fn eval_union(
     for value in vals {
         match value {
             Array(ArrayValue::EmptyUntyped) => {}
-            Array(ArrayValue::PrimitivesArray {
-                values,
-                item_type: array_item_type,
-            }) => {
+            Array(ArrayValue::PrimitivesArray { values, item_type: array_item_type }) => {
                 merge_item_type(&mut item_type, array_item_type.clone())?;
                 for v in values {
                     merge_item_type_from_value(&mut item_type, &v)?;
@@ -716,10 +639,7 @@ pub fn eval_union(
                 }
             }
             Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-                return RuntimeError::type_not_supported(ValueType::list_of(
-                    ValueType::ObjectType(object_type),
-                ))
-                .into();
+                return RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into();
             }
             other => return RuntimeError::type_not_supported(other.get_type()).into(),
         }
@@ -757,8 +677,7 @@ pub fn eval_distinct(values: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             build_array_from_parts(out, item_type)
         }
         Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -782,8 +701,7 @@ pub fn eval_duplicates(values: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             build_array_from_parts(dups, item_type)
         }
         Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -801,10 +719,7 @@ pub fn eval_flatten(values: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             }
             Array(ArrayValue::EmptyUntyped) => Ok(ValueType::UndefinedType),
             Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-                RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(
-                    object_type,
-                )))
-                .into()
+                RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
             }
             other => {
                 let value_type = other.get_type();
@@ -817,8 +732,7 @@ pub fn eval_flatten(values: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match values {
         Array(ArrayValue::EmptyUntyped) => Ok(Array(ArrayValue::EmptyUntyped)),
         Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         Array(ArrayValue::PrimitivesArray { values, .. }) => {
             let mut acc: Vec<ValueEnum> = Vec::new();
@@ -856,21 +770,13 @@ fn value_ordering(left: &ValueEnum, right: &ValueEnum) -> Ordering {
 pub fn eval_sort(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         Array(ArrayValue::EmptyUntyped) => Ok(Array(ArrayValue::EmptyUntyped)),
-        Array(ArrayValue::PrimitivesArray {
-            mut values,
-            item_type,
-        }) => {
-            trace!(
-                "eval_sort: sorting {} elements ascending (element type: {:?})",
-                values.len(),
-                item_type
-            );
+        Array(ArrayValue::PrimitivesArray { mut values, item_type }) => {
+            trace!("eval_sort: sorting {} elements ascending (element type: {:?})", values.len(), item_type);
             values.sort_by(value_ordering);
             Ok(Array(ArrayValue::PrimitivesArray { values, item_type }))
         }
         Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -879,21 +785,13 @@ pub fn eval_sort(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_sort_desc(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         Array(ArrayValue::EmptyUntyped) => Ok(Array(ArrayValue::EmptyUntyped)),
-        Array(ArrayValue::PrimitivesArray {
-            mut values,
-            item_type,
-        }) => {
-            trace!(
-                "eval_sort_desc: sorting {} elements descending (element type: {:?})",
-                values.len(),
-                item_type
-            );
+        Array(ArrayValue::PrimitivesArray { mut values, item_type }) => {
+            trace!("eval_sort_desc: sorting {} elements descending (element type: {:?})", values.len(), item_type);
             values.sort_by(|a, b| value_ordering(b, a));
             Ok(Array(ArrayValue::PrimitivesArray { values, item_type }))
         }
         Array(ArrayValue::ObjectsArray { object_type, .. }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -911,10 +809,7 @@ pub fn return_partition_type(left: ValueType, _right: ValueType) -> ValueType {
     }
 }
 
-pub fn eval_join(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_join(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures at least 1 argument
 
@@ -988,19 +883,14 @@ pub fn eval_partition(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Ru
     match left {
         Array(ArrayValue::EmptyUntyped) => {
             if size <= 0 {
-                let chunk = Array(ArrayValue::PrimitivesArray {
-                    values: Vec::new(),
-                    item_type: ValueType::UndefinedType,
-                });
+                let chunk =
+                    Array(ArrayValue::PrimitivesArray { values: Vec::new(), item_type: ValueType::UndefinedType });
                 build_array_from_parts(vec![chunk], ValueType::list_of(ValueType::UndefinedType))
             } else {
                 build_array_from_parts(Vec::new(), ValueType::list_of(ValueType::UndefinedType))
             }
         }
-        Array(ArrayValue::PrimitivesArray {
-            values,
-            mut item_type,
-        }) => {
+        Array(ArrayValue::PrimitivesArray { values, mut item_type }) => {
             if matches!(item_type, ValueType::UndefinedType) && !values.is_empty() {
                 item_type = values[0].get_type();
             }
@@ -1022,25 +912,18 @@ pub fn eval_partition(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Ru
 
             build_array_from_parts(chunks, chunk_item_type)
         }
-        Array(ArrayValue::ObjectsArray {
-            values,
-            object_type,
-        }) => {
-            let chunk_item_type =
-                ValueType::list_of(ValueType::ObjectType(Rc::clone(&object_type)));
+        Array(ArrayValue::ObjectsArray { values, object_type }) => {
+            let chunk_item_type = ValueType::list_of(ValueType::ObjectType(Rc::clone(&object_type)));
             let mut chunks: Vec<ValueEnum> = Vec::new();
 
             if size <= 0 {
-                chunks.push(Array(ArrayValue::ObjectsArray {
-                    values: Vec::new(),
-                    object_type: Rc::clone(&object_type),
-                }));
+                chunks
+                    .push(Array(ArrayValue::ObjectsArray { values: Vec::new(), object_type: Rc::clone(&object_type) }));
             } else {
                 let mut idx = 0usize;
                 while idx < values.len() {
                     let end = (((idx as i64) + size).min(values.len() as i64)) as usize;
-                    let chunk_values: Vec<Rc<RefCell<ExecutionContext>>> =
-                        values[idx..end].to_vec();
+                    let chunk_values: Vec<Rc<RefCell<ExecutionContext>>> = values[idx..end].to_vec();
                     chunks.push(Array(ArrayValue::ObjectsArray {
                         values: chunk_values,
                         object_type: Rc::clone(&object_type),

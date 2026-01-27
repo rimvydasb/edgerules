@@ -72,10 +72,7 @@ fn convert_js_array(js_value: &JsValue) -> Result<ValueEnum, String> {
 
     if let ValueType::ListType(Some(inner)) = &list_type {
         if let ValueType::ObjectType(object_type) = inner.as_ref() {
-            if elements
-                .iter()
-                .all(|value| matches!(value, ValueEnum::Reference(_)))
-            {
+            if elements.iter().all(|value| matches!(value, ValueEnum::Reference(_))) {
                 let contexts = elements
                     .into_iter()
                     .map(|value| match value {
@@ -97,10 +94,7 @@ fn convert_js_array(js_value: &JsValue) -> Result<ValueEnum, String> {
         other => other,
     };
 
-    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
-        values: elements,
-        item_type,
-    }))
+    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: elements, item_type }))
 }
 
 fn js_date_to_value(date: JsDate) -> Result<ValueEnum, String> {
@@ -109,19 +103,17 @@ fn js_date_to_value(date: JsDate) -> Result<ValueEnum, String> {
     let day = date.get_utc_date() as u32;
 
     let month_number = month_index + 1;
-    let month = Month::try_from(month_number as u8)
-        .map_err(|err| format!("Invalid month value: {}", err))?;
+    let month = Month::try_from(month_number as u8).map_err(|err| format!("Invalid month value: {}", err))?;
     let day_u8 = u8::try_from(day).map_err(|_| "Invalid day value".to_string())?;
 
-    let feel_date = time::Date::from_calendar_date(year, month, day_u8)
-        .map_err(|err| format!("Invalid date: {}", err))?;
+    let feel_date =
+        time::Date::from_calendar_date(year, month, day_u8).map_err(|err| format!("Invalid date: {}", err))?;
 
-    let hour = u8::try_from(date.get_utc_hours() as u32)
-        .map_err(|_| "Invalid hour value for Date".to_string())?;
-    let minute = u8::try_from(date.get_utc_minutes() as u32)
-        .map_err(|_| "Invalid minute value for Date".to_string())?;
-    let second = u8::try_from(date.get_utc_seconds() as u32)
-        .map_err(|_| "Invalid second value for Date".to_string())?;
+    let hour = u8::try_from(date.get_utc_hours() as u32).map_err(|_| "Invalid hour value for Date".to_string())?;
+    let minute =
+        u8::try_from(date.get_utc_minutes() as u32).map_err(|_| "Invalid minute value for Date".to_string())?;
+    let second =
+        u8::try_from(date.get_utc_seconds() as u32).map_err(|_| "Invalid second value for Date".to_string())?;
     let millisecond = u16::try_from(date.get_utc_milliseconds() as u32)
         .map_err(|_| "Invalid millisecond value for Date".to_string())?;
 
@@ -129,8 +121,8 @@ fn js_date_to_value(date: JsDate) -> Result<ValueEnum, String> {
         return Ok(ValueEnum::DateValue(ValueOrSv::Value(feel_date)));
     }
 
-    let feel_time = Time::from_hms_milli(hour, minute, second, millisecond)
-        .map_err(|err| format!("Invalid time: {}", err))?;
+    let feel_time =
+        Time::from_hms_milli(hour, minute, second, millisecond).map_err(|err| format!("Invalid time: {}", err))?;
     let datetime = PrimitiveDateTime::new(feel_date, feel_time).assume_utc();
     Ok(ValueEnum::DateTimeValue(ValueOrSv::Value(datetime)))
 }
@@ -141,10 +133,7 @@ fn js_object_to_value(object: Object) -> Result<ValueEnum, String> {
 
     for entry in entries.iter() {
         let pair = Array::from(&entry);
-        let key = pair
-            .get(0)
-            .as_string()
-            .ok_or_else(|| "Object keys must be strings".to_string())?;
+        let key = pair.get(0).as_string().ok_or_else(|| "Object keys must be strings".to_string())?;
         let value_js = pair.get(1);
         let value_enum = ValueEnum::from_js(&value_js)?;
         builder
@@ -164,8 +153,7 @@ fn infer_js_array_list_type(elements: &[ValueEnum]) -> Option<ValueType> {
         return Some(ValueType::ListType(None));
     }
 
-    let expressions: Vec<ExpressionEnum> =
-        elements.iter().cloned().map(ExpressionEnum::from).collect();
+    let expressions: Vec<ExpressionEnum> = elements.iter().cloned().map(ExpressionEnum::from).collect();
 
     let mut collection = CollectionExpression::build(expressions);
     let ctx = ContextObjectBuilder::new().build();

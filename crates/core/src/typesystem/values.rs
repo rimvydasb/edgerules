@@ -15,9 +15,7 @@ use std::string::String;
 use time::{Date, Month, OffsetDateTime, Time};
 
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::values::ValueEnum::{
-    Array, BooleanValue, NumberValue, RangeValue, Reference, StringValue,
-};
+use crate::typesystem::values::ValueEnum::{Array, BooleanValue, NumberValue, RangeValue, Reference, StringValue};
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone, Eq, PartialEq)]
@@ -65,23 +63,14 @@ pub enum ArrayValue {
     EmptyUntyped,
 
     // Primitive values with homogeneous type
-    PrimitivesArray {
-        values: Vec<ValueEnum>,
-        item_type: ValueType,
-    },
+    PrimitivesArray { values: Vec<ValueEnum>, item_type: ValueType },
 
     // List of object references, representative aggregated type of all objects
-    ObjectsArray {
-        values: Vec<Rc<RefCell<ExecutionContext>>>,
-        object_type: Rc<RefCell<ContextObject>>,
-    },
+    ObjectsArray { values: Vec<Rc<RefCell<ExecutionContext>>>, object_type: Rc<RefCell<ContextObject>> },
     // @Todo: support array in array - currently not supported
 }
 
-type ObjectArrayParts = (
-    Vec<Rc<RefCell<ExecutionContext>>>,
-    Rc<RefCell<ContextObject>>,
-);
+type ObjectArrayParts = (Vec<Rc<RefCell<ExecutionContext>>>, Rc<RefCell<ContextObject>>);
 
 impl ArrayValue {
     pub fn is_empty_untyped(&self) -> bool {
@@ -103,12 +92,10 @@ impl ArrayValue {
     pub fn list_type(&self) -> ValueType {
         match self {
             ArrayValue::EmptyUntyped => ValueType::ListType(None),
-            ArrayValue::PrimitivesArray { item_type, .. } => {
-                ValueType::ListType(Some(Box::new(item_type.clone())))
+            ArrayValue::PrimitivesArray { item_type, .. } => ValueType::ListType(Some(Box::new(item_type.clone()))),
+            ArrayValue::ObjectsArray { object_type, .. } => {
+                ValueType::ListType(Some(Box::new(ValueType::ObjectType(Rc::clone(object_type)))))
             }
-            ArrayValue::ObjectsArray { object_type, .. } => ValueType::ListType(Some(Box::new(
-                ValueType::ObjectType(Rc::clone(object_type)),
-            ))),
         }
     }
 
@@ -116,9 +103,7 @@ impl ArrayValue {
         match self {
             ArrayValue::EmptyUntyped => None,
             ArrayValue::PrimitivesArray { item_type, .. } => Some(item_type.clone()),
-            ArrayValue::ObjectsArray { object_type, .. } => {
-                Some(ValueType::ObjectType(Rc::clone(object_type)))
-            }
+            ArrayValue::ObjectsArray { object_type, .. } => Some(ValueType::ObjectType(Rc::clone(object_type))),
         }
     }
 
@@ -173,10 +158,7 @@ impl ArrayValue {
 
     pub fn into_objects(self) -> Option<ObjectArrayParts> {
         match self {
-            ArrayValue::ObjectsArray {
-                values,
-                object_type,
-            } => Some((values, object_type)),
+            ArrayValue::ObjectsArray { values, object_type } => Some((values, object_type)),
             _ => None,
         }
     }
@@ -207,20 +189,12 @@ fn format_datetime_value(value: &OffsetDateTime) -> String {
     let time = value.time();
     let (hour, minute, second) = time.as_hms();
     let month: u8 = date.month() as u8;
-    
+
     // If offset is UTC, we mimic the old behavior (no offset printed) to satisfy existing tests for "local" datetimes.
     // Ideally we should print 'Z' or '+00:00', but that changes the output contract.
     // For non-UTC offsets, we append the offset.
     if value.offset().is_utc() {
-        format!(
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
-            date.year(),
-            month,
-            date.day(),
-            hour,
-            minute,
-            second
-        )
+        format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", date.year(), month, date.day(), hour, minute, second)
     } else {
         let (off_h, off_m, _) = value.offset().as_hms();
         format!(
@@ -247,17 +221,11 @@ pub struct DurationValue {
 impl DurationValue {
     pub fn new(seconds: u64, is_negative: bool) -> Self {
         let neg = is_negative && seconds > 0;
-        DurationValue {
-            seconds,
-            is_negative: neg,
-        }
+        DurationValue { seconds, is_negative: neg }
     }
 
     pub fn zero() -> Self {
-        DurationValue {
-            seconds: 0,
-            is_negative: false,
-        }
+        DurationValue { seconds: 0, is_negative: false }
     }
 
     pub fn from_components(
@@ -425,27 +393,14 @@ pub struct PeriodValue {
 impl PeriodValue {
     pub fn new(months: u32, days: u32, is_negative: bool) -> Self {
         let neg = is_negative && (months > 0 || days > 0);
-        PeriodValue {
-            months,
-            days,
-            is_negative: neg,
-        }
+        PeriodValue { months, days, is_negative: neg }
     }
 
     pub fn zero() -> Self {
-        PeriodValue {
-            months: 0,
-            days: 0,
-            is_negative: false,
-        }
+        PeriodValue { months: 0, days: 0, is_negative: false }
     }
 
-    pub fn from_components(
-        years: i32,
-        months: i32,
-        days: i64,
-        negative: bool,
-    ) -> Result<Self, RuntimeError> {
+    pub fn from_components(years: i32, months: i32, days: i64, negative: bool) -> Result<Self, RuntimeError> {
         if years < 0 || months < 0 || days < 0 {
             return RuntimeError::parsing_from_string(PeriodType, 104).into();
         }
@@ -458,11 +413,7 @@ impl PeriodValue {
         PeriodValue::from_total_parts(total_months, i128::from(days), negative)
     }
 
-    pub fn from_total_parts(
-        months_total: i128,
-        days_total: i128,
-        negative: bool,
-    ) -> Result<Self, RuntimeError> {
+    pub fn from_total_parts(months_total: i128, days_total: i128, negative: bool) -> Result<Self, RuntimeError> {
         if months_total < 0 || days_total < 0 {
             return RuntimeError::parsing_from_string(PeriodType, 104).into();
         }
@@ -471,11 +422,7 @@ impl PeriodValue {
             return RuntimeError::parsing_from_string(PeriodType, 106).into();
         }
 
-        Ok(PeriodValue::new(
-            months_total as u32,
-            days_total as u32,
-            negative,
-        ))
+        Ok(PeriodValue::new(months_total as u32, days_total as u32, negative))
     }
 
     pub fn from_signed_parts(months: i128, days: i128) -> Result<Self, RuntimeError> {
@@ -620,10 +567,8 @@ impl Display for ValueEnum {
                     write!(f, "[{}]", parts.join(", "))
                 }
                 ArrayValue::ObjectsArray { values, .. } => {
-                    let parts: Vec<String> = values
-                        .iter()
-                        .map(|ctx| format!("{}", ValueEnum::Reference(Rc::clone(ctx))))
-                        .collect();
+                    let parts: Vec<String> =
+                        values.iter().map(|ctx| format!("{}", ValueEnum::Reference(Rc::clone(ctx)))).collect();
                     write!(f, "[{}]", parts.join(", "))
                 }
             },

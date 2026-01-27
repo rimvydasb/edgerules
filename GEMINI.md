@@ -134,6 +134,12 @@ Follow this loop for every change to ensure quality and prevent regressions:
 - Do not use `grep` or `find` on the root of the project - you will end up searching in `target/` that is huge for cargo
   projects.
 
+## Post Task Activities
+
+1. Do not commit and prepare changes only. You're not allowed to commit or even push changes to git.
+2. Run all tests and ensure they pass.
+3. Apply formatting and linting.
+
 # Instructions for Jules
 
 **Testing notes:** you will not be able to run WASM builds due to environment limitations. However, you can run Rust

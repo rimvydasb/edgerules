@@ -12,16 +12,11 @@ fn runtime_error_exposes_stage_at_root() {
     model.append_source(code).unwrap();
     let runtime = model.to_runtime().unwrap();
 
-    let err = runtime
-        .evaluate_field("value")
-        .expect_err("expected runtime error");
+    let err = runtime.evaluate_field("value").expect_err("expected runtime error");
 
     assert!(err.stage().is_some());
     assert_eq!(err.location(), vec!["value"]);
-    assert!(
-        err.to_string().to_lowercase().contains("failed to parse"),
-        "got: {err}"
-    );
+    assert!(err.to_string().to_lowercase().contains("failed to parse"), "got: {err}");
 }
 
 #[test]
@@ -37,16 +32,11 @@ fn runtime_error_in_nested_context_has_stage() {
     model.append_source(code).unwrap();
     let runtime = model.to_runtime().unwrap();
 
-    let err = runtime
-        .evaluate_field("value")
-        .expect_err("expected runtime error");
+    let err = runtime.evaluate_field("value").expect_err("expected runtime error");
 
     assert!(err.stage().is_some());
     assert_eq!(err.location(), vec!["nested", "bad"]);
-    assert!(
-        err.to_string().to_lowercase().contains("failed to parse"),
-        "got: {err}"
-    );
+    assert!(err.to_string().to_lowercase().contains("failed to parse"), "got: {err}");
 }
 
 mod utilities;
@@ -72,9 +62,7 @@ fn runtime_error_deep_dependency_chain() {
 
     // Evaluate 'result', which depends on 'intermediate.calc', which depends on 'source.value'
     // The error originates in 'source.value'
-    let err = runtime
-        .evaluate_field("result")
-        .expect_err("expected runtime error");
+    let err = runtime.evaluate_field("result").expect_err("expected runtime error");
 
     assert!(err.stage().is_some());
     // The location should point to the source of the error, not the top-level field

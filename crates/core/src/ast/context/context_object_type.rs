@@ -24,10 +24,7 @@ pub struct FormalParameter {
 
 impl FormalParameter {
     pub fn with_type_ref(name: String, parameter_type: ComplexTypeRef) -> FormalParameter {
-        FormalParameter {
-            name,
-            parameter_type,
-        }
+        FormalParameter { name, parameter_type }
     }
 
     pub fn declared_type(&self) -> Option<&ComplexTypeRef> {
@@ -39,10 +36,7 @@ impl FormalParameter {
     }
 
     pub fn with_runtime_type(&self, value_type: ValueType) -> FormalParameter {
-        FormalParameter {
-            name: self.name.clone(),
-            parameter_type: ComplexTypeRef::from_value_type(value_type),
-        }
+        FormalParameter { name: self.name.clone(), parameter_type: ComplexTypeRef::from_value_type(value_type) }
     }
 
     pub fn runtime_value_type(&self) -> Option<ValueType> {
@@ -90,11 +84,7 @@ impl StaticLink for EObjectContent<ContextObject> {
                     let ctx_ref = ctx.borrow();
                     let context_name = ctx_ref.node().node_type.to_string();
                     let field_name = ctx_ref.node().node_type.to_code();
-                    let field_label = if field_name.is_empty() {
-                        "<self>".to_string()
-                    } else {
-                        field_name
-                    };
+                    let field_label = if field_name.is_empty() { "<self>".to_string() } else { field_name };
                     Err(LinkingError::cyclic_reference(&context_name, &field_label))
                 }
             },

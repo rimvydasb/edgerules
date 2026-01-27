@@ -45,11 +45,7 @@ impl FunctionDefinition {
             }
         }
 
-        Ok(FunctionDefinition {
-            name,
-            arguments,
-            body,
-        })
+        Ok(FunctionDefinition { name, arguments, body })
     }
 }
 
@@ -117,11 +113,7 @@ pub struct InlineFunctionDefinition {
 }
 
 impl InlineFunctionDefinition {
-    pub fn build(
-        name: String,
-        arguments: Vec<FormalParameter>,
-        body: ExpressionEnum,
-    ) -> Result<Self, ParseErrorEnum> {
+    pub fn build(name: String, arguments: Vec<FormalParameter>, body: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
         let mut seen: HashSet<&str> = HashSet::new();
         for argument in &arguments {
             if !seen.insert(argument.name.as_str()) {
@@ -133,21 +125,16 @@ impl InlineFunctionDefinition {
         }
 
         let mut builder = ContextObjectBuilder::new();
-        builder.add_expression(RETURN_EXPRESSION, body).map_err(|err| {
-            ParseErrorEnum::OtherError(format!("Failed to build inline function body: {}", err))
-        })?;
+        builder
+            .add_expression(RETURN_EXPRESSION, body)
+            .map_err(|err| ParseErrorEnum::OtherError(format!("Failed to build inline function body: {}", err)))?;
         if arguments.iter().any(|p| p.name == "it") {
             builder.set_allow_it(true);
         }
         let cached_body = builder.build();
         cached_body.borrow_mut().parameters = arguments.clone();
 
-        Ok(InlineFunctionDefinition {
-            name,
-            arguments,
-            parent: RefCell::new(None),
-            cached_body,
-        })
+        Ok(InlineFunctionDefinition { name, arguments, parent: RefCell::new(None), cached_body })
     }
 
     pub fn set_parent(&self, parent: &Rc<RefCell<ContextObject>>) {
@@ -163,12 +150,7 @@ impl InlineFunctionDefinition {
     }
 
     pub fn get_body_entry(&self) -> Rc<RefCell<ExpressionEntry>> {
-        self.cached_body
-            .borrow()
-            .expressions
-            .get(RETURN_EXPRESSION)
-            .cloned()
-            .unwrap()
+        self.cached_body.borrow().expressions.get(RETURN_EXPRESSION).cloned().unwrap()
     }
 }
 
@@ -227,16 +209,10 @@ impl UserFunction for InlineFunctionDefinition {
         }
         linker::link_parts(Rc::clone(&body))?;
 
-        let parent_weak = parent
-            .map(|p| Rc::downgrade(&p))
-            .or_else(|| self.parent.borrow().clone())
-            .unwrap_or_default();
+        let parent_weak =
+            parent.map(|p| Rc::downgrade(&p)).or_else(|| self.parent.borrow().clone()).unwrap_or_default();
 
-        Ok(FunctionContext::create_for(
-            body,
-            parameters,
-            parent_weak,
-        ))
+        Ok(FunctionContext::create_for(body, parameters, parent_weak))
     }
 }
 
@@ -258,10 +234,7 @@ impl UserFunctionDefinition {
         match self {
             UserFunctionDefinition::Function(function_def) => {
                 function_def.body.borrow_mut().node.node_type =
-                    crate::link::node_data::NodeDataEnum::Internal(
-                        Rc::downgrade(parent),
-                        Some(alias),
-                    );
+                    crate::link::node_data::NodeDataEnum::Internal(Rc::downgrade(parent), Some(alias));
             }
             UserFunctionDefinition::Inline(inline_def) => inline_def.set_parent(parent),
         }
@@ -321,12 +294,8 @@ impl UserFunction for UserFunctionDefinition {
         parent: Option<Rc<RefCell<ContextObject>>>,
     ) -> Link<FunctionContext> {
         match self {
-            UserFunctionDefinition::Function(function_def) => {
-                function_def.create_context(parameters, parent)
-            }
-            UserFunctionDefinition::Inline(inline_def) => {
-                inline_def.create_context(parameters, parent)
-            }
+            UserFunctionDefinition::Function(function_def) => function_def.create_context(parameters, parent),
+            UserFunctionDefinition::Inline(inline_def) => inline_def.create_context(parameters, parent),
         }
     }
 }

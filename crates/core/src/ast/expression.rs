@@ -2,8 +2,7 @@ use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::functions::function_date::{
-    parse_date_iso, parse_datetime_flexible, parse_duration_iso8601, parse_period_iso8601,
-    parse_time_local,
+    parse_date_iso, parse_datetime_flexible, parse_duration_iso8601, parse_period_iso8601, parse_time_local,
 };
 use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::*;
@@ -60,10 +59,9 @@ pub(crate) fn missing_for_type(
         ValueType::DurationType => Ok(V::DurationValue(Sv(SV::missing_for(field_name)))),
         ValueType::PeriodType => Ok(V::PeriodValue(Sv(SV::missing_for(field_name)))),
         ValueType::ListType(inner) => match inner.as_ref() {
-            Some(item_type) => Ok(V::Array(ArrayValue::PrimitivesArray {
-                values: Vec::new(),
-                item_type: (**item_type).clone(),
-            })),
+            Some(item_type) => {
+                Ok(V::Array(ArrayValue::PrimitivesArray { values: Vec::new(), item_type: (**item_type).clone() }))
+            }
             None => Ok(V::Array(ArrayValue::EmptyUntyped)),
         },
         ValueType::ObjectType(obj) => {
@@ -104,11 +102,7 @@ pub(crate) fn missing_for_type(
                                 .filter(|parent| !parent.is_empty())
                                 .map(|parent| format!("{}.{}", parent, name));
                             let child_origin = child_origin_owned.as_deref().or(Some(name));
-                            let inner = missing_for_type(
-                                &ValueType::ObjectType(o.clone()),
-                                child_origin,
-                                ctx,
-                            )?;
+                            let inner = missing_for_type(&ValueType::ObjectType(o.clone()), child_origin, ctx)?;
                             builder.add_expression(name, inner.into())?;
                         }
                         _ => {}
@@ -134,10 +128,7 @@ pub(crate) fn cast_value_to_type(
     use crate::typesystem::types::string::StringEnum;
     use crate::typesystem::values::ValueEnum as V;
     match target {
-        ValueType::NumberType
-        | ValueType::BooleanType
-        | ValueType::RangeType
-        | ValueType::UndefinedType => Ok(value),
+        ValueType::NumberType | ValueType::BooleanType | ValueType::RangeType | ValueType::UndefinedType => Ok(value),
 
         // Handle string parsing for temporal types
         ValueType::DateType
@@ -147,33 +138,27 @@ pub(crate) fn cast_value_to_type(
         | ValueType::PeriodType => {
             if let V::StringValue(StringEnum::String(s)) = &value {
                 let parsed = match target {
-                    ValueType::DateType => parse_date_iso(s)
-                        .map(|d| V::DateValue(ValueOrSv::Value(d))),
-                    ValueType::TimeType => parse_time_local(s)
-                        .map(|t| V::TimeValue(ValueOrSv::Value(t))),
-                    ValueType::DateTimeType => parse_datetime_flexible(s)
-                        .map(|dt| V::DateTimeValue(ValueOrSv::Value(dt))),
-                    ValueType::DurationType => parse_duration_iso8601(s)
-                        .ok()
-                        .map(|d| V::DurationValue(ValueOrSv::Value(d))),
-                    ValueType::PeriodType => parse_period_iso8601(s)
-                        .ok()
-                        .map(|p| V::PeriodValue(ValueOrSv::Value(p))),
+                    ValueType::DateType => parse_date_iso(s).map(|d| V::DateValue(ValueOrSv::Value(d))),
+                    ValueType::TimeType => parse_time_local(s).map(|t| V::TimeValue(ValueOrSv::Value(t))),
+                    ValueType::DateTimeType => {
+                        parse_datetime_flexible(s).map(|dt| V::DateTimeValue(ValueOrSv::Value(dt)))
+                    }
+                    ValueType::DurationType => {
+                        parse_duration_iso8601(s).ok().map(|d| V::DurationValue(ValueOrSv::Value(d)))
+                    }
+                    ValueType::PeriodType => parse_period_iso8601(s).ok().map(|p| V::PeriodValue(ValueOrSv::Value(p))),
                     _ => None,
                 };
 
                 if let Some(result) = parsed {
                     return Ok(result);
                 } else {
-                    return Err(RuntimeError::from(ParseErrorEnum::CannotConvertValue(
-                        ValueType::StringType,
-                        target,
-                    )));
+                    return Err(RuntimeError::from(ParseErrorEnum::CannotConvertValue(ValueType::StringType, target)));
                 }
             }
             Ok(value)
         }
-        
+
         ValueType::StringType => Ok(value), // Already string or not supported to cast to string here yet
 
         ValueType::ListType(inner) => {
@@ -182,39 +167,23 @@ pub(crate) fn cast_value_to_type(
                 V::Array(array) => match array {
                     ArrayValue::EmptyUntyped => {
                         if let Some(item_type) = desired_item_type {
-                            Ok(V::Array(ArrayValue::PrimitivesArray {
-                                values: Vec::new(),
-                                item_type,
-                            }))
+                            Ok(V::Array(ArrayValue::PrimitivesArray { values: Vec::new(), item_type }))
                         } else {
                             Ok(V::Array(ArrayValue::EmptyUntyped))
                         }
                     }
                     ArrayValue::PrimitivesArray { values, item_type } => {
-                        let target_item_type =
-                            desired_item_type.clone().unwrap_or(item_type.clone());
+                        let target_item_type = desired_item_type.clone().unwrap_or(item_type.clone());
                         let mut casted = Vec::with_capacity(values.len());
                         for v in values {
-                            let mapped = cast_value_to_type(
-                                v,
-                                target_item_type.clone(),
-                                Rc::clone(&ctx),
-                                origin,
-                            )?;
+                            let mapped = cast_value_to_type(v, target_item_type.clone(), Rc::clone(&ctx), origin)?;
                             casted.push(mapped);
                         }
-                        Ok(V::Array(ArrayValue::PrimitivesArray {
-                            values: casted,
-                            item_type: target_item_type,
-                        }))
+                        Ok(V::Array(ArrayValue::PrimitivesArray { values: casted, item_type: target_item_type }))
                     }
-                    ArrayValue::ObjectsArray {
-                        values,
-                        object_type,
-                    } => match desired_item_type.clone() {
+                    ArrayValue::ObjectsArray { values, object_type } => match desired_item_type.clone() {
                         Some(ValueType::ObjectType(target_object_type)) => {
-                            let mut casted: Vec<Rc<RefCell<ExecutionContext>>> =
-                                Vec::with_capacity(values.len());
+                            let mut casted: Vec<Rc<RefCell<ExecutionContext>>> = Vec::with_capacity(values.len());
                             for reference in values {
                                 let casted_value = cast_value_to_type(
                                     V::Reference(Rc::clone(&reference)),
@@ -225,16 +194,10 @@ pub(crate) fn cast_value_to_type(
                                 if let V::Reference(obj_ref) = casted_value {
                                     casted.push(obj_ref);
                                 } else {
-                                    return RuntimeError::type_not_supported(
-                                        casted_value.get_type(),
-                                    )
-                                    .into();
+                                    return RuntimeError::type_not_supported(casted_value.get_type()).into();
                                 }
                             }
-                            Ok(V::Array(ArrayValue::ObjectsArray {
-                                values: casted,
-                                object_type: target_object_type,
-                            }))
+                            Ok(V::Array(ArrayValue::ObjectsArray { values: casted, object_type: target_object_type }))
                         }
                         Some(other_item_type) => {
                             let mut casted_values = Vec::with_capacity(values.len());
@@ -248,9 +211,7 @@ pub(crate) fn cast_value_to_type(
                                 casted_values.push(mapped);
                             }
                             let final_item_type =
-                                if matches!(other_item_type, ValueType::UndefinedType)
-                                    && !casted_values.is_empty()
-                                {
+                                if matches!(other_item_type, ValueType::UndefinedType) && !casted_values.is_empty() {
                                     casted_values[0].get_type()
                                 } else {
                                     other_item_type
@@ -260,26 +221,13 @@ pub(crate) fn cast_value_to_type(
                                 item_type: final_item_type,
                             }))
                         }
-                        None => Ok(V::Array(ArrayValue::ObjectsArray {
-                            values,
-                            object_type,
-                        })),
+                        None => Ok(V::Array(ArrayValue::ObjectsArray { values, object_type })),
                     },
                 },
                 other => {
-                    let target_item_type = desired_item_type
-                        .clone()
-                        .unwrap_or_else(|| other.get_type());
-                    let mapped = cast_value_to_type(
-                        other,
-                        target_item_type.clone(),
-                        Rc::clone(&ctx),
-                        origin,
-                    )?;
-                    Ok(V::Array(ArrayValue::PrimitivesArray {
-                        values: vec![mapped],
-                        item_type: target_item_type,
-                    }))
+                    let target_item_type = desired_item_type.clone().unwrap_or_else(|| other.get_type());
+                    let mapped = cast_value_to_type(other, target_item_type.clone(), Rc::clone(&ctx), origin)?;
+                    Ok(V::Array(ArrayValue::PrimitivesArray { values: vec![mapped], item_type: target_item_type }))
                 }
             }
         }
@@ -295,31 +243,29 @@ pub(crate) fn cast_value_to_type(
 
             let mut builder = ContextObjectBuilder::new();
             for name in schema.borrow().get_field_names() {
-                let field_origin_owned = origin.map(|parent| {
-                    if parent.is_empty() {
-                        name.to_string()
-                    } else {
-                        format!("{}.{}", parent, name)
-                    }
-                });
+                let field_origin_owned =
+                    origin.map(
+                        |parent| {
+                            if parent.is_empty() {
+                                name.to_string()
+                            } else {
+                                format!("{}.{}", parent, name)
+                            }
+                        },
+                    );
                 let field_origin = field_origin_owned.as_deref().or(Some(name));
 
                 if let Ok(content) = schema.borrow().get(name) {
                     match content {
                         EObjectContent::ExpressionRef(entry) => {
                             // Attempt to resolve expected field type
-                            let mut expected_ty = entry
-                                .borrow()
-                                .field_type
-                                .clone()
-                                .unwrap_or_else(|_| ValueType::UndefinedType);
+                            let mut expected_ty =
+                                entry.borrow().field_type.clone().unwrap_or_else(|_| ValueType::UndefinedType);
                             // If expression is a TypePlaceholder, try to resolve from schema
                             let mut default_val_opt = None;
                             if let TypePlaceholder(tref) = &entry.borrow().expression {
-                                expected_ty = schema
-                                    .borrow()
-                                    .resolve_type_ref(tref)
-                                    .unwrap_or(ValueType::UndefinedType);
+                                expected_ty =
+                                    schema.borrow().resolve_type_ref(tref).unwrap_or(ValueType::UndefinedType);
                                 default_val_opt = match tref {
                                     ComplexTypeRef::BuiltinType(_, val) => val.clone(),
                                     ComplexTypeRef::Alias(_, val) => val.clone(),
@@ -338,33 +284,22 @@ pub(crate) fn cast_value_to_type(
                                     )?
                                 }
                                 Ok(EObjectContent::ExpressionRef(src_entry)) => {
-                                    let v =
-                                        src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
-                                    cast_value_to_type(
-                                        v,
-                                        expected_ty.clone(),
-                                        Rc::clone(&ctx),
-                                        field_origin,
-                                    )?
+                                    let v = src_entry.borrow().expression.eval(Rc::clone(&src_exec))?;
+                                    cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx), field_origin)?
                                 }
-                                Ok(EObjectContent::ConstantValue(v)) => cast_value_to_type(
-                                    v,
-                                    expected_ty.clone(),
-                                    Rc::clone(&ctx),
-                                    field_origin,
-                                )?,
+                                Ok(EObjectContent::ConstantValue(v)) => {
+                                    cast_value_to_type(v, expected_ty.clone(), Rc::clone(&ctx), field_origin)?
+                                }
                                 Ok(_) => default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?),
-                                Err(_) => default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?),
+                                Err(_) => {
+                                    default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?)
+                                }
                             };
                             builder.add_expression(name, casted.into())?;
                         }
                         EObjectContent::ObjectRef(obj) => {
                             // create empty shaped nested object
-                            let val = missing_for_type(
-                                &ValueType::ObjectType(obj.clone()),
-                                field_origin,
-                                &ctx,
-                            )?;
+                            let val = missing_for_type(&ValueType::ObjectType(obj.clone()), field_origin, &ctx)?;
                             builder.add_expression(name, val.into())?;
                         }
                         _ => {}
@@ -387,11 +322,7 @@ pub struct CastCall {
 
 impl CastCall {
     pub fn new(expression: ExpressionEnum, target_ref: ComplexTypeRef) -> Self {
-        CastCall {
-            expression,
-            target_ref,
-            target_type: LinkingError::not_linked().into(),
-        }
+        CastCall { expression, target_ref, target_type: LinkingError::not_linked().into() }
     }
 }
 
@@ -419,9 +350,7 @@ impl EvaluatableExpression for CastCall {
         let target_type = match &self.target_type {
             Ok(ty) => ty.clone(),
             Err(link_err) => {
-                let err = link_err
-                    .clone()
-                    .with_context(|| format!("Evaluating cast `{}`", self));
+                let err = link_err.clone().with_context(|| format!("Evaluating cast `{}`", self));
                 return Err(RuntimeError::from(err));
             }
         };
@@ -460,24 +389,16 @@ impl ExpressionEnum {
             .into(),
             Value(value) => Ok(value.clone()),
             Collection(elements) => elements.eval(context),
-            RangeExpression(left, right) => {
-                match (left.eval(Rc::clone(&context))?, right.eval(context)?) {
-                    (NumberValue(Int(left_number)), NumberValue(Int(right_number))) => {
-                        let range = Range {
-                            start: left_number,
-                            end: right_number + 1,
-                        };
+            RangeExpression(left, right) => match (left.eval(Rc::clone(&context))?, right.eval(context)?) {
+                (NumberValue(Int(left_number)), NumberValue(Int(right_number))) => {
+                    let range = Range { start: left_number, end: right_number + 1 };
 
-                        Ok(RangeValue(range))
-                    }
-                    _ => RuntimeError::eval_error("Range is not a valid number".to_string()).into(),
+                    Ok(RangeValue(range))
                 }
-            }
+                _ => RuntimeError::eval_error("Range is not a valid number".to_string()).into(),
+            },
             StaticObject(object) => {
-                let reference = ExecutionContext::create_temp_child_context(
-                    Rc::clone(&context),
-                    object.clone(),
-                );
+                let reference = ExecutionContext::create_temp_child_context(Rc::clone(&context), object.clone());
                 Ok(Reference(reference))
             }
             TypePlaceholder(tref) => {
@@ -490,11 +411,9 @@ impl ExpressionEnum {
                     Ok(val)
                 } else {
                     // BLOCKED: no external context hookup; always Missing as per spec
-                    Ok(ValueEnum::StringValue(
-                        crate::typesystem::types::string::StringEnum::from(
-                            typesystem::types::SpecialValueEnum::missing_for(None),
-                        ),
-                    ))
+                    Ok(ValueEnum::StringValue(crate::typesystem::types::string::StringEnum::from(
+                        typesystem::types::SpecialValueEnum::missing_for(None),
+                    )))
                 }
             }
         };
@@ -502,11 +421,7 @@ impl ExpressionEnum {
         if let Err(error) = eval_result {
             error!(">                   `{}`", error.get_error_type());
             let with_context = error.with_context(|| {
-                format!(
-                    "Error evaluating `{}.{}`",
-                    trace_context.borrow().object.borrow().node.node_type,
-                    self
-                )
+                format!("Error evaluating `{}.{}`", trace_context.borrow().object.borrow().node.node_type, self)
             });
             return Err(with_context);
         }
@@ -515,10 +430,7 @@ impl ExpressionEnum {
     }
 
     pub fn variable(_literal: &str) -> ExpressionEnum {
-        let path: Vec<&'static str> = _literal
-            .split('.')
-            .map(|segment| intern_field_name(segment))
-            .collect();
+        let path: Vec<&'static str> = _literal.split('.').map(|segment| intern_field_name(segment)).collect();
         Variable(VariableLink::new_interned_path(path))
     }
 
@@ -539,9 +451,7 @@ impl PartialEq for ExpressionEnum {
             (StaticObject(a), StaticObject(b)) => a == b,
             (Value(a), Value(b)) => a == b,
             (Variable(a), Variable(b)) => a == b,
-            (ObjectField(name_a, expr_a), ObjectField(name_b, expr_b)) => {
-                name_a == name_b && expr_a == expr_b
-            }
+            (ObjectField(name_a, expr_a), ObjectField(name_b, expr_b)) => name_a == name_b && expr_a == expr_b,
             (RangeExpression(l1, r1), RangeExpression(l2, r2)) => l1 == l2 && r1 == r2,
             (ContextVariable, ContextVariable) => true,
 

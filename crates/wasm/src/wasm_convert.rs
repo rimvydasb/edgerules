@@ -9,18 +9,10 @@ use edge_rules::typesystem::types::TypedValue;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
 
-fn execute_or_evaluate(
-    service: EdgeRulesModel,
-    field: Option<String>,
-) -> Result<JsValue, PortableError> {
+fn execute_or_evaluate(service: EdgeRulesModel, field: Option<String>) -> Result<JsValue, PortableError> {
     if let Some(f) = &field {
         if let Ok(method) = service.get_user_function(f) {
-            if !method
-                .borrow()
-                .function_definition
-                .get_parameters()
-                .is_empty()
-            {
+            if !method.borrow().function_definition.get_parameters().is_empty() {
                 return Err(PortableError::new(format!(
                     "Function '{}' requires arguments and cannot be evaluated via evaluate. Use DecisionService instead.",
                     f
@@ -40,9 +32,7 @@ fn execute_or_evaluate(
                 Err(err) => return Err(PortableError::from(err)),
             }
 
-            let value = runtime
-                .evaluate_expression(ExpressionEnum::from(call))
-                .map_err(PortableError::from)?;
+            let value = runtime.evaluate_expression(ExpressionEnum::from(call)).map_err(PortableError::from)?;
             return value.to_js().map_err(PortableError::from);
         }
     }
@@ -70,15 +60,11 @@ pub fn evaluate_inner(input: &JsValue, field: Option<String>) -> Result<JsValue,
             execute_or_evaluate(service, field)
         } else {
             if field.is_some() {
-                return Err(PortableError::new(
-                    "Field path is not applicable for single expression",
-                ));
+                return Err(PortableError::new("Field path is not applicable for single expression"));
             }
             let mut service = EdgeRulesModel::new();
             let runtime = service.to_runtime_snapshot().map_err(PortableError::from)?;
-            let value = runtime
-                .evaluate_expression_str(&code)
-                .map_err(PortableError::from)?;
+            let value = runtime.evaluate_expression_str(&code).map_err(PortableError::from)?;
             value.to_js().map_err(PortableError::from)
         }
     } else {

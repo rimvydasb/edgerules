@@ -80,9 +80,7 @@ impl TokenChain {
             Some(Expression(expression)) => Ok(expression),
             Some(ParseError(error)) => Err(error),
             Some(Unparsed(token)) => Err(UnexpectedToken(Box::new(Unparsed(token)), None)),
-            Some(Definition(_definition)) => Err(WrongFormat(
-                "Expected expression, got definition".to_string(),
-            )),
+            Some(Definition(_definition)) => Err(WrongFormat("Expected expression, got definition".to_string())),
         }
     }
 
@@ -95,11 +93,7 @@ impl TokenChain {
         self.pop_as_expected_helper(|s| s.pop_front(), expected)
     }
 
-    fn pop_as_expected_helper<F>(
-        &mut self,
-        pop_fn: F,
-        expected: &str,
-    ) -> Result<String, ParseErrorEnum>
+    fn pop_as_expected_helper<F>(&mut self, pop_fn: F, expected: &str) -> Result<String, ParseErrorEnum>
     where
         F: FnOnce(&mut Self) -> Option<EToken>,
     {
@@ -107,10 +101,7 @@ impl TokenChain {
             return if maybe == expected {
                 Ok(maybe.into_owned())
             } else {
-                Err(UnexpectedLiteral(
-                    expected.to_string(),
-                    Some(expected.to_string()),
-                ))
+                Err(UnexpectedLiteral(expected.to_string(), Some(expected.to_string())))
             };
         }
 
@@ -172,10 +163,7 @@ static NUMBER_PARSE_ERROR: &str = "Absolutely unexpected error while parsing num
 impl<'a> CharStream<'a> {
     // Constructor
     pub fn new(input: &'a str) -> Self {
-        CharStream {
-            iter: input.chars().peekable(),
-            dot_was_skipped: false,
-        }
+        CharStream { iter: input.chars().peekable(), dot_was_skipped: false }
     }
 
     pub fn get_alphanumeric(&mut self) -> String {
@@ -368,33 +356,22 @@ mod test {
     fn test_common() {
         init_logger();
 
-        assert_eq!(
-            CharStream::new("(\"first-hit\")")
-                .parse_arguments()
-                .unwrap(),
-            vec!["first-hit"]
-        );
+        assert_eq!(CharStream::new("(\"first-hit\")").parse_arguments().unwrap(), vec!["first-hit"]);
 
         assert_eq!(CharStream::new(" (\"first-hit\")").parse_arguments(), None);
 
         assert_eq!(
-            CharStream::new("(\"first-hit\",\"another\")")
-                .parse_arguments()
-                .unwrap(),
+            CharStream::new("(\"first-hit\",\"another\")").parse_arguments().unwrap(),
             vec!["first-hit", "another"]
         );
 
         assert_eq!(
-            CharStream::new("(\"first-hit\",\"another\"")
-                .parse_arguments()
-                .unwrap(),
+            CharStream::new("(\"first-hit\",\"another\"").parse_arguments().unwrap(),
             vec!["first-hit", "another"]
         );
 
         assert_eq!(
-            CharStream::new("(\"first-hit\",\"another)")
-                .parse_arguments()
-                .unwrap(),
+            CharStream::new("(\"first-hit\",\"another)").parse_arguments().unwrap(),
             vec!["first-hit", "another)"]
         );
 
@@ -407,42 +384,15 @@ mod test {
         assert_eq!(CharStream::new("abc&123_ ").get_alphanumeric(), "abc");
 
         // testing CharStream skip_whitespace method
-        assert_eq!(
-            CharStream::new(" abc123_ ")
-                .skip_whitespace()
-                .next_char()
-                .unwrap(),
-            'a'
-        );
-        assert_eq!(
-            CharStream::new("xbc123_ ")
-                .skip_whitespace()
-                .next_char()
-                .unwrap(),
-            'x'
-        );
-        assert_eq!(
-            CharStream::new("       zbc123_ ")
-                .skip_whitespace()
-                .next_char()
-                .unwrap(),
-            'z'
-        );
+        assert_eq!(CharStream::new(" abc123_ ").skip_whitespace().next_char().unwrap(), 'a');
+        assert_eq!(CharStream::new("xbc123_ ").skip_whitespace().next_char().unwrap(), 'x');
+        assert_eq!(CharStream::new("       zbc123_ ").skip_whitespace().next_char().unwrap(), 'z');
 
         // testing CharStream get_number method
         assert_eq!(CharStream::new("123").get_number(), NumberEnum::from(123));
-        assert_eq!(
-            CharStream::new("123.5").get_number(),
-            NumberEnum::from(123.5)
-        );
-        assert_eq!(
-            CharStream::new("0000.5").get_number(),
-            NumberEnum::from(0.5)
-        );
-        assert_eq!(
-            CharStream::new("1000.5").get_number(),
-            NumberEnum::from(1000.5)
-        );
+        assert_eq!(CharStream::new("123.5").get_number(), NumberEnum::from(123.5));
+        assert_eq!(CharStream::new("0000.5").get_number(), NumberEnum::from(0.5));
+        assert_eq!(CharStream::new("1000.5").get_number(), NumberEnum::from(1000.5));
         assert_eq!(CharStream::new("0.5").get_number(), NumberEnum::from(0.5));
         assert_eq!(CharStream::new("0.5x").get_number(), NumberEnum::from(0.5));
         assert_eq!(CharStream::new("0.5.1").get_number(), NumberEnum::from(0.5));
@@ -457,31 +407,13 @@ mod test {
             assert!(stream.dot_was_skipped);
         }
         // testing CharStream get_literal_token method
-        assert_eq!(
-            CharStream::new("abc").get_literal_token(),
-            Left("abc".to_string())
-        );
-        assert_eq!(
-            CharStream::new("b c").get_literal_token(),
-            Left("b".to_string())
-        );
-        assert_eq!(
-            CharStream::new("b ").get_literal_token(),
-            Left("b".to_string())
-        );
-        assert_eq!(
-            CharStream::new("  ").get_literal_token(),
-            Left("".to_string())
-        );
+        assert_eq!(CharStream::new("abc").get_literal_token(), Left("abc".to_string()));
+        assert_eq!(CharStream::new("b c").get_literal_token(), Left("b".to_string()));
+        assert_eq!(CharStream::new("b ").get_literal_token(), Left("b".to_string()));
+        assert_eq!(CharStream::new("  ").get_literal_token(), Left("".to_string()));
 
-        assert_eq!(
-            CharStream::new("aaa.bbb").get_literal_token(),
-            Right(vec!["aaa".to_string(), "bbb".to_string()])
-        );
-        assert_eq!(
-            CharStream::new("aaa. ").get_literal_token(),
-            Right(vec!["aaa".to_string(), "".to_string()])
-        );
+        assert_eq!(CharStream::new("aaa.bbb").get_literal_token(), Right(vec!["aaa".to_string(), "bbb".to_string()]));
+        assert_eq!(CharStream::new("aaa. ").get_literal_token(), Right(vec!["aaa".to_string(), "".to_string()]));
     }
 
     #[test]

@@ -54,10 +54,7 @@ fn cast_nested_object_tracks_field_path() {
 #[test]
 fn referencing_context_variable() {
     assert_value!("for item in [{a:1},{a:2},{a:3}] return item.a", "[1, 2, 3]");
-    assert_value!(
-        "for item in [{a:1},{a:2},{b:3}] return item.a",
-        "[1, 2, Missing('a')]"
-    );
+    assert_value!("for item in [{a:1},{a:2},{b:3}] return item.a", "[1, 2, Missing('a')]");
 }
 
 #[test]

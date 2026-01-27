@@ -46,44 +46,17 @@ fn test_nesting() -> Result<(), EvalError> {
 
     link_parts(Rc::clone(&ctx))?;
 
-    assert_eq!(
-        ctx.borrow().to_string(),
-        "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}"
-    );
-    assert_eq!(
-        ctx.borrow().to_schema(),
-        "{a: number; b: number; c: {x: string; y: number}}"
-    );
+    assert_eq!(ctx.borrow().to_string(), "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}");
+    assert_eq!(ctx.borrow().to_schema(), "{a: number; b: number; c: {x: string; y: number}}");
 
     assert_eq!(ctx.borrow().get("a")?.to_string(), "1");
     assert_eq!(ctx.borrow().get("b")?.to_string(), "2");
     assert!(ctx.borrow().get("x").is_err());
-    assert_eq!(
-        ctx.borrow().get("c")?.to_string(),
-        "{x: 'Hello'; y: a + b; income() : {}}"
-    );
+    assert_eq!(ctx.borrow().get("c")?.to_string(), "{x: 'Hello'; y: a + b; income() : {}}");
 
-    assert_eq!(
-        get_till_root(Rc::clone(&ctx), "a")
-            .unwrap()
-            .content
-            .to_string(),
-        "1"
-    );
-    assert_eq!(
-        get_till_root(Rc::clone(&child_instance), "a")
-            .unwrap()
-            .content
-            .to_string(),
-        "1"
-    );
-    assert_eq!(
-        get_till_root(Rc::clone(&child_instance), "x")
-            .unwrap()
-            .content
-            .to_string(),
-        "'Hello'"
-    );
+    assert_eq!(get_till_root(Rc::clone(&ctx), "a").unwrap().content.to_string(), "1");
+    assert_eq!(get_till_root(Rc::clone(&child_instance), "a").unwrap().content.to_string(), "1");
+    assert_eq!(get_till_root(Rc::clone(&child_instance), "x").unwrap().content.to_string(), "'Hello'");
 
     info!(">>> test_nesting() linking");
 

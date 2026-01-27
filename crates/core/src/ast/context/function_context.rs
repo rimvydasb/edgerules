@@ -44,9 +44,7 @@ impl<B: PartialEq> PartialEq for AbstractFunctionContext<B> {
 impl ContentHolder<ContextObject> for FunctionContext {
     fn get(&self, name: &str) -> Result<EObjectContent<ContextObject>, LinkingError> {
         if let Some(finding) = self.parameters.iter().find(|field| field.name == name) {
-            let runtime_type = finding
-                .runtime_value_type()
-                .unwrap_or(ValueType::UndefinedType);
+            let runtime_type = finding.runtime_value_type().unwrap_or(ValueType::UndefinedType);
             return Ok(Definition(runtime_type));
         }
 
@@ -101,12 +99,7 @@ impl FunctionContext {
         parameters: Vec<FormalParameter>,
         parent: Weak<RefCell<ContextObject>>,
     ) -> Self {
-        Self {
-            body,
-            parameters,
-            node: NodeData::new(NodeDataEnum::Isolated()),
-            parent,
-        }
+        Self { body, parameters, node: NodeData::new(NodeDataEnum::Isolated()), parent }
     }
 
     pub fn create_inline_for(
@@ -126,12 +119,7 @@ impl FunctionContext {
         let body = builder.build();
         let parent_weak = Rc::downgrade(&parent);
 
-        Ok(Self {
-            body,
-            parameters,
-            node: NodeData::new(NodeDataEnum::Isolated()),
-            parent: parent_weak,
-        })
+        Ok(Self { body, parameters, node: NodeData::new(NodeDataEnum::Isolated()), parent: parent_weak })
     }
 
     pub fn create_eval_context(
@@ -160,24 +148,15 @@ impl FunctionContext {
             ExecutionContext::create_isolated_context(Rc::clone(&self.body))
         };
 
-        input
-            .into_iter()
-            .zip(self.parameters.iter())
-            .for_each(|(value, arg)| {
-                trace!(
-                    "function {}(...) {} = {:?}",
-                    ctx.borrow().node().node_type,
-                    arg.name,
-                    &value
-                );
-                if arg.name == "it" {
-                    if let Ok(v) = &value {
-                        ctx.borrow_mut().context_variable = Some(v.clone());
-                    }
+        input.into_iter().zip(self.parameters.iter()).for_each(|(value, arg)| {
+            trace!("function {}(...) {} = {:?}", ctx.borrow().node().node_type, arg.name, &value);
+            if arg.name == "it" {
+                if let Ok(v) = &value {
+                    ctx.borrow_mut().context_variable = Some(v.clone());
                 }
-                ctx.borrow()
-                    .stack_insert(intern_field_name(arg.name.as_str()), value);
-            });
+            }
+            ctx.borrow().stack_insert(intern_field_name(arg.name.as_str()), value);
+        });
 
         Ok(ctx)
     }

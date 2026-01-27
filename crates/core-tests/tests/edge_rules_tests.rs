@@ -1,14 +1,14 @@
 use edge_rules::runtime::edge_rules::{
-    ContextObjectBuilder, ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError,
-    ExpressionEnum, ParseErrors, UserFunctionDefinition,
+    ContextObjectBuilder, ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, ExpressionEnum,
+    ParseErrors, UserFunctionDefinition,
 };
 use edge_rules::runtime::ToSchema;
 use edge_rules::test_support::NumberEnum::Int;
 use edge_rules::test_support::ParseErrorEnum::{Stacked, UnexpectedToken, WrongFormat};
 use edge_rules::test_support::SpecialValueEnum::Missing;
 use edge_rules::test_support::{
-    expr, ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingError,
-    LinkingErrorEnum, NumberEnum, ParseErrorEnum, StaticLink, UserTypeBody, ValueEnum, ValueType,
+    expr, ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingError, LinkingErrorEnum, NumberEnum,
+    ParseErrorEnum, StaticLink, UserTypeBody, ValueEnum, ValueType,
 };
 use edge_rules::utils::to_display;
 use log::error;
@@ -71,10 +71,7 @@ impl TestServiceBuilder {
 
         match &self.runtime {
             None => {
-                panic!(
-                    "Expected runtime, but got nothing: `{}`",
-                    self.original_code
-                );
+                panic!("Expected runtime, but got nothing: `{}`", self.original_code);
             }
             Some(runtime) => {
                 assert_eq!(runtime.static_tree.borrow().to_schema(), expected_type);
@@ -85,10 +82,7 @@ impl TestServiceBuilder {
     }
 
     pub fn expect_num(&self, variable: &str, expected: NumberEnum) {
-        self.expect(
-            &mut ExpressionEnum::variable(variable),
-            ValueEnum::NumberValue(expected),
-        )
+        self.expect(&mut ExpressionEnum::variable(variable), ValueEnum::NumberValue(expected))
     }
 
     pub fn expect_parse_error(&self, expected: ParseErrorEnum) -> &Self {
@@ -105,32 +99,19 @@ impl TestServiceBuilder {
                 false
             }
 
-            if errors
-                .errors()
-                .iter()
-                .any(|err| matches_error(err, &expected))
-            {
+            if errors.errors().iter().any(|err| matches_error(err, &expected)) {
                 return self;
             }
 
-            panic!(
-                "Expected parse error `{}`, but got: `{:?}`",
-                expected, errors
-            );
+            panic!("Expected parse error `{}`, but got: `{:?}`", expected, errors);
         } else {
-            panic!(
-                "Expected parse error, but got no errors: `{}`",
-                self.original_code
-            );
+            panic!("Expected parse error, but got no errors: `{}`", self.original_code);
         }
     }
 
     pub fn expect_no_errors(&self) -> &Self {
         if let Some(errors) = &self.parse_errors {
-            panic!(
-                "Expected no errors, but got parse errors: `{}`\nFailed to parse:\n{}",
-                errors, self.original_code
-            );
+            panic!("Expected no errors, but got parse errors: `{}`\nFailed to parse:\n{}", errors, self.original_code);
         }
 
         if let Some(errors) = &self.linking_errors {
@@ -154,10 +135,7 @@ impl TestServiceBuilder {
         if let Some(errors) = &self.linking_errors {
             assert_eq!(&expected, errors.kind(), "Testing:\n{}", self.original_code);
         } else {
-            panic!(
-                "Expected linking error, but got no errors: `{}`",
-                self.original_code
-            );
+            panic!("Expected linking error, but got no errors: `{}`", self.original_code);
         }
 
         self
@@ -167,20 +145,12 @@ impl TestServiceBuilder {
         self.expect_no_errors();
 
         if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
-            panic!(
-                "Expected value, but got linking errors: `{:?}`\nFailed to parse:\n{}",
-                error, _expr
-            );
+            panic!("Expected value, but got linking errors: `{:?}`\nFailed to parse:\n{}", error, _expr);
         }
 
         match _expr.eval(self.runtime.as_ref().unwrap().context.clone()) {
             Ok(value) => {
-                assert_eq!(
-                    value,
-                    _expected,
-                    "Context:\n{}",
-                    self.runtime.as_ref().unwrap().context.borrow()
-                );
+                assert_eq!(value, _expected, "Context:\n{}", self.runtime.as_ref().unwrap().context.borrow());
             }
             Err(error) => {
                 error!("{}", error);
@@ -197,19 +167,15 @@ fn test_service() -> Result<(), EvalError> {
     {
         let mut service = EdgeRulesModel::new();
         service.append_source("value: 2 + 2")?;
-        service
-            .append_source("value: 2 + 3")
-            .expect("append second expression");
+        service.append_source("value: 2 + 3").expect("append second expression");
 
         let runtime = service.to_runtime()?;
         let result = runtime.evaluate_field("value")?;
         assert_eq!(result, ValueEnum::NumberValue(Int(5)));
     }
 
-    test_code("value").expect_parse_error(UnexpectedToken(
-        Box::new(EToken::Unparsed(EUnparsedToken::CommaToken)),
-        None,
-    ));
+    test_code("value")
+        .expect_parse_error(UnexpectedToken(Box::new(EToken::Unparsed(EUnparsedToken::CommaToken)), None));
     test_code("value: 2 + 2").expect_num("value", Int(4));
     test_code("value: 2 + ").expect_parse_error(WrongFormat("any".to_string()));
     test_code("{ value: 2 + 2 }").expect_num("value", Int(4));
@@ -228,9 +194,7 @@ fn test_service_evaluate_field_with_existing_state() -> Result<(), EvalError> {
     let result = runtime.evaluate_field("value")?;
     assert_eq!(result.to_string(), "3");
 
-    service
-        .append_source("value: 2 + 2")
-        .expect("append new expression");
+    service.append_source("value: 2 + 2").expect("append new expression");
 
     let runtime = service.to_runtime_snapshot()?;
     let updated = runtime.evaluate_field("value")?;
@@ -249,8 +213,7 @@ fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service
-        .append_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
+    service.append_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
 
     let runtime = service.to_runtime_snapshot()?;
     let out1 = runtime.evaluate_field("calendar.config.start")?;
@@ -261,10 +224,7 @@ fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
 
     let duplicate = service.append_source("{ calendar: { config: { start: 7; end: start + 5 } } }");
     let errors = duplicate.expect_err("duplicate calendar should fail");
-    let first_error = errors
-        .errors()
-        .first()
-        .expect("expected duplicate calendar error");
+    let first_error = errors.errors().first().expect("expected duplicate calendar error");
     assert!(first_error.to_string().contains("calendar"));
 
     let runtime = service.to_runtime_snapshot()?;
@@ -274,10 +234,7 @@ fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
     // @Todo: this test is incorrect, `calendar.config.end` cannot be linked and link error should occur
     // @Todo: find and fix if self.path.len() > 1 && is_unattached_root {...
     let end = runtime.evaluate_field("calendar.config.end")?;
-    assert_eq!(
-        end.to_string(),
-        ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string()
-    );
+    assert_eq!(end.to_string(), ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string());
 
     Ok(())
 }
@@ -316,9 +273,7 @@ fn test_evaluate_expression_unknown_variable_fails() {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    let runtime = service
-        .to_runtime_snapshot()
-        .expect("Failed to build runtime snapshot");
+    let runtime = service.to_runtime_snapshot().expect("Failed to build runtime snapshot");
     let err = runtime.evaluate_expression_str("x + 1").unwrap_err();
     match err {
         EvalError::FailedExecution(_e) => {}
@@ -347,14 +302,10 @@ fn merge_context_object_appends_new_fields() -> Result<(), EvalError> {
 
     let mut service = EdgeRulesModel::new();
     let mut builder = ContextObjectBuilder::new();
-    builder
-        .set_expression("value", expr("1 + 1")?)
-        .expect("set expression");
+    builder.set_expression("value", expr("1 + 1")?).expect("set expression");
     let context = builder.build();
 
-    service
-        .merge_context_object(context)
-        .expect("merge context object");
+    service.merge_context_object(context).expect("merge context object");
     let runtime = service.to_runtime()?;
     let result = runtime.evaluate_field("value")?;
     assert_eq!(result.to_string(), "2");
@@ -367,14 +318,10 @@ fn merge_context_object_rejects_duplicate_fields() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service
-        .set_expression("value", expr("1")?)
-        .expect("set expression");
+    service.set_expression("value", expr("1")?).expect("set expression");
 
     let mut builder = ContextObjectBuilder::new();
-    builder
-        .set_expression("value", expr("2")?)
-        .expect("set expression");
+    builder.set_expression("value", expr("2")?).expect("set expression");
     let context = builder.build();
 
     match service.merge_context_object(context) {
@@ -392,9 +339,7 @@ fn set_expression_adds_root_field() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service
-        .set_expression("enabled", ExpressionEnum::from(true))
-        .expect("set root expression");
+    service.set_expression("enabled", ExpressionEnum::from(true)).expect("set root expression");
 
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_field("enabled")?;
@@ -408,12 +353,8 @@ fn set_expression_overrides_existing_field() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service
-        .set_expression("enabled", ExpressionEnum::from(true))
-        .expect("set root expression");
-    service
-        .set_expression("enabled", ExpressionEnum::from(false))
-        .expect("override expression");
+    service.set_expression("enabled", ExpressionEnum::from(true)).expect("set root expression");
+    service.set_expression("enabled", ExpressionEnum::from(false)).expect("override expression");
 
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_field("enabled")?;
@@ -448,9 +389,7 @@ fn set_expression_updates_nested_context_when_present() -> Result<(), EvalError>
     service
         .set_expression("other", ExpressionEnum::StaticObject(nested))
         .expect("insert nested context");
-    service
-        .set_expression("other.enabled", ExpressionEnum::from(true))
-        .expect("set nested expression");
+    service.set_expression("other.enabled", ExpressionEnum::from(true)).expect("set nested expression");
 
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_field("other.enabled")?;
@@ -465,9 +404,7 @@ fn set_expression_root_context_accepts_complex_expression() -> Result<(), EvalEr
 
     let mut service = EdgeRulesModel::new();
     let value_expression = expr("2 + 3")?;
-    service
-        .set_expression("sum", value_expression)
-        .expect("set sum expression");
+    service.set_expression("sum", value_expression).expect("set sum expression");
 
     let runtime = service.to_runtime_snapshot()?;
     let result = runtime.evaluate_field("sum")?;
@@ -482,16 +419,10 @@ fn set_expression_supports_multi_segment_paths() -> Result<(), EvalError> {
 
     let mut service = EdgeRulesModel::new();
     service
-        .set_expression(
-            "settings",
-            ExpressionEnum::StaticObject(ContextObjectBuilder::new().build()),
-        )
+        .set_expression("settings", ExpressionEnum::StaticObject(ContextObjectBuilder::new().build()))
         .expect("create settings context");
     service
-        .set_expression(
-            "settings.network",
-            ExpressionEnum::StaticObject(ContextObjectBuilder::new().build()),
-        )
+        .set_expression("settings.network", ExpressionEnum::StaticObject(ContextObjectBuilder::new().build()))
         .expect("create settings.network context");
     service
         .set_expression("settings.network.enabled", ExpressionEnum::from(true))
@@ -509,41 +440,28 @@ fn expressions_api_gets_and_removes_fields() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service
-        .set_expression("enabled", ExpressionEnum::from(true))
-        .expect("set root expression");
+    service.set_expression("enabled", ExpressionEnum::from(true)).expect("set root expression");
     assert!(service.get_expression("enabled").is_ok());
 
-    service
-        .remove_expression("enabled")
-        .expect("remove root expression");
+    service.remove_expression("enabled").expect("remove root expression");
     match service.get_expression("enabled") {
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         _ => panic!("expected EntryNotFoundError"),
     }
 
     let mut nested_builder = ContextObjectBuilder::new();
-    nested_builder
-        .add_expression("enabled", ExpressionEnum::from(false))
-        .expect("add nested field");
+    nested_builder.add_expression("enabled", ExpressionEnum::from(false)).expect("add nested field");
     let nested_context = nested_builder.build();
 
     service
-        .set_expression(
-            "settings",
-            ExpressionEnum::StaticObject(Rc::clone(&nested_context)),
-        )
+        .set_expression("settings", ExpressionEnum::StaticObject(Rc::clone(&nested_context)))
         .expect("attach nested context");
-    service
-        .set_expression("settings.mode", ExpressionEnum::from("auto"))
-        .expect("set nested field");
+    service.set_expression("settings.mode", ExpressionEnum::from("auto")).expect("set nested field");
 
     assert!(service.get_expression("settings.enabled").is_ok());
     assert!(service.get_expression("settings.mode").is_ok());
 
-    service
-        .remove_expression("settings.enabled")
-        .expect("remove nested expression");
+    service.remove_expression("settings.enabled").expect("remove nested expression");
     match service.get_expression("settings.enabled") {
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         _ => panic!("expected EntryNotFoundError"),
@@ -560,14 +478,10 @@ fn user_type_api_supports_root_and_nested_contexts() -> Result<(), EvalError> {
     let mut service = EdgeRulesModel::new();
     let base_type = UserTypeBody::TypeRef(ComplexTypeRef::BuiltinType(ValueType::BooleanType, None));
 
-    service
-        .set_user_type("IsEnabled", base_type.clone())
-        .expect("set root user type");
+    service.set_user_type("IsEnabled", base_type.clone()).expect("set root user type");
     assert!(service.get_user_type("IsEnabled").is_ok());
 
-    service
-        .remove_user_type("IsEnabled")
-        .expect("remove root user type");
+    service.remove_user_type("IsEnabled").expect("remove root user type");
     match service.get_user_type("IsEnabled") {
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         _ => panic!("expected EntryNotFoundError"),
@@ -579,22 +493,16 @@ fn user_type_api_supports_root_and_nested_contexts() -> Result<(), EvalError> {
         .set_expression("settings", ExpressionEnum::StaticObject(Rc::clone(&nested)))
         .expect("attach nested context");
 
-    service
-        .set_user_type("settings.Point", base_type.clone())
-        .expect("set nested user type");
+    service.set_user_type("settings.Point", base_type.clone()).expect("set nested user type");
     assert!(service.get_user_type("settings.Point").is_ok());
 
-    service
-        .remove_user_type("settings.Point")
-        .expect("remove nested user type");
+    service.remove_user_type("settings.Point").expect("remove nested user type");
     match service.get_user_type("settings.Point") {
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         _ => panic!("expected EntryNotFoundError"),
     }
 
-    let error = service
-        .set_user_type("unknown.Point", base_type)
-        .expect_err("missing context should fail");
+    let error = service.set_user_type("unknown.Point", base_type).expect_err("missing context should fail");
     match error {
         ContextQueryErrorEnum::ContextNotFoundError(path) => assert_eq!(path, "unknown"),
         other => panic!("unexpected error: {:?}", other),
@@ -608,20 +516,14 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    let root_fn = FunctionDefinition::build(
-        "inc".to_string(),
-        vec![],
-        ContextObjectBuilder::new().build(),
-    )
-    .expect("build root function");
+    let root_fn = FunctionDefinition::build("inc".to_string(), vec![], ContextObjectBuilder::new().build())
+        .expect("build root function");
     service
         .set_user_function(UserFunctionDefinition::Function(root_fn), None)
         .expect("set root user function");
     assert!(service.get_user_function("inc").is_ok());
 
-    service
-        .remove_user_function("inc")
-        .expect("remove root user function");
+    service.remove_user_function("inc").expect("remove root user function");
     match service.get_user_function("inc") {
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         _ => panic!("expected EntryNotFoundError"),
@@ -633,23 +535,14 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
         .set_expression("other", ExpressionEnum::StaticObject(Rc::clone(&nested)))
         .expect("attach nested context");
 
-    let nested_fn = FunctionDefinition::build(
-        "compute".to_string(),
-        vec![],
-        ContextObjectBuilder::new().build(),
-    )
-    .expect("build nested function");
+    let nested_fn = FunctionDefinition::build("compute".to_string(), vec![], ContextObjectBuilder::new().build())
+        .expect("build nested function");
     service
-        .set_user_function(
-            UserFunctionDefinition::Function(nested_fn),
-            Some(vec!["other"]),
-        )
+        .set_user_function(UserFunctionDefinition::Function(nested_fn), Some(vec!["other"]))
         .expect("set nested user function");
     assert!(service.get_user_function("other.compute").is_ok());
 
-    service
-        .remove_user_function("other.compute")
-        .expect("remove nested user function");
+    service.remove_user_function("other.compute").expect("remove nested user function");
     match service.get_user_function("other.compute") {
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         _ => panic!("expected EntryNotFoundError"),
@@ -658,12 +551,8 @@ fn user_function_api_supports_root_and_nested_contexts() -> Result<(), EvalError
     let err = service
         .set_user_function(
             UserFunctionDefinition::Function(
-                FunctionDefinition::build(
-                    "missing".to_string(),
-                    vec![],
-                    ContextObjectBuilder::new().build(),
-                )
-                .expect("build missing function"),
+                FunctionDefinition::build("missing".to_string(), vec![], ContextObjectBuilder::new().build())
+                    .expect("build missing function"),
             ),
             Some(vec!["missing"]),
         )
@@ -697,15 +586,10 @@ fn call_method_errors_when_function_missing() -> Result<(), EvalError> {
     service.append_source("{ value: 1 }")?;
     let runtime = service.to_runtime_snapshot()?;
 
-    let err = runtime
-        .call_method("missing", vec![])
-        .expect_err("expected missing function error");
+    let err = runtime.call_method("missing", vec![]).expect_err("expected missing function error");
 
     let message = err.to_string();
-    assert!(
-        message.contains("Function 'missing(...)"),
-        "unexpected error: {message}"
-    );
+    assert!(message.contains("Function 'missing(...)"), "unexpected error: {message}");
 
     Ok(())
 }
@@ -718,15 +602,10 @@ fn call_method_errors_when_argument_count_mismatches() -> Result<(), EvalError> 
     service.append_source("{ func greet(name, age): { result: name } }")?;
     let runtime = service.to_runtime_snapshot()?;
 
-    let err = runtime
-        .call_method("greet", vec![expr("'tom'")?])
-        .expect_err("expected argument mismatch error");
+    let err = runtime.call_method("greet", vec![expr("'tom'")?]).expect_err("expected argument mismatch error");
 
     let message = err.to_string();
-    assert!(
-        message.contains("Function greet expects 2 arguments, but 1 were provided"),
-        "unexpected error: {message}"
-    );
+    assert!(message.contains("Function greet expects 2 arguments, but 1 were provided"), "unexpected error: {message}");
 
     Ok(())
 }
@@ -736,9 +615,7 @@ fn call_method_happy_path_with_single_and_multiple_arguments() -> Result<(), Eva
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    service.append_source(
-        "{ func inc(x): { result: x + 1 }; func add(left, right): { result: left + right } }",
-    )?;
+    service.append_source("{ func inc(x): { result: x + 1 }; func add(left, right): { result: left + right } }")?;
     let runtime = service.to_runtime_snapshot()?;
 
     let single = runtime.call_method("inc", vec![expr("41")?])?;
@@ -756,18 +633,13 @@ fn call_method_type_mismatch_does_not_poison_context() -> Result<(), EvalError> 
 
     let mut service = EdgeRulesModel::new();
     service.append_source(
-            "{ type LoanOffer: { amount: <number> }; func inc(offer: LoanOffer): { result: offer.amount + 1 } }",
-        )?;
+        "{ type LoanOffer: { amount: <number> }; func inc(offer: LoanOffer): { result: offer.amount + 1 } }",
+    )?;
     let runtime = service.to_runtime_snapshot()?;
 
-    let err = runtime
-        .call_method("inc", vec![expr("1")?])
-        .expect_err("expected type mismatch error");
+    let err = runtime.call_method("inc", vec![expr("1")?]).expect_err("expected type mismatch error");
     let message = err.to_string();
-    assert!(
-        message.contains("Argument `offer` of function `inc`"),
-        "unexpected error: {message}"
-    );
+    assert!(message.contains("Argument `offer` of function `inc`"), "unexpected error: {message}");
 
     let first = runtime.call_method("inc", vec![expr("{amount: 10}")?])?;
     assert_eq!(inline(first.to_string()), inline("{result: 11}"));
@@ -796,10 +668,7 @@ fn call_method_list_iteration() -> Result<(), EvalError> {
     let runtime = service.to_runtime_snapshot()?;
 
     let first = runtime.call_method("interpolate", vec![expr("[1,2,3,4,5]")?])?;
-    assert_eq!(
-        inline(first.to_string()),
-        inline("{resultset: [2, 4, 6, 8, 10]}")
-    );
+    assert_eq!(inline(first.to_string()), inline("{resultset: [2, 4, 6, 8, 10]}"));
 
     Ok(())
 }
@@ -808,9 +677,7 @@ fn call_method_list_iteration() -> Result<(), EvalError> {
 fn test_linking() -> Result<(), EvalError> {
     init_logger();
 
-    test_code("{ a: 1; b: a  }")
-        .expect_type("{a: number; b: number}")
-        .expect_num("a", Int(1));
+    test_code("{ a: 1; b: a  }").expect_type("{a: number; b: number}").expect_num("a", Int(1));
 
     test_code("{ a: z; b: a; z: 8 * 2  }")
         .expect_type("{a: number; b: number; z: number}")
@@ -841,9 +708,7 @@ fn test_linking() -> Result<(), EvalError> {
 
     test_code("{ func f(arg1):  { a: arg1 } }").expect_type("{}");
 
-    test_code("{ func f(arg1):  { a: arg1 }; b: 1 }")
-        .expect_type("{b: number}")
-        .expect_num("b", Int(1));
+    test_code("{ func f(arg1):  { a: arg1 }; b: 1 }").expect_type("{b: number}").expect_num("b", Int(1));
 
     test_code("{ func f(arg1):  { a: arg1 }; b: f(1) }").expect_type("{b: {a: number}}");
 
@@ -902,15 +767,15 @@ fn pass_self_context_to_function_should_fail() {
 
     // Users cannot pass the context object itself into a function defined in that same context.
     test_code_lines(&[
-            "calendar: {",
-            "    shift: 2",
-            "    func start1(calendar): { result: calendar.shift + 1 }",
-            "    firstDay: start1(calendar).result",
-            "}",
-        ])
-            .expect_link_error(LinkingErrorEnum::OtherLinkingError(
-                "Cannot pass context `calendar` as argument to function `start1` defined in the same context".to_string(),
-            ));
+        "calendar: {",
+        "    shift: 2",
+        "    func start1(calendar): { result: calendar.shift + 1 }",
+        "    firstDay: start1(calendar).result",
+        "}",
+    ])
+    .expect_link_error(LinkingErrorEnum::OtherLinkingError(
+        "Cannot pass context `calendar` as argument to function `start1` defined in the same context".to_string(),
+    ));
 }
 
 #[test]
@@ -919,15 +784,15 @@ fn pass_context_to_function_should_not_fail() {
 
     // Users can pass the context object into a function defined in upper or another context.
     test_code_lines(&[
-            "func start1(calendar): { result: calendar.shift + 1 }",
-            "calendar: {",
-            "    shift: 2",
-            "    firstDay: start1(calendar).result",
-            "}",
-        ])
-            .expect_link_error(LinkingErrorEnum::OtherLinkingError(
-                "Cannot pass context `calendar` as argument to function `start1` defined in the same context".to_string(),
-            ));
+        "func start1(calendar): { result: calendar.shift + 1 }",
+        "calendar: {",
+        "    shift: 2",
+        "    firstDay: start1(calendar).result",
+        "}",
+    ])
+    .expect_link_error(LinkingErrorEnum::OtherLinkingError(
+        "Cannot pass context `calendar` as argument to function `start1` defined in the same context".to_string(),
+    ));
 }
 
 #[test]
@@ -936,15 +801,15 @@ fn pass_self_context_as_second_argument_should_fail() {
 
     // The guard applies to any argument position, not just the first one.
     test_code_lines(&[
-            "calendar: {",
-            "    shift: 2",
-            "    func start2(x, cal): { result: cal.shift + x }",
-            "    firstDay: start2(1, calendar).result",
-            "}",
-        ])
-            .expect_link_error(LinkingErrorEnum::OtherLinkingError(
-                "Cannot pass context `calendar` as argument to function `start2` defined in the same context".to_string(),
-            ));
+        "calendar: {",
+        "    shift: 2",
+        "    func start2(x, cal): { result: cal.shift + x }",
+        "    firstDay: start2(1, calendar).result",
+        "}",
+    ])
+    .expect_link_error(LinkingErrorEnum::OtherLinkingError(
+        "Cannot pass context `calendar` as argument to function `start2` defined in the same context".to_string(),
+    ));
 }
 
 #[test]

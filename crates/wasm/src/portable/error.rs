@@ -1,9 +1,7 @@
 use crate::utils;
 use edge_rules::ast::context::duplicate_name_error::DuplicateNameError;
 use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EvalError, ParseErrors};
-use edge_rules::typesystem::errors::{
-    LinkingError, LinkingErrorEnum, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
-};
+use edge_rules::typesystem::errors::{LinkingError, LinkingErrorEnum, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
 use js_sys::{Array, Object};
 use std::fmt::{Display, Formatter};
 use wasm_bindgen::JsValue;
@@ -19,10 +17,7 @@ impl PortableError {
         let msg = message.into();
         let obj = Object::new();
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&msg));
-        Self::General {
-            js_value: obj.into(),
-            message: msg,
-        }
+        Self::General { js_value: obj.into(), message: msg }
     }
 
     pub fn to_js(&self) -> JsValue {
@@ -67,10 +62,7 @@ impl From<ParseErrorEnum> for PortableError {
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("parse"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
-        PortableError::General {
-            js_value: obj.into(),
-            message: err.to_string(),
-        }
+        PortableError::General { js_value: obj.into(), message: err.to_string() }
     }
 }
 
@@ -80,10 +72,7 @@ impl From<ParseErrors> for PortableError {
         let _ = utils::set_prop(&obj, "stage", &JsValue::from_str("parse"));
         let _ = utils::set_prop(&obj, "message", &JsValue::from_str(&err.to_string()));
 
-        PortableError::General {
-            js_value: obj.into(),
-            message: err.to_string(),
-        }
+        PortableError::General { js_value: obj.into(), message: err.to_string() }
     }
 }
 
@@ -141,31 +130,19 @@ impl From<RuntimeError> for PortableError {
                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&msg));
             }
             RuntimeErrorEnum::InternalIntegrityError(code) => {
-                let _ = utils::set_prop(
-                    &error_obj,
-                    "type",
-                    &JsValue::from_str("InternalIntegrityError"),
-                );
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("InternalIntegrityError"));
                 let _ = utils::set_prop(&error_obj, "code", &JsValue::from_f64(*code as f64));
                 let msg = format!("Internal integrity error: code {}", code);
                 let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&msg));
             }
             _ => {
-                let _ =
-                    utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherRuntimeError"));
-                let _ = utils::set_prop(
-                    &error_obj,
-                    "message",
-                    &JsValue::from_str(&err.kind().to_string()),
-                );
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherRuntimeError"));
+                let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&err.kind().to_string()));
             }
         }
         let _ = utils::set_prop(&obj, "error", &error_obj);
 
-        PortableError::General {
-            js_value: obj.into(),
-            message: err.to_string(),
-        }
+        PortableError::General { js_value: obj.into(), message: err.to_string() }
     }
 }
 
@@ -194,16 +171,11 @@ impl From<LinkingError> for PortableError {
                 let _ = utils::set_prop(&error_obj, "fields", &fields);
             }
             LinkingErrorEnum::TypesNotCompatible(subject, unexpected, expected) => {
-                let _ =
-                    utils::set_prop(&error_obj, "type", &JsValue::from_str("TypesNotCompatible"));
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("TypesNotCompatible"));
                 if let Some(sub) = subject {
                     let _ = utils::set_prop(&error_obj, "subject", &JsValue::from_str(&sub));
                 }
-                let _ = utils::set_prop(
-                    &error_obj,
-                    "unexpected",
-                    &JsValue::from_str(&unexpected.to_string()),
-                );
+                let _ = utils::set_prop(&error_obj, "unexpected", &JsValue::from_str(&unexpected.to_string()));
                 if let Some(exp) = expected {
                     let exp_arr = Array::new();
                     for ex in exp {
@@ -213,11 +185,7 @@ impl From<LinkingError> for PortableError {
                 }
             }
             LinkingErrorEnum::DifferentTypesDetected(subject, t1, t2) => {
-                let _ = utils::set_prop(
-                    &error_obj,
-                    "type",
-                    &JsValue::from_str("DifferentTypesDetected"),
-                );
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("DifferentTypesDetected"));
                 if let Some(sub) = subject {
                     let _ = utils::set_prop(&error_obj, "subject", &JsValue::from_str(&sub));
                 }
@@ -236,20 +204,12 @@ impl From<LinkingError> for PortableError {
                 let _ = utils::set_prop(&error_obj, "fields", &fields);
             }
             _ => {
-                let _ =
-                    utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherLinkingError"));
-                let _ = utils::set_prop(
-                    &error_obj,
-                    "message",
-                    &JsValue::from_str(&err.kind().to_string()),
-                );
+                let _ = utils::set_prop(&error_obj, "type", &JsValue::from_str("OtherLinkingError"));
+                let _ = utils::set_prop(&error_obj, "message", &JsValue::from_str(&err.kind().to_string()));
             }
         }
         let _ = utils::set_prop(&obj, "error", &error_obj);
 
-        PortableError::General {
-            js_value: obj.into(),
-            message: err.to_string(),
-        }
+        PortableError::General { js_value: obj.into(), message: err.to_string() }
     }
 }

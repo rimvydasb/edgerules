@@ -27,12 +27,7 @@ extern "C" {
     fn buffer_from(s: &str, enc: &str) -> Result<HostObject, JsValue>;
 }
 
-pub(crate) fn regex_replace_js(
-    s: &str,
-    pattern: &str,
-    flags: Option<&str>,
-    repl: &str,
-) -> Result<String, String> {
+pub(crate) fn regex_replace_js(s: &str, pattern: &str, flags: Option<&str>, repl: &str) -> Result<String, String> {
     let f = flags.unwrap_or("g");
     let re = HostRegExp::new(pattern, f).map_err(|e| format!("{:?}", e))?;
     let s_js = JsValue::from_str(s);
@@ -41,20 +36,16 @@ pub(crate) fn regex_replace_js(
     out.as_string().ok_or_else(|| "replace did not return a string".to_string())
 }
 
-pub(crate) fn regex_split_js(
-    s: &str,
-    pattern: &str,
-    flags: Option<&str>,
-) -> Result<Vec<String>, String> {
+pub(crate) fn regex_split_js(s: &str, pattern: &str, flags: Option<&str>) -> Result<Vec<String>, String> {
     let f = flags.unwrap_or("g");
     let re = HostRegExp::new(pattern, f).map_err(|e| format!("{:?}", e))?;
     let s_js = JsValue::from_str(s);
     let host_s: &HostObject = s_js.unchecked_ref();
     let array_val = host_s.split(&re).map_err(|e| format!("{:?}", e))?;
-    
+
     let len_val = js_sys::Reflect::get(&array_val, &JsValue::from_str("length")).map_err(|e| format!("{:?}", e))?;
     let len = len_val.as_f64().unwrap_or(0.0) as u32;
-    
+
     let mut parts = Vec::with_capacity(len as usize);
     for i in 0..len {
         let p_val = js_sys::Reflect::get(&array_val, &JsValue::from_f64(i as f64)).map_err(|e| format!("{:?}", e))?;

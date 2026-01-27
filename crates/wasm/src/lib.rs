@@ -29,9 +29,7 @@ fn with_decision_service<R>(
     DECISION_SERVICE.with(|slot| {
         let mut guard = slot.borrow_mut();
         let Some(controller) = guard.as_mut() else {
-            return Err(PortableError::new(
-                "Decision service is not initialized. Call create_decision_service first.",
-            ));
+            return Err(PortableError::new("Decision service is not initialized. Call create_decision_service first."));
         };
         f(controller)
     })

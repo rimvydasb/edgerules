@@ -51,18 +51,9 @@ fn test_nesting() -> Result<(), EvalError> {
     assert_eq!(ex.borrow().get("a")?.to_string(), "88");
     assert_eq!(ex.borrow().get("b")?.to_string(), "99");
     assert!(ex.borrow().get("x").is_err());
-    assert_eq!(
-        ex.borrow().to_string(),
-        "{a: 88; b: 99; c: {x: 'Hello'; y: a + b; income() : {}}}"
-    );
-    assert_eq!(
-        ex.borrow().get_type().to_string(),
-        "{a: number; b: number; c: {x: string; y: number}}"
-    );
-    assert_eq!(
-        ex.borrow().get("c")?.to_string(),
-        "{x: 'Hello'; y: a + b; income() : {}}"
-    );
+    assert_eq!(ex.borrow().to_string(), "{a: 88; b: 99; c: {x: 'Hello'; y: a + b; income() : {}}}");
+    assert_eq!(ex.borrow().get_type().to_string(), "{a: number; b: number; c: {x: string; y: number}}");
+    assert_eq!(ex.borrow().get("c")?.to_string(), "{x: 'Hello'; y: a + b; income() : {}}");
 
     // @Todo: update tests
     // {

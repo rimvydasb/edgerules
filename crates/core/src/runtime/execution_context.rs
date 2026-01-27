@@ -1,8 +1,6 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_type::EObjectContent;
-use crate::ast::context::context_object_type::EObjectContent::{
-    ConstantValue, ExpressionRef, UserFunctionRef,
-};
+use crate::ast::context::context_object_type::EObjectContent::{ConstantValue, ExpressionRef, UserFunctionRef};
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
@@ -85,21 +83,17 @@ impl ContentHolder<ExecutionContext> for ExecutionContext {
 
         match self.object.borrow().get(name)? {
             EObjectContent::ObjectRef(object) => {
-                trace!(
-                    "Creating new child execution context for get: {}",
-                    object.borrow().node().node_type
-                );
+                trace!("Creating new child execution context for get: {}", object.borrow().node().node_type);
                 let new_child = self.create_orphan_context(intern_field_name(name), object);
                 Ok(EObjectContent::ObjectRef(new_child))
             }
             ConstantValue(value) => Ok(ConstantValue(value)),
             ExpressionRef(value) => Ok(ExpressionRef(value)),
             UserFunctionRef(value) => Ok(UserFunctionRef(value)),
-            EObjectContent::Definition(definition) => LinkingError::other_error(format!(
-                "Definition {} is not supported in execution context",
-                definition
-            ))
-            .into(),
+            EObjectContent::Definition(definition) => {
+                LinkingError::other_error(format!("Definition {} is not supported in execution context", definition))
+                    .into()
+            }
         }
     }
 
@@ -115,9 +109,7 @@ impl TypedValue for ExecutionContext {
 }
 
 impl ExecutionContext {
-    pub fn create_isolated_context(
-        static_context: Rc<RefCell<ContextObject>>,
-    ) -> Rc<RefCell<ExecutionContext>> {
+    pub fn create_isolated_context(static_context: Rc<RefCell<ContextObject>>) -> Rc<RefCell<ExecutionContext>> {
         Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
@@ -129,9 +121,7 @@ impl ExecutionContext {
         .into_rc()
     }
 
-    pub fn create_root_context(
-        static_context: Rc<RefCell<ContextObject>>,
-    ) -> Rc<RefCell<ExecutionContext>> {
+    pub fn create_root_context(static_context: Rc<RefCell<ContextObject>>) -> Rc<RefCell<ExecutionContext>> {
         Self {
             object: static_context,
             stack: RefCell::new(HashMap::new()),
@@ -163,8 +153,7 @@ impl ExecutionContext {
             NodeData::attach_child(&parent_rc, &new_child);
         } else {
             // Fallback: keep previous behavior
-            self.node()
-                .add_child(assigned_to_field, Rc::clone(&new_child));
+            self.node().add_child(assigned_to_field, Rc::clone(&new_child));
         }
         new_child
     }
@@ -190,11 +179,8 @@ impl ExecutionContext {
         if let Some(value) = &self.context_variable {
             Ok(value.clone())
         } else {
-            RuntimeError::eval_error(format!(
-                "Context variable not set for {}",
-                self.object.borrow().node.node_type
-            ))
-            .into()
+            RuntimeError::eval_error(format!("Context variable not set for {}", self.object.borrow().node.node_type))
+                .into()
         }
     }
 
@@ -228,11 +214,7 @@ impl ExecutionContext {
                 }
             }
 
-            trace!(
-                "to_code_accumulate: {}, stack: {}",
-                self.node().node_type,
-                self.stack.borrow().len()
-            );
+            trace!("to_code_accumulate: {}, stack: {}", self.node().node_type, self.stack.borrow().len());
             lines.add(line);
         }
 
@@ -246,10 +228,7 @@ impl ExecutionContext {
                             lines.add_str(format!("{}: {}", field_name, value).as_str());
                         }
                         ExpressionRef(expression) => {
-                            lines.add_str(
-                                format!("{}: {}", field_name, expression.borrow().expression)
-                                    .as_str(),
-                            );
+                            lines.add_str(format!("{}: {}", field_name, expression.borrow().expression).as_str());
                         }
                         UserFunctionRef(_) => {
                             // skip
@@ -305,8 +284,7 @@ impl ExecutionContext {
                         Ok(v) => Ok(v),
                         Err(mut err) => {
                             if err.location().is_empty() {
-                                *err.location_mut() =
-                                    build_location_from_execution_context(ctx, name);
+                                *err.location_mut() = build_location_from_execution_context(ctx, name);
                             }
                             if !err.has_expression() {
                                 err.set_expression(expression.borrow().expression.to_string());
@@ -340,10 +318,7 @@ pub(crate) fn build_location_from_execution_context(
     while let Some(ctx) = current {
         let (parent, assigned) = {
             let borrowed = ctx.borrow();
-            (
-                borrowed.node().node_type.get_parent(),
-                borrowed.node().node_type.get_assigned_name(),
-            )
+            (borrowed.node().node_type.get_parent(), borrowed.node().node_type.get_assigned_name())
         };
 
         if let Some(name) = assigned {

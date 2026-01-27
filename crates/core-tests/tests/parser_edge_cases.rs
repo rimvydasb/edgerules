@@ -6,26 +6,17 @@ fn test_bad_function_definitions() {
     // Nested parens / empty args in wrong place
     // "func badFunc(())" -> parses as "badFunc()" because inner (()) reduces to empty/grouping?
     // Then fails as Unexpected token because body is missing.
-    parse_error_contains(
-        "func badFunc(())",
-        &["badFunc"], 
-    );
+    parse_error_contains("func badFunc(())", &["badFunc"]);
 
     // Trailing comma
     // Parser allows trailing comma in args.
     // Fails because body is missing -> Unexpected token.
-    parse_error_contains(
-        "func badFunc(param, )",
-        &["badFunc"], 
-    );
+    parse_error_contains("func badFunc(param, )", &["badFunc"]);
 
     // Invalid function name (operator)
     // "func badFunc+(param)" -> "func", "badFunc", "+", "(", "param", ")"
     // Fails because "func" is left unconsumed/unexpected.
-    parse_error_contains(
-        "func badFunc+(param)",
-        &["func"], 
-    );
+    parse_error_contains("func badFunc+(param)", &["func"]);
 
     // Missing comma
     // "func badFunc(param1 param2)"
@@ -37,10 +28,7 @@ fn test_bad_function_definitions() {
     // );
 
     // Expression in arg list
-    parse_error_contains(
-        "func badFunc(1+1)",
-        &["Unsupported expression"], 
-    );
+    parse_error_contains("func badFunc(1+1)", &["Unsupported expression"]);
 
     // Number start in identifier
     // IGNORING THIS TEST FOR NOW
@@ -51,10 +39,7 @@ fn test_bad_function_definitions() {
 
     // Missing body
     // "func myFunc(param): "
-    parse_error_contains(
-        "func myFunc(param): ",
-        &["assignment side is not complete"], 
-    );
+    parse_error_contains("func myFunc(param): ", &["assignment side is not complete"]);
 }
 
 #[test]
@@ -66,10 +51,7 @@ fn test_bad_type_definitions() {
     // );
 
     // Missing body
-    parse_error_contains(
-        "{ type BadType: }",
-        &["assignment side is not complete"],
-    );
+    parse_error_contains("{ type BadType: }", &["assignment side is not complete"]);
 
     // Function as type body
     // "type BadType: func()"
@@ -84,30 +66,18 @@ fn test_bad_type_definitions() {
 fn test_bad_assignments() {
     // Two variables on left "a b : 1"
     // "a" is Unexpected because it's not a Definition or ObjectField
-    parse_error_contains(
-        "a b : 1",
-        &["Unexpected 'a'"], 
-    );
+    parse_error_contains("a b : 1", &["Unexpected 'a'"]);
 
     // Missing right side
-    parse_error_contains(
-        "a : ",
-        &["assignment side is not complete"],
-    );
+    parse_error_contains("a : ", &["assignment side is not complete"]);
 
     // Missing left side
     // ": 1" -> ":" assignment with empty left.
     // build_assignment pop_left fails.
-    parse_error_contains(
-        ": 1",
-        &["Left assignment side is not complete"], 
-    );
+    parse_error_contains(": 1", &["Left assignment side is not complete"]);
 
     // Invalid identifier start
     // "1a : 1" -> "1" (number), "a" (var), ":"
     // "1" is Unexpected in root context
-    parse_error_contains(
-        "1a : 1",
-        &["Unexpected '1'"],
-    );
+    parse_error_contains("1a : 1", &["Unexpected '1'"]);
 }

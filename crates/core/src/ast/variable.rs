@@ -5,9 +5,7 @@ use crate::ast::token::{EToken, ExpressionEnum};
 use crate::ast::{is_linked, Link};
 use crate::link::linker::{browse, build_location_from_context};
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{
-    ErrorStage, LinkingError, LinkingErrorEnum, RuntimeError, RuntimeErrorEnum,
-};
+use crate::typesystem::errors::{ErrorStage, LinkingError, LinkingErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::utils::intern_field_name;
@@ -30,28 +28,16 @@ pub struct VariableLink {
 impl VariableLink {
     pub fn new_unlinked(name: String) -> Self {
         let interned = intern_field_name(name.as_str());
-        VariableLink {
-            path: vec![interned],
-            variable_type: LinkingError::not_linked().into(),
-        }
+        VariableLink { path: vec![interned], variable_type: LinkingError::not_linked().into() }
     }
 
     pub fn new_unlinked_path(path: Vec<String>) -> Self {
-        let interned_path = path
-            .into_iter()
-            .map(|segment| intern_field_name(segment.as_str()))
-            .collect();
-        VariableLink {
-            path: interned_path,
-            variable_type: LinkingError::not_linked().into(),
-        }
+        let interned_path = path.into_iter().map(|segment| intern_field_name(segment.as_str())).collect();
+        VariableLink { path: interned_path, variable_type: LinkingError::not_linked().into() }
     }
 
     pub fn new_interned_path(path: Vec<&'static str>) -> Self {
-        VariableLink {
-            path,
-            variable_type: LinkingError::not_linked().into(),
-        }
+        VariableLink { path, variable_type: LinkingError::not_linked().into() }
     }
 
     pub fn get_name(&self) -> String {
@@ -93,10 +79,7 @@ impl EvaluatableExpression for VariableLink {
                 let has_parameter = {
                     let exec_borrowed = context.borrow();
                     let ctx_borrowed = exec_borrowed.object.borrow();
-                    ctx_borrowed
-                        .parameters
-                        .iter()
-                        .any(|param| intern_field_name(param.name.as_str()) == first)
+                    ctx_borrowed.parameters.iter().any(|param| intern_field_name(param.name.as_str()) == first)
                 };
 
                 if has_parameter {
@@ -131,10 +114,7 @@ impl EvaluatableExpression for VariableLink {
             Ok(res) => res,
             Err(link_err) => {
                 if let LinkingErrorEnum::FieldNotFound(_, field) = link_err.kind() {
-                    let expected_type = self
-                        .variable_type
-                        .clone()
-                        .unwrap_or_else(|_| ValueType::UndefinedType);
+                    let expected_type = self.variable_type.clone().unwrap_or_else(|_| ValueType::UndefinedType);
                     let missing = missing_for_type(&expected_type, Some(field.as_str()), &context)?;
                     return Ok(missing);
                 } else {
@@ -153,9 +133,7 @@ impl EvaluatableExpression for VariableLink {
                             Err(_) => ValueType::UndefinedType,
                         };
                         let missing = missing_for_type(&expected_type, Some(field.as_str()), &ctx)
-                            .map_err(|runtime_err| {
-                                LinkingError::other_error(runtime_err.to_string())
-                            })?;
+                            .map_err(|runtime_err| LinkingError::other_error(runtime_err.to_string()))?;
                         Ok(EObjectContent::ConstantValue(missing))
                     } else {
                         Err(LinkingError::other_error(err.to_string()))
@@ -201,10 +179,7 @@ impl StaticLink for VariableLink {
                 if let Some(&first) = self.path.first() {
                     let has_parameter = {
                         let borrowed = context.borrow();
-                        borrowed
-                            .parameters
-                            .iter()
-                            .any(|param| intern_field_name(param.name.as_str()) == first)
+                        borrowed.parameters.iter().any(|param| intern_field_name(param.name.as_str()) == first)
                     };
 
                     if has_parameter {
@@ -242,8 +217,7 @@ impl StaticLink for VariableLink {
                             Err(mut err) => {
                                 if err.location().is_empty() {
                                     if let Some(name) = field_name {
-                                        *err.location_mut() =
-                                            build_location_from_context(&ctx, name);
+                                        *err.location_mut() = build_location_from_context(&ctx, name);
                                     }
                                 }
                                 if !err.has_expression() {
@@ -269,10 +243,8 @@ impl StaticLink for VariableLink {
                         }
                         Err(mut err) => {
                             if err.location().is_empty() {
-                                *err.location_mut() = build_location_from_context(
-                                    &value_type.context,
-                                    value_type.field_name,
-                                );
+                                *err.location_mut() =
+                                    build_location_from_context(&value_type.context, value_type.field_name);
                             }
                             if !err.has_expression() {
                                 err.set_expression(value_type.content.to_string());
@@ -288,8 +260,7 @@ impl StaticLink for VariableLink {
                     // Defer linking for qualified paths inside unattached inline objects
                     let is_unattached_root = matches!(
                         context.borrow().node.node_type,
-                        crate::link::node_data::NodeDataEnum::Root()
-                            | crate::link::node_data::NodeDataEnum::Isolated()
+                        crate::link::node_data::NodeDataEnum::Root() | crate::link::node_data::NodeDataEnum::Isolated()
                     );
 
                     // @Todo: must return LinkingErrorEnum::FieldNotFound or the other even better linking error

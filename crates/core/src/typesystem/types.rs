@@ -284,9 +284,7 @@ pub mod number {
                 (Int(a), Int(b)) => NumberEnum::from(Float::from(a) / Float::from(b)),
                 (Real(a), Int(b)) => NumberEnum::from(a / Float::from(b)),
                 (Int(a), Real(b)) => NumberEnum::from(Float::from(a) / b),
-                (SV(SpecialValueEnum::NotApplicable(field)), _any) => {
-                    SV(SpecialValueEnum::NotApplicable(field))
-                }
+                (SV(SpecialValueEnum::NotApplicable(field)), _any) => SV(SpecialValueEnum::NotApplicable(field)),
                 (any, SV(SpecialValueEnum::NotApplicable(_))) => any,
                 (SV(any), _) => SV(any),
                 (_, SV(any)) => SV(any),
@@ -430,40 +428,16 @@ mod test {
         let not_found = SpecialValueEnum::not_found_for(None);
 
         // Add
-        assert_eq!(
-            NumberEnum::from(10) + NumberEnum::SV(missing.clone()),
-            NumberEnum::SV(missing.clone())
-        );
-        assert_eq!(
-            NumberEnum::SV(missing.clone()) + NumberEnum::from(10),
-            NumberEnum::SV(missing.clone())
-        );
-        assert_eq!(
-            NumberEnum::from(10) + NumberEnum::from(10),
-            NumberEnum::from(20)
-        );
-        assert_eq!(
-            NumberEnum::SV(not_found.clone()) + NumberEnum::from(10),
-            NumberEnum::SV(not_found.clone())
-        );
+        assert_eq!(NumberEnum::from(10) + NumberEnum::SV(missing.clone()), NumberEnum::SV(missing.clone()));
+        assert_eq!(NumberEnum::SV(missing.clone()) + NumberEnum::from(10), NumberEnum::SV(missing.clone()));
+        assert_eq!(NumberEnum::from(10) + NumberEnum::from(10), NumberEnum::from(20));
+        assert_eq!(NumberEnum::SV(not_found.clone()) + NumberEnum::from(10), NumberEnum::SV(not_found.clone()));
 
         // Rem
-        assert_eq!(
-            NumberEnum::from(10) % NumberEnum::SV(missing.clone()),
-            NumberEnum::from(10)
-        );
-        assert_eq!(
-            NumberEnum::SV(missing.clone()) % NumberEnum::from(10),
-            NumberEnum::SV(missing.clone())
-        );
-        assert_eq!(
-            NumberEnum::from(10) % NumberEnum::from(10),
-            NumberEnum::from(0)
-        );
-        assert_eq!(
-            NumberEnum::SV(not_found.clone()) % NumberEnum::from(10),
-            NumberEnum::SV(not_found.clone())
-        );
+        assert_eq!(NumberEnum::from(10) % NumberEnum::SV(missing.clone()), NumberEnum::from(10));
+        assert_eq!(NumberEnum::SV(missing.clone()) % NumberEnum::from(10), NumberEnum::SV(missing.clone()));
+        assert_eq!(NumberEnum::from(10) % NumberEnum::from(10), NumberEnum::from(0));
+        assert_eq!(NumberEnum::SV(not_found.clone()) % NumberEnum::from(10), NumberEnum::SV(not_found.clone()));
 
         assert!(NumberEnum::from(10) <= NumberEnum::from(10));
 
@@ -502,8 +476,7 @@ mod test {
         assert!(NumberEnum::SV(missing) != NumberEnum::SV(not_applicable));
 
         assert!(
-            NumberEnum::SV(SpecialValueEnum::missing_for(None))
-                == NumberEnum::SV(SpecialValueEnum::missing_for(None))
+            NumberEnum::SV(SpecialValueEnum::missing_for(None)) == NumberEnum::SV(SpecialValueEnum::missing_for(None))
         );
         assert!(
             NumberEnum::SV(SpecialValueEnum::not_found_for(None))

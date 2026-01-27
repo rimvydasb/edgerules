@@ -5,9 +5,7 @@ use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
 use edge_rules::ast::context::context_object_type::FormalParameter;
 use edge_rules::ast::context::function_context::RETURN_EXPRESSION;
 use edge_rules::ast::context::metadata::Metadata;
-use edge_rules::ast::metaphors::functions::{
-    FunctionDefinition, InlineFunctionDefinition, UserFunctionDefinition,
-};
+use edge_rules::ast::metaphors::functions::{FunctionDefinition, InlineFunctionDefinition, UserFunctionDefinition};
 use edge_rules::ast::metaphors::metaphor::UserFunction;
 use edge_rules::ast::sequence::CollectionExpression;
 use edge_rules::ast::token::{ComplexTypeRef, DefinitionEnum, ExpressionEnum, UserTypeBody};
@@ -20,8 +18,8 @@ use edge_rules::typesystem::types::number::NumberEnum;
 use edge_rules::typesystem::values::ValueEnum;
 use edge_rules::utils::intern_field_name;
 use js_sys::{Array, Object};
-use wasm_bindgen::{JsCast, JsValue};
 use rust_decimal::prelude::ToPrimitive;
+use wasm_bindgen::{JsCast, JsValue};
 
 pub fn model_from_portable(portable: &JsValue) -> Result<EdgeRulesModel, PortableError> {
     if !is_object(portable) {
@@ -99,18 +97,12 @@ fn attach_metadata(obj: &JsValue, metadata: Option<&Metadata>) -> Result<(), Por
     Ok(())
 }
 
-pub fn apply_portable_entry(
-    model: &mut EdgeRulesModel,
-    path: &str,
-    payload: &JsValue,
-) -> Result<(), PortableError> {
+pub fn apply_portable_entry(model: &mut EdgeRulesModel, path: &str, payload: &JsValue) -> Result<(), PortableError> {
     match classify_entry(payload) {
         PortableKind::Function(def_obj) => {
             let (context_path, function_name) = split_path(path)?;
             if let PathTarget::ArrayElement(_, _) = parse_path_target(&function_name)? {
-                return Err(PortableError::new(
-                    "Function definition cannot be an array element",
-                ));
+                return Err(PortableError::new("Function definition cannot be an array element"));
             }
             let definition = parse_function_definition(&function_name, &def_obj)?;
             apply_function_with_path(model, context_path, definition)?;
@@ -118,9 +110,7 @@ pub fn apply_portable_entry(
         PortableKind::Invocation(inv_obj) => {
             let (_context_path, name) = split_path(path)?;
             if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
-                return Err(PortableError::new(
-                    "Invocation definition cannot be an array element",
-                ));
+                return Err(PortableError::new("Invocation definition cannot be an array element"));
             }
             let spec = parse_invocation_spec(&inv_obj)?;
             model.set_invocation(path, spec)?;
@@ -128,9 +118,7 @@ pub fn apply_portable_entry(
         PortableKind::Type(def_obj) => {
             let (_context_path, name) = split_path(path)?;
             if let PathTarget::ArrayElement(_, _) = parse_path_target(&name)? {
-                return Err(PortableError::new(
-                    "Type definition cannot be an array element",
-                ));
+                return Err(PortableError::new("Type definition cannot be an array element"));
             }
             let body = parse_type_definition(&def_obj)?;
             model.set_user_type(path, body)?;
@@ -171,31 +159,25 @@ pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(
     let (context_path, name) = split_path(path)?;
     if let PathTarget::ArrayElement(array_name, index) = parse_path_target(&name)? {
         let full_array_path = join_path(context_path, &array_name);
-        let entry = model
-            .get_expression(&full_array_path)
-            .map_err(PortableError::from)?;
+        let entry = model.get_expression(&full_array_path).map_err(PortableError::from)?;
         let mut borrowed = entry.borrow_mut();
 
         match &mut borrowed.expression {
             ExpressionEnum::Collection(col) => {
                 if index >= col.elements.len() {
-                    return Err(PortableError::from(
-                        ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                            "Index {} out of bounds",
-                            index
-                        ))),
-                    ));
+                    return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                        "Index {} out of bounds",
+                        index
+                    )))));
                 }
                 col.elements.remove(index);
                 return Ok(());
             }
             _ => {
-                return Err(PortableError::from(
-                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                        "Field '{}' is not an array",
-                        full_array_path
-                    ))),
-                ));
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                    "Field '{}' is not an array",
+                    full_array_path
+                )))));
             }
         }
     }
@@ -227,40 +209,31 @@ pub fn remove_portable_entry(model: &mut EdgeRulesModel, path: &str) -> Result<(
         Err(err) => return Err(PortableError::from(err)),
     }
 
-    Err(PortableError::new(format!(
-        "Entry '{}' not found in decision service model",
-        path
-    )))
+    Err(PortableError::new(format!("Entry '{}' not found in decision service model", path)))
 }
 
 pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue, PortableError> {
     let (context_path, name) = split_path(path)?;
     if let PathTarget::ArrayElement(array_name, index) = parse_path_target(&name)? {
         let full_array_path = join_path(context_path, &array_name);
-        let entry = model
-            .get_expression(&full_array_path)
-            .map_err(PortableError::from)?;
+        let entry = model.get_expression(&full_array_path).map_err(PortableError::from)?;
         let borrowed = entry.borrow();
 
         match &borrowed.expression {
             ExpressionEnum::Collection(col) => {
                 if index >= col.elements.len() {
-                    return Err(PortableError::from(
-                        ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                            "Index {} out of bounds",
-                            index
-                        ))),
-                    ));
+                    return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                        "Index {} out of bounds",
+                        index
+                    )))));
                 }
                 return serialize_expression(&col.elements[index]);
             }
             _ => {
-                return Err(PortableError::from(
-                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                        "Field '{}' is not an array",
-                        full_array_path
-                    ))),
-                ));
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                    "Field '{}' is not an array",
+                    full_array_path
+                )))));
             }
         }
     }
@@ -299,20 +272,16 @@ fn set_array_element(
     index: usize,
     value: ExpressionEnum,
 ) -> Result<(), PortableError> {
-    let entry = model
-        .get_expression(array_path)
-        .map_err(PortableError::from)?;
+    let entry = model.get_expression(array_path).map_err(PortableError::from)?;
     let mut borrowed = entry.borrow_mut();
     match &mut borrowed.expression {
         ExpressionEnum::Collection(col) => {
             let len = col.elements.len();
             if index > len {
-                return Err(PortableError::from(
-                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                        "Index {} is out of bounds for array of length {} (no gaps allowed)",
-                        index, len
-                    ))),
-                ));
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                    "Index {} is out of bounds for array of length {} (no gaps allowed)",
+                    index, len
+                )))));
             } else if index == len {
                 col.elements.push(value);
             } else {
@@ -320,12 +289,10 @@ fn set_array_element(
             }
             Ok(())
         }
-        _ => Err(PortableError::from(
-            ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                "Field '{}' is not an array",
-                array_path
-            ))),
-        )),
+        _ => Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+            "Field '{}' is not an array",
+            array_path
+        ))))),
     }
 }
 
@@ -341,12 +308,10 @@ fn parse_path_target(name: &str) -> Result<PathTarget, PortableError> {
             let index_str = name[start_bracket + 1..name.len() - 1].trim();
 
             if array_name.is_empty() {
-                return Err(PortableError::from(
-                    ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                        "Invalid array path '{}'",
-                        name
-                    ))),
-                ));
+                return Err(PortableError::from(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
+                    "Invalid array path '{}'",
+                    name
+                )))));
             }
 
             let index = index_str
@@ -398,10 +363,7 @@ fn object_field_iter(obj: &JsValue) -> Vec<(String, JsValue)> {
     out
 }
 
-fn parse_function_definition(
-    name: &str,
-    obj: &JsValue,
-) -> Result<UserFunctionDefinition, PortableError> {
+fn parse_function_definition(name: &str, obj: &JsValue) -> Result<UserFunctionDefinition, PortableError> {
     let mut parameters = Vec::new();
     if let Some(params) = get_prop(obj, "@parameters") {
         if !is_object(&params) {
@@ -410,15 +372,8 @@ fn parse_function_definition(
         for (param_name, param_type) in object_field_iter(&params) {
             let tref = match param_type.as_string() {
                 Some(text) => parser::parse_type(&text),
-                None if param_type.is_null() || param_type.is_undefined() => {
-                    ComplexTypeRef::undefined()
-                }
-                None => {
-                    return Err(PortableError::new(format!(
-                        "Invalid parameter type for '{}'",
-                        param_name
-                    )))
-                }
+                None if param_type.is_null() || param_type.is_undefined() => ComplexTypeRef::undefined(),
+                None => return Err(PortableError::new(format!("Invalid parameter type for '{}'", param_name))),
             };
             parameters.push(FormalParameter::with_type_ref(param_name.to_string(), tref));
         }
@@ -435,19 +390,15 @@ fn parse_function_definition(
         let expr = {
             let expr_ref = builder.get_expression(return_name).expect("checked above");
             let mut borrowed = expr_ref.borrow_mut();
-            std::mem::replace(
-                &mut borrowed.expression,
-                ExpressionEnum::Value(ValueEnum::BooleanValue(false)),
-            )
+            std::mem::replace(&mut borrowed.expression, ExpressionEnum::Value(ValueEnum::BooleanValue(false)))
         };
-        let inline = InlineFunctionDefinition::build(name.to_string(), parameters, expr)
-            .map_err(PortableError::from)?;
+        let inline =
+            InlineFunctionDefinition::build(name.to_string(), parameters, expr).map_err(PortableError::from)?;
         return Ok(UserFunctionDefinition::Inline(inline));
     }
 
     let body = builder.build();
-    let function = FunctionDefinition::build(name.to_string(), parameters, body)
-        .map_err(PortableError::from)?;
+    let function = FunctionDefinition::build(name.to_string(), parameters, body).map_err(PortableError::from)?;
     Ok(UserFunctionDefinition::Function(function))
 }
 
@@ -474,8 +425,7 @@ fn parse_type_body(obj: &JsValue) -> Result<ContextObjectBuilder, PortableError>
         match classify_entry(&value) {
             PortableKind::Type(nested) => {
                 let nested_builder = parse_type_body(&nested)?;
-                builder
-                    .add_expression(&name, ExpressionEnum::StaticObject(nested_builder.build()))?;
+                builder.add_expression(&name, ExpressionEnum::StaticObject(nested_builder.build()))?;
             }
             PortableKind::Invocation(_) => {
                 return Err(PortableError::new("Invocations are not supported in types"));
@@ -489,10 +439,7 @@ fn parse_type_body(obj: &JsValue) -> Result<ContextObjectBuilder, PortableError>
                     let tref = parse_angle_type(&text)?;
                     builder.add_expression(&name, ExpressionEnum::TypePlaceholder(tref))?;
                 } else {
-                    return Err(PortableError::new(format!(
-                        "Type field '{}' must be a string or object",
-                        name
-                    )));
+                    return Err(PortableError::new(format!("Type field '{}' must be a string or object", name)));
                 }
             }
         }
@@ -505,10 +452,7 @@ fn parse_static_object(obj: &JsValue) -> Result<ExpressionEnum, PortableError> {
     Ok(ExpressionEnum::StaticObject(builder.build()))
 }
 
-fn parse_context_builder(
-    obj: &JsValue,
-    skip_metadata: bool,
-) -> Result<ContextObjectBuilder, PortableError> {
+fn parse_context_builder(obj: &JsValue, skip_metadata: bool) -> Result<ContextObjectBuilder, PortableError> {
     let mut builder = ContextObjectBuilder::new();
 
     let metadata = extract_metadata(obj);
@@ -557,9 +501,7 @@ fn parse_context_builder(
 
 fn parse_expression_value(value: &JsValue) -> Result<ExpressionEnum, PortableError> {
     if value.is_null() || value.is_undefined() {
-        return Err(PortableError::new(
-            "null/undefined not supported in EdgeRules Portable",
-        ));
+        return Err(PortableError::new("null/undefined not supported in EdgeRules Portable"));
     }
     if let Some(flag) = value.as_bool() {
         return Ok(ExpressionEnum::from(flag));
@@ -579,9 +521,7 @@ fn parse_expression_value(value: &JsValue) -> Result<ExpressionEnum, PortableErr
         for i in 0..arr.length() {
             expressions.push(parse_expression_value(&arr.get(i))?);
         }
-        return Ok(ExpressionEnum::Collection(CollectionExpression::build(
-            expressions,
-        )));
+        return Ok(ExpressionEnum::Collection(CollectionExpression::build(expressions)));
     }
     if is_object(value) {
         return parse_static_object(value);
@@ -591,9 +531,7 @@ fn parse_expression_value(value: &JsValue) -> Result<ExpressionEnum, PortableErr
 
 fn parse_invocation_spec(obj: &JsValue) -> Result<InvocationSpec, PortableError> {
     if !is_object(obj) {
-        return Err(PortableError::new(
-            "Invocation definition must be an object with @method",
-        ));
+        return Err(PortableError::new("Invocation definition must be an object with @method"));
     }
     let Some(method) = get_prop(obj, "@method").and_then(|v| v.as_string()) else {
         return Err(PortableError::new("@method is required for invocation"));
@@ -606,17 +544,12 @@ fn parse_invocation_spec(obj: &JsValue) -> Result<InvocationSpec, PortableError>
         None => default_invocation_arguments()?,
         Some(arg_list) => parse_invocation_arguments(&arg_list)?,
     };
-    Ok(InvocationSpec {
-        method_path: trimmed_method.to_string(),
-        arguments,
-    })
+    Ok(InvocationSpec { method_path: trimmed_method.to_string(), arguments })
 }
 
 fn parse_invocation_arguments(args: &JsValue) -> Result<Vec<ExpressionEnum>, PortableError> {
     if !Array::is_array(args) {
-        return Err(PortableError::new(
-            "@arguments must be an array when provided",
-        ));
+        return Err(PortableError::new("@arguments must be an array when provided"));
     }
     let arr: Array = args.clone().unchecked_into();
     let mut out = Vec::with_capacity(arr.length() as usize);
@@ -632,19 +565,13 @@ fn default_invocation_arguments() -> Result<Vec<ExpressionEnum>, PortableError> 
 
 fn parse_invocation_expression(obj: &JsValue) -> Result<ExpressionEnum, PortableError> {
     let spec = parse_invocation_spec(obj)?;
-    Ok(ExpressionEnum::from(UserFunctionCall::new(
-        spec.method_path,
-        spec.arguments,
-    )))
+    Ok(ExpressionEnum::from(UserFunctionCall::new(spec.method_path, spec.arguments)))
 }
 
 fn parse_angle_type(text: &str) -> Result<ComplexTypeRef, PortableError> {
     let trimmed = text.trim();
     if !trimmed.starts_with('<') {
-        return Err(PortableError::new(format!(
-            "Type reference '{}' must use <...> notation",
-            text
-        )));
+        return Err(PortableError::new(format!("Type reference '{}' must use <...> notation", text)));
     }
     // Remove leading <, keep trailing > as parser expects it
     let inner_with_closing = &trimmed[1..];
@@ -737,12 +664,8 @@ fn serialize_type_body(body: &UserTypeBody) -> Result<JsValue, PortableError> {
             let obj = Object::new();
             set_prop(&obj, "@type", &JsValue::from_str("type"))
                 .map_err(|_| PortableError::new("Failed to set type metadata"))?;
-            set_prop(
-                &obj,
-                "@ref",
-                &JsValue::from_str(&format!("<{}>", reference)),
-            )
-            .map_err(|_| PortableError::new("Failed to set type reference"))?;
+            set_prop(&obj, "@ref", &JsValue::from_str(&format!("<{}>", reference)))
+                .map_err(|_| PortableError::new("Failed to set type reference"))?;
             Ok(JsValue::from(obj))
         }
         UserTypeBody::TypeObject(ctx) => {
@@ -768,8 +691,7 @@ fn serialize_function(definition: &UserFunctionDefinition) -> Result<JsValue, Po
             } else {
                 JsValue::from_str(&param.parameter_type.to_string())
             };
-            set_prop(&params_obj, &param.name, &type_val)
-                .map_err(|_| PortableError::new("Failed to set parameter"))?;
+            set_prop(&params_obj, &param.name, &type_val).map_err(|_| PortableError::new("Failed to set parameter"))?;
         }
         set_prop(&body_obj, "@parameters", &params_obj)
             .map_err(|_| PortableError::new("Failed to attach parameters"))?;
@@ -785,12 +707,8 @@ fn context_builder_to_object(builder: &ContextObjectBuilder) -> Result<JsValue, 
     }
     for name in builder.get_field_names() {
         if let Some(expr) = builder.get_expression(name) {
-            set_prop(
-                &obj,
-                name,
-                &serialize_expression(&expr.borrow().expression)?,
-            )
-            .map_err(|_| PortableError::new("Failed to set expression"))?;
+            set_prop(&obj, name, &serialize_expression(&expr.borrow().expression)?)
+                .map_err(|_| PortableError::new("Failed to set expression"))?;
             continue;
         }
         if let Some(child) = builder.get_child_context(name) {
@@ -799,12 +717,8 @@ fn context_builder_to_object(builder: &ContextObjectBuilder) -> Result<JsValue, 
             continue;
         }
         if let Some(function) = builder.get_user_function(name) {
-            set_prop(
-                &obj,
-                name,
-                &serialize_function(&function.borrow().function_definition)?,
-            )
-            .map_err(|_| PortableError::new("Failed to set function"))?;
+            set_prop(&obj, name, &serialize_function(&function.borrow().function_definition)?)
+                .map_err(|_| PortableError::new("Failed to set function"))?;
         }
     }
     Ok(JsValue::from(obj))
@@ -817,17 +731,9 @@ fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
 
     for &name in ctx.get_field_names().iter() {
         if let Some(expr) = ctx.expressions.get(name) {
-            let key = if name == RETURN_EXPRESSION {
-                "return"
-            } else {
-                name
-            };
-            set_prop(
-                &obj,
-                key,
-                &serialize_expression(&expr.borrow().expression)?,
-            )
-            .map_err(|_| PortableError::new("Failed to set expression"))?;
+            let key = if name == RETURN_EXPRESSION { "return" } else { name };
+            set_prop(&obj, key, &serialize_expression(&expr.borrow().expression)?)
+                .map_err(|_| PortableError::new("Failed to set expression"))?;
             continue;
         }
         if let Some(child) = ctx.node().get_child(name) {
@@ -836,12 +742,8 @@ fn context_to_object(ctx: &ContextObject) -> Result<JsValue, PortableError> {
             continue;
         }
         if let Some(function) = ctx.metaphors.get(name) {
-            set_prop(
-                &obj,
-                name,
-                &serialize_function(&function.borrow().function_definition)?,
-            )
-            .map_err(|_| PortableError::new("Failed to set function"))?;
+            set_prop(&obj, name, &serialize_function(&function.borrow().function_definition)?)
+                .map_err(|_| PortableError::new("Failed to set function"))?;
         }
     }
     for (type_name, body) in &ctx.defined_types {

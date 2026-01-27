@@ -100,14 +100,8 @@ fn test_math_division() {
 fn test_math_division_by_zero() {
     init_logger();
     // Functions
-    assert_string_contains!(
-        "[runtime] Division by zero",
-        eval_value("value : modulo(10, 0)")
-    );
-    assert_string_contains!(
-        "[runtime] Division by zero",
-        eval_value("value : idiv(10, 0)")
-    );
+    assert_string_contains!("[runtime] Division by zero", eval_value("value : modulo(10, 0)"));
+    assert_string_contains!("[runtime] Division by zero", eval_value("value : idiv(10, 0)"));
 
     // Operators
     assert_string_contains!("[runtime] Division by zero", eval_value("value : 10 / 0"));
@@ -273,14 +267,8 @@ fn test_math_advanced() {
     assert_value!("ln(0)", "NotApplicable('ln of non-positive number')");
     assert_value!("ln(-1)", "NotApplicable('ln of non-positive number')");
     assert_value!("log10(0)", "NotApplicable('log10 of non-positive number')");
-    assert_value!(
-        "asin(2)",
-        "NotApplicable('asin input out of range [-1, 1]')"
-    );
-    assert_value!(
-        "acos(-2)",
-        "NotApplicable('acos input out of range [-1, 1]')"
-    );
+    assert_value!("asin(2)", "NotApplicable('asin input out of range [-1, 1]')");
+    assert_value!("acos(-2)", "NotApplicable('acos input out of range [-1, 1]')");
 }
 
 #[test]
@@ -299,13 +287,7 @@ fn test_math_floats_and_mixed() {
 #[test]
 fn test_functions_sum_variants() {
     assert_value!("sum(1,2,3) + (2 * 2)", "10");
-    assert_eq!(
-        eval_field(
-            "value: sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)",
-            "value"
-        ),
-        "14"
-    );
+    assert_eq!(eval_field("value: sum(1,2,3 + sum(2,2 * sum(0,1,0,0))) + (2 * 2)", "value"), "14");
     assert_value!("sum([1,2,3]) + 1", "7");
     assert_value!("sum([1.0,2.0,3.0]) + 1", "7");
     assert_value!("sum([1,2.1,3]) + 1", "7.1");
@@ -333,18 +315,9 @@ fn test_complex_discount_calculation() {
         }
     "#;
 
-    assert_eq!(
-        inline(eval_field(code, "discount1")),
-        inline("discount1: {campaign: 'SUMMER_SALE' discount: 0.25}")
-    );
-    assert_eq!(
-        inline(eval_field(code, "discount2")),
-        inline("discount2: {campaign: 'SUMMER_SALE' discount: 0.15}")
-    );
-    assert_eq!(
-        inline(eval_field(code, "discount3")),
-        inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.21}")
-    );
+    assert_eq!(inline(eval_field(code, "discount1")), inline("discount1: {campaign: 'SUMMER_SALE' discount: 0.25}"));
+    assert_eq!(inline(eval_field(code, "discount2")), inline("discount2: {campaign: 'SUMMER_SALE' discount: 0.15}"));
+    assert_eq!(inline(eval_field(code, "discount3")), inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.21}"));
 }
 
 #[test]

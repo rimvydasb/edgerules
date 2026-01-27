@@ -6,16 +6,16 @@ use std::fmt::{Display, Formatter};
 use crate::ast::token::EToken;
 use crate::ast::Link;
 use crate::typesystem::errors::LinkingErrorEnum::{
-    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OperationNotSupported,
-    OtherLinkingError, TypesNotCompatible,
+    CyclicReference, DifferentTypesDetected, FieldNotFound, NotLinkedYet, OperationNotSupported, OtherLinkingError,
+    TypesNotCompatible,
 };
 use crate::typesystem::errors::ParseErrorEnum::{
-    FunctionWrongNumberOfArguments, MissingLiteral, OtherError, Stacked, UnexpectedEnd,
-    UnexpectedLiteral, UnexpectedToken, WrongFormat,
+    FunctionWrongNumberOfArguments, MissingLiteral, OtherError, Stacked, UnexpectedEnd, UnexpectedLiteral,
+    UnexpectedToken, WrongFormat,
 };
 use crate::typesystem::errors::RuntimeErrorEnum::{
-    DivisionByZero, EvalError, InternalIntegrityError, RuntimeCyclicReference,
-    RuntimeFieldNotFound, TypeNotSupported, ValueParsingError,
+    DivisionByZero, EvalError, InternalIntegrityError, RuntimeCyclicReference, RuntimeFieldNotFound, TypeNotSupported,
+    ValueParsingError,
 };
 use crate::typesystem::types::ValueType;
 
@@ -166,10 +166,7 @@ impl RuntimeError {
     }
 
     pub fn cyclic_reference(field: &str, object: &str) -> Self {
-        RuntimeError::new(RuntimeCyclicReference(
-            field.to_string(),
-            object.to_string(),
-        ))
+        RuntimeError::new(RuntimeCyclicReference(field.to_string(), object.to_string()))
     }
 
     pub fn field_not_found(field: &str, object: &str) -> Self {
@@ -236,20 +233,12 @@ impl Display for ParseErrorEnum {
 
         match self {
             ParseErrorEnum::CannotConvertValue(from, to) => {
-                write!(
-                    f,
-                    "{}",
-                    prefix_parse(&format!("Cannot convert value from type '{}' to type '{}'", from, to))
-                )
+                write!(f, "{}", prefix_parse(&format!("Cannot convert value from type '{}' to type '{}'", from, to)))
             }
             WrongFormat(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {
-                    write!(
-                        f,
-                        "{}",
-                        prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected))
-                    )
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}', expected '{}'", token, expected)))
                 } else {
                     write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", token)))
                 }
@@ -257,23 +246,12 @@ impl Display for ParseErrorEnum {
             UnexpectedEnd => f.write_str("[parse] Unexpected end"),
             OtherError(message) => write!(f, "{}", prefix_parse(message)),
             Stacked(errors) => {
-                let formatted = errors
-                    .iter()
-                    .map(|err| err.to_string())
-                    .collect::<Vec<String>>()
-                    .join(" → ");
+                let formatted = errors.iter().map(|err| err.to_string()).collect::<Vec<String>>().join(" → ");
                 f.write_str(&formatted)
             }
             UnexpectedLiteral(literal, expected) => {
                 if let Some(expected) = expected {
-                    write!(
-                        f,
-                        "{}",
-                        prefix_parse(&format!(
-                            "Unexpected '{}', expected '{}'",
-                            literal, expected
-                        ))
-                    )
+                    write!(f, "{}", prefix_parse(&format!("Unexpected '{}', expected '{}'", literal, expected)))
                 } else {
                     write!(f, "{}", prefix_parse(&format!("Unexpected '{}'", literal)))
                 }
@@ -283,11 +261,7 @@ impl Display for ParseErrorEnum {
             }
             FunctionWrongNumberOfArguments(function_name, function_type, existing) => {
                 if existing == &0 {
-                    return write!(
-                        f,
-                        "{}",
-                        prefix_parse(&format!("Function '{}' got no arguments", function_name))
-                    );
+                    return write!(f, "{}", prefix_parse(&format!("Function '{}' got no arguments", function_name)));
                 }
                 match function_type {
                     EFunctionType::Custom(expected) => {
@@ -408,11 +382,7 @@ impl Display for RuntimeErrorEnum {
             EvalError(message) => write!(f, "[runtime] {}", message),
             ValueParsingError(from, to, code) => {
                 if *code > 0 {
-                    write!(
-                        f,
-                        "[runtime] Failed to parse '{}' from '{}'. (Error code: {})",
-                        to, from, code
-                    )
+                    write!(f, "[runtime] Failed to parse '{}' from '{}'. (Error code: {})", to, from, code)
                 } else {
                     write!(f, "[runtime] Failed to parse '{}' from '{}'", to, from)
                 }
@@ -421,11 +391,9 @@ impl Display for RuntimeErrorEnum {
             TypeNotSupported(value_type) => {
                 write!(f, "[runtime] Type '{}' is not supported", value_type)
             }
-            RuntimeCyclicReference(object, field) => write!(
-                f,
-                "[runtime] Field {}.{} appears in a cyclic reference loop",
-                object, field
-            ),
+            RuntimeCyclicReference(object, field) => {
+                write!(f, "[runtime] Field {}.{} appears in a cyclic reference loop", object, field)
+            }
             RuntimeFieldNotFound(object, field) => {
                 write!(f, "[runtime] Field '{}' not found in {}", field, object)
             }
@@ -445,10 +413,7 @@ pub enum LinkingErrorEnum {
     // subject, type 1, type 2
     DifferentTypesDetected(Option<String>, ValueType, ValueType),
 
-    FunctionNotFound {
-        name: String,
-        known_metaphors: Vec<String>,
-    },
+    FunctionNotFound { name: String, known_metaphors: Vec<String> },
 
     // object, field
     FieldNotFound(String, String),
@@ -513,11 +478,7 @@ impl LinkingError {
         LinkingError::new(TypesNotCompatible(subject, unexpected, expected))
     }
 
-    pub fn expect_type(
-        subject: Option<String>,
-        expression_type: ValueType,
-        expected: &[ValueType],
-    ) -> Link<ValueType> {
+    pub fn expect_type(subject: Option<String>, expression_type: ValueType, expected: &[ValueType]) -> Link<ValueType> {
         let actual = expression_type;
         if expected.contains(&actual) {
             return Ok(actual);
@@ -525,36 +486,20 @@ impl LinkingError {
         LinkingError::types_not_compatible(subject, actual, Some(expected.to_vec())).into()
     }
 
-    pub fn expect_array_type(
-        subject: Option<String>,
-        expression_type: ValueType,
-    ) -> Link<ValueType> {
+    pub fn expect_array_type(subject: Option<String>, expression_type: ValueType) -> Link<ValueType> {
         match expression_type {
             ValueType::ListType(Some(list_type)) => Ok(*list_type),
             ValueType::ListType(None) => Ok(ValueType::UndefinedType),
-            other => LinkingError::types_not_compatible(
-                subject,
-                other,
-                Some(vec![ValueType::ListType(None)]),
-            )
-            .into(),
+            other => LinkingError::types_not_compatible(subject, other, Some(vec![ValueType::ListType(None)])).into(),
         }
     }
 
-    pub fn expect_single_type(
-        subject: &str,
-        expression_type: ValueType,
-        expected: &ValueType,
-    ) -> Link<ValueType> {
+    pub fn expect_single_type(subject: &str, expression_type: ValueType, expected: &ValueType) -> Link<ValueType> {
         if &expression_type == expected {
             return Ok(expression_type);
         }
-        LinkingError::types_not_compatible(
-            Some(subject.to_string()),
-            expression_type,
-            Some(vec![expected.clone()]),
-        )
-        .into()
+        LinkingError::types_not_compatible(Some(subject.to_string()), expression_type, Some(vec![expected.clone()]))
+            .into()
     }
 
     pub fn expect_same_types(subject: &str, left: ValueType, right: ValueType) -> Link<ValueType> {
@@ -571,12 +516,7 @@ impl LinkingError {
         let first = items[0].clone();
         for item in items {
             if item != &first {
-                return LinkingError::different_types(
-                    Some(subject.to_string()),
-                    first,
-                    item.clone(),
-                )
-                .into();
+                return LinkingError::different_types(Some(subject.to_string()), first, item.clone()).into();
             }
         }
         Ok(first)
@@ -636,38 +576,20 @@ impl Display for LinkingErrorEnum {
                 let clean_subject = subject.clone().unwrap_or_else(|| "Unexpected".to_string());
                 if let Some(expected) = expected {
                     // joins expected types into a string separated by " or "
-                    let expected_str = expected
-                        .iter()
-                        .map(|value_type| value_type.to_string())
-                        .collect::<Vec<String>>()
-                        .join(" or ");
-                    write!(
-                        f,
-                        "[link] {} type '{}', expected '{}'",
-                        clean_subject, unexpected, expected_str
-                    )
+                    let expected_str =
+                        expected.iter().map(|value_type| value_type.to_string()).collect::<Vec<String>>().join(" or ");
+                    write!(f, "[link] {} type '{}', expected '{}'", clean_subject, unexpected, expected_str)
                 } else {
                     write!(f, "{} type '{}'", clean_subject, unexpected)
                 }
             }
             DifferentTypesDetected(subject, left, right) => match subject {
                 Some(subject) => {
-                    write!(
-                        f,
-                        "[link] {} types `{}` and `{}` must match",
-                        subject, left, right
-                    )
+                    write!(f, "[link] {} types `{}` and `{}` must match", subject, left, right)
                 }
-                None => write!(
-                    f,
-                    "[link] Operation is not supported for different types: {} and {}",
-                    left, right
-                ),
+                None => write!(f, "[link] Operation is not supported for different types: {} and {}", left, right),
             },
-            LinkingErrorEnum::FunctionNotFound {
-                name,
-                known_metaphors,
-            } => {
+            LinkingErrorEnum::FunctionNotFound { name, known_metaphors } => {
                 write!(f, "[link] Function '{}(...)' not found", name)?;
                 if known_metaphors.is_empty() {
                     write!(f, ". No metaphors in scope.")
@@ -684,20 +606,12 @@ impl Display for LinkingErrorEnum {
                 write!(f, "[link] Field '{}' not found in {}", field, object)
             }
             CyclicReference(object, field) => {
-                write!(
-                    f,
-                    "[link] Field {}.{} appears in a cyclic reference loop",
-                    object, field
-                )
+                write!(f, "[link] Field {}.{} appears in a cyclic reference loop", object, field)
             }
             OtherLinkingError(error) => write!(f, "[link] {}", error),
             NotLinkedYet => f.write_str("[link] Not linked yet"),
             OperationNotSupported(op, left, right) => {
-                write!(
-                    f,
-                    "[link] Operation '{}' not supported for types '{}' and '{}'",
-                    op, left, right
-                )
+                write!(f, "[link] Operation '{}' not supported for types '{}' and '{}'", op, left, right)
             }
         }
     }
