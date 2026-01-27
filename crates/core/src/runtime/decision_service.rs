@@ -1,4 +1,5 @@
 use crate::ast::context::context_object::ContextObject;
+use crate::ast::expression::cast_value_to_type;
 use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::token::ExpressionEnum;
 use crate::link::linker::link_parts;
@@ -50,17 +51,38 @@ impl DecisionService {
         let runtime_method_name = Self::runtime_method_name(&method_path);
 
         let method_entry = self.resolve_method_entry(&method_path)?;
-        let parameter_count = {
+        let (parameter_count, param_type_opt) = {
             let borrowed = method_entry.borrow();
-            borrowed.function_definition.get_parameters().len()
+            let params = borrowed.function_definition.get_parameters();
+            let count = params.len();
+            // Get the declared type of the single argument if available
+            let type_opt = if count == 1 {
+                params[0].declared_type().cloned()
+            } else {
+                None
+            };
+            (count, type_opt)
         };
         Self::ensure_single_argument(&method_path, parameter_count)?;
 
         let runtime = self.ensure_runtime()?;
+        
+        let final_request = if let Some(tref) = param_type_opt {
+            let expected_type = runtime.context.borrow().object.borrow().resolve_type_ref(&tref).unwrap_or(ValueType::UndefinedType);
+            cast_value_to_type(
+                decision_request, 
+                expected_type, 
+                Rc::clone(&runtime.context), 
+                Some("Request")
+            ).map_err(EvalError::from)?
+        } else {
+            decision_request
+        };
+
         runtime
             .call_method(
                 runtime_method_name,
-                vec![ExpressionEnum::from(decision_request)],
+                vec![ExpressionEnum::from(final_request)],
             )
             .map_err(EvalError::from)
     }

@@ -21,19 +21,33 @@ pub fn expect_date_arg(arg: ValueType) -> Link<()> {
     LinkingError::expect_type(None, arg, &[DateType]).map(|_| ())
 }
 
-fn parse_date_iso(s: &str) -> Option<time::Date> {
+pub fn parse_date_iso(s: &str) -> Option<time::Date> {
     let fmt = format_description!("[year]-[month]-[day]");
     time::Date::parse(s, &fmt).ok()
 }
 
-fn parse_time_local(s: &str) -> Option<time::Time> {
+pub fn parse_time_local(s: &str) -> Option<time::Time> {
     let fmt = format_description!("[hour]:[minute]:[second]");
     time::Time::parse(s, &fmt).ok()
 }
 
-fn parse_datetime_local(s: &str) -> Option<time::PrimitiveDateTime> {
+pub fn parse_datetime_local(s: &str) -> Option<time::PrimitiveDateTime> {
+    let mut cleaned = s;
+    if s.ends_with('Z') {
+        cleaned = &s[..s.len() - 1];
+    } else if s.ends_with("+00:00") {
+        cleaned = &s[..s.len() - 6];
+    }
+
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
-    time::PrimitiveDateTime::parse(s, &fmt).ok()
+    // Try parsing. If it fails, maybe it has milliseconds?
+    if let Ok(dt) = time::PrimitiveDateTime::parse(cleaned, &fmt) {
+         return Some(dt);
+    }
+
+    // Try with milliseconds
+    let fmt_ms = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]");
+    time::PrimitiveDateTime::parse(cleaned, &fmt_ms).ok()
 }
 
 pub fn parse_duration_iso8601(s: &str) -> Result<DurationValue, RuntimeError> {

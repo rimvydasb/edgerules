@@ -1,11 +1,15 @@
 # Date and Time Support in EdgeRules
 
-## Priorities
+## Summary
 
-- Small WebAssembly binary size
-- Fast execution speed
-- ISO-8601 lexical formats (subset), local-time only (offsets/time zones not supported)
+- ISO-8601 lexical formats (subset), local-time only (time zone offsets are supported, but time zones not supported)
+- Timezone offsets support with `OffsetDateTime`
 - Intuitive similarity (non-contradiction) to other standards (DMN, FEEL, SQL, etc.)
+
+### Not Implemented Yet
+
+Context timezone configuration. As a default, it is UTC, that means all dates passed without timezone offsets will be
+treated as UTC. For example, date("2024-06-15") will be treated as 2024-06-15T00:00:00Z.
 
 ## date(string), time(string), datetime(string) functions
 
@@ -199,35 +203,84 @@ You can also create durations using a literal syntax:
 
 # Next Steps
 
-Implement JSON date and datetime support for EdgeRules Portable format.
+Review task description below in `doc/DATETIME_SPEC.md`: most of the tasks may be already done.
+
+Implement JSON date and datetime support for EdgeRules Portable format by doing following tasks in `DATETIME_SPEC.md`.
 Currently, as per `test-decision-service.mjs`, Portable works well with JavaScript Date objects, but lacks support for
 ISO date and datetime strings.
 
-- [ ] Add minimal test in `test-decision-service.mjs` that explores JavaScript Date and Date with time support without
+- [x] Add minimal test in `test-decision-service.mjs` that explores JavaScript Date and Date with time support without
   zones. Later this test will be used for the development.
-    - [ ] Minimal decision service that is created with constants that have date and datetime values - use JavaScript
+    - [x] Minimal decision service that is created with constants that have date and datetime values - use JavaScript
       Date objects.
-    - [ ] Minimal decision service request that sends date and datetime values as JavaScript Date objects.
-    - [ ] Run this test, it should work as per current implementation.
-- [ ] Add another test that instead of JavaScript Date, strings are used. We must support:
-    - [ ] date as `YYYY-MM-DD`
-    - [ ] datetime as `YYYY-MM-DDTHH:MM:SS`
-    - [ ] Treat `2026-01-26T21:33:35Z`, `2026-01-26T21:33:35.000Z` or `2026-01-26T21:33:35+00:00` as
+    - [x] Minimal decision service request that sends date and datetime values as JavaScript Date objects.
+    - [x] Run this test, it should work as per current implementation.
+- [x] Add another test that instead of JavaScript Date, strings are used. We must support:
+    - [x] date as `YYYY-MM-DD`
+    - [x] datetime as `YYYY-MM-DDTHH:MM:SS`
+    - [x] Treat `2026-01-26T21:33:35Z`, `2026-01-26T21:33:35.000Z` or `2026-01-26T21:33:35+00:00` as
       `YYYY-MM-DDTHH:MM:SS`. Write test cases for all of these.
-    - [ ] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
-    - [ ] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
-- [ ] Implement support in EdgeRules Portable for date and datetime strings as per above specification.
+    - [x] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
+    - [x] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
+- [x] Implement support in EdgeRules Portable for date and datetime strings as per above specification.
   Implementation should be straightforward: if field expects date or datetime, and string is provided, then simply use
   `parse_date_iso` or `parse_datetime_local` as implemented.
-- [ ] Use `ParseErrorEnum::CannotConvertValue(ValueType, ValueType)` for parsing problems. Map parsing errors to
+- [x] Use `ParseErrorEnum::CannotConvertValue(ValueType, ValueType)` for parsing problems. Map parsing errors to
   `PortableError` to properly display. Write tests for invalid date/datetime/duration/time strings to ensure proper
   error handling.
-- [ ] Implement support for duration and period strings in EdgeRules Portable format so user will be able to provide
+- [x] Implement support for duration and period strings in EdgeRules Portable format so user will be able to provide
   duration and period values as strings.
-- [ ] Implement support for time strings in EdgeRules Portable format so user will be able to provide time values as
+- [x] Implement support for time strings in EdgeRules Portable format so user will be able to provide time values as
   strings.
-- [ ] Add tests for duration, period, and time strings in EdgeRules Portable format.
-- [ ] Make sure tests are passing: Rust and JavaScript.
-- [ ] Review the code based on project priorities: Small WASM Size First, Small Stack Size Second, Performance Third,
+- [x] Add tests for duration, period, and time strings in EdgeRules Portable format.
+- [x] Make sure tests are passing: Rust and JavaScript.
+- [x] Review the code based on project priorities: Small WASM Size First, Small Stack Size Second, Performance Third,
   Maintainability
-- [ ] Mark tasks that are completed.
+- [x] Mark tasks that are completed.
+
+- [ ] Update `parse_datetime_local` to be `parse_datetime_flexible` that will support (write Rust tests for it):
+    - [ ] `YYYY-MM-DDTHH:MM:SS` (no offset) - existing
+    - [ ] `YYYY-MM-DDTHH:MM` (no offset) - new
+    - [ ] `YYYY-MM-DDTHH:MM:SSZ` (UTC) - new
+    - [ ] `YYYY-MM-DDTHH:MM:SS.sssZ` (UTC with subseconds) - new
+    - [ ] `YYYY-MM-DDTHH:MM:SS+00:00` (UTC with offset) - new
+    - [ ] `YYYY-MM-DDTHH:MM:SS.sss+00:00` (UTC with offset and subseconds) - new
+
+```rust
+use time::{OffsetDateTime, PrimitiveDateTime, macros::format_description};
+use time::format_description::well_known::Rfc3339;
+
+pub fn parse_datetime_flexible(s: &str) -> Option<OffsetDateTime> {
+    // 1. Try standard RFC 3339 (Handles "Z", "+02:00", and variable subseconds)
+    // This is the fastest and most common path for JSON.
+    if let Ok(odt) = OffsetDateTime::parse(s, &Rfc3339) {
+        return Some(odt);
+    }
+
+    // 2. Try Date + Time with offset but NO seconds (e.g., 2026-01-27T10:00+02:00)
+    let fmt_no_sec_offset = format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour]:[offset_minute]");
+    if let Ok(odt) = OffsetDateTime::parse(s, &fmt_no_sec_offset) {
+        return Some(odt);
+    }
+
+    // 3. Try Primitive (No Offset) - Fallback to UTC
+    // We try with seconds first, then without.
+    let fmt_prim = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+    let fmt_prim_no_sec = format_description!("[year]-[month]-[day]T[hour]:[minute]");
+
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim) {
+        return Some(dt.assume_utc());
+    }
+
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim_no_sec) {
+        return Some(dt.assume_utc());
+    }
+
+    None
+}
+```
+
+- [ ] Start using `OffsetDateTime` instead of `PrimitiveDateTime` internally in EdgeRules engine for datetime values.
+  This will allow future support for timezones if needed.
+- [ ] Update documentation in `DATETIME_SPEC.md` to reflect any changes made during implementation.
+- [ ] Perform code review and testing to ensure stability and correctness of the implementation.

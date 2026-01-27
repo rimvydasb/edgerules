@@ -569,3 +569,50 @@ fn complex_nested_types_in_function_argument() {
         ],
     );
 }
+
+#[test]
+fn cast_object_list_to_typed_list() {
+    // This test exercises `cast_value_to_type` where `ValueType::ListType(Some(other_item_type))` is handled for `ObjectsArray`.
+    // We define a list of objects and cast it to a list of a compatible alias type. 
+    // This triggers the deep casting logic for array elements.
+    let model = r#"
+    {
+        type Item: { id: <number> }
+        type ItemList: Item[]
+        
+        // Define untyped object list
+        rawItems: [{id: 1}, {id: 2}]
+        
+        // Cast to typed list
+        typedItems: rawItems as ItemList
+    }
+    "#;
+
+    let evaluated = eval_all(model);
+    let collapsed = inline(&evaluated); // Use inline helper from utilities to strip whitespace
+    assert!(collapsed.contains("typedItems:[{id:1},{id:2}]"), "evaluated: {}", evaluated);
+}
+
+#[test]
+fn cast_object_list_to_incompatible_primitive_list() {
+    // This test ensures that casting a list of objects to a list of primitives (e.g. string[]) is handled.
+    // While structurally objects != strings, `cast_value_to_type` for `ObjectsArray` -> `other_item_type` 
+    // attempts to cast each element. `cast_value_to_type(Reference, StringType)` returns the reference value (no error, just passes through).
+    // This results in a `PrimitivesArray` containing `Reference`s, but typed as `string`.
+    // This behavior effectively "stringifies" the objects if used in string context, or remains as references.
+    // This specifically targets the `Some(other_item_type)` branch for `ObjectsArray` in `cast_value_to_type`.
+    
+    let model = r#"
+    {
+        rawItems: [{id: 1}]
+        // Cast object list to string list
+        strList: rawItems as string[]
+    }
+    "#;
+
+    // Based on implementation, this should succeed. The result is a list of references typed as string.
+    let evaluated = eval_all(model);
+    let collapsed = inline(&evaluated);
+    assert!(collapsed.contains("strList:[{id:1}]"), "evaluated: {}", evaluated);
+}
+

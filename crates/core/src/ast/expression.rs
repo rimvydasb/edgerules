@@ -1,6 +1,10 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
+use crate::ast::functions::function_date::{
+    parse_date_iso, parse_datetime_local, parse_duration_iso8601, parse_period_iso8601,
+    parse_time_local,
+};
 use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::*;
 use crate::ast::user_function_call::UserFunctionCall;
@@ -8,11 +12,11 @@ use crate::ast::variable::VariableLink;
 use crate::ast::Link;
 use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{ErrorStack, LinkingError, RuntimeError};
+use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{NumberValue, RangeValue, Reference};
-use crate::typesystem::values::{ArrayValue, ValueEnum};
+use crate::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use crate::utils::intern_field_name;
 use crate::*;
 use log::error;
@@ -121,24 +125,57 @@ pub(crate) fn missing_for_type(
     }
 }
 
-fn cast_value_to_type(
+pub(crate) fn cast_value_to_type(
     value: ValueEnum,
     target: ValueType,
     ctx: Rc<RefCell<ExecutionContext>>, // used for building child contexts
     origin: Option<&str>,
 ) -> Result<ValueEnum, RuntimeError> {
+    use crate::typesystem::types::string::StringEnum;
     use crate::typesystem::values::ValueEnum as V;
     match target {
         ValueType::NumberType
-        | ValueType::StringType
         | ValueType::BooleanType
-        | ValueType::DateType
+        | ValueType::RangeType
+        | ValueType::UndefinedType => Ok(value),
+
+        // Handle string parsing for temporal types
+        ValueType::DateType
         | ValueType::TimeType
         | ValueType::DateTimeType
         | ValueType::DurationType
-        | ValueType::PeriodType
-        | ValueType::RangeType
-        | ValueType::UndefinedType => Ok(value),
+        | ValueType::PeriodType => {
+            if let V::StringValue(StringEnum::String(s)) = &value {
+                let parsed = match target {
+                    ValueType::DateType => parse_date_iso(s)
+                        .map(|d| V::DateValue(ValueOrSv::Value(d))),
+                    ValueType::TimeType => parse_time_local(s)
+                        .map(|t| V::TimeValue(ValueOrSv::Value(t))),
+                    ValueType::DateTimeType => parse_datetime_local(s)
+                        .map(|dt| V::DateTimeValue(ValueOrSv::Value(dt))),
+                    ValueType::DurationType => parse_duration_iso8601(s)
+                        .ok()
+                        .map(|d| V::DurationValue(ValueOrSv::Value(d))),
+                    ValueType::PeriodType => parse_period_iso8601(s)
+                        .ok()
+                        .map(|p| V::PeriodValue(ValueOrSv::Value(p))),
+                    _ => None,
+                };
+
+                if let Some(result) = parsed {
+                    return Ok(result);
+                } else {
+                    return Err(RuntimeError::from(ParseErrorEnum::CannotConvertValue(
+                        ValueType::StringType,
+                        target,
+                    )));
+                }
+            }
+            Ok(value)
+        }
+        
+        ValueType::StringType => Ok(value), // Already string or not supported to cast to string here yet
+
         ValueType::ListType(inner) => {
             let desired_item_type = inner.as_ref().map(|boxed| (**boxed).clone());
             match value {

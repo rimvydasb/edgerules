@@ -685,6 +685,7 @@ pub fn parse_type(name: &str) -> ComplexTypeRef {
         "time" => ComplexTypeRef::BuiltinType(ValueType::TimeType, None),
         "datetime" => ComplexTypeRef::BuiltinType(ValueType::DateTimeType, None),
         "duration" => ComplexTypeRef::BuiltinType(ValueType::DurationType, None),
+        "period" => ComplexTypeRef::BuiltinType(ValueType::PeriodType, None),
         _ => ComplexTypeRef::Alias(string.to_owned(), None),
     };
 
