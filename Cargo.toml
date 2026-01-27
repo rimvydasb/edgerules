@@ -27,17 +27,17 @@ authors = ["Rimvydas Bingelis <rimvydas.bin@gmail.com>"]
 description = "A lightweight, embeddable rules engine for edge environments, supporting a custom DSL for defining rules and conditions."
 
 [workspace.dependencies]
-log = { version = "0.4.28" }
+log = { version = "0.4.29" }
 console_error_panic_hook = { version = "0.1.7" }
-time = { version = "0.3.43", features = ["macros", "formatting", "parsing"] }
+time = { version = "0.3.46", features = ["macros", "formatting", "parsing"] }
 phf = { version = "0.13.1", features = ["macros"] }
-wasm-bindgen = { version = "0.2.100" }
-js-sys = { version = "0.3.81" }
-dlmalloc = { version = "0.2", features = ["global"] }
-regex = { version = "1.9.6" }
+wasm-bindgen = { version = "0.2.108" }
+js-sys = { version = "0.3.85" }
+dlmalloc = { version = "0.2.12", features = ["global"] }
+regex = { version = "1.12.2" }
 base64 = { version = "0.22.1" }
 env_logger = "0.11.8"
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test = "0.3.58"
 
 [profile.release]
 lto = "fat"
