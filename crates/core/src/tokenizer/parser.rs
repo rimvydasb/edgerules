@@ -14,17 +14,16 @@ use crate::tokenizer::builder::factory::*;
 use crate::tokenizer::builder::ASTBuilder;
 use crate::tokenizer::utils::{CharStream, Either};
 use crate::tokenizer::C_ASSIGN;
+use crate::typesystem::errors::ParseErrorEnum;
+use crate::typesystem::types::TypedValue;
 use std::borrow::Cow;
 
-const RANGE_LITERAL: &str = "..";
-const ASSIGN_LITERAL: &str = ":";
-const OBJECT_LITERAL: &str = "OBJECT";
-const DOT_LITERAL: &str = ".";
-
 use crate::typesystem::types::ValueType;
+use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::NumberValue;
+use crate::typesystem::types::string::StringEnum;
 
-/// @TODO brackets counting and error returning
+/// @Tbc brackets counting and error returning
 pub fn tokenize(input: &str) -> VecDeque<EToken> {
     let mut ast_builder = ASTBuilder::new();
     let mut source = CharStream::new(input);
@@ -38,6 +37,12 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
     let mut left_side = true;
     let mut after_colon = false;
+
+    // @Todo: does it worth having function_def_gate_open and type_def_gate_open to simplify further parsing?
+    // function_def_gate_open and type_def_gate_open can be integers that are alawys increased or decreased depending on ctx
+    // Also, maybe those def gate opens could help validate special situations, such as only under type gate we can open < > as
+    // type holders <string>, but not in any other case.
+
     //let length: usize = input.chars().count();
     //let mut position: usize = 0;
 
@@ -55,11 +60,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         // two dots detected
                         source.next_char();
 
-                        ast_builder.push_node(
-                            RangePriority as u32,
-                            Unparsed(Literal(RANGE_LITERAL.into())),
-                            build_range,
-                        );
+                        ast_builder
+                            .push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
                     }
                 }
             }
@@ -87,11 +89,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = false;
                 after_colon = true;
 
-                ast_builder.push_node(
-                    Assign as u32,
-                    Unparsed(Literal(ASSIGN_LITERAL.into())),
-                    build_assignment,
-                );
+                ast_builder
+                    .push_node(Assign as u32, Unparsed(AssignToken), build_assignment);
             }
             '+' | '-' | '*' | '×' | '÷' | '^' | '%' => {
                 let extracted = source.next_char().unwrap();
@@ -111,8 +110,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         !matches!(
                             token,
                             Expression(_)
-                                | Unparsed(BracketOpen)
-                                | Unparsed(Literal(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
+                                | Unparsed(BracketOpenToken)
+                                | Unparsed(LiteralToken(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
                         )
                     } else {
                         true
@@ -143,11 +142,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = true;
                 after_colon = false;
 
-                ast_builder.push_node(
-                    ContextPriority as u32,
-                    Unparsed(Literal(OBJECT_LITERAL.into())),
-                    build_context,
-                );
+                ast_builder
+                    .push_node(ContextPriority as u32, Unparsed(ObjectToken), build_context);
 
                 //ctx_open += 1;
                 ast_builder.incl_level();
@@ -222,7 +218,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
             ',' => {
                 source.next_char();
 
-                ast_builder.push_element(Unparsed(Comma));
+                ast_builder.push_element(Unparsed(CommaToken));
             }
             ' ' | '\t' | '\r' => {
                 source.next_char();
@@ -236,14 +232,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             "if" => {
                                 // just jumping upper with no turning back
                                 //ast_builder.incl_level();
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
                             "then" => {
                                 ast_builder.merge();
                                 ast_builder.dec_level();
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
@@ -252,15 +248,15 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                    Unparsed(Literal(literal.into())),
+                                     Unparsed(LiteralToken(literal.into())),
                                     build_if_then_else,
                                 )
                             }
 
-                            "for" => ast_builder.push_element(Unparsed(Literal(literal.into()))),
+                            "for" => ast_builder.push_element(Unparsed(LiteralToken(literal.into()))),
 
                             "in" => {
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                                 ast_builder.incl_level();
                             }
 
@@ -284,7 +280,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                    Unparsed(Literal(literal.into())),
+                                    Unparsed(LiteralToken(literal.into())),
                                     build_for_each_return,
                                 )
                             }
@@ -300,44 +296,46 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             }
 
                             "not" => ast_builder.push_node(
-                                LogicalOperatorEnum::Not as u32,
-                                Unparsed(Literal(literal.into())),
-                                build_logical_operator,
-                            ),
+                                 LogicalOperatorEnum::Not as u32,
+                                 Unparsed(LiteralToken(literal.into())),
+                                 build_logical_operator,
+                             ),
 
                             "and" => ast_builder.push_node(
                                 LogicalOperatorEnum::And as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                            ),
+                             ),
 
                             "or" => ast_builder.push_node(
                                 LogicalOperatorEnum::Or as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                            ),
+                             ),
 
                             "xor" => ast_builder.push_node(
                                 LogicalOperatorEnum::Xor as u32,
-                                Unparsed(Literal(literal.into())),
+                                Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                            ),
+                             ),
 
                             "func" => {
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                // @Todo: the func is recognized, so it can be mapped to Unparsed::UserFunctionGateOpen
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                             }
                             "type" => {
-                                ast_builder.push_element(Unparsed(Literal(literal.into())));
+                                // @Todo: the type is recognized, so it can be mapped to Unparsed::UserTypeDefinitionGateOpen
+                                ast_builder.push_element(Unparsed(LiteralToken(literal.into())));
                             }
                             "as" => {
                                 // Insert cast operator and immediately parse trailing type
                                 ast_builder.push_node(
                                     CastPriority as u32,
-                                    Unparsed(Literal(literal.into())),
+                                    Unparsed(LiteralToken(literal.into())),
                                     build_cast,
                                 );
                                 let tref = parse_complex_type_no_angle(&mut source);
-                                ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(tref)));
                                 after_colon = false;
                             }
                             _ => {
@@ -346,8 +344,9 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                         literal.as_str(),
                                         &mut source,
                                     ) {
-                                        ast_builder
-                                            .push_element(Unparsed(TypeReferenceLiteral(tref)));
+                                        ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(
+                                            tref,
+                                        )));
                                         after_colon = false;
                                         continue;
                                     }
@@ -380,24 +379,21 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                         ast_builder.push_element(Expression(ContextVariable));
                     } else {
-                        ast_builder.push_node(
-                            RangePriority as u32,
-                            Unparsed(Literal(RANGE_LITERAL.into())),
-                            build_range,
-                        );
+                        ast_builder
+                            .push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
                     }
                 } else {
                     // merge_left_if_can must already be called with ]
                     ast_builder.push_node(
                         FieldSelectionPriority as u32,
-                        Unparsed(Literal(DOT_LITERAL.into())),
+                        Unparsed(DotToken),
                         build_field_selection,
                     );
                 }
             }
             //----------------------------------------------------------------------------------
             '[' => {
-                // @Todo: implement range
+                // @Tbc: implement range
 
                 // can be 1. Array Start, 2. Filter, 3. Range Start
 
@@ -418,11 +414,15 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     };
 
                 if is_select {
-                    ast_builder.push_node(FilterArray as u32, Unparsed(BracketOpen), build_filter);
+                    ast_builder.push_node(
+                        FilterArray as u32,
+                        Unparsed(BracketOpenToken),
+                        build_filter,
+                    );
                 } else {
                     ast_builder.push_node(
                         FilterArray as u32,
-                        Unparsed(BracketOpen),
+                        Unparsed(BracketOpenToken),
                         build_sequence,
                     );
                 };
@@ -444,11 +444,14 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 after_colon = false;
             }
             '=' | '<' | '>' => {
-                // @Todo: simplify operator acquisition
                 if *symbol == '<' && after_colon {
                     source.next_char();
-                    let tref = parse_complex_type_in_angle(&mut source);
-                    ast_builder.push_element(Unparsed(TypeReferenceLiteral(tref)));
+                    // @Todo: investigate that, not sure if it make sense: type parsing should be done in builder.rs, investigate that
+                    // I'm expecting having something like build_function_definition, so it is build_type_definition_part // e.g. <string,"unknown">
+                    match parse_complex_type_in_angle(&mut source) {
+                        Ok(tref) => ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(tref))),
+                        Err(err) => ast_builder.push_element(EToken::ParseError(err)),
+                    }
                     after_colon = false;
                 } else if let Some(comparator) = ComparatorEnum::parse(&mut source) {
                     ast_builder.push_node(
@@ -485,18 +488,152 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
     ast_builder.finalize().0
 }
 
-fn parse_complex_type_in_angle(source: &mut CharStream) -> ComplexTypeRef {
+pub fn parse_complex_type_in_angle(source: &mut CharStream) -> Result<ComplexTypeRef, ParseErrorEnum> {
     let mut name = String::new();
-    while let Some(c) = source.peek().cloned() {
-        if c == '>' {
-            source.next_char();
+    while let Some(symbol) = source.peek().cloned() {
+        if symbol == '>' || symbol == ',' {
             break;
         } else {
-            name.push(c);
+            name.push(symbol);
             source.next_char();
         }
     }
-    parse_type(name.trim())
+    let mut type_ref = parse_type(name.trim());
+
+    source.skip_whitespace();
+    if let Some(',') = source.peek() {
+        source.next_char();
+        source.skip_whitespace();
+        parse_default_value(&mut type_ref, source)?;
+    }
+
+    if let Some('>') = source.peek() {
+        source.next_char();
+    } else {
+        return Err(ParseErrorEnum::WrongFormat(
+            "Missing closing '>' in type reference".to_string(),
+        ));
+    }
+
+    Ok(type_ref)
+}
+
+fn parse_default_value(
+    type_ref: &mut ComplexTypeRef,
+    source: &mut CharStream,
+) -> Result<(), ParseErrorEnum> {
+    let val = match source.peek() {
+        Some('[') => {
+            source.next_char();
+            source.skip_whitespace();
+            let mut elements = Vec::new();
+            while let Some(&symbol) = source.peek() {
+                if symbol == ']' {
+                    source.next_char();
+                    break;
+                }
+                let element = if symbol == '"' || symbol == '\'' {
+                    let quote = source.next_char().unwrap();
+                    ValueEnum::StringValue(StringEnum::from(source.get_all_till(quote)))
+                } else if symbol.is_numeric() || symbol == '-' {
+                    ValueEnum::NumberValue(source.get_number())
+                } else {
+                    let literal = source.get_alphanumeric();
+                    if literal == "true" {
+                        ValueEnum::BooleanValue(true)
+                    } else if literal == "false" {
+                        ValueEnum::BooleanValue(false)
+                    } else {
+                        return Err(ParseErrorEnum::WrongFormat(format!(
+                            "Unsupported element in list default: {}",
+                            literal
+                        )));
+                    }
+                };
+                elements.push(element);
+                source.skip_whitespace();
+                if let Some(',') = source.peek() {
+                    source.next_char();
+                    source.skip_whitespace();
+                }
+            }
+
+            let item_type = if let Some(first) = elements.first() {
+                first.get_type()
+            } else {
+                ValueType::UndefinedType
+            };
+
+            Some(ValueEnum::Array(
+                crate::typesystem::values::ArrayValue::PrimitivesArray {
+                    values: elements,
+                    item_type,
+                },
+            ))
+        }
+        Some('"') | Some('\'') => {
+            let quote = source.next_char().unwrap();
+            Some(ValueEnum::StringValue(StringEnum::from(source.get_all_till(quote))))
+        }
+        Some('t') | Some('f') => {
+            let literal = source.get_alphanumeric();
+            if literal == "true" {
+                Some(ValueEnum::BooleanValue(true))
+            } else if literal == "false" {
+                Some(ValueEnum::BooleanValue(false))
+            } else {
+                return Err(ParseErrorEnum::WrongFormat(format!(
+                    "Invalid boolean default: {}",
+                    literal
+                )));
+            }
+        }
+        Some(symbol) if symbol.is_numeric() || *symbol == '-' => {
+            Some(ValueEnum::NumberValue(source.get_number()))
+        }
+        _ => None,
+    };
+
+    if let Some(mut value) = val {
+        match type_ref {
+            ComplexTypeRef::BuiltinType(val_type, ref mut default_opt) => {
+                let actual_ty = value.get_type();
+                if actual_ty != *val_type && !matches!(val_type, ValueType::UndefinedType) {
+                    return Err(ParseErrorEnum::WrongFormat(format!(
+                        "Default value type mismatch: expected {}, got {}",
+                        val_type, actual_ty
+                    )));
+                }
+                *default_opt = Some(value);
+            }
+            ComplexTypeRef::List(ref inner, ref mut default_opt) => {
+                let actual_ty = value.get_type();
+                if !matches!(actual_ty, ValueType::ListType(_)) {
+                    return Err(ParseErrorEnum::WrongFormat(format!(
+                        "Default value type mismatch: expected list, got {}",
+                        actual_ty
+                    )));
+                }
+
+                // Refine item type for empty list default
+                if let ValueEnum::Array(crate::typesystem::values::ArrayValue::PrimitivesArray {
+                    ref mut item_type,
+                    ..
+                }) = value
+                {
+                    if let ComplexTypeRef::BuiltinType(val_type, _) = &**inner {
+                        *item_type = val_type.clone();
+                    }
+                }
+
+                *default_opt = Some(value);
+            }
+            ComplexTypeRef::Alias(_, ref mut default_opt) => {
+                *default_opt = Some(value);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn parse_complex_type_no_angle(source: &mut CharStream) -> ComplexTypeRef {
@@ -525,7 +662,7 @@ fn parse_type_with_trailing_lists(base: &str, source: &mut CharStream) -> Option
 
     let mut tref = parse_type(base);
     for _ in 0..layers {
-        tref = ComplexTypeRef::List(Box::new(tref));
+        tref = ComplexTypeRef::List(Box::new(tref), None);
     }
 
     Some(tref)
@@ -541,18 +678,19 @@ pub fn parse_type(name: &str) -> ComplexTypeRef {
     }
 
     let mut return_type = match string {
-        "number" => ComplexTypeRef::BuiltinType(ValueType::NumberType),
-        "string" => ComplexTypeRef::BuiltinType(ValueType::StringType),
-        "boolean" => ComplexTypeRef::BuiltinType(ValueType::BooleanType),
-        "date" => ComplexTypeRef::BuiltinType(ValueType::DateType),
-        "time" => ComplexTypeRef::BuiltinType(ValueType::TimeType),
-        "datetime" => ComplexTypeRef::BuiltinType(ValueType::DateTimeType),
-        "duration" => ComplexTypeRef::BuiltinType(ValueType::DurationType),
-        _ => ComplexTypeRef::Alias(string.to_owned()),
+        "number" => ComplexTypeRef::BuiltinType(ValueType::NumberType, None),
+        "string" => ComplexTypeRef::BuiltinType(ValueType::StringType, None),
+        "boolean" => ComplexTypeRef::BuiltinType(ValueType::BooleanType, None),
+        "date" => ComplexTypeRef::BuiltinType(ValueType::DateType, None),
+        "time" => ComplexTypeRef::BuiltinType(ValueType::TimeType, None),
+        "datetime" => ComplexTypeRef::BuiltinType(ValueType::DateTimeType, None),
+        "duration" => ComplexTypeRef::BuiltinType(ValueType::DurationType, None),
+        "period" => ComplexTypeRef::BuiltinType(ValueType::PeriodType, None),
+        _ => ComplexTypeRef::Alias(string.to_owned(), None),
     };
 
     for _ in 0..layers {
-        return_type = ComplexTypeRef::List(Box::new(return_type));
+        return_type = ComplexTypeRef::List(Box::new(return_type), None);
     }
 
     return_type

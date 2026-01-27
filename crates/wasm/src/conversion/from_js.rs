@@ -131,7 +131,7 @@ fn js_date_to_value(date: JsDate) -> Result<ValueEnum, String> {
 
     let feel_time = Time::from_hms_milli(hour, minute, second, millisecond)
         .map_err(|err| format!("Invalid time: {}", err))?;
-    let datetime = PrimitiveDateTime::new(feel_date, feel_time);
+    let datetime = PrimitiveDateTime::new(feel_date, feel_time).assume_utc();
     Ok(ValueEnum::DateTimeValue(ValueOrSv::Value(datetime)))
 }
 

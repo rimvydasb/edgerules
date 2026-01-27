@@ -10,8 +10,9 @@ use crate::typesystem::values::ValueEnum::{
 };
 use crate::typesystem::values::ValueOrSv;
 use crate::typesystem::values::{DurationValue, PeriodValue};
+use time::format_description::well_known::Rfc3339;
 use time::macros::format_description;
-use time::Month;
+use time::{Month, OffsetDateTime, PrimitiveDateTime};
 
 pub fn expect_string_arg(arg: ValueType) -> Link<()> {
     LinkingError::expect_type(None, arg, &[StringType]).map(|_| ())
@@ -21,19 +22,50 @@ pub fn expect_date_arg(arg: ValueType) -> Link<()> {
     LinkingError::expect_type(None, arg, &[DateType]).map(|_| ())
 }
 
-fn parse_date_iso(s: &str) -> Option<time::Date> {
+pub fn parse_date_iso(s: &str) -> Option<time::Date> {
     let fmt = format_description!("[year]-[month]-[day]");
     time::Date::parse(s, &fmt).ok()
 }
 
-fn parse_time_local(s: &str) -> Option<time::Time> {
+pub fn parse_time_local(s: &str) -> Option<time::Time> {
     let fmt = format_description!("[hour]:[minute]:[second]");
     time::Time::parse(s, &fmt).ok()
 }
 
-fn parse_datetime_local(s: &str) -> Option<time::PrimitiveDateTime> {
-    let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
-    time::PrimitiveDateTime::parse(s, &fmt).ok()
+pub fn parse_datetime_flexible(s: &str) -> Option<OffsetDateTime> {
+    // 1. Try standard RFC 3339 (Handles "Z", "+02:00", and variable subseconds)
+    // This is the fastest and most common path for JSON.
+    if let Ok(odt) = OffsetDateTime::parse(s, &Rfc3339) {
+        return Some(odt);
+    }
+
+    // 2. Try Date + Time with offset but NO seconds (e.g., 2026-01-27T10:00+02:00)
+    let fmt_no_sec_offset =
+        format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour]:[offset_minute]");
+    if let Ok(odt) = OffsetDateTime::parse(s, &fmt_no_sec_offset) {
+        return Some(odt);
+    }
+
+    // 3. Try Primitive (No Offset) - Fallback to UTC
+    // We try with seconds first, then without.
+    let fmt_prim = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim) {
+        return Some(dt.assume_utc());
+    }
+
+    // Try with milliseconds
+    let fmt_prim_ms =
+        format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]");
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim_ms) {
+        return Some(dt.assume_utc());
+    }
+
+    let fmt_prim_no_sec = format_description!("[year]-[month]-[day]T[hour]:[minute]");
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim_no_sec) {
+        return Some(dt.assume_utc());
+    }
+
+    None
 }
 
 pub fn parse_duration_iso8601(s: &str) -> Result<DurationValue, RuntimeError> {
@@ -386,7 +418,7 @@ pub fn eval_time(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_datetime(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let StringValue(ref s) = value {
         if let StringEnum::String(raw) = s.clone() {
-            if let Some(dt) = parse_datetime_local(raw.as_str()) {
+            if let Some(dt) = parse_datetime_flexible(raw.as_str()) {
                 return Ok(DateTimeValue(ValueOrSv::Value(dt)));
             }
             return RuntimeError::parsing_from_string(DateTimeType, 0).into();

@@ -68,12 +68,16 @@ pub enum EPriorities {
 #[derive(Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum EUnparsedToken {
-    Comma,
-    BracketOpen,
-    Literal(Cow<'static, str>),
+    CommaToken,
+    BracketOpenToken,
+    AssignToken,
+    RangeToken,
+    ObjectToken,
+    DotToken,
+    LiteralToken(Cow<'static, str>),
     FunctionNameToken(VariableLink),
-    FunctionDefinitionLiteral(String, Vec<FormalParameter>),
-    TypeReferenceLiteral(ComplexTypeRef),
+    FunctionDefinitionLiteralToken(String, Vec<FormalParameter>),
+    TypeReferenceLiteralToken(ComplexTypeRef),
     MathOperatorToken(MathOperatorEnum),
     LogicalOperatorToken(LogicalOperatorEnum),
     ComparatorToken(ComparatorEnum),
@@ -82,31 +86,35 @@ pub enum EUnparsedToken {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone, PartialEq)]
 pub enum ComplexTypeRef {
-    BuiltinType(ValueType),
-    Alias(String),
-    List(Box<ComplexTypeRef>),
+    BuiltinType(ValueType, Option<ValueEnum>),
+    Alias(String, Option<ValueEnum>),
+    List(Box<ComplexTypeRef>, Option<ValueEnum>),
 }
 
 impl ComplexTypeRef {
     pub fn undefined() -> Self {
-        ComplexTypeRef::BuiltinType(ValueType::UndefinedType)
+        ComplexTypeRef::BuiltinType(ValueType::UndefinedType, None)
     }
 
     pub fn is_undefined(&self) -> bool {
-        matches!(self, ComplexTypeRef::BuiltinType(ValueType::UndefinedType))
+        matches!(self, ComplexTypeRef::BuiltinType(ValueType::UndefinedType, _))
     }
 
     pub fn from_value_type(value_type: ValueType) -> Self {
-        ComplexTypeRef::BuiltinType(value_type)
+        ComplexTypeRef::BuiltinType(value_type, None)
     }
 }
 
+// @Todo: investigate if this code is even necessary:
 impl Display for ComplexTypeRef {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ComplexTypeRef::BuiltinType(vt) => write!(f, "{}", vt),
-            ComplexTypeRef::Alias(name) => write!(f, "{}", name),
-            ComplexTypeRef::List(inner) => write!(f, "list of {}", inner),
+            ComplexTypeRef::BuiltinType(vt, Some(default)) => write!(f, "{}, {}", vt, default),
+            ComplexTypeRef::BuiltinType(vt, None) => write!(f, "{}", vt),
+            ComplexTypeRef::Alias(name, Some(default)) => write!(f, "{}, {}", name, default),
+            ComplexTypeRef::Alias(name, None) => write!(f, "{}", name),
+            ComplexTypeRef::List(inner, Some(default)) => write!(f, "{}[], {}", inner, default),
+            ComplexTypeRef::List(inner, None) => write!(f, "{}[]", inner),
         }
     }
 }
@@ -154,7 +162,7 @@ impl PartialEq for EToken {
 impl EToken {
     pub fn into_string_or_literal(self) -> Result<String, ParseErrorEnum> {
         match self {
-            Unparsed(Literal(text)) => Ok(text.into_owned()),
+            Unparsed(LiteralToken(text)) => Ok(text.into_owned()),
             Expression(Value(StringValue(StringEnum::String(value)))) => Ok(value),
             ParseError(error) => Err(error),
             _ => Err(UnexpectedToken(Box::new(self), None)),
@@ -320,14 +328,18 @@ impl From<bool> for ExpressionEnum {
 impl Display for EUnparsedToken {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionDefinitionLiteral(text, args) => {
+            FunctionDefinitionLiteralToken(text, args) => {
                 write!(f, "{}({})", text, array_to_code_sep(args.iter(), ", "))
             }
-            TypeReferenceLiteral(r) => write!(f, "<{}>", r),
-            Literal(value) => write!(f, "{}", value),
+            TypeReferenceLiteralToken(r) => write!(f, "<{}>", r),
+            LiteralToken(value) => write!(f, "{}", value),
+            AssignToken => write!(f, ":"),
+            RangeToken => write!(f, ".."),
+            ObjectToken => write!(f, "OBJECT"),
+            DotToken => write!(f, "."),
             FunctionNameToken(value) => write!(f, "{}", value),
-            Comma => write!(f, ","),
-            BracketOpen => write!(f, "["),
+            CommaToken => write!(f, ","),
+            BracketOpenToken => write!(f, "["),
             MathOperatorToken(value) => write!(f, "{}", value),
             LogicalOperatorToken(value) => write!(f, "{}", value),
             ComparatorToken(value) => write!(f, "{}", value),

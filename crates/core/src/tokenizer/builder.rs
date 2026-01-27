@@ -1,7 +1,7 @@
 use crate::ast::token::EToken;
 use crate::ast::token::EToken::Expression;
 use crate::ast::token::EToken::Unparsed;
-use crate::ast::token::EUnparsedToken::Literal;
+use crate::ast::token::EUnparsedToken::LiteralToken;
 use crate::ast::token::ExpressionEnum::{Value, Variable};
 use crate::ast::variable::VariableLink;
 use crate::tokenizer::utils::TokenChain;
@@ -155,7 +155,7 @@ impl ASTBuilder {
     /// If the last token is an unparsed literal equal to `expected`,
     /// remove it and return true. Otherwise, return false and leave the chain intact.
     pub fn pop_literal_if(&mut self, expected: &str) -> bool {
-        if let Some(Unparsed(Literal(maybe))) = self.result.back() {
+        if let Some(Unparsed(LiteralToken(maybe))) = self.result.back() {
             if maybe.as_ref() == expected {
                 // Safe unwrap; just checked it's Some
                 let _ = self.result.pop_back();
@@ -257,7 +257,7 @@ pub mod factory {
     use std::rc::Rc;
 
     fn pop_back_as_expected(deque: &mut VecDeque<EToken>, expected: &str) -> bool {
-        if let Some(Unparsed(Literal(maybe))) = deque.pop_back() {
+        if let Some(Unparsed(LiteralToken(maybe))) = deque.pop_back() {
             if maybe == expected {
                 return true;
             }
@@ -282,12 +282,14 @@ pub mod factory {
         // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
         let is_type_stmt = matches!(
             left.back(),
-            Some(Unparsed(Literal(ref s))) if s.as_ref() == "type"
+            Some(Unparsed(LiteralToken(ref s))) if s.as_ref() == "type"
         );
 
         match (left_token, right_token) {
             // Type alias: type Alias : <Type>
-            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) if is_type_stmt => {
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteralToken(tref)))
+                if is_type_stmt =>
+            {
                 let _ = left.pop_left_as_expected("type");
                 Ok(Definition(DefinitionEnum::UserType(UserTypeDefinition {
                     name: link.get_name(),
@@ -295,9 +297,12 @@ pub mod factory {
                 })))
             }
             // Typed placeholder: field : <Type>
-            (Expression(Variable(link)), Unparsed(TypeReferenceLiteral(tref))) => Ok(Expression(
-                ObjectField(link.get_name(), Box::new(TypePlaceholder(tref))),
-            )),
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteralToken(tref))) => Ok(
+                Expression(ObjectField(
+                    link.get_name(),
+                    Box::new(TypePlaceholder(tref)),
+                )),
+            ),
             // Type alias with object body: type Alias : { ... }
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
                 let _ = left.pop_left_as_expected("type");
@@ -324,7 +329,7 @@ pub mod factory {
                         TypePlaceholder(_) => { /* ok: typed field in type body */ }
                         Variable(alias_link) => {
                             entry.expression =
-                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name()));
+                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name(), None));
                         }
                         _ => {
                             return Err(WrongFormat(format!(
@@ -344,7 +349,7 @@ pub mod factory {
                 let field_name = link.get_name();
                 if is_type_stmt {
                     if let Variable(alias_link) = right {
-                        let type_ref = ComplexTypeRef::Alias(alias_link.get_name());
+                        let type_ref = ComplexTypeRef::Alias(alias_link.get_name(), None);
                         return Ok(Expression(ObjectField(
                             field_name,
                             Box::new(TypePlaceholder(type_ref)),
@@ -355,7 +360,7 @@ pub mod factory {
                 Ok(Expression(ObjectField(field_name, Box::new(right))))
             }
             (
-                Unparsed(FunctionDefinitionLiteral(function_name, arguments)),
+                Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)),
                 Expression(StaticObject(object)),
             ) => {
                 let try_collapse_inline = {
@@ -389,14 +394,14 @@ pub mod factory {
                 }
             }
             (
-                Unparsed(FunctionDefinitionLiteral(function_name, arguments)),
+                Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)),
                 Expression(non_object_body),
             ) => {
                 let function =
                     InlineFunctionDefinition::build(function_name, arguments, non_object_body)?;
                 Ok(Definition(InlineUserFunction(function)))
             }
-            (Unparsed(FunctionDefinitionLiteral(name, _)), _) => Err(WrongFormat(format!(
+            (Unparsed(FunctionDefinitionLiteralToken(name, _)), _) => Err(WrongFormat(format!(
                 "function '{}' body is not defined",
                 name
             ))),
@@ -519,7 +524,7 @@ pub mod factory {
         })?;
 
         match right_token {
-            Unparsed(TypeReferenceLiteral(tref)) => Ok(Expression(FunctionCall(Box::new(
+            Unparsed(TypeReferenceLiteralToken(tref)) => Ok(Expression(FunctionCall(Box::new(
                 crate::ast::expression::CastCall::new(left_expr, tref),
             )))),
             _ => Err(WrongFormat("Invalid type after 'as'".to_string())),
@@ -535,7 +540,7 @@ pub mod factory {
         let mut arguments = Vec::new();
         while let Some(right_token) = right.pop_front() {
             match right_token {
-                Unparsed(Comma) => {
+                Unparsed(CommaToken) => {
                     if arguments.is_empty() {
                         return Err(WrongFormat(
                             "Very first function argument is missing".to_string(),
@@ -579,7 +584,7 @@ pub mod factory {
             other => other.into_string_or_literal()?,
         };
 
-        Ok(Unparsed(FunctionDefinitionLiteral(
+        Ok(Unparsed(FunctionDefinitionLiteralToken(
             function_name,
             arguments,
         )))
@@ -651,7 +656,7 @@ pub mod factory {
         while let Some(right_token) = right.pop_front() {
             match right_token {
                 Expression(expression) => args.push(expression),
-                Unparsed(Comma) => {
+                Unparsed(CommaToken) => {
                     if args.is_empty() {
                         right.clear(); // forgets all possible other errors
                         return Err(WrongFormat(
@@ -894,8 +899,8 @@ pub mod factory {
                     ComparatorOperator::build(comparator, left_token, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))
             }
-            (Unparsed(BracketOpen), Expression(right_token)) => {
-                left.push_back(Unparsed(BracketOpen));
+            (Unparsed(BracketOpenToken), Expression(right_token)) => {
+                left.push_back(Unparsed(BracketOpenToken));
                 let comparator_operator =
                     ComparatorOperator::build(comparator, ContextVariable, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))

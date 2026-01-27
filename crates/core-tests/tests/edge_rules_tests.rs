@@ -207,7 +207,7 @@ fn test_service() -> Result<(), EvalError> {
     }
 
     test_code("value").expect_parse_error(UnexpectedToken(
-        Box::new(EToken::Unparsed(EUnparsedToken::Comma)),
+        Box::new(EToken::Unparsed(EUnparsedToken::CommaToken)),
         None,
     ));
     test_code("value: 2 + 2").expect_num("value", Int(4));
@@ -558,7 +558,7 @@ fn user_type_api_supports_root_and_nested_contexts() -> Result<(), EvalError> {
     init_logger();
 
     let mut service = EdgeRulesModel::new();
-    let base_type = UserTypeBody::TypeRef(ComplexTypeRef::BuiltinType(ValueType::BooleanType));
+    let base_type = UserTypeBody::TypeRef(ComplexTypeRef::BuiltinType(ValueType::BooleanType, None));
 
     service
         .set_user_type("IsEnabled", base_type.clone())

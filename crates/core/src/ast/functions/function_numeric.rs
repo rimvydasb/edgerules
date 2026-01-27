@@ -719,7 +719,7 @@ fn eval_extrema_all(
                 .unwrap_or_else(|| missing_extrema_value(ExtremaKind::Time)))
         }
         ExtremaKind::DateTime => {
-            let mut best: Option<ValueOrSv<time::PrimitiveDateTime, SpecialValueEnum>> = None;
+            let mut best: Option<ValueOrSv<time::OffsetDateTime, SpecialValueEnum>> = None;
             for value in values {
                 match value {
                     DateTimeValue(candidate) => match &mut best {

@@ -96,4 +96,21 @@ describe('Basic Evaluation', () => {
         const resultField = wasm.DecisionEngine.evaluate(portable, 'y');
         assert.strictEqual(resultField, 15);
     });
+
+    it('evaluate datetime with timezone offsets', () => {
+        // UTC (mimics local format for backward compatibility in our current formatter)
+        assert.strictEqual(wasm.DecisionEngine.evaluate("datetime('2026-01-27T10:00:00Z')"), '2026-01-27T10:00:00');
+        assert.strictEqual(wasm.DecisionEngine.evaluate("datetime('2026-01-27T10:00:00+00:00')"), '2026-01-27T10:00:00');
+        
+        // Positive offset
+        assert.strictEqual(wasm.DecisionEngine.evaluate("datetime('2026-01-27T10:00:00+02:00')"), '2026-01-27T10:00:00+02:00');
+        
+        // Negative offset
+        assert.strictEqual(wasm.DecisionEngine.evaluate("datetime('2026-01-27T10:00:00-05:00')"), '2026-01-27T10:00:00-05:00');
+        
+        // Comparison between different offsets
+        // 10:00+02:00 is 08:00 UTC, 10:00+01:00 is 09:00 UTC
+        const isBefore = wasm.DecisionEngine.evaluate("datetime('2026-01-27T10:00:00+02:00') < datetime('2026-01-27T10:00:00+01:00')");
+        assert.strictEqual(isBefore, true); 
+    });
 });

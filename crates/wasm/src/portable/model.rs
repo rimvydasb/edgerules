@@ -15,6 +15,7 @@ use edge_rules::ast::user_function_call::UserFunctionCall;
 use edge_rules::link::node_data::Node;
 use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, InvocationSpec};
 use edge_rules::tokenizer::parser;
+use edge_rules::tokenizer::utils::CharStream;
 use edge_rules::typesystem::types::number::NumberEnum;
 use edge_rules::typesystem::values::ValueEnum;
 use edge_rules::utils::intern_field_name;
@@ -639,13 +640,17 @@ fn parse_invocation_expression(obj: &JsValue) -> Result<ExpressionEnum, Portable
 
 fn parse_angle_type(text: &str) -> Result<ComplexTypeRef, PortableError> {
     let trimmed = text.trim();
-    if let Some(inner) = trimmed.strip_prefix('<').and_then(|v| v.strip_suffix('>')) {
-        return Ok(parser::parse_type(inner.trim()));
+    if !trimmed.starts_with('<') {
+        return Err(PortableError::new(format!(
+            "Type reference '{}' must use <...> notation",
+            text
+        )));
     }
-    Err(PortableError::new(format!(
-        "Type reference '{}' must use <...> notation",
-        text
-    )))
+    // Remove leading <, keep trailing > as parser expects it
+    let inner_with_closing = &trimmed[1..];
+    let mut stream = CharStream::new(inner_with_closing);
+    parser::parse_complex_type_in_angle(&mut stream)
+        .map_err(|e| PortableError::new(format!("Invalid type format: {}", e)))
 }
 
 fn split_path(path: &str) -> Result<(Option<Vec<String>>, String), PortableError> {
@@ -941,5 +946,17 @@ mod tests {
         if let ExpressionEnum::Collection(c) = &borrowed.expression {
             assert_eq!(c.elements.len(), 1);
         }
+    }
+
+    #[test]
+    fn test_parse_angle_type_with_default() {
+        let tref = parse_angle_type("<number, 10>").unwrap();
+        assert_eq!(tref.to_string(), "number, 10");
+
+        let tref_str = parse_angle_type("<string, 'foo'>").unwrap();
+        assert_eq!(tref_str.to_string(), "string, 'foo'");
+
+        let tref_bool = parse_angle_type("<boolean, true>").unwrap();
+        assert_eq!(tref_bool.to_string(), "boolean, true");
     }
 }

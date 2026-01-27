@@ -216,6 +216,11 @@ pub enum ParseErrorEnum {
     Stacked(Vec<ParseErrorEnum>),
 
     UnexpectedEnd,
+
+    /// @Todo:
+    /// for example date("2023-XX-10") will raise fromType:StringType toType:DateType
+    /// fromType, toType
+    CannotConvertValue(ValueType, ValueType),
 }
 
 impl Display for ParseErrorEnum {
@@ -230,6 +235,13 @@ impl Display for ParseErrorEnum {
         };
 
         match self {
+            ParseErrorEnum::CannotConvertValue(from, to) => {
+                write!(
+                    f,
+                    "{}",
+                    prefix_parse(&format!("Cannot convert value from type '{}' to type '{}'", from, to))
+                )
+            }
             WrongFormat(message) => write!(f, "{}", prefix_parse(message)),
             UnexpectedToken(token, expected) => {
                 if let Some(expected) = expected {

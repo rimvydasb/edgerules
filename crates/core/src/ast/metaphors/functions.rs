@@ -101,7 +101,7 @@ impl UserFunction for FunctionDefinition {
 
         linker::link_parts(Rc::clone(&self.body))?;
 
-        let parent_weak = parent.map(|p| Rc::downgrade(&p)).unwrap_or_else(Weak::new);
+        let parent_weak = parent.map(|p| Rc::downgrade(&p)).unwrap_or_default();
         let ctx = FunctionContext::create_for(Rc::clone(&self.body), parameters, parent_weak);
 
         Ok(ctx)
@@ -230,7 +230,7 @@ impl UserFunction for InlineFunctionDefinition {
         let parent_weak = parent
             .map(|p| Rc::downgrade(&p))
             .or_else(|| self.parent.borrow().clone())
-            .unwrap_or_else(Weak::new);
+            .unwrap_or_default();
 
         Ok(FunctionContext::create_for(
             body,

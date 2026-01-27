@@ -47,7 +47,7 @@ impl FormalParameter {
 
     pub fn runtime_value_type(&self) -> Option<ValueType> {
         match &self.parameter_type {
-            ComplexTypeRef::BuiltinType(value_type) => Some(value_type.clone()),
+            ComplexTypeRef::BuiltinType(value_type, _) => Some(value_type.clone()),
             _ => None,
         }
     }

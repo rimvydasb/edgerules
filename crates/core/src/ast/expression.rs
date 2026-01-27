@@ -1,6 +1,10 @@
 use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
+use crate::ast::functions::function_date::{
+    parse_date_iso, parse_datetime_flexible, parse_duration_iso8601, parse_period_iso8601,
+    parse_time_local,
+};
 use crate::ast::token::ExpressionEnum::*;
 use crate::ast::token::*;
 use crate::ast::user_function_call::UserFunctionCall;
@@ -8,11 +12,11 @@ use crate::ast::variable::VariableLink;
 use crate::ast::Link;
 use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::ExecutionContext;
-use crate::typesystem::errors::{ErrorStack, LinkingError, RuntimeError};
+use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{NumberValue, RangeValue, Reference};
-use crate::typesystem::values::{ArrayValue, ValueEnum};
+use crate::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use crate::utils::intern_field_name;
 use crate::*;
 use log::error;
@@ -70,17 +74,30 @@ pub(crate) fn missing_for_type(
                     match content {
                         EObjectContent::ExpressionRef(entry) => {
                             // Determine field type via placeholder if present
+                            let mut default_value_opt = None;
                             let fty = match &entry.borrow().expression {
-                                TypePlaceholder(tref) => obj.borrow().resolve_type_ref(tref).ok(),
+                                TypePlaceholder(tref) => {
+                                    default_value_opt = match tref {
+                                        ComplexTypeRef::BuiltinType(_, val) => val.clone(),
+                                        ComplexTypeRef::Alias(_, val) => val.clone(),
+                                        ComplexTypeRef::List(_, val) => val.clone(),
+                                    };
+                                    obj.borrow().resolve_type_ref(tref).ok()
+                                }
                                 _ => None,
                             }
                             .unwrap_or(ValueType::UndefinedType);
-                            let child_origin_owned = field_name
-                                .filter(|parent| !parent.is_empty())
-                                .map(|parent| format!("{}.{}", parent, name));
-                            let child_origin = child_origin_owned.as_deref().or(Some(name));
-                            let default_value = missing_for_type(&fty, child_origin, ctx)?;
-                            builder.add_expression(name, default_value.into())?;
+
+                            if let Some(val) = default_value_opt {
+                                builder.add_expression(name, val.into())?;
+                            } else {
+                                let child_origin_owned = field_name
+                                    .filter(|parent| !parent.is_empty())
+                                    .map(|parent| format!("{}.{}", parent, name));
+                                let child_origin = child_origin_owned.as_deref().or(Some(name));
+                                let default_value = missing_for_type(&fty, child_origin, ctx)?;
+                                builder.add_expression(name, default_value.into())?;
+                            }
                         }
                         EObjectContent::ObjectRef(o) => {
                             let child_origin_owned = field_name
@@ -108,24 +125,57 @@ pub(crate) fn missing_for_type(
     }
 }
 
-fn cast_value_to_type(
+pub(crate) fn cast_value_to_type(
     value: ValueEnum,
     target: ValueType,
     ctx: Rc<RefCell<ExecutionContext>>, // used for building child contexts
     origin: Option<&str>,
 ) -> Result<ValueEnum, RuntimeError> {
+    use crate::typesystem::types::string::StringEnum;
     use crate::typesystem::values::ValueEnum as V;
     match target {
         ValueType::NumberType
-        | ValueType::StringType
         | ValueType::BooleanType
-        | ValueType::DateType
+        | ValueType::RangeType
+        | ValueType::UndefinedType => Ok(value),
+
+        // Handle string parsing for temporal types
+        ValueType::DateType
         | ValueType::TimeType
         | ValueType::DateTimeType
         | ValueType::DurationType
-        | ValueType::PeriodType
-        | ValueType::RangeType
-        | ValueType::UndefinedType => Ok(value),
+        | ValueType::PeriodType => {
+            if let V::StringValue(StringEnum::String(s)) = &value {
+                let parsed = match target {
+                    ValueType::DateType => parse_date_iso(s)
+                        .map(|d| V::DateValue(ValueOrSv::Value(d))),
+                    ValueType::TimeType => parse_time_local(s)
+                        .map(|t| V::TimeValue(ValueOrSv::Value(t))),
+                    ValueType::DateTimeType => parse_datetime_flexible(s)
+                        .map(|dt| V::DateTimeValue(ValueOrSv::Value(dt))),
+                    ValueType::DurationType => parse_duration_iso8601(s)
+                        .ok()
+                        .map(|d| V::DurationValue(ValueOrSv::Value(d))),
+                    ValueType::PeriodType => parse_period_iso8601(s)
+                        .ok()
+                        .map(|p| V::PeriodValue(ValueOrSv::Value(p))),
+                    _ => None,
+                };
+
+                if let Some(result) = parsed {
+                    return Ok(result);
+                } else {
+                    return Err(RuntimeError::from(ParseErrorEnum::CannotConvertValue(
+                        ValueType::StringType,
+                        target,
+                    )));
+                }
+            }
+            Ok(value)
+        }
+        
+        ValueType::StringType => Ok(value), // Already string or not supported to cast to string here yet
+
         ValueType::ListType(inner) => {
             let desired_item_type = inner.as_ref().map(|boxed| (**boxed).clone());
             match value {
@@ -264,11 +314,17 @@ fn cast_value_to_type(
                                 .clone()
                                 .unwrap_or_else(|_| ValueType::UndefinedType);
                             // If expression is a TypePlaceholder, try to resolve from schema
+                            let mut default_val_opt = None;
                             if let TypePlaceholder(tref) = &entry.borrow().expression {
                                 expected_ty = schema
                                     .borrow()
                                     .resolve_type_ref(tref)
                                     .unwrap_or(ValueType::UndefinedType);
+                                default_val_opt = match tref {
+                                    ComplexTypeRef::BuiltinType(_, val) => val.clone(),
+                                    ComplexTypeRef::Alias(_, val) => val.clone(),
+                                    ComplexTypeRef::List(_, val) => val.clone(),
+                                };
                             }
                             // Get source field value and cast if possible
                             let casted = match src_exec.borrow().get(name) {
@@ -297,8 +353,8 @@ fn cast_value_to_type(
                                     Rc::clone(&ctx),
                                     field_origin,
                                 )?,
-                                Ok(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
-                                Err(_) => missing_for_type(&expected_ty, field_origin, &ctx)?,
+                                Ok(_) => default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?),
+                                Err(_) => default_val_opt.unwrap_or(missing_for_type(&expected_ty, field_origin, &ctx)?),
                             };
                             builder.add_expression(name, casted.into())?;
                         }
@@ -424,13 +480,22 @@ impl ExpressionEnum {
                 );
                 Ok(Reference(reference))
             }
-            TypePlaceholder(_tref) => {
-                // BLOCKED: no external context hookup; always Missing as per spec
-                Ok(ValueEnum::StringValue(
-                    crate::typesystem::types::string::StringEnum::from(
-                        typesystem::types::SpecialValueEnum::missing_for(None),
-                    ),
-                ))
+            TypePlaceholder(tref) => {
+                let default_val_opt = match tref {
+                    ComplexTypeRef::BuiltinType(_, val) => val.clone(),
+                    ComplexTypeRef::Alias(_, val) => val.clone(),
+                    ComplexTypeRef::List(_, val) => val.clone(),
+                };
+                if let Some(val) = default_val_opt {
+                    Ok(val)
+                } else {
+                    // BLOCKED: no external context hookup; always Missing as per spec
+                    Ok(ValueEnum::StringValue(
+                        crate::typesystem::types::string::StringEnum::from(
+                            typesystem::types::SpecialValueEnum::missing_for(None),
+                        ),
+                    ))
+                }
             }
         };
 

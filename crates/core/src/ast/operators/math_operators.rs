@@ -344,7 +344,7 @@ impl MathOperator {
                             Ok(NumberEnum::from(left.pow(right as u32)))
                         }
                     }
-                    (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right as i64))),
+                    (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right))),
                     (Int(left), Real(right)) => {
                         Ok(NumberEnum::from((left as f64).powf(right.to_f64().unwrap_or(0.0))))
                     }
@@ -386,7 +386,7 @@ fn operate_duration_values(
 ) -> Result<ErDurationValue, RuntimeError> {
     match operator {
         MathOperatorEnum::Addition | MathOperatorEnum::Subtraction => {}
-        _ => return Err(RuntimeError::internal_integrity_error(101).into()),
+        _ => return Err(RuntimeError::internal_integrity_error(101)),
     }
 
     let left_seconds = left.signed_seconds();
@@ -408,7 +408,7 @@ fn operate_period_values(
 ) -> Result<ErPeriodValue, RuntimeError> {
     match operator {
         MathOperatorEnum::Addition | MathOperatorEnum::Subtraction => {}
-        _ => return Err(RuntimeError::internal_integrity_error(102).into()),
+        _ => return Err(RuntimeError::internal_integrity_error(102)),
     }
 
     let (left_months, left_days) = left.signed_components();
@@ -459,7 +459,7 @@ fn apply_duration_to_date(
     date: time::Date,
     duration: &ErDurationValue,
     operator: &MathOperatorEnum,
-) -> Result<time::PrimitiveDateTime, RuntimeError> {
+) -> Result<time::OffsetDateTime, RuntimeError> {
     let mut seconds_delta = duration.signed_seconds();
     if matches!(operator, MathOperatorEnum::Subtraction) {
         seconds_delta = -seconds_delta;
@@ -477,10 +477,10 @@ fn apply_duration_to_date(
 }
 
 fn apply_duration_to_datetime(
-    datetime: time::PrimitiveDateTime,
+    datetime: time::OffsetDateTime,
     duration: &ErDurationValue,
     operator: &MathOperatorEnum,
-) -> Result<time::PrimitiveDateTime, RuntimeError> {
+) -> Result<time::OffsetDateTime, RuntimeError> {
     let mut seconds_delta = duration.signed_seconds();
     if matches!(operator, MathOperatorEnum::Subtraction) {
         seconds_delta = -seconds_delta;
@@ -550,10 +550,10 @@ fn apply_period_to_date(
 }
 
 fn apply_period_to_datetime(
-    datetime: time::PrimitiveDateTime,
+    datetime: time::OffsetDateTime,
     period: &ErPeriodValue,
     operator: &MathOperatorEnum,
-) -> Result<time::PrimitiveDateTime, RuntimeError> {
+) -> Result<time::OffsetDateTime, RuntimeError> {
     let (mut months_delta, mut days_delta) = period.signed_components();
     if matches!(operator, MathOperatorEnum::Subtraction) {
         months_delta = -months_delta;
@@ -562,11 +562,11 @@ fn apply_period_to_datetime(
 
     let mut date = shift_date_by_months(datetime.date(), months_delta)?;
     date = apply_days_to_date(date, days_delta)?;
-    Ok(time::PrimitiveDateTime::new(date, datetime.time()))
+    Ok(datetime.replace_date(date))
 }
 
-fn datetime_at_midnight(date: time::Date) -> time::PrimitiveDateTime {
-    time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT)
+fn datetime_at_midnight(date: time::Date) -> time::OffsetDateTime {
+    time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT).assume_utc()
 }
 
 fn duration_from_time_diff(diff: time::Duration) -> Result<ErDurationValue, RuntimeError> {

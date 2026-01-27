@@ -1,11 +1,15 @@
 # Date and Time Support in EdgeRules
 
-## Priorities
+## Summary
 
-- Small WebAssembly binary size
-- Fast execution speed
-- ISO-8601 lexical formats (subset), local-time only (offsets/time zones not supported)
+- ISO-8601 lexical formats (subset), local-time only (time zone offsets are supported, but time zones not supported)
+- Timezone offsets support with `OffsetDateTime`
 - Intuitive similarity (non-contradiction) to other standards (DMN, FEEL, SQL, etc.)
+
+### Not Implemented Yet
+
+Context timezone configuration. As a default, it is UTC, that means all dates passed without timezone offsets will be
+treated as UTC. For example, date("2024-06-15") will be treated as 2024-06-15T00:00:00Z.
 
 ## date(string), time(string), datetime(string) functions
 
@@ -39,8 +43,8 @@ hour (number), minute (number), second (number)
 
 ### datetime object properties
 
-year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7), 
-hour (number), minute (number), second (number), 
+year (number), month (number), day (number), weekday (number, ISO-8601: Monday=1…Sunday=7),
+hour (number), minute (number), second (number),
 time (time), date (date)
 
 ### duration object properties
@@ -56,10 +60,10 @@ totalMonths (number), totalDays (number)
 ### normalization and clarifications
 
 - period or duration properties will return normalized values:
-  - period("P18M").years = 1
-  - period("P18M").months = 6
-  - duration("PT90M").hours = 1
-  - duration("PT90M").minutes = 30
+    - period("P18M").years = 1
+    - period("P18M").months = 6
+    - duration("PT90M").hours = 1
+    - duration("PT90M").minutes = 30
 - period does not have totalYears, because existing property years is already normalized
 - duration does not have totalDays, because existing property days is already normalized
 - period and duration negative values are represented by negative properties (e.g. duration("-PT90M").minutes = -30)
@@ -71,7 +75,7 @@ duration("P4D"), duration("PT90M"), period("P18Y6M").
 
 ### Period
 
-> Period will be Java Period compatible and will be able to carry 
+> Period will be Java Period compatible and will be able to carry
 > years, months, days components only.
 
 - period("P1Y6M")     // 1 year 6 months
@@ -90,7 +94,7 @@ duration("P4D"), duration("PT90M"), period("P18Y6M").
 Is invalid and will produce runtime error while parsing duration strings:
 
 > **Todo:** at this time, it is not possible to have linking error, because strings are not investigated
-during AST building and linking phase
+> during AST building and linking phase
 
 ```edgerules
 value1: period("P18YT12H")    // invalid
@@ -160,8 +164,8 @@ toString(duration("PT90M"))     // "PT1H30M"
 ## Restrictions:
 
 - No leap seconds
-- No timezones will be supported
-- No time offsets in time and date values for this implementation - only local time will be supported
+- No named timezones will be supported (e.g. 'America/New_York')
+- Time offsets ARE supported (e.g. '+02:00', 'Z')
 - No support for today() or now() functions, because EdgeRules are designed to be deterministic and work on the edge
   environment without access to a real-time clock
 - No nanoseconds or milliseconds support in this implementation, smallest unit is seconds
@@ -196,3 +200,92 @@ You can also create durations using a literal syntax:
 
 - Literal support for durations (years, months, days, hours, minutes, seconds)
 - More date/time functions (e.g., adding support for week of year, quarter of year, etc.)
+
+# Next Steps
+
+Review task description below in `doc/DATETIME_SPEC.md`: most of the tasks may be already done.
+
+Implement JSON date and datetime support for EdgeRules Portable format by doing following tasks in `DATETIME_SPEC.md`.
+Currently, as per `test-decision-service.mjs`, Portable works well with JavaScript Date objects, but lacks support for
+ISO date and datetime strings.
+
+## Phase 1
+
+- [x] Add minimal test in `test-decision-service.mjs` that explores JavaScript Date and Date with time support without
+  zones. Later this test will be used for the development.
+    - [x] Minimal decision service that is created with constants that have date and datetime values - use JavaScript
+      Date objects.
+    - [x] Minimal decision service request that sends date and datetime values as JavaScript Date objects.
+    - [x] Run this test, it should work as per current implementation.
+- [x] Add another test that instead of JavaScript Date, strings are used. We must support:
+    - [x] date as `YYYY-MM-DD`
+    - [x] datetime as `YYYY-MM-DDTHH:MM:SS`
+    - [x] Treat `2026-01-26T21:33:35Z`, `2026-01-26T21:33:35.000Z` or `2026-01-26T21:33:35+00:00` as
+      `YYYY-MM-DDTHH:MM:SS`. Write test cases for all of these.
+    - [x] Timezones are not supported, so any offset or Z must be ignored. For other timezones, error must be raised.
+    - [x] Time offsets are not supported, so `+00:00` can be ignored, but `+02:00` must raise error.
+- [x] Implement support in EdgeRules Portable for date and datetime strings as per above specification.
+  Implementation should be straightforward: if field expects date or datetime, and string is provided, then simply use
+  `parse_date_iso` or `parse_datetime_local` as implemented.
+- [x] Use `ParseErrorEnum::CannotConvertValue(ValueType, ValueType)` for parsing problems. Map parsing errors to
+  `PortableError` to properly display. Write tests for invalid date/datetime/duration/time strings to ensure proper
+  error handling.
+- [x] Implement support for duration and period strings in EdgeRules Portable format so user will be able to provide
+  duration and period values as strings.
+- [x] Implement support for time strings in EdgeRules Portable format so user will be able to provide time values as
+  strings.
+- [x] Add tests for duration, period, and time strings in EdgeRules Portable format.
+- [x] Make sure tests are passing: Rust and JavaScript.
+- [x] Review the code based on project priorities: Small WASM Size First, Small Stack Size Second, Performance Third,
+  Maintainability
+- [x] Mark tasks that are completed.
+
+## Phase 2
+
+- [x] Update `parse_datetime_local` to be `parse_datetime_flexible` that will support (write Rust tests for it):
+    - [x] `YYYY-MM-DDTHH:MM:SS` (no offset) - existing
+    - [x] `YYYY-MM-DDTHH:MM` (no offset) - new
+    - [x] `YYYY-MM-DDTHH:MM:SSZ` (UTC) - new
+    - [x] `YYYY-MM-DDTHH:MM:SS.sssZ` (UTC with subseconds) - new
+    - [x] `YYYY-MM-DDTHH:MM:SS+00:00` (UTC with offset) - new
+    - [x] `YYYY-MM-DDTHH:MM:SS.sss+00:00` (UTC with offset and subseconds) - new
+
+```rust
+use time::{OffsetDateTime, PrimitiveDateTime, macros::format_description};
+use time::format_description::well_known::Rfc3339;
+
+pub fn parse_datetime_flexible(s: &str) -> Option<OffsetDateTime> {
+    // 1. Try standard RFC 3339 (Handles "Z", "+02:00", and variable subseconds)
+    // This is the fastest and most common path for JSON.
+    if let Ok(odt) = OffsetDateTime::parse(s, &Rfc3339) {
+        return Some(odt);
+    }
+
+    // 2. Try Date + Time with offset but NO seconds (e.g., 2026-01-27T10:00+02:00)
+    let fmt_no_sec_offset = format_description!("[year]-[month]-[day]T[hour]:[minute][offset_hour]:[offset_minute]");
+    if let Ok(odt) = OffsetDateTime::parse(s, &fmt_no_sec_offset) {
+        return Some(odt);
+    }
+
+    // 3. Try Primitive (No Offset) - Fallback to UTC
+    // We try with seconds first, then without.
+    let fmt_prim = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+    let fmt_prim_no_sec = format_description!("[year]-[month]-[day]T[hour]:[minute]");
+
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim) {
+        return Some(dt.assume_utc());
+    }
+
+    if let Ok(dt) = PrimitiveDateTime::parse(s, &fmt_prim_no_sec) {
+        return Some(dt.assume_utc());
+    }
+
+    None
+}
+```
+
+- [x] Start using `OffsetDateTime` instead of `PrimitiveDateTime` internally in EdgeRules engine for datetime values.
+  This will allow future support for timezones if needed.
+- [x] Update documentation in `DATETIME_SPEC.md` to reflect any changes made during implementation.
+- [x] Perform code review and testing to ensure stability and correctness of the implementation.
+- [x] Mark tasks that are completed.

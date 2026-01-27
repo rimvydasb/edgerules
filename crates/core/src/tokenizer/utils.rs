@@ -1,5 +1,5 @@
 use crate::ast::token::EToken::{Expression, ParseError, Unparsed};
-use crate::ast::token::EUnparsedToken::Literal;
+use crate::ast::token::EUnparsedToken::LiteralToken;
 use crate::ast::token::{EToken, ExpressionEnum};
 use crate::test_support::EToken::Definition;
 use crate::typesystem::errors::ParseErrorEnum;
@@ -103,7 +103,7 @@ impl TokenChain {
     where
         F: FnOnce(&mut Self) -> Option<EToken>,
     {
-        if let Some(Unparsed(Literal(maybe))) = pop_fn(self) {
+        if let Some(Unparsed(LiteralToken(maybe))) = pop_fn(self) {
             return if maybe == expected {
                 Ok(maybe.into_owned())
             } else {
@@ -350,12 +350,7 @@ impl<'a> CharStream<'a> {
 
     pub fn peek_skip_whitespace(&self) -> Option<char> {
         let mut iter = self.iter.clone();
-        while let Some(c) = iter.next() {
-            if c != ' ' && c != '\t' && c != '\r' {
-                return Some(c);
-            }
-        }
-        None
+        iter.find(|&c| c != ' ' && c != '\t' && c != '\r')
     }
 }
 
