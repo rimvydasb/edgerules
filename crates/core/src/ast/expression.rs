@@ -2,7 +2,7 @@ use crate::ast::context::context_object::ContextObject;
 use crate::ast::context::context_object_builder::ContextObjectBuilder;
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::functions::function_date::{
-    parse_date_iso, parse_datetime_local, parse_duration_iso8601, parse_period_iso8601,
+    parse_date_iso, parse_datetime_flexible, parse_duration_iso8601, parse_period_iso8601,
     parse_time_local,
 };
 use crate::ast::token::ExpressionEnum::*;
@@ -151,7 +151,7 @@ pub(crate) fn cast_value_to_type(
                         .map(|d| V::DateValue(ValueOrSv::Value(d))),
                     ValueType::TimeType => parse_time_local(s)
                         .map(|t| V::TimeValue(ValueOrSv::Value(t))),
-                    ValueType::DateTimeType => parse_datetime_local(s)
+                    ValueType::DateTimeType => parse_datetime_flexible(s)
                         .map(|dt| V::DateTimeValue(ValueOrSv::Value(dt))),
                     ValueType::DurationType => parse_duration_iso8601(s)
                         .ok()

@@ -350,12 +350,7 @@ impl<'a> CharStream<'a> {
 
     pub fn peek_skip_whitespace(&self) -> Option<char> {
         let mut iter = self.iter.clone();
-        while let Some(c) = iter.next() {
-            if c != ' ' && c != '\t' && c != '\r' {
-                return Some(c);
-            }
-        }
-        None
+        iter.find(|&c| c != ' ' && c != '\t' && c != '\r')
     }
 }
 

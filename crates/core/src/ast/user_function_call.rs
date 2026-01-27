@@ -193,7 +193,9 @@ impl StaticLink for UserFunctionCall {
             let return_key = intern_field_name("return");
             let hidden_return = intern_field_name(RETURN_EXPRESSION);
             let mut rt: Option<ValueType> = None;
-            if let Ok(_) = linker::link_parts(Rc::clone(&function_body_ctx)) {
+
+            // @Todo: investigate if is_ok does not hide important linking errors
+            if linker::link_parts(Rc::clone(&function_body_ctx)).is_ok() {
                 let borrowed_body = function_body_ctx.borrow();
                 if let Some(entry) = borrowed_body
                     .expressions

@@ -286,11 +286,11 @@ fn test_binary_validation() {
 
     // Date
     let code = "{ value: calendarDiff(1) }";
-    parse_error_contains(&code, &["Binary function 'calendarDiff' expected 2 arguments"]);
+    parse_error_contains(code, &["Binary function 'calendarDiff' expected 2 arguments"]);
     
     let code = "{ value: calendarDiff(date('2021-01-01'), 1) }";
     link_error_location(
-        &code,
+        code,
         &["value"],
         "calendarDiff(date('2021-01-01'),1)",
         LinkingErrorEnum::TypesNotCompatible(

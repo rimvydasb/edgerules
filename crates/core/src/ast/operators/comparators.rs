@@ -209,11 +209,13 @@ impl ComparatorOperator {
         left.partial_cmp(right)
     }
 
-    fn date_datetime_ordering(date: &time::Date, datetime: &time::PrimitiveDateTime) -> Ordering {
-        time::PrimitiveDateTime::new(*date, time::Time::MIDNIGHT).cmp(datetime)
+    fn date_datetime_ordering(date: &time::Date, datetime: &time::OffsetDateTime) -> Ordering {
+        time::PrimitiveDateTime::new(*date, time::Time::MIDNIGHT)
+            .assume_utc()
+            .cmp(datetime)
     }
 
-    fn datetime_date_ordering(datetime: &time::PrimitiveDateTime, date: &time::Date) -> Ordering {
+    fn datetime_date_ordering(datetime: &time::OffsetDateTime, date: &time::Date) -> Ordering {
         Self::date_datetime_ordering(date, datetime).reverse()
     }
 

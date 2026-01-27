@@ -1,6 +1,5 @@
 mod utilities;
 use utilities::*;
-use edge_rules::test_support::*;
 
 #[test]
 fn test_complex_discount_calculation() {

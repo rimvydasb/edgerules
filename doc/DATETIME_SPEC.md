@@ -242,13 +242,13 @@ ISO date and datetime strings.
 
 ## Phase 2
 
-- [ ] Update `parse_datetime_local` to be `parse_datetime_flexible` that will support (write Rust tests for it):
-    - [ ] `YYYY-MM-DDTHH:MM:SS` (no offset) - existing
-    - [ ] `YYYY-MM-DDTHH:MM` (no offset) - new
-    - [ ] `YYYY-MM-DDTHH:MM:SSZ` (UTC) - new
-    - [ ] `YYYY-MM-DDTHH:MM:SS.sssZ` (UTC with subseconds) - new
-    - [ ] `YYYY-MM-DDTHH:MM:SS+00:00` (UTC with offset) - new
-    - [ ] `YYYY-MM-DDTHH:MM:SS.sss+00:00` (UTC with offset and subseconds) - new
+- [x] Update `parse_datetime_local` to be `parse_datetime_flexible` that will support (write Rust tests for it):
+    - [x] `YYYY-MM-DDTHH:MM:SS` (no offset) - existing
+    - [x] `YYYY-MM-DDTHH:MM` (no offset) - new
+    - [x] `YYYY-MM-DDTHH:MM:SSZ` (UTC) - new
+    - [x] `YYYY-MM-DDTHH:MM:SS.sssZ` (UTC with subseconds) - new
+    - [x] `YYYY-MM-DDTHH:MM:SS+00:00` (UTC with offset) - new
+    - [x] `YYYY-MM-DDTHH:MM:SS.sss+00:00` (UTC with offset and subseconds) - new
 
 ```rust
 use time::{OffsetDateTime, PrimitiveDateTime, macros::format_description};
@@ -284,7 +284,8 @@ pub fn parse_datetime_flexible(s: &str) -> Option<OffsetDateTime> {
 }
 ```
 
-- [ ] Start using `OffsetDateTime` instead of `PrimitiveDateTime` internally in EdgeRules engine for datetime values.
+- [x] Start using `OffsetDateTime` instead of `PrimitiveDateTime` internally in EdgeRules engine for datetime values.
   This will allow future support for timezones if needed.
-- [ ] Update documentation in `DATETIME_SPEC.md` to reflect any changes made during implementation.
-- [ ] Perform code review and testing to ensure stability and correctness of the implementation.
+- [x] Update documentation in `DATETIME_SPEC.md` to reflect any changes made during implementation.
+- [x] Perform code review and testing to ensure stability and correctness of the implementation.
+- [x] Mark tasks that are completed.

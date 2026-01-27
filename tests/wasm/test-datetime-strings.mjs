@@ -16,6 +16,7 @@ describe('Decision Service Date/Time Strings', () => {
                 "@type": "type",
                 "date": "<date>",
                 "datetime": "<datetime>",
+                "datetimeWithOffset": "<datetime>",
                 "time": "<time>",
                 "duration": "<duration>",
                 "period": "<period>"
@@ -26,6 +27,7 @@ describe('Decision Service Date/Time Strings', () => {
                 "result": {
                     "isDate": "r.date = date('2026-01-26')",
                     "isDateTime": "r.datetime = datetime('2026-01-26T21:33:35')",
+                    "isDateTimeWithOffset": "r.datetimeWithOffset = datetime('2026-01-26T21:33:35+02:00')",
                     "isTime": "r.time = time('12:00:00')",
                     "isDuration": "r.duration = duration('P1DT1H')",
                     "isPeriod": "r.period = period('P1Y2M')"
@@ -66,6 +68,7 @@ describe('Decision Service Date/Time Strings', () => {
         const req = {
             date: "2026-01-26",
             datetime: "2026-01-26T21:33:35",
+            datetimeWithOffset: "2026-01-26T21:33:35+02:00",
             time: "12:00:00",
             duration: "P1DT1H",
             period: "P1Y2M"
@@ -74,15 +77,17 @@ describe('Decision Service Date/Time Strings', () => {
         const res = service.execute('check', req);
         assert.equal(res.result.isDate, true);
         assert.equal(res.result.isDateTime, true);
+        assert.equal(res.result.isDateTimeWithOffset, true);
         assert.equal(res.result.isTime, true);
         assert.equal(res.result.isDuration, true);
         assert.equal(res.result.isPeriod, true);
     });
 
-    it('handles datetime string with Z (ignored as per spec)', () => {
+    it('handles datetime string with Z', () => {
         const req = {
             date: "2026-01-26",
             datetime: "2026-01-26T21:33:35Z",
+            datetimeWithOffset: "2026-01-26T21:33:35+02:00",
             time: "12:00:00",
             duration: "P1DT1H",
             period: "P1Y2M"
@@ -92,10 +97,11 @@ describe('Decision Service Date/Time Strings', () => {
         assert.equal(res.result.isDateTime, true);
     });
 
-    it('handles datetime string with +00:00 (ignored as per spec)', () => {
+    it('handles datetime string with +00:00', () => {
         const req = {
             date: "2026-01-26",
             datetime: "2026-01-26T21:33:35+00:00",
+            datetimeWithOffset: "2026-01-26T21:33:35+02:00",
             time: "12:00:00",
             duration: "P1DT1H",
             period: "P1Y2M"
@@ -105,19 +111,17 @@ describe('Decision Service Date/Time Strings', () => {
         assert.equal(res.result.isDateTime, true);
     });
     
-    it('throws error for invalid datetime timezone offset', () => {
+    it('supports non-zero datetime timezone offset', () => {
          const req = {
             date: "2026-01-26",
-            datetime: "2026-01-26T21:33:35+02:00", // Only Z or +00:00 allowed/ignored
+            datetime: "2026-01-26T21:33:35",
+            datetimeWithOffset: "2026-01-26T21:33:35+02:00",
             time: "12:00:00",
             duration: "P1DT1H",
             period: "P1Y2M"
         };
         
-        assert.throws(() => {
-            service.execute('check', req);
-        }, (err) => {
-            return /Cannot convert value/i.test(err.message);
-        }); // Expect error about conversion failure
+        const res = service.execute('check', req);
+        assert.equal(res.result.isDateTimeWithOffset, true);
     });
 });
