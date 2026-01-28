@@ -60,8 +60,8 @@ pub fn evaluate_inner(input: &JsValue, field: Option<String>) -> Result<JsValue,
             service.append_source(&code).map_err(PortableError::from)?;
             execute_or_evaluate(service, field)
         } else {
-            if field.is_some() {
-                return Err(PortableError::EdgeRulesAPIError(ContextQueryErrorEnum::ContextNotFoundError(field)));
+            if let Some(f) = field {
+                return Err(PortableError::EdgeRulesAPIError(ContextQueryErrorEnum::ContextNotFoundError(f)));
             }
             let mut service = EdgeRulesModel::new();
             let runtime = service.to_runtime_snapshot().map_err(PortableError::from)?;

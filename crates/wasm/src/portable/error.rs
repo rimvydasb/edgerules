@@ -253,40 +253,15 @@ impl PortableError {
             }
             PortableError::SerializationError(key, violation) => JsBuilder::new()
                 .add_type("SerializationError")
-                .add_str("message", &self.to_string())
                 .add_str("key", key.as_str())
                 .add_str("violation", violation.as_str())
                 .into_js(),
             PortableError::SchemaViolation(key, violation) => JsBuilder::new()
                 .add_type("SchemaViolation")
-                .add_str("message", &self.to_string())
                 .add_str("key", key.as_str())
                 .add_str("violation", violation.as_str())
                 .into_js(),
         }
-    }
-}
-
-impl Display for PortableError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PortableError::EdgeRulesAPIError(err) => write!(f, "{}", err),
-            PortableError::LinkingStage(err) => write!(f, "{}", err),
-            PortableError::ParsingStage(err) => write!(f, "{}", err),
-            PortableError::RuntimeStage(err) => write!(f, "{}", err),
-            PortableError::SerializationError(key, violation) => {
-                write!(f, "Serialization error at {}: {}", key, violation)
-            }
-            PortableError::SchemaViolation(key, violation) => {
-                write!(f, "Schema violation at {}: {}", key, violation)
-            }
-        }
-    }
-}
-
-impl From<PortableError> for String {
-    fn from(v: PortableError) -> Self {
-        v.to_string()
     }
 }
 

@@ -94,7 +94,9 @@ describe('Unhappy Paths & Error Handling', () => {
 
     it('evaluate expression with field throws', () => {
         const error = getError(() => wasm.DecisionEngine.evaluate('1 + 1', 'someField'));
-        assert.match(error.message, /Schema violation at path: Not supported/);
+        assert.deepEqual(error, {
+            message: "Context 'someField' not found"
+        });
     });
 
     describe('Runtime Location Errors', () => {
