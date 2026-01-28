@@ -76,10 +76,10 @@ pub fn serialize_model(model: &EdgeRulesModel) -> Result<JsValue, PortableError>
 
 fn extract_metadata(obj: &JsValue) -> Metadata {
     let mut m = Metadata::default();
-    if let Some(v) = get_prop(obj, "@version").and_then(|v| v.as_string()) {
+    if let Some(v) = get_prop(obj, PortableObjectKey::Version.as_str()).and_then(|v| v.as_string()) {
         m.version = Some(v);
     }
-    if let Some(v) = get_prop(obj, "@model_name").and_then(|v| v.as_string()) {
+    if let Some(v) = get_prop(obj, PortableObjectKey::ModelName.as_str()).and_then(|v| v.as_string()) {
         m.model_name = Some(v);
     }
     m
@@ -88,10 +88,10 @@ fn extract_metadata(obj: &JsValue) -> Metadata {
 fn attach_metadata(obj: &JsValue, metadata: Option<&Metadata>) -> Result<(), PortableError> {
     if let Some(m) = metadata {
         if let Some(v) = &m.version {
-            let _ = set_prop(obj, "@version", &JsValue::from_str(v));
+            let _ = set_prop(obj, PortableObjectKey::Version.as_str(), &JsValue::from_str(v));
         }
         if let Some(v) = &m.model_name {
-            let _ = set_prop(obj, "@model_name", &JsValue::from_str(v));
+            let _ = set_prop(obj, PortableObjectKey::ModelName.as_str(), &JsValue::from_str(v));
         }
     }
     Ok(())
@@ -503,7 +503,9 @@ fn parse_context_builder(obj: &JsValue, skip_metadata: bool) -> Result<ContextOb
             continue;
         }
         // Also skip metadata fields if we just extracted them
-        if !skip_metadata && (name == "@version" || name == "@model_name") {
+        if !skip_metadata
+            && (name == PortableObjectKey::Version.as_str() || name == PortableObjectKey::ModelName.as_str())
+        {
             continue;
         }
 
