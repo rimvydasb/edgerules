@@ -23,6 +23,7 @@ use std::collections::HashSet;
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct FunctionDefinition {
     pub name: String,
+    // @Todo: body, that is ContextObject, already contains parameters - do we need arguments there?
     pub arguments: Vec<FormalParameter>,
     /// Function body later is used as a context object for execution context so it is Rc.
     /// RefCell is added only for linking purposes. Better to remove later.
@@ -44,6 +45,8 @@ impl FunctionDefinition {
                 )));
             }
         }
+
+        body.borrow_mut().parameters = arguments.clone();
 
         Ok(FunctionDefinition { name, arguments, body })
     }

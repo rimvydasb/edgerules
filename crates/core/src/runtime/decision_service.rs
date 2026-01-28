@@ -82,6 +82,19 @@ impl DecisionService {
 
     pub fn from_model(mut model: EdgeRulesModel) -> Result<Self, EvalError> {
         let runtime = model.to_runtime_snapshot()?;
+
+        // Link all root functions to ensure they are valid entry points.
+        // Any root function can be executed, so we must ensure they are free of static errors.
+        {
+            let ctx = runtime.static_tree.borrow();
+            for entry in ctx.metaphors.values() {
+                let borrowed_entry = entry.borrow();
+                if let Ok(body) = borrowed_entry.function_definition.get_body() {
+                    link_parts(Rc::clone(&body)).map_err(EvalError::from)?;
+                }
+            }
+        }
+
         Ok(Self {
             model: Rc::new(RefCell::new(model)),
             static_context: Rc::clone(&runtime.static_tree),
