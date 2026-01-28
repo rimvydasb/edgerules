@@ -70,18 +70,75 @@ impl JsBuilder {
 }
 
 pub enum PortableObjectKey {
-    Method = "@method",
-    Arguments = "@arguments",
-    Ref = "@ref",
-    Parameters = "@parameters",
-    Version = "@version",
-    ModelName = "@model_name",
+    Method,
+    Arguments,
+    Ref,
+    Parameters,
+    Version,
+    ModelName,
+    Type,
+    Root,
+    Invocation,
+    Function,
+    Value,
+    Custom(String),
+}
+
+impl PortableObjectKey {
+    pub fn as_str(&self) -> &str {
+        match self {
+            PortableObjectKey::Method => "@method",
+            PortableObjectKey::Arguments => "@arguments",
+            PortableObjectKey::Ref => "@ref",
+            PortableObjectKey::Parameters => "@parameters",
+            PortableObjectKey::Version => "@version",
+            PortableObjectKey::ModelName => "@model_name",
+            PortableObjectKey::Type => "@type",
+            PortableObjectKey::Root => "(root)",
+            PortableObjectKey::Invocation => "invocation",
+            PortableObjectKey::Function => "function",
+            PortableObjectKey::Value => "value",
+            PortableObjectKey::Custom(s) => s.as_str(),
+        }
+    }
+}
+
+impl AsRef<str> for PortableObjectKey {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Display for PortableObjectKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 pub enum SchemaViolationType {
     MissingRequiredField,
-    UnexpectedField,
-    InvalidFieldType
+    InvalidFieldType,
+    InvalidFormat,
+    Empty,
+    NotSupported,
+}
+
+impl SchemaViolationType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SchemaViolationType::MissingRequiredField => "Missing required field",
+            SchemaViolationType::InvalidFieldType => "Invalid field type",
+            SchemaViolationType::InvalidFormat => "Invalid format",
+            SchemaViolationType::Empty => "Empty",
+            SchemaViolationType::NotSupported => "Not supported",
+        }
+    }
+}
+
+impl Display for SchemaViolationType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
@@ -90,28 +147,21 @@ pub enum PortableError {
     LinkingStage(LinkingError),
     ParsingStage(ParseErrors),
     RuntimeStage(RuntimeError),
-
-    // @Todo: use it where appropriate
     SerializationError(PortableObjectKey, SchemaViolationType),
-
-    SchemaViolation(PortableObjectKey),
-
-    // @Todo: reduce usage of Simple by replacing with structured errors from PortableError::*
-    Simple(String),
+    SchemaViolation(PortableObjectKey, SchemaViolationType),
 }
 
 impl PortableError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self::Simple(message.into())
-    }
 
     pub fn to_js(&self) -> JsValue {
         match self {
-            PortableError::EdgeRulesAPIError(err) => JsBuilder::new().add_str("message", &err.to_string()).into_js(),
-            PortableError::Simple(msg) => JsBuilder::new().add_str("message", msg).into_js(),
-            PortableError::ParsingStage(err) => {
-                JsBuilder::new().add_str("stage", "parse").add_str("message", &err.to_string()).into_js()
-            }
+            PortableError::EdgeRulesAPIError(err) => JsBuilder::new()
+                .add_str("message", &err.to_string())
+                .into_js(),
+            PortableError::ParsingStage(err) => JsBuilder::new()
+                .add_str("stage", "parse")
+                .add_str("message", &err.to_string())
+                .into_js(),
             PortableError::RuntimeStage(err) => {
                 let builder = JsBuilder::new()
                     .add_str("stage", "runtime")
@@ -201,6 +251,18 @@ impl PortableError {
                 };
                 builder.add_val("error", &error_obj.into()).into_js()
             }
+            PortableError::SerializationError(key, violation) => JsBuilder::new()
+                .add_type("SerializationError")
+                .add_str("message", &self.to_string())
+                .add_str("key", key.as_str())
+                .add_str("violation", violation.as_str())
+                .into_js(),
+            PortableError::SchemaViolation(key, violation) => JsBuilder::new()
+                .add_type("SchemaViolation")
+                .add_str("message", &self.to_string())
+                .add_str("key", key.as_str())
+                .add_str("violation", violation.as_str())
+                .into_js(),
         }
     }
 }
@@ -212,7 +274,12 @@ impl Display for PortableError {
             PortableError::LinkingStage(err) => write!(f, "{}", err),
             PortableError::ParsingStage(err) => write!(f, "{}", err),
             PortableError::RuntimeStage(err) => write!(f, "{}", err),
-            PortableError::Simple(msg) => write!(f, "{}", msg),
+            PortableError::SerializationError(key, violation) => {
+                write!(f, "Serialization error at {}: {}", key, violation)
+            }
+            PortableError::SchemaViolation(key, violation) => {
+                write!(f, "Schema violation at {}: {}", key, violation)
+            }
         }
     }
 }
@@ -231,13 +298,13 @@ impl From<ContextQueryErrorEnum> for PortableError {
 
 impl From<DuplicateNameError> for PortableError {
     fn from(err: DuplicateNameError) -> Self {
-        Self::new(err.to_string())
+        PortableError::EdgeRulesAPIError(ContextQueryErrorEnum::DuplicateNameError(err))
     }
 }
 
 impl From<ParseErrorEnum> for PortableError {
     fn from(err: ParseErrorEnum) -> Self {
-        Self::new(err.to_string())
+        PortableError::ParsingStage(ParseErrors::from(err))
     }
 }
 
@@ -249,7 +316,10 @@ impl From<ParseErrors> for PortableError {
 
 impl From<EvalError> for PortableError {
     fn from(err: EvalError) -> Self {
-        Self::new(err.to_string())
+        match err {
+            EvalError::FailedParsing(errors) => PortableError::ParsingStage(errors),
+            EvalError::FailedExecution(error) => PortableError::RuntimeStage(error),
+        }
     }
 }
 

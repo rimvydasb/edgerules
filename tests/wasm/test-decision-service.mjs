@@ -490,15 +490,18 @@ describe('Decision Service', () => {
 
     describe('Unhappy Paths', () => {
         it('throws on invalid logic during creation', () => {
+            let service = null;
             try {
-                new wasm.DecisionService({
+                service = new wasm.DecisionService({
                     applicationDecisions: {
+                        // should trigger linking error due to invalid expression
                         '@type': 'function', '@parameters': {age: 'number'}, isEligible: 'age >= 18 + "invalid_string"'
                     }
                 });
             } catch (e) {
                 assert.ok(e, 'Should have thrown an error');
             }
+            assert.equal(service, null, 'Service should not have been created');
         });
     });
 

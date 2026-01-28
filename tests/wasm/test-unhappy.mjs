@@ -94,7 +94,7 @@ describe('Unhappy Paths & Error Handling', () => {
 
     it('evaluate expression with field throws', () => {
         const error = getError(() => wasm.DecisionEngine.evaluate('1 + 1', 'someField'));
-        assert.match(error.message, /Field path is not applicable/);
+        assert.match(error.message, /Schema violation at path: Not supported/);
     });
 
     describe('Runtime Location Errors', () => {
@@ -205,7 +205,7 @@ describe('Abnormal Path Handling', () => {
     describe('service.get(path)', () => {
         it('throws on empty path', () => {
             const error = getError(() => service.get(''));
-            assert.match(error.message, /Path cannot be empty/);
+            assert.match(error.message, /Field path is empty/);
         });
 
         it('throws on path with empty segments (..)', () => {

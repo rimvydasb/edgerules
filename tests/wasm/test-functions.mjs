@@ -29,7 +29,7 @@ describe('Function Execution via Evaluate', () => {
             wasm.DecisionEngine.evaluate(code, 'myMainWithArgs');
             assert.fail('Should have thrown argument error');
         } catch (e) {
-            assert.match(e.message, /requires arguments/);
+            assert.match(e.message, /Schema violation at function: Missing required field/);
         }
     });
 
@@ -41,7 +41,7 @@ describe('Function Execution via Evaluate', () => {
             wasm.DecisionEngine.evaluate(code, 'add');
             assert.fail('Should have thrown');
         } catch (e) {
-            assert.match(e.message, /requires arguments/);
+            assert.match(e.message, /Schema violation at function: Missing required field/);
         }
     });
 
