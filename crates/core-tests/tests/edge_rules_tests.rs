@@ -160,20 +160,29 @@ impl TestServiceBuilder {
     }
 }
 
+/// Tests basic EdgeRulesModel operations: parsing, linking, and evaluation.
+///
+/// # Test Cases
+/// - Append and evaluate multiple sources
+/// - Parse error on invalid syntax
+/// - Basic arithmetic evaluation
 #[test]
 fn test_service() -> Result<(), EvalError> {
     init_logger();
 
-    {
-        let mut service = EdgeRulesModel::new();
-        service.append_source("value: 2 + 2")?;
-        service.append_source("value: 2 + 3").expect("append second expression");
+    // Arrange: Multiple source expressions
+    let mut edge_rules_model = EdgeRulesModel::new();
+    edge_rules_model.append_source("value: 2 + 2")?;
+    edge_rules_model.append_source("value: 2 + 3").expect("append second expression");
 
-        let runtime = service.to_runtime()?;
-        let result = runtime.evaluate_field("value")?;
-        assert_eq!(result, ValueEnum::NumberValue(Int(5)));
-    }
+    // Act: Build runtime and evaluate
+    let runtime = edge_rules_model.to_runtime()?;
+    let evaluated_result = runtime.evaluate_field("value")?;
 
+    // Assert: Last expression wins
+    assert_eq!(evaluated_result, ValueEnum::NumberValue(Int(5)));
+
+    // Remaining test assertions using TestServiceBuilder
     test_code("value")
         .expect_parse_error(UnexpectedToken(Box::new(EToken::Unparsed(EUnparsedToken::CommaToken)), None));
     test_code("value: 2 + 2").expect_num("value", Int(4));
@@ -184,57 +193,77 @@ fn test_service() -> Result<(), EvalError> {
     Ok(())
 }
 
+/// Tests that runtime snapshots can be built with existing state and updated incrementally.
 #[test]
 fn test_service_evaluate_field_with_existing_state() -> Result<(), EvalError> {
     init_logger();
 
-    let mut service = EdgeRulesModel::new();
-    service.append_source("{ value: 3 }")?;
-    let runtime = service.to_runtime_snapshot()?;
-    let result = runtime.evaluate_field("value")?;
-    assert_eq!(result.to_string(), "3");
+    // Arrange: Initial model with value: 3
+    let mut edge_rules_model = EdgeRulesModel::new();
+    edge_rules_model.append_source("{ value: 3 }")?;
 
-    service.append_source("value: 2 + 2").expect("append new expression");
+    // Act & Assert: Initial evaluation
+    let initial_runtime = edge_rules_model.to_runtime_snapshot()?;
+    let initial_result = initial_runtime.evaluate_field("value")?;
+    assert_eq!(initial_result.to_string(), "3");
 
-    let runtime = service.to_runtime_snapshot()?;
-    let updated = runtime.evaluate_field("value")?;
-    assert_eq!(updated.to_string(), "4");
+    // Act: Update with new expression (value: 2 + 2)
+    edge_rules_model.append_source("value: 2 + 2").expect("append new expression");
+    let updated_runtime = edge_rules_model.to_runtime_snapshot()?;
+    let updated_result = updated_runtime.evaluate_field("value")?;
 
-    service.append_source("extra: value + 2")?;
-    let runtime = service.to_runtime_snapshot()?;
-    let extra = runtime.evaluate_field("extra")?;
-    assert_eq!(extra.to_string(), "6");
+    // Assert: New value reflects update
+    assert_eq!(updated_result.to_string(), "4");
+
+    // Act: Add dependent field (extra: value + 2)
+    edge_rules_model.append_source("extra: value + 2")?;
+    let extended_runtime = edge_rules_model.to_runtime_snapshot()?;
+    let extra_result = extended_runtime.evaluate_field("extra")?;
+
+    // Assert: Dependent field uses updated value
+    assert_eq!(extra_result.to_string(), "6");
 
     Ok(())
 }
 
+/// Tests evaluation of nested field paths like "calendar.config.start".
 #[test]
 fn test_service_evaluate_field_with_path_depth() -> Result<(), EvalError> {
     init_logger();
 
-    let mut service = EdgeRulesModel::new();
-    service.append_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
+    // Arrange: Model with nested structure
+    let mut edge_rules_model = EdgeRulesModel::new();
+    edge_rules_model.append_source("{ calendar: { config: { start: 7 }; sub: { inner: { value: 42 } } } }")?;
 
-    let runtime = service.to_runtime_snapshot()?;
-    let out1 = runtime.evaluate_field("calendar.config.start")?;
-    assert_eq!(out1.to_string(), "7");
+    // Act: Build runtime snapshot
+    let runtime = edge_rules_model.to_runtime_snapshot()?;
 
-    let out2 = runtime.evaluate_field("calendar.sub.inner.value")?;
-    assert_eq!(out2.to_string(), "42");
+    // Assert: Nested path evaluation works
+    let nested_config_start = runtime.evaluate_field("calendar.config.start")?;
+    assert_eq!(nested_config_start.to_string(), "7");
 
-    let duplicate = service.append_source("{ calendar: { config: { start: 7; end: start + 5 } } }");
-    let errors = duplicate.expect_err("duplicate calendar should fail");
-    let first_error = errors.errors().first().expect("expected duplicate calendar error");
+    let nested_inner_value = runtime.evaluate_field("calendar.sub.inner.value")?;
+    assert_eq!(nested_inner_value.to_string(), "42");
+
+    // Act: Attempt to add duplicate calendar (should fail)
+    let duplicate_calendar_result =
+        edge_rules_model.append_source("{ calendar: { config: { start: 7; end: start + 5 } } }");
+    let parse_errors = duplicate_calendar_result.expect_err("duplicate calendar should fail");
+    let first_error = parse_errors.errors().first().expect("expected duplicate calendar error");
     assert!(first_error.to_string().contains("calendar"));
 
-    let runtime = service.to_runtime_snapshot()?;
-    let start = runtime.evaluate_field("calendar.config.start")?;
-    assert_eq!(start.to_string(), "7");
+    // Assert: Original model unchanged after failed append
+    let unchanged_runtime = edge_rules_model.to_runtime_snapshot()?;
+    let unchanged_start_value = unchanged_runtime.evaluate_field("calendar.config.start")?;
+    assert_eq!(unchanged_start_value.to_string(), "7");
 
     // @Todo: this test is incorrect, `calendar.config.end` cannot be linked and link error should occur
     // @Todo: find and fix if self.path.len() > 1 && is_unattached_root {...
-    let end = runtime.evaluate_field("calendar.config.end")?;
-    assert_eq!(end.to_string(), ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string());
+    let missing_end_value = unchanged_runtime.evaluate_field("calendar.config.end")?;
+    assert_eq!(
+        missing_end_value.to_string(),
+        ValueEnum::NumberValue(NumberEnum::SV(Missing("end".to_string()))).to_string()
+    );
 
     Ok(())
 }

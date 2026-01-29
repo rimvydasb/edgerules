@@ -3,6 +3,12 @@ use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
 
+/// Builds a request value from a source string for use in decision service tests.
+///
+/// # Example
+/// ```ignore
+/// let request_value = build_request_value("{ amount: 10 }");
+/// ```
 fn build_request_value(source: &str) -> ValueEnum {
     let mut model = EdgeRulesModel::new();
     let wrapped = format!("{{ requestData: {} }}", source.trim());
@@ -11,6 +17,7 @@ fn build_request_value(source: &str) -> ValueEnum {
     runtime.evaluate_field("requestData").expect("request field should evaluate")
 }
 
+/// Normalizes a ValueEnum to a string without whitespace for assertion comparisons.
 fn value_to_string(value: &ValueEnum) -> String {
     value.to_string().replace(['\n', ' '], "")
 }
@@ -43,9 +50,11 @@ fn set_invocation_invokes_function() {
     assert!(rendered.contains("doubled:14"), "expected invocation to call compute(), got {}", rendered);
 }
 
+/// Tests that DecisionService.execute() returns a properly calculated response object.
 #[test]
 fn execute_returns_response_object() {
-    let model = r#"
+    // Arrange: Define a decision function that doubles the input amount
+    let decision_model_source = r#"
     {
         type RequestType: { amount: <number> }
         func decide(request: RequestType): {
@@ -54,36 +63,61 @@ fn execute_returns_response_object() {
     }
     "#;
 
-    let mut service = DecisionService::from_source(model).expect("service from source");
-    let request = build_request_value("{ amount: 10 }");
+    let mut decision_service = DecisionService::from_source(decision_model_source).expect("service from source");
+    let request_value = build_request_value("{ amount: 10 }");
 
-    let response = service.execute("decide", request).expect("decision service should execute");
-    let rendered = value_to_string(&response);
-    assert!(rendered.contains("decision:20"), "response should include calculated decision, got: {}", rendered);
+    // Act: Execute the decision function with the request
+    let response = decision_service.execute("decide", request_value).expect("decision service should execute");
+
+    // Assert: Response contains the calculated decision (10 * 2 = 20)
+    let rendered_response = value_to_string(&response);
+    assert!(
+        rendered_response.contains("decision:20"),
+        "response should include calculated decision, got: {}",
+        rendered_response
+    );
 }
 
+/// Tests that DecisionService.execute() returns an error when the method is not defined.
 #[test]
 fn execute_errors_when_method_is_missing() {
-    let mut service = DecisionService::from_source("{ helper: 1 }").expect("service with helper only");
-    let request = build_request_value("{ amount: 5 }");
+    // Arrange: Create a service without the requested method
+    let mut decision_service = DecisionService::from_source("{ helper: 1 }").expect("service with helper only");
+    let request_value = build_request_value("{ amount: 5 }");
 
-    let err = service.execute("unknownMethod", request).unwrap_err();
-    assert!(err.to_string().to_lowercase().contains("not found"), "expected missing method error, got: {}", err);
+    // Act: Attempt to execute a non-existent method
+    let execution_error = decision_service.execute("unknownMethod", request_value).unwrap_err();
+
+    // Assert: Error message indicates missing method
+    assert!(
+        execution_error.to_string().to_lowercase().contains("not found"),
+        "expected missing method error, got: {}",
+        execution_error
+    );
 }
 
+/// Tests that DecisionService.execute() returns an error when the method has wrong arity.
 #[test]
 fn execute_errors_when_method_has_wrong_arity() {
-    let model = r#"
+    // Arrange: Define a function with no arguments (invalid for decision service)
+    let zero_arity_model = r#"
     {
         func invalid(): { result: true }
     }
     "#;
 
-    let mut service = DecisionService::from_source(model).expect("service with invalid method");
-    let request = build_request_value("{ amount: 5 }");
+    let mut decision_service = DecisionService::from_source(zero_arity_model).expect("service with invalid method");
+    let request_value = build_request_value("{ amount: 5 }");
 
-    let err = service.execute("invalid", request).unwrap_err();
-    assert!(err.to_string().to_lowercase().contains("exactly one argument"), "expected arity error, got: {}", err);
+    // Act: Attempt to execute a function that takes no arguments
+    let arity_error = decision_service.execute("invalid", request_value).unwrap_err();
+
+    // Assert: Error message indicates arity mismatch
+    assert!(
+        arity_error.to_string().to_lowercase().contains("exactly one argument"),
+        "expected arity error, got: {}",
+        arity_error
+    );
 }
 
 #[cfg(feature = "mutable_decision_service")]
@@ -152,9 +186,11 @@ fn execute_relinks_after_model_updates() {
     assert!(value_to_string(&second).contains("value:13"), "expected updated decide result, got {}", second);
 }
 
+/// Tests that DecisionService can be initialized from an existing context tree.
 #[test]
 fn from_context_reuses_provided_tree() {
-    let model = r#"
+    // Arrange: Build a model and extract its static context tree
+    let decision_model_source = r#"
     {
         func decide(request): {
             value: request.amount * 3
@@ -162,20 +198,25 @@ fn from_context_reuses_provided_tree() {
     }
     "#;
 
-    let mut builder = EdgeRulesModel::new();
-    builder.append_source(model).expect("seed model should parse");
-    let runtime = builder.to_runtime().expect("seed model should link");
-    let context = Rc::clone(&runtime.static_tree);
+    let mut model_builder = EdgeRulesModel::new();
+    model_builder.append_source(decision_model_source).expect("seed model should parse");
+    let initial_runtime = model_builder.to_runtime().expect("seed model should link");
+    let shared_context_tree = Rc::clone(&initial_runtime.static_tree);
 
-    let mut service = DecisionService::from_context(context).expect("service from context");
-    let request = build_request_value("{ amount: 7 }");
-    let response = service.execute("decide", request).expect("execute from context");
+    // Act: Create decision service from the extracted context
+    let mut decision_service = DecisionService::from_context(shared_context_tree).expect("service from context");
+    let request_value = build_request_value("{ amount: 7 }");
+    let response = decision_service.execute("decide", request_value).expect("execute from context");
+
+    // Assert: Calculation uses the shared context (7 * 3 = 21)
     assert!(value_to_string(&response).contains("value:21"), "expected context-driven result, got {}", response);
 }
 
+/// Tests that incompatible types in function definitions cause initialization failure.
 #[test]
 fn test_incompatible_types_in_function_fails_at_runtime() {
-    let model = r#"
+    // Arrange: Model with type-incompatible expression in isEligible function
+    let model_with_type_error = r#"
     {
         func valid(val: number): { result: val > 0 }
         func isEligible(age: number): {
@@ -184,16 +225,17 @@ fn test_incompatible_types_in_function_fails_at_runtime() {
     }
     "#;
 
-    // The service must not initialize if any root function has linking errors.
-    let result = DecisionService::from_source(model);
+    // Act: Attempt to create service from model with type error
+    let initialization_result = DecisionService::from_source(model_with_type_error);
 
-    match result {
-        Err(EvalError::FailedExecution(runtime_err)) => {
-            let err_str = runtime_err.to_string();
+    // Assert: Service must not initialize if root function has linking errors
+    match initialization_result {
+        Err(EvalError::FailedExecution(runtime_error)) => {
+            let error_message = runtime_error.to_string();
             assert!(
-                err_str.contains("expected 'string'") || err_str.contains("not compatible"),
+                error_message.contains("expected 'string'") || error_message.contains("not compatible"),
                 "expected linking/runtime error about incompatible types, but got: {}",
-                err_str
+                error_message
             );
         }
         Err(EvalError::FailedParsing(parse_errors)) => {
@@ -205,11 +247,14 @@ fn test_incompatible_types_in_function_fails_at_runtime() {
     }
 }
 
+/// Tests that nested method execution is not supported by design.
+///
+/// The execute() method expects the function to be in the root context.
+/// Paths like "deeper.nested" are not supported for execution entry points.
 #[test]
 fn execute_nested_method_fails() {
-    // Nested method execution is not supported by design.
-    // The execute() method expects the function to be in the root context.
-    let model = r#"
+    // Arrange: Model with function defined in nested context
+    let model_with_nested_function = r#"
         {
             deeper: {
                 func nested(req): { result: true }
@@ -217,17 +262,18 @@ fn execute_nested_method_fails() {
         }
     "#;
 
-    let mut service = DecisionService::from_source(model).expect("service with nested function");
-    let request = ValueEnum::from(1);
+    let mut decision_service =
+        DecisionService::from_source(model_with_nested_function).expect("service with nested function");
+    let request_value = ValueEnum::from(1);
 
-    // This should fail because "nested" is not in the root context,
-    // and "deeper.nested" path resolution is not supported for execution entry points.
-    let err = service.execute("deeper.nested", request).unwrap_err();
-    let err_str = err.to_string().to_lowercase();
+    // Act: Attempt to execute nested function path
+    let path_error = decision_service.execute("deeper.nested", request_value).unwrap_err();
 
+    // Assert: Error indicates function not found at root level
+    let error_message = path_error.to_string().to_lowercase();
     assert!(
-        err_str.contains("not found") || err_str.contains("entry 'nested' not found"),
+        error_message.contains("not found") || error_message.contains("entry 'nested' not found"),
         "expected error about missing function, got: {}",
-        err_str
+        error_message
     );
 }
