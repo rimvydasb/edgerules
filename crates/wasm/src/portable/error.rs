@@ -152,16 +152,12 @@ pub enum PortableError {
 }
 
 impl PortableError {
-
     pub fn to_js(&self) -> JsValue {
         match self {
-            PortableError::EdgeRulesAPIError(err) => JsBuilder::new()
-                .add_str("message", &err.to_string())
-                .into_js(),
-            PortableError::ParsingStage(err) => JsBuilder::new()
-                .add_str("stage", "parse")
-                .add_str("message", &err.to_string())
-                .into_js(),
+            PortableError::EdgeRulesAPIError(err) => JsBuilder::new().add_str("message", &err.to_string()).into_js(),
+            PortableError::ParsingStage(err) => {
+                JsBuilder::new().add_str("stage", "parse").add_str("message", &err.to_string()).into_js()
+            }
             PortableError::RuntimeStage(err) => {
                 let builder = JsBuilder::new()
                     .add_str("stage", "runtime")

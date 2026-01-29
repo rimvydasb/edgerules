@@ -332,15 +332,12 @@ fn parse_path_target(name: &str) -> Result<PathTarget, ContextQueryErrorEnum> {
             let index_str = name[start_bracket + 1..name.len() - 1].trim();
 
             if array_name.is_empty() {
-                return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(format!(
-                    "Invalid array path '{}'",
-                    name
-                ))));
+                return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(format!("Invalid array path '{}'", name))));
             }
 
-            let index = index_str
-                .parse::<usize>()
-                .map_err(|_| ContextQueryErrorEnum::WrongFieldPathError(Some(format!("Invalid array index '{}'", name))))?;
+            let index = index_str.parse::<usize>().map_err(|_| {
+                ContextQueryErrorEnum::WrongFieldPathError(Some(format!("Invalid array index '{}'", name)))
+            })?;
 
             return Ok(PathTarget::ArrayElement(array_name.to_string(), index));
         }
@@ -709,12 +706,7 @@ fn serialize_type_body(body: &UserTypeBody) -> Result<JsValue, PortableError> {
         UserTypeBody::TypeRef(reference) => {
             let obj = Object::new();
             set_portable_prop(&obj, "@type", &JsValue::from_str("type"), PortableObjectKey::Type)?;
-            set_portable_prop(
-                &obj,
-                "@ref",
-                &JsValue::from_str(&format!("<{}>", reference)),
-                PortableObjectKey::Ref,
-            )?;
+            set_portable_prop(&obj, "@ref", &JsValue::from_str(&format!("<{}>", reference)), PortableObjectKey::Ref)?;
             Ok(JsValue::from(obj))
         }
         UserTypeBody::TypeObject(ctx) => {

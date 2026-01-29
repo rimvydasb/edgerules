@@ -224,7 +224,7 @@ fn execute_nested_method_fails() {
     // and "deeper.nested" path resolution is not supported for execution entry points.
     let err = service.execute("deeper.nested", request).unwrap_err();
     let err_str = err.to_string().to_lowercase();
-    
+
     assert!(
         err_str.contains("not found") || err_str.contains("entry 'nested' not found"),
         "expected error about missing function, got: {}",

@@ -5,6 +5,7 @@ use std::sync::Once;
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 use edge_rules::runtime::edge_rules::EdgeRulesRuntime;
 use edge_rules::test_support::LinkingErrorEnum;
+use edge_rules::test_support::ValueType;
 use env_logger::Builder;
 
 pub fn inline<S: AsRef<str>>(code: S) -> String {
@@ -209,7 +210,252 @@ pub fn to_lines(text: &str) -> Vec<&str> {
     text.lines().map(|line| line.trim()).filter(|line| !line.is_empty()).collect()
 }
 
+// ============================================================================
+// Test Builders - ExpressionTest
+// ============================================================================
+
+/// A fluent builder for testing multiple expression cases with the same function.
+///
+/// # Example
+///
+/// ```ignore
+/// ExpressionTest::new("abs")
+///     .case("abs(10)", "10")
+///     .case("abs(-10)", "10")
+///     .case("abs(0)", "0")
+///     .run_all();
+/// ```
+pub struct ExpressionTest {
+    function_name: String,
+    cases: Vec<(String, String)>,
+}
+
+impl ExpressionTest {
+    /// Creates a new ExpressionTest for the given function name.
+    pub fn new(function_name: &str) -> Self {
+        init_logger();
+        Self { function_name: function_name.to_string(), cases: Vec::new() }
+    }
+
+    /// Adds a test case with the given expression and expected result.
+    pub fn case(mut self, expression: &str, expected: &str) -> Self {
+        self.cases.push((expression.to_string(), expected.to_string()));
+        self
+    }
+
+    /// Runs all test cases and panics on the first failure.
+    pub fn run_all(&self) {
+        for (expression, expected) in &self.cases {
+            let actual = eval_value(&format!("value: {}", expression));
+            assert_eq!(
+                actual,
+                expected.as_str(),
+                "Function '{}' failed for expression '{}': got '{}', expected '{}'",
+                self.function_name,
+                expression,
+                actual,
+                expected
+            );
+        }
+    }
+
+    /// Returns the number of test cases.
+    pub fn case_count(&self) -> usize {
+        self.cases.len()
+    }
+}
+
+// ============================================================================
+// Test Builders - UnaryFunctionValidator
+// ============================================================================
+
+/// A fluent builder for validating unary function argument requirements.
+///
+/// # Example
+///
+/// ```ignore
+/// UnaryFunctionValidator::for_number_functions(&["abs", "floor", "ceiling"])
+///     .expect_parse_error_when_no_args()
+///     .expect_link_error_when_wrong_type("'abc'", ValueType::StringType)
+///     .validate();
+/// ```
+pub struct UnaryFunctionValidator {
+    function_names: Vec<String>,
+    expected_arg_type: Option<ValueType>,
+    check_no_args: bool,
+    wrong_type_input: Option<(String, ValueType)>,
+}
+
+impl UnaryFunctionValidator {
+    /// Creates a validator for functions that expect number arguments.
+    pub fn for_number_functions(functions: &[&str]) -> Self {
+        init_logger();
+        Self {
+            function_names: functions.iter().map(|s| s.to_string()).collect(),
+            expected_arg_type: Some(ValueType::NumberType),
+            check_no_args: false,
+            wrong_type_input: None,
+        }
+    }
+
+    /// Creates a validator for functions that expect string arguments.
+    pub fn for_string_functions(functions: &[&str]) -> Self {
+        init_logger();
+        Self {
+            function_names: functions.iter().map(|s| s.to_string()).collect(),
+            expected_arg_type: Some(ValueType::StringType),
+            check_no_args: false,
+            wrong_type_input: None,
+        }
+    }
+
+    /// Creates a validator for functions that expect list arguments.
+    pub fn for_list_functions(functions: &[&str]) -> Self {
+        init_logger();
+        Self {
+            function_names: functions.iter().map(|s| s.to_string()).collect(),
+            expected_arg_type: Some(ValueType::ListType(None)),
+            check_no_args: false,
+            wrong_type_input: None,
+        }
+    }
+
+    /// Configures the validator to check for parse errors when no arguments are provided.
+    pub fn expect_parse_error_when_no_args(mut self) -> Self {
+        self.check_no_args = true;
+        self
+    }
+
+    /// Configures the validator to check for link errors when wrong type is provided.
+    pub fn expect_link_error_when_wrong_type(mut self, input: &str, wrong_type: ValueType) -> Self {
+        self.wrong_type_input = Some((input.to_string(), wrong_type));
+        self
+    }
+
+    /// Validates all configured checks for all functions.
+    pub fn validate(&self) {
+        for func in &self.function_names {
+            if self.check_no_args {
+                let code = format!("{{ value: {}() }}", func);
+                parse_error_contains(&code, &[&format!("Function '{}' got no arguments", func)]);
+            }
+
+            if let Some((input, wrong_type)) = &self.wrong_type_input {
+                let code = format!("{{ value: {}({}) }}", func, input);
+                if let Some(expected_type) = &self.expected_arg_type {
+                    link_error_location(
+                        &code,
+                        &["value"],
+                        &format!("{}({})", func, input),
+                        LinkingErrorEnum::TypesNotCompatible(
+                            None,
+                            wrong_type.clone(),
+                            Some(vec![expected_type.clone()]),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Test Builders - ErrorTestBuilder
+// ============================================================================
+
+/// A fluent builder for testing error conditions.
+///
+/// # Example
+///
+/// ```ignore
+/// ErrorTestBuilder::new()
+///     .with_code("value: value + 1")
+///     .expect_link_error_containing("cyclic")
+///     .run();
+/// ```
+pub struct ErrorTestBuilder {
+    code: Option<String>,
+    expected_link_errors: Vec<String>,
+    expected_parse_errors: Vec<String>,
+}
+
+impl ErrorTestBuilder {
+    pub fn new() -> Self {
+        init_logger();
+        Self { code: None, expected_link_errors: Vec::new(), expected_parse_errors: Vec::new() }
+    }
+
+    pub fn with_code(mut self, code: &str) -> Self {
+        self.code = Some(code.to_string());
+        self
+    }
+
+    pub fn expect_link_error_containing(mut self, needle: &str) -> Self {
+        self.expected_link_errors.push(needle.to_string());
+        self
+    }
+
+    pub fn expect_parse_error_containing(mut self, needle: &str) -> Self {
+        self.expected_parse_errors.push(needle.to_string());
+        self
+    }
+
+    pub fn run(&self) {
+        let code = self.code.as_ref().expect("Code must be set before running");
+
+        if !self.expected_link_errors.is_empty() {
+            let needles: Vec<&str> = self.expected_link_errors.iter().map(|s| s.as_str()).collect();
+            link_error_contains(code, &needles);
+        }
+
+        if !self.expected_parse_errors.is_empty() {
+            let needles: Vec<&str> = self.expected_parse_errors.iter().map(|s| s.as_str()).collect();
+            parse_error_contains(code, &needles);
+        }
+    }
+}
+
+impl Default for ErrorTestBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[test]
 fn test_first() {
     // no-op: ensures test harness initializes cleanly
+}
+
+#[test]
+fn test_expression_test_builder() {
+    ExpressionTest::new("abs")
+        .case("abs(10)", "10")
+        .case("abs(-10)", "10")
+        .case("abs(0)", "0")
+        .run_all();
+}
+
+#[test]
+fn test_error_test_builder() {
+    ErrorTestBuilder::new().with_code("value: value + 1").expect_link_error_containing("cyclic").run();
+}
+
+#[test]
+fn test_unary_function_validator_number_functions() {
+    // Test that abs() with no arguments produces parse error
+    // and abs('abc') produces link error for wrong type
+    UnaryFunctionValidator::for_number_functions(&["abs"])
+        .expect_parse_error_when_no_args()
+        .expect_link_error_when_wrong_type("'abc'", ValueType::StringType)
+        .validate();
+}
+
+#[test]
+fn test_unary_function_validator_string_functions() {
+    // Test that length() with no arguments produces parse error
+    // and length(123) produces link error for wrong type
+    UnaryFunctionValidator::for_string_functions(&["length"])
+        .expect_parse_error_when_no_args()
+        .expect_link_error_when_wrong_type("123", ValueType::NumberType)
+        .validate();
 }

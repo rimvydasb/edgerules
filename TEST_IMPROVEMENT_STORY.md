@@ -451,12 +451,12 @@ fn test_with_better_errors() {
 
 ### Phase 1: Foundation (Week 1)
 
-| Task                            | File                             | Priority |
-|---------------------------------|----------------------------------|----------|
-| Add `rstest` dependency         | `Cargo.toml`                     | High     |
-| Create `test_assertions.rs`     | `crates/core-tests/tests/`       | High     |
-| Enhance `ExpressionTest` builder| `utilities.rs`                   | High     |
-| Add function validation builder | `utilities.rs`                   | Medium   |
+- [x] Add `rstest` dependency to `crates/core-tests/Cargo.toml` (High Priority)
+- [x] Create `test_assertions.rs` in `crates/core-tests/tests/` (High Priority)
+- [x] Enhance `ExpressionTest` builder in `utilities.rs` (High Priority)
+- [x] Add function validation builder (`UnaryFunctionValidator`) in `utilities.rs` (Medium Priority)
+- [x] Add error test builder (`ErrorTestBuilder`) in `utilities.rs` (Medium Priority)
+- [x] Run all tests to ensure coverage is maintained (430 tests passing)
 
 ### Phase 2: Math & Logic Tests (Week 2)
 

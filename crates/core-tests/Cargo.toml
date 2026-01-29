@@ -13,3 +13,4 @@ wasm = ["edge-rules/wasm"]
 edge-rules = { path = "../core" }
 env_logger = { workspace = true }
 log = { workspace = true }
+rstest = "0.24"
