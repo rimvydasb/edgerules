@@ -16,7 +16,7 @@
 - 111 - Duration hours overflow the supported range
 - 112 - Duration minutes overflow the supported range
 - 113 - Duration seconds overflow the supported range
-- 114 - Duration overflow while calculating seconds
+- 114 - Duration overflow while calculating total seconds
 - 115 - Duration components must be non-negative before applying the sign
 
 ## Internal Integrity Errors
