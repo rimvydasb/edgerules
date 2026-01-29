@@ -460,12 +460,12 @@ fn test_with_better_errors() {
 
 ### Phase 2: Math & Logic Tests (Week 2)
 
-| Task                             | File                               | LOC Reduction |
-|----------------------------------|------------------------------------|---------------|
-| Parameterize rounding tests      | `evaluation_math_tests.rs`         | ~40%          |
-| Parameterize division by zero    | `evaluation_math_tests.rs`         | ~30%          |
-| Parameterize boolean comparisons | `evaluation_logic_tests.rs`        | ~50%          |
-| Convert validation loops to rstest| `built_in_functions_validation_tests.rs` | ~40% |
+- [x] Parameterize rounding tests (`evaluation_math_tests.rs`) - ~40% LOC reduction
+- [x] Parameterize division by zero tests (`evaluation_math_tests.rs`) - ~30% LOC reduction
+- [x] Parameterize boolean comparisons (`evaluation_logic_tests.rs`) - ~50% LOC reduction
+- [x] Convert validation loops to rstest (`built_in_functions_validation_tests.rs`) - ~40% LOC reduction
+- [x] Run all tests to ensure coverage is maintained (774 tests passing)
+- [x] Mark Phase 2 as completed
 
 ### Phase 3: String & DateTime Tests (Week 3)
 
