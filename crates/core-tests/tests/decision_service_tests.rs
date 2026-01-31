@@ -1,8 +1,5 @@
 use edge_rules::runtime::decision_service::DecisionService;
-use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
-#[cfg(feature = "mutable_decision_service")]
-use edge_rules::runtime::edge_rules::InvocationSpec;
-#[cfg(feature = "mutable_decision_service")]
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError, InvocationSpec};
 use edge_rules::test_support::ExpressionEnum;
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
@@ -19,7 +16,6 @@ fn value_to_string(value: &ValueEnum) -> String {
     value.to_string().replace(['\n', ' '], "")
 }
 
-#[cfg(feature = "mutable_decision_service")]
 #[test]
 fn set_invocation_invokes_function() {
     let mut model = EdgeRulesModel::new();
@@ -90,7 +86,6 @@ fn execute_errors_when_method_has_wrong_arity() {
     assert!(err.to_string().to_lowercase().contains("exactly one argument"), "expected arity error, got: {}", err);
 }
 
-#[cfg(feature = "mutable_decision_service")]
 #[test]
 fn invalid_invocation_surfaces_link_error() {
     let model = r#"
@@ -119,7 +114,6 @@ fn invalid_invocation_surfaces_link_error() {
     );
 }
 
-#[cfg(feature = "mutable_decision_service")]
 #[test]
 fn execute_relinks_after_model_updates() {
     let model = r#"

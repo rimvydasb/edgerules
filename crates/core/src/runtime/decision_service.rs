@@ -7,6 +7,7 @@ use crate::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, EdgeRule
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
+use crate::runtime::execution_context::ExecutionContext;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -62,6 +63,14 @@ impl DecisionService {
         } else {
             decision_request
         };
+        let final_request = match final_request {
+            ValueEnum::Reference(ctx) => {
+                let reparented =
+                    ExecutionContext::create_temp_child_context(Rc::clone(&runtime.context), Rc::clone(&ctx.borrow().object));
+                ValueEnum::Reference(reparented)
+            }
+            other => other,
+        };
 
         runtime
             .call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)])
@@ -75,7 +84,6 @@ impl DecisionService {
         runtime.evaluate_field(path).map_err(EvalError::from)
     }
 
-    #[cfg(feature = "mutable_decision_service")]
     pub fn get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>> {
         self.runtime_dirty = true;
         Rc::clone(&self.model)
