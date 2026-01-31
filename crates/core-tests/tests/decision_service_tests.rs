@@ -1,5 +1,9 @@
 use edge_rules::runtime::decision_service::DecisionService;
 use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
+#[cfg(feature = "mutable_decision_service")]
+use edge_rules::runtime::edge_rules::InvocationSpec;
+#[cfg(feature = "mutable_decision_service")]
+use edge_rules::test_support::ExpressionEnum;
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
 
