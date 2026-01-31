@@ -40,6 +40,9 @@ impl DecisionService {
         let method_path = Self::clean_method_name(service_method)?;
         let runtime_method_name = Self::runtime_method_name(&method_path);
 
+        // Resolve against the latest model state; ensure_runtime will rebuild if the model was mutated.
+        self.runtime_dirty = true;
+        let runtime = self.ensure_runtime()?;
         let method_entry = self.resolve_method_entry(&method_path)?;
         let (parameter_count, param_type_opt) = {
             let borrowed = method_entry.borrow();
@@ -50,8 +53,6 @@ impl DecisionService {
             (count, type_opt)
         };
         Self::ensure_single_argument(&method_path, parameter_count)?;
-
-        let runtime = self.ensure_runtime()?;
 
         let final_request = if let Some(tref) = param_type_opt {
             let expected_type =
@@ -105,6 +106,15 @@ impl DecisionService {
     fn ensure_runtime(&mut self) -> Result<EdgeRulesRuntime, EvalError> {
         if self.runtime_dirty {
             let runtime = self.model.borrow_mut().to_runtime_snapshot()?;
+            {
+                let ctx = runtime.static_tree.borrow();
+                for entry in ctx.metaphors.values() {
+                    let borrowed_entry = entry.borrow();
+                    if let Ok(body) = borrowed_entry.function_definition.get_body() {
+                        link_parts(Rc::clone(&body)).map_err(EvalError::from)?;
+                    }
+                }
+            }
             self.static_context = Rc::clone(&runtime.static_tree);
             self.runtime_dirty = false;
             return Ok(runtime);
