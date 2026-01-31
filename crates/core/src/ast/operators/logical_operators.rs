@@ -47,10 +47,7 @@ impl TryFrom<&str> for LogicalOperatorEnum {
             "and" => Ok(And),
             "or" => Ok(Or),
             "xor" => Ok(Xor),
-            _ => Err(UnexpectedLiteral(
-                value.to_string(),
-                Some("not, and, or, xor".to_string()),
-            )),
+            _ => Err(UnexpectedLiteral(value.to_string(), Some("not, and, or, xor".to_string()))),
         }
     }
 }
@@ -65,9 +62,7 @@ pub struct LogicalOperator {
 #[cfg(not(target_arch = "wasm32"))]
 impl Debug for LogicalOperator {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LogicalOperator")
-            .field("data", &self.data)
-            .finish()
+        f.debug_struct("LogicalOperator").field("data", &self.data).finish()
     }
 }
 
@@ -98,14 +93,7 @@ impl LogicalOperator {
             Not => |left: &bool, _right: &bool| !*left,
         };
 
-        Ok(LogicalOperator {
-            data: OperatorData {
-                operator,
-                left,
-                right,
-            },
-            function,
-        })
+        Ok(LogicalOperator { data: OperatorData { operator, left, right }, function })
     }
 }
 
@@ -115,9 +103,7 @@ impl EvaluatableExpression for LogicalOperator {
         let right_token = &self.data.right.eval(context)?;
 
         match (left_token, right_token) {
-            (BooleanValue(_left), BooleanValue(_right)) => {
-                Ok(BooleanValue((self.function)(_left, _right)))
-            }
+            (BooleanValue(_left), BooleanValue(_right)) => Ok(BooleanValue((self.function)(_left, _right))),
             _ => RuntimeError::internal_integrity_error(160).into(),
         }
     }

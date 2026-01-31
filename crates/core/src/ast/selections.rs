@@ -8,9 +8,7 @@ use crate::ast::{is_linked, Link};
 use crate::link::node_data::Node;
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::ParseErrorEnum::WrongFormat;
-use crate::typesystem::errors::{
-    ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum,
-};
+use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError, RuntimeErrorEnum};
 use crate::typesystem::types::number::NumberEnum as Num;
 use crate::typesystem::types::number::NumberEnum::Int;
 use crate::typesystem::types::{TypedValue, ValueType};
@@ -80,28 +78,16 @@ impl ExpressionFilter {
                             filtered.push(candidate);
                         }
                     }
-                    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
-                        values: filtered,
-                        item_type,
-                    }))
+                    Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: filtered, item_type }))
                 }
-                ArrayValue::ObjectsArray {
-                    values,
-                    object_type,
-                } => {
+                ArrayValue::ObjectsArray { values, object_type } => {
                     let mut filtered = Vec::new();
                     for reference in values {
-                        if self.evaluate_predicate(
-                            ValueEnum::Reference(Rc::clone(&reference)),
-                            Rc::clone(&context),
-                        )? {
+                        if self.evaluate_predicate(ValueEnum::Reference(Rc::clone(&reference)), Rc::clone(&context))? {
                             filtered.push(reference);
                         }
                     }
-                    Ok(ValueEnum::Array(ArrayValue::ObjectsArray {
-                        values: filtered,
-                        object_type,
-                    }))
+                    Ok(ValueEnum::Array(ArrayValue::ObjectsArray { values: filtered, object_type }))
                 }
             }
         } else {
@@ -109,17 +95,13 @@ impl ExpressionFilter {
 
             if let NumberValue(Int(number)) = method {
                 if number < 0 {
-                    let element_type = list_type
-                        .get_list_type()
-                        .unwrap_or(ValueType::UndefinedType);
+                    let element_type = list_type.get_list_type().unwrap_or(ValueType::UndefinedType);
                     return missing_for_type(&element_type, None, &context);
                 }
                 let idx = number as usize;
                 match array {
                     ArrayValue::EmptyUntyped => {
-                        let element_type = list_type
-                            .get_list_type()
-                            .unwrap_or(ValueType::UndefinedType);
+                        let element_type = list_type.get_list_type().unwrap_or(ValueType::UndefinedType);
                         missing_for_type(&element_type, None, &context)
                     }
                     ArrayValue::PrimitivesArray { values, item_type } => {
@@ -129,18 +111,11 @@ impl ExpressionFilter {
                             missing_for_type(&item_type, None, &context)
                         }
                     }
-                    ArrayValue::ObjectsArray {
-                        values,
-                        object_type,
-                    } => {
+                    ArrayValue::ObjectsArray { values, object_type } => {
                         if let Some(reference) = values.into_iter().nth(idx) {
                             Ok(ValueEnum::Reference(reference))
                         } else {
-                            missing_for_type(
-                                &ValueType::ObjectType(Rc::clone(&object_type)),
-                                None,
-                                &context,
-                            )
+                            missing_for_type(&ValueType::ObjectType(Rc::clone(&object_type)), None, &context)
                         }
                     }
                 }
@@ -216,8 +191,7 @@ impl StaticLink for ExpressionFilter {
                             for element in &collection.elements {
                                 if let ExpressionEnum::StaticObject(obj) = element {
                                     if let Err(err) = builder.append_if_missing(Rc::clone(obj)) {
-                                        let linking_error =
-                                            LinkingError::other_error(err.to_string());
+                                        let linking_error = LinkingError::other_error(err.to_string());
                                         self.method_type = Err(linking_error.clone());
                                         self.return_type = Err(linking_error.clone());
                                         return Err(linking_error);
@@ -228,10 +202,7 @@ impl StaticLink for ExpressionFilter {
                     }
                 }
 
-                let element_type = inner
-                    .as_ref()
-                    .map(|boxed| (**boxed).clone())
-                    .unwrap_or(ValueType::UndefinedType);
+                let element_type = inner.as_ref().map(|boxed| (**boxed).clone()).unwrap_or(ValueType::UndefinedType);
                 let element_type = flatten_list_type(element_type);
 
                 builder.set_context_type(element_type.clone());
@@ -241,18 +212,14 @@ impl StaticLink for ExpressionFilter {
 
                 self.method_type = self.method.link(Rc::clone(&method_context));
                 let static_type = match &self.method_type.clone()? {
-                    ValueType::BooleanType | ValueType::RangeType => {
-                        ValueType::ListType(inner.clone())
-                    }
+                    ValueType::BooleanType | ValueType::RangeType => ValueType::ListType(inner.clone()),
                     _ => element_type,
                 };
 
                 self.return_type = Ok(static_type);
             } else {
-                self.return_type = LinkingError::expect_array_type(
-                    Some(format!("Filter subject `{}`", self.source)),
-                    source_type,
-                );
+                self.return_type =
+                    LinkingError::expect_array_type(Some(format!("Filter subject `{}`", self.source)), source_type);
             }
         }
 
@@ -291,14 +258,10 @@ pub struct FieldSelection {
 impl FieldSelection {
     pub fn build(source: ExpressionEnum, method: ExpressionEnum) -> Result<Self, ParseErrorEnum> {
         match method {
-            Variable(variable) => Ok(FieldSelection {
-                source,
-                method: variable,
-                return_type: LinkingError::not_linked().into(),
-            }),
-            _ => Err(WrongFormat(
-                "Selection must be variable or variable path".to_string(),
-            )),
+            Variable(variable) => {
+                Ok(FieldSelection { source, method: variable, return_type: LinkingError::not_linked().into() })
+            }
+            _ => Err(WrongFormat("Selection must be variable or variable path".to_string())),
         }
     }
 }
@@ -316,13 +279,7 @@ impl StaticLink for FieldSelection {
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
                         "year" | "month" | "day" | "weekday" => ValueType::NumberType,
-                        _ => {
-                            return LinkingError::other_error(format!(
-                                "date does not have '{}' item",
-                                name
-                            ))
-                            .into()
-                        }
+                        _ => return LinkingError::other_error(format!("date does not have '{}' item", name)).into(),
                     };
                     self.return_type = Ok(ret);
                 }
@@ -331,13 +288,7 @@ impl StaticLink for FieldSelection {
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
                         "hour" | "minute" | "second" => ValueType::NumberType,
-                        _ => {
-                            return LinkingError::other_error(format!(
-                                "time does not have '{}' item",
-                                name
-                            ))
-                            .into()
-                        }
+                        _ => return LinkingError::other_error(format!("time does not have '{}' item", name)).into(),
                     };
                     self.return_type = Ok(ret);
                 }
@@ -345,17 +296,11 @@ impl StaticLink for FieldSelection {
                     // Supported: year, month, day, hour, minute, second, time, weekday
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
-                        "year" | "month" | "day" | "hour" | "minute" | "second" | "weekday" => {
-                            ValueType::NumberType
-                        }
+                        "year" | "month" | "day" | "hour" | "minute" | "second" | "weekday" => ValueType::NumberType,
                         "time" => ValueType::TimeType,
                         "date" => ValueType::DateType,
                         _ => {
-                            return LinkingError::other_error(format!(
-                                "datetime does not have '{}' item",
-                                name
-                            ))
-                            .into()
+                            return LinkingError::other_error(format!("datetime does not have '{}' item", name)).into()
                         }
                     };
                     self.return_type = Ok(ret);
@@ -364,14 +309,11 @@ impl StaticLink for FieldSelection {
                     // Supported: days, hours, minutes, seconds, totals
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
-                        "days" | "hours" | "minutes" | "seconds" | "totalSeconds"
-                        | "totalMinutes" | "totalHours" => ValueType::NumberType,
+                        "days" | "hours" | "minutes" | "seconds" | "totalSeconds" | "totalMinutes" | "totalHours" => {
+                            ValueType::NumberType
+                        }
                         _ => {
-                            return LinkingError::other_error(format!(
-                                "duration does not have '{}' item",
-                                name
-                            ))
-                            .into()
+                            return LinkingError::other_error(format!("duration does not have '{}' item", name)).into()
                         }
                     };
                     self.return_type = Ok(ret);
@@ -380,16 +322,8 @@ impl StaticLink for FieldSelection {
                     // Supported: years, months, days, totals
                     let name = self.method.get_name();
                     let ret = match name.as_str() {
-                        "years" | "months" | "days" | "totalMonths" | "totalDays" => {
-                            ValueType::NumberType
-                        }
-                        _ => {
-                            return LinkingError::other_error(format!(
-                                "period does not have '{}' item",
-                                name
-                            ))
-                            .into()
-                        }
+                        "years" | "months" | "days" | "totalMonths" | "totalDays" => ValueType::NumberType,
+                        _ => return LinkingError::other_error(format!("period does not have '{}' item", name)).into(),
                     };
                     self.return_type = Ok(ret);
                 }
@@ -398,10 +332,7 @@ impl StaticLink for FieldSelection {
                         .with_context(|| {
                             format!(
                                 "While looking at source '{}'",
-                                ctx.borrow()
-                                    .node()
-                                    .get_assigned_to_field()
-                                    .unwrap_or("<root>")
+                                ctx.borrow().node().get_assigned_to_field().unwrap_or("<root>")
                             )
                         })
                         .into();
@@ -440,9 +371,7 @@ impl EvaluatableExpression for FieldSelection {
                     "year" => Ok(NumberValue(Num::from(d.year() as i64))),
                     "month" => Ok(NumberValue(Num::from(d.month() as i64))),
                     "day" => Ok(NumberValue(Num::from(d.day() as i64))),
-                    "weekday" => Ok(NumberValue(Num::from(
-                        d.weekday().number_from_monday() as i64
-                    ))),
+                    "weekday" => Ok(NumberValue(Num::from(d.weekday().number_from_monday() as i64))),
                     _ => RuntimeError::field_not_found(name.as_str(), "date").into(),
                 }
             }
@@ -464,9 +393,7 @@ impl EvaluatableExpression for FieldSelection {
                     "hour" => Ok(NumberValue(Num::from(dt.hour() as i64))),
                     "minute" => Ok(NumberValue(Num::from(dt.minute() as i64))),
                     "second" => Ok(NumberValue(Num::from(dt.second() as i64))),
-                    "weekday" => Ok(NumberValue(Num::from(
-                        dt.weekday().number_from_monday() as i64
-                    ))),
+                    "weekday" => Ok(NumberValue(Num::from(dt.weekday().number_from_monday() as i64))),
                     "time" => Ok(TimeValue(ValueOrSv::Value(dt.time()))),
                     "date" => Ok(DateValue(ValueOrSv::Value(dt.date()))),
                     _ => RuntimeError::field_not_found(name.as_str(), "date and time").into(),

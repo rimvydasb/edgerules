@@ -11,9 +11,7 @@ use crate::ast::utils::array_to_code_sep;
 use crate::link::node_data::ContentHolder;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::parser::tokenize;
-use crate::typesystem::errors::ParseErrorEnum::{
-    OtherError, UnexpectedEnd, UnexpectedToken, WrongFormat,
-};
+use crate::typesystem::errors::ParseErrorEnum::{OtherError, UnexpectedEnd, UnexpectedToken, WrongFormat};
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
@@ -116,9 +114,7 @@ impl<'a> FieldPath<'a> {
 
         let segments: Vec<&str> = trimmed.split('.').map(|segment| segment.trim()).collect();
         if segments.iter().any(|segment| segment.is_empty()) {
-            return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(
-                trimmed.to_string(),
-            )));
+            return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(trimmed.to_string())));
         }
 
         Ok(FieldPath { segments })
@@ -129,17 +125,11 @@ impl<'a> FieldPath<'a> {
     }
 
     fn leaf(&self) -> &'a str {
-        self.segments
-            .last()
-            .copied()
-            .expect("FieldPath always contains at least one segment")
+        self.segments.last().copied().expect("FieldPath always contains at least one segment")
     }
 
     fn parent_segments(&self) -> &[&'a str] {
-        debug_assert!(
-            !self.is_root(),
-            "parent_segments should not be called for root paths"
-        );
+        debug_assert!(!self.is_root(), "parent_segments should not be called for root paths");
         &self.segments[..self.segments.len() - 1]
     }
 
@@ -151,12 +141,12 @@ impl<'a> FieldPath<'a> {
 impl ParsedItem {
     pub fn into_error(self) -> EvalError {
         match self {
-            ParsedItem::Expression(expression) => EvalError::FailedParsing(
-                ParseErrors::unexpected_token(Expression(expression), None),
-            ),
-            ParsedItem::Definition(definition) => EvalError::FailedParsing(
-                ParseErrors::unexpected_token(Definition(definition), None),
-            ),
+            ParsedItem::Expression(expression) => {
+                EvalError::FailedParsing(ParseErrors::unexpected_token(Expression(expression), None))
+            }
+            ParsedItem::Definition(definition) => {
+                EvalError::FailedParsing(ParseErrors::unexpected_token(Definition(definition), None))
+            }
         }
     }
 }
@@ -172,6 +162,12 @@ impl ParseErrors {
 
     pub fn errors(&self) -> &Vec<ParseErrorEnum> {
         &self.0
+    }
+}
+
+impl From<ParseErrorEnum> for ParseErrors {
+    fn from(err: ParseErrorEnum) -> Self {
+        ParseErrors(vec![err])
     }
 }
 
@@ -253,9 +249,7 @@ type ParentResolution<'a> = (Option<Rc<RefCell<ContextObject>>>, &'a str);
 /// Model is reused across multiple executions.
 impl EdgeRulesModel {
     pub fn new() -> Self {
-        Self {
-            ast_root: ContextObjectBuilder::new(),
-        }
+        Self { ast_root: ContextObjectBuilder::new() }
     }
 
     fn parse_item(code: &str) -> Result<ParsedItem, ParseErrors> {
@@ -312,37 +306,28 @@ impl EdgeRulesModel {
     pub fn parse_expression(code: &str) -> Result<ExpressionEnum, ParseErrors> {
         match Self::parse_item(code) {
             Ok(ParsedItem::Expression(expression)) => Ok(expression),
-            Ok(ParsedItem::Definition(definition)) => Err(ParseErrors::unexpected_token(
-                Definition(definition),
-                Some("expression".to_string()),
-            )),
+            Ok(ParsedItem::Definition(definition)) => {
+                Err(ParseErrors::unexpected_token(Definition(definition), Some("expression".to_string())))
+            }
             Err(errors) => Self::parse_expression_via_field(code, errors),
         }
     }
 
-    fn parse_expression_via_field(
-        code: &str,
-        original_errors: ParseErrors,
-    ) -> Result<ExpressionEnum, ParseErrors> {
+    fn parse_expression_via_field(code: &str, original_errors: ParseErrors) -> Result<ExpressionEnum, ParseErrors> {
         const DUMMY_NAME: &str = "tmp000001";
         match Self::parse_item(&format!("{DUMMY_NAME}: {code}")) {
             Ok(ParsedItem::Expression(ObjectField(_, field_expression))) => Ok(*field_expression),
-            Ok(ParsedItem::Expression(unexpected)) => Err(ParseErrors::unexpected_token(
-                Expression(unexpected),
-                Some("expression".to_string()),
-            )),
-            Ok(ParsedItem::Definition(definition)) => Err(ParseErrors::unexpected_token(
-                Definition(definition),
-                Some("expression".to_string()),
-            )),
+            Ok(ParsedItem::Expression(unexpected)) => {
+                Err(ParseErrors::unexpected_token(Expression(unexpected), Some("expression".to_string())))
+            }
+            Ok(ParsedItem::Definition(definition)) => {
+                Err(ParseErrors::unexpected_token(Definition(definition), Some("expression".to_string())))
+            }
             Err(_fallback_error) => Err(original_errors),
         }
     }
 
-    fn resolve_parent<'a>(
-        &self,
-        field_path: &'a str,
-    ) -> Result<ParentResolution<'a>, ContextQueryErrorEnum> {
+    fn resolve_parent<'a>(&self, field_path: &'a str) -> Result<ParentResolution<'a>, ContextQueryErrorEnum> {
         let path = FieldPath::parse(field_path)?;
         if path.is_root() {
             Ok((None, path.leaf()))
@@ -352,11 +337,7 @@ impl EdgeRulesModel {
         }
     }
 
-    pub fn set_invocation(
-        &mut self,
-        field_path: &str,
-        spec: InvocationSpec,
-    ) -> Result<(), ContextQueryErrorEnum> {
+    pub fn set_invocation(&mut self, field_path: &str, spec: InvocationSpec) -> Result<(), ContextQueryErrorEnum> {
         // @Todo: why FieldPath::parse(field_path)?; is not used instead of validate_invocation_method?
         let method_path = Self::validate_invocation_method(&spec.method_path)?;
         let expression = ExpressionEnum::from(UserFunctionCall::new(method_path, spec.arguments));
@@ -366,9 +347,7 @@ impl EdgeRulesModel {
     fn validate_invocation_method(method_path: &str) -> Result<String, ContextQueryErrorEnum> {
         let trimmed = method_path.trim();
         if trimmed.is_empty() {
-            return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(
-                method_path.to_string(),
-            )));
+            return Err(ContextQueryErrorEnum::WrongFieldPathError(Some(method_path.to_string())));
         }
         Ok(trimmed.to_string())
     }
@@ -380,10 +359,7 @@ impl EdgeRulesModel {
     ) -> Result<(), ContextQueryErrorEnum> {
         let (parent, field_name) = self.resolve_parent(field_path)?;
         match parent {
-            None => self
-                .ast_root
-                .set_expression(field_name, expression)
-                .map_err(ContextQueryErrorEnum::from),
+            None => self.ast_root.set_expression(field_name, expression).map_err(ContextQueryErrorEnum::from),
             Some(parent) => {
                 {
                     parent.borrow_mut().remove_field(field_name);
@@ -407,10 +383,7 @@ impl EdgeRulesModel {
         Ok(())
     }
 
-    pub fn get_expression(
-        &self,
-        field_path: &str,
-    ) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum> {
+    pub fn get_expression(&self, field_path: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum> {
         let (parent, field_name) = self.resolve_parent(field_path)?;
         let expression = match parent {
             None => self.ast_root.get_expression(field_name),
@@ -422,10 +395,7 @@ impl EdgeRulesModel {
         expression.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
     }
 
-    pub fn get_expression_type(
-        &mut self,
-        field_path: &str,
-    ) -> Result<ValueType, ContextQueryErrorEnum> {
+    pub fn get_expression_type(&mut self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
         let runtime = self
             .to_runtime_snapshot()
             .map_err(|err| ContextQueryErrorEnum::ContextNotFoundError(err.to_string()))?;
@@ -441,8 +411,7 @@ impl EdgeRulesModel {
         match parent {
             None => {
                 self.ast_root.remove_user_type_definition(type_name);
-                self.ast_root
-                    .set_user_type_definition(type_name.to_string(), type_definition);
+                self.ast_root.set_user_type_definition(type_name.to_string(), type_definition);
             }
             Some(parent) => {
                 ContextObject::remove_user_type_definition(&parent, type_name);
@@ -494,17 +463,13 @@ impl EdgeRulesModel {
                 parent.borrow_mut().remove_field(name.as_str());
             }
 
-            return ContextObject::add_user_function(&parent, definition)
-                .map_err(ContextQueryErrorEnum::from);
+            return ContextObject::add_user_function(&parent, definition).map_err(ContextQueryErrorEnum::from);
         }
 
         self.insert_root_user_function(definition)
     }
 
-    pub fn remove_user_function(
-        &mut self,
-        function_path: &str,
-    ) -> Result<(), ContextQueryErrorEnum> {
+    pub fn remove_user_function(&mut self, function_path: &str) -> Result<(), ContextQueryErrorEnum> {
         let (parent, function_name) = self.resolve_parent(function_path)?;
         match parent {
             None => {
@@ -517,10 +482,7 @@ impl EdgeRulesModel {
         Ok(())
     }
 
-    pub fn get_user_function(
-        &self,
-        function_path: &str,
-    ) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
+    pub fn get_user_function(&self, function_path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum> {
         let (parent, function_name) = self.resolve_parent(function_path)?;
         let function = match parent {
             None => self.ast_root.get_user_function(function_name),
@@ -532,11 +494,7 @@ impl EdgeRulesModel {
         function.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(function_path.to_string()))
     }
 
-    pub fn rename_entry(
-        &mut self,
-        old_path: &str,
-        new_path: &str,
-    ) -> Result<(), ContextQueryErrorEnum> {
+    pub fn rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), ContextQueryErrorEnum> {
         let old_path_parsed = FieldPath::parse(old_path)?;
         let old_name = old_path_parsed.leaf();
 
@@ -547,8 +505,7 @@ impl EdgeRulesModel {
         let same_context = if old_path_parsed.is_root() {
             new_path_parsed.is_root()
         } else {
-            !new_path_parsed.is_root()
-                && old_path_parsed.parent_segments() == new_path_parsed.parent_segments()
+            !new_path_parsed.is_root() && old_path_parsed.parent_segments() == new_path_parsed.parent_segments()
         };
 
         if !same_context {
@@ -570,17 +527,12 @@ impl EdgeRulesModel {
 
         match result {
             Ok(true) => Ok(()),
-            Ok(false) => Err(ContextQueryErrorEnum::EntryNotFoundError(
-                old_path.to_string(),
-            )),
+            Ok(false) => Err(ContextQueryErrorEnum::EntryNotFoundError(old_path.to_string())),
             Err(dup) => Err(ContextQueryErrorEnum::DuplicateNameError(dup)),
         }
     }
 
-    pub fn merge_context_object(
-        &mut self,
-        object: Rc<RefCell<ContextObject>>,
-    ) -> Result<(), DuplicateNameError> {
+    pub fn merge_context_object(&mut self, object: Rc<RefCell<ContextObject>>) -> Result<(), DuplicateNameError> {
         self.ast_root.merge_context_object(object)
     }
 
@@ -595,15 +547,10 @@ impl EdgeRulesModel {
         if let Some(ctx) = self.resolve_function_context(path_segments) {
             return Ok(ctx);
         }
-        Err(ContextQueryErrorEnum::ContextNotFoundError(
-            path_segments.join("."),
-        ))
+        Err(ContextQueryErrorEnum::ContextNotFoundError(path_segments.join(".")))
     }
 
-    fn resolve_function_context(
-        &self,
-        path_segments: &[&str],
-    ) -> Option<Rc<RefCell<ContextObject>>> {
+    fn resolve_function_context(&self, path_segments: &[&str]) -> Option<Rc<RefCell<ContextObject>>> {
         let function_name = path_segments.first()?;
         let function = self.ast_root.get_user_function(function_name)?;
         let current = function.borrow().function_definition.get_body().ok()?;
@@ -611,20 +558,14 @@ impl EdgeRulesModel {
         resolve_context_path(current, &path_segments[1..])
     }
 
-    fn insert_root_user_function(
-        &mut self,
-        definition: UserFunctionDefinition,
-    ) -> Result<(), ContextQueryErrorEnum> {
+    fn insert_root_user_function(&mut self, definition: UserFunctionDefinition) -> Result<(), ContextQueryErrorEnum> {
         let name = definition.get_name();
         self.ast_root.remove_field(name.as_str());
         let def_enum = match definition {
             UserFunctionDefinition::Function(f) => DefinitionEnum::UserFunction(f),
             UserFunctionDefinition::Inline(i) => DefinitionEnum::InlineUserFunction(i),
         };
-        self.ast_root
-            .add_definition(def_enum)
-            .map(|_| ())
-            .map_err(ContextQueryErrorEnum::from)
+        self.ast_root.add_definition(def_enum).map(|_| ()).map_err(ContextQueryErrorEnum::from)
     }
 
     pub fn append_source(&mut self, code: &str) -> Result<(), ParseErrors> {
@@ -632,12 +573,10 @@ impl EdgeRulesModel {
 
         match parsed {
             ParsedItem::Expression(ObjectField(field, field_expression)) => {
-                self.set_expression(field.as_str(), *field_expression)
-                    .map_err(Self::context_update_error)?;
+                self.set_expression(field.as_str(), *field_expression).map_err(Self::context_update_error)?;
             }
             ParsedItem::Expression(ExpressionEnum::StaticObject(context_object)) => {
-                self.merge_context_object(context_object)
-                    .map_err(Self::context_update_error)?;
+                self.merge_context_object(context_object).map_err(Self::context_update_error)?;
             }
             ParsedItem::Definition(definition) => match definition {
                 DefinitionEnum::UserFunction(definition) => self
@@ -646,9 +585,9 @@ impl EdgeRulesModel {
                 DefinitionEnum::InlineUserFunction(definition) => self
                     .set_user_function(UserFunctionDefinition::Inline(definition), None)
                     .map_err(Self::context_update_error)?,
-                DefinitionEnum::UserType(user_type) => self
-                    .set_user_type(user_type.name.as_str(), user_type.body)
-                    .map_err(Self::context_update_error)?,
+                DefinitionEnum::UserType(user_type) => {
+                    self.set_user_type(user_type.name.as_str(), user_type.body).map_err(Self::context_update_error)?
+                }
             },
             ParsedItem::Expression(unexpected) => {
                 return Err(ParseErrors::unexpected_token(
@@ -685,9 +624,7 @@ impl EdgeRulesModel {
         let result = EdgeRulesRuntime::new(Rc::clone(&linked_context));
         // @Todo: need to find a cheaper way to clone the AST tree
         // @Todo: need to find a way to preserve already set links to speed up the next linking
-        self.ast_root
-            .append(linked_context)
-            .map_err(|err| LinkingError::other_error(err.to_string()))?;
+        self.ast_root.append(linked_context).map_err(|err| LinkingError::other_error(err.to_string()))?;
         Ok(result)
     }
 }
@@ -707,19 +644,15 @@ pub struct EdgeRulesRuntime {
 impl EdgeRulesRuntime {
     pub fn new(static_tree: Rc<RefCell<ContextObject>>) -> EdgeRulesRuntime {
         let context = ExecutionContext::create_root_context(static_tree.clone());
-        EdgeRulesRuntime {
-            context,
-            static_tree,
-        }
+        EdgeRulesRuntime { context, static_tree }
     }
 
     /**
      * Evaluates a single field in the root context
      */
     pub fn evaluate_field(&self, name: &str) -> Result<ValueEnum, RuntimeError> {
-        let expression = EdgeRulesModel::parse_expression(name).map_err(|errors| {
-            RuntimeError::eval_error(format!("Failed to parse `{}`: {}", name, errors))
-        })?;
+        let expression = EdgeRulesModel::parse_expression(name)
+            .map_err(|errors| RuntimeError::eval_error(format!("Failed to parse `{}`: {}", name, errors)))?;
 
         self.evaluate_expression(expression)
     }
@@ -727,21 +660,13 @@ impl EdgeRulesRuntime {
     /**
      * Calls a method with given arguments that is already defined in the context
      */
-    pub fn call_method(
-        &self,
-        name: &str,
-        args: Vec<ExpressionEnum>,
-    ) -> Result<ValueEnum, RuntimeError> {
+    pub fn call_method(&self, name: &str, args: Vec<ExpressionEnum>) -> Result<ValueEnum, RuntimeError> {
         let mut call = UserFunctionCall::new(name.to_string(), args);
-        call.link(Rc::clone(&self.static_tree))
-            .map_err(|err| RuntimeError::eval_error(err.to_string()))?;
+        call.link(Rc::clone(&self.static_tree)).map_err(|err| RuntimeError::eval_error(err.to_string()))?;
         call.eval(Rc::clone(&self.context))
     }
 
-    pub fn evaluate_expression(
-        &self,
-        mut expression: ExpressionEnum,
-    ) -> Result<ValueEnum, RuntimeError> {
+    pub fn evaluate_expression(&self, mut expression: ExpressionEnum) -> Result<ValueEnum, RuntimeError> {
         expression.link(Rc::clone(&self.static_tree))?;
         expression.eval(Rc::clone(&self.context))
     }
@@ -764,9 +689,7 @@ impl EdgeRulesRuntime {
             // This is necessary because link_parts does not link function bodies by default.
             let field_names = self.static_tree.borrow().get_field_names();
             for name in field_names {
-                if let Ok(EObjectContent::UserFunctionRef(metaphor)) =
-                    self.static_tree.borrow().get(name)
-                {
+                if let Ok(EObjectContent::UserFunctionRef(metaphor)) = self.static_tree.borrow().get(name) {
                     let mut method = metaphor.borrow_mut();
                     if method.field_type.is_err() {
                         if let Ok(body) = method.function_definition.get_body() {
@@ -789,19 +712,17 @@ impl EdgeRulesRuntime {
             self.static_tree
                 .borrow()
                 .resolve_context(path.parent_segments())
-                .ok_or_else(|| {
-                    ContextQueryErrorEnum::ContextNotFoundError(path.parent_path().to_string())
-                })?
+                .ok_or_else(|| ContextQueryErrorEnum::ContextNotFoundError(path.parent_path().to_string()))?
         };
 
         let borrowed = parent.borrow();
         match borrowed.get(field_name) {
             Ok(content) => match content {
-                EObjectContent::ExpressionRef(entry) => {
-                    entry.borrow().field_type.clone().map_err(|_| {
-                        ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string())
-                    })
-                }
+                EObjectContent::ExpressionRef(entry) => entry
+                    .borrow()
+                    .field_type
+                    .clone()
+                    .map_err(|_| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string())),
                 EObjectContent::UserFunctionRef(entry) => {
                     let mut entry_mut = entry.borrow_mut();
                     if let Ok(vt) = &entry_mut.field_type {
@@ -813,9 +734,7 @@ impl EdgeRulesRuntime {
                         entry_mut.field_type = Ok(vt.clone());
                         Ok(vt)
                     } else {
-                        Err(ContextQueryErrorEnum::EntryNotFoundError(
-                            field_path.to_string(),
-                        ))
+                        Err(ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
                     }
                 }
                 EObjectContent::ObjectRef(obj) => Ok(ValueType::ObjectType(Rc::clone(&obj))),
@@ -824,20 +743,15 @@ impl EdgeRulesRuntime {
             },
             Err(_) => {
                 if let Some(body) = borrowed.get_user_type(field_name) {
-                    let vt =
-                        match body {
-                            UserTypeBody::TypeRef(tref) => borrowed
-                                .resolve_type_ref(&tref)
-                                .map_err(|e: LinkingError| {
-                                    ContextQueryErrorEnum::ContextNotFoundError(e.to_string())
-                                })?,
-                            UserTypeBody::TypeObject(obj) => ValueType::ObjectType(obj),
-                        };
+                    let vt = match body {
+                        UserTypeBody::TypeRef(tref) => borrowed
+                            .resolve_type_ref(&tref)
+                            .map_err(|e: LinkingError| ContextQueryErrorEnum::ContextNotFoundError(e.to_string()))?,
+                        UserTypeBody::TypeObject(obj) => ValueType::ObjectType(obj),
+                    };
                     return Ok(vt);
                 }
-                Err(ContextQueryErrorEnum::EntryNotFoundError(
-                    field_path.to_string(),
-                ))
+                Err(ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
             }
         }
     }

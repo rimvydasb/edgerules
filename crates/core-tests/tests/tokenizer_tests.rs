@@ -5,10 +5,7 @@ mod test_utils;
 use test_utils::test::*;
 
 fn array_to_code_sep(parts: impl Iterator<Item = impl Display>, sep: &str) -> String {
-    parts
-        .map(|part| format!("{}", part))
-        .collect::<Vec<String>>()
-        .join(sep)
+    parts.map(|part| format!("{}", part)).collect::<Vec<String>>().join(sep)
 }
 use log::info;
 
@@ -47,14 +44,8 @@ fn test_common() {
     is_equals("value : 1 + -2", "value : 1 + -2");
     is_equals("value : -1 + 2", "value : -1 + 2");
     is_equals("value : - (-2*10)", "value:-(-2*10)");
-    is_equals(
-        "value : (1 + 7 * (5 / 6 + (2-1))-1) - 8 / 3 * 10",
-        "value:(1+(7*(5/6+(2-1))-1))-8/3*10",
-    );
-    is_equals(
-        "{ record : { age : 18; value : 1 + 2 }}",
-        "{record:{age:18;value:1+2}}",
-    );
+    is_equals("value : (1 + 7 * (5 / 6 + (2-1))-1) - 8 / 3 * 10", "value:(1+(7*(5/6+(2-1))-1))-8/3*10");
+    is_equals("{ record : { age : 18; value : 1 + 2 }}", "{record:{age:18;value:1+2}}");
     is_equals("{ r : { a : 1 + 2} b : 3}", "{r:{a:1+2};b:3}");
     is_equals("{ r : { a : 1 + 2}; b : 3}", "{r:{a:1+2};b:3}"); // testing comma separator that should be OK
 
@@ -64,22 +55,13 @@ fn test_common() {
     //     "{record:{age1:11;variable:200;variable:200};record2:{age2:22}}",
     // );
     is_equals("value : [1,sum(9,8),3]", "value:[1,sum(9,8),3]");
-    is_equals(
-        "func record(input) : { age : input.age } ",
-        "record(input):{age:input.age}",
-    );
+    is_equals("func record(input) : { age : input.age } ", "record(input):{age:input.age}");
     is_equals(
         "{func doublethis(input) : { out : input * input }; result : doublethis(2).out }",
         "{doublethis(input):{out:input*input};result:doublethis(2).out}",
     );
-    is_equals(
-        "resultset : for x in [1,2,3] return x * 2",
-        "resultset : for x in [1,2,3] return x * 2",
-    );
-    is_equals(
-        "applicants : [{age:23},{age:34}]",
-        "applicants:[{age:23},{age:34}]",
-    );
+    is_equals("resultset : for x in [1,2,3] return x * 2", "resultset : for x in [1,2,3] return x * 2");
+    is_equals("applicants : [{age:23},{age:34}]", "applicants:[{age:23},{age:34}]");
     is_equals("p : [{a:1},5]", "p:[{a:1},5]");
     is_equals("func myFunc(x,y,z) : {a : 1}", "myFunc(x,y,z):{a:1}");
     is_equals(
@@ -91,22 +73,10 @@ fn test_common() {
     is_equals("value : ...> 1 ", "value: ...> 1");
 
     // if, else
-    is_equals(
-        "value : if 1 > 2 then 1 else 2",
-        "value : if 1 > 2 then 1 else 2",
-    );
-    is_equals(
-        "value : if (1 > 2) then 1 else 2",
-        "value : if 1 > 2 then 1 else 2",
-    );
-    is_equals(
-        "value : if (1 > 2) then 1 else 2 * 5",
-        "value: if 1 > 2 then 1 else 2 * 5",
-    );
-    is_equals(
-        "value : if (1 > 2 * 9) then 1 + 1 else 2 * 5",
-        "value : if 1 > 2 * 9 then 1 + 1 else 2 * 5",
-    );
+    is_equals("value : if 1 > 2 then 1 else 2", "value : if 1 > 2 then 1 else 2");
+    is_equals("value : if (1 > 2) then 1 else 2", "value : if 1 > 2 then 1 else 2");
+    is_equals("value : if (1 > 2) then 1 else 2 * 5", "value: if 1 > 2 then 1 else 2 * 5");
+    is_equals("value : if (1 > 2 * 9) then 1 + 1 else 2 * 5", "value : if 1 > 2 * 9 then 1 + 1 else 2 * 5");
     is_equals(
         "value : if (1 > 2) then 1 else (if (2 > 3) then 2 else 3)",
         "value : if 1 > 2 then 1 else if 2 > 3 then 2 else 3",
@@ -136,46 +106,22 @@ fn test_common() {
     is_equals("value : [1,2,3][0]", "value:[1,2,3][0]");
     is_equals("value : [1,2,3][>1]", "value:[1,2,3][...>1]");
     is_equals("value : [1,2,3][...>1]", "value:[1,2,3][...>1]");
-    is_equals(
-        "value : [1,2,3][...>=2 and ...<=3]",
-        "value:[1,2,3][...>=2 and ...<=3]",
-    );
+    is_equals("value : [1,2,3][...>=2 and ...<=3]", "value:[1,2,3][...>=2 and ...<=3]");
     is_equals("value : [1,2,3][position-1]", "value:[1,2,3][(position-1)]");
-    is_equals(
-        "value : application.applicant[0]",
-        "value:application.applicant[0]",
-    );
-    is_equals(
-        "value : application.applicant[0].age",
-        "value:application.applicant[0].age",
-    );
-    is_equals(
-        "value : application.applicant[<=1].age",
-        "value:application.applicant[...<=1].age",
-    );
-    is_equals(
-        "value : application.applicant[sum(1,2)].age",
-        "value:application.applicant[sum(1,2)].age",
-    );
+    is_equals("value : application.applicant[0]", "value:application.applicant[0]");
+    is_equals("value : application.applicant[0].age", "value:application.applicant[0].age");
+    is_equals("value : application.applicant[<=1].age", "value:application.applicant[...<=1].age");
+    is_equals("value : application.applicant[sum(1,2)].age", "value:application.applicant[sum(1,2)].age");
 
     // Variable and variable path:
     is_equals("value : subContext", "value : subContext");
     is_equals("value : subContext*1", "value : subContext*1");
-    is_equals(
-        "value : subContext.subResult",
-        "value : subContext.subResult",
-    );
-    is_equals(
-        "value : subContext.subResult+1",
-        "value : subContext.subResult+1",
-    );
+    is_equals("value : subContext.subResult", "value : subContext.subResult");
+    is_equals("value : subContext.subResult+1", "value : subContext.subResult+1");
 
     // Nested arrays
     is_equals("value : [1,2,3]", "value:[1,2,3]");
-    is_equals(
-        "value : [[key,value],[1,2],[3,4]]",
-        "value : [[key,value],[1,2],[3,4]]",
-    );
+    is_equals("value : [[key,value],[1,2],[3,4]]", "value : [[key,value],[1,2],[3,4]]");
     is_equals(
         "value : [[key,value],[,2],[3,4]]",
         "[parse]Veryfirstsequenceelementismissing→[parse]'value'assignmentsideisnotcomplete",
@@ -245,10 +191,7 @@ fn test_fuzzy_code() {
 fn test_errors() {
     init_logger();
 
-    is_equals(
-        "p : [{a:},5]",
-        "[parse]'a'assignmentsideisnotcomplete→[parse]'p'assignmentsideisnotcomplete",
-    );
+    is_equals("p : [{a:},5]", "[parse]'a'assignmentsideisnotcomplete→[parse]'p'assignmentsideisnotcomplete");
 }
 
 #[test]
@@ -256,18 +199,9 @@ fn test_range() {
     init_logger();
 
     is_equals("p : 1..5", "p : 1..5");
-    is_equals(
-        "p : for number in 1..5 return number * 2",
-        "p : for number in 1..5 return number * 2",
-    );
-    is_equals(
-        "p : for number in 1..(5+inc) return number * 3",
-        "p : for number in 1..(5+inc) return number * 3",
-    );
-    is_equals(
-        "p : for number in 1 * 0 .. 5+inc return number * 3",
-        "p : for number in 1*0..(5+inc) return number * 3",
-    );
+    is_equals("p : for number in 1..5 return number * 2", "p : for number in 1..5 return number * 2");
+    is_equals("p : for number in 1..(5+inc) return number * 3", "p : for number in 1..(5+inc) return number * 3");
+    is_equals("p : for number in 1 * 0 .. 5+inc return number * 3", "p : for number in 1*0..(5+inc) return number * 3");
 }
 
 #[test]
@@ -275,14 +209,8 @@ fn test_functions() {
     init_logger();
 
     is_equals("p : sum(2,2 * sum(1,1))", "p : sum(2,2 * sum(1,1))");
-    is_equals(
-        "p : sum(2 * sum(3,3),2 * sum(1,1))",
-        "p : sum(2 * sum(3,3),2 * sum(1,1))",
-    );
-    is_equals(
-        "value : sum(1,2,3 + sum(2,2 * sum(0,0,0,0))) + (2 * 2)",
-        "value:sum(1,2,(3+sum(2,2*sum(0,0,0,0))))+2*2",
-    );
+    is_equals("p : sum(2 * sum(3,3),2 * sum(1,1))", "p : sum(2 * sum(3,3),2 * sum(1,1))");
+    is_equals("value : sum(1,2,3 + sum(2,2 * sum(0,0,0,0))) + (2 * 2)", "value:sum(1,2,(3+sum(2,2*sum(0,0,0,0))))+2*2");
     is_equals("value : [1,1*sum(9,8^3)^2,3]", "value:[1,1*sum(9,8^3)^2,3]");
 }
 

@@ -18,10 +18,10 @@ use crate::typesystem::errors::ParseErrorEnum;
 use crate::typesystem::types::TypedValue;
 use std::borrow::Cow;
 
+use crate::typesystem::types::string::StringEnum;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::NumberValue;
-use crate::typesystem::types::string::StringEnum;
 
 /// @Tbc brackets counting and error returning
 pub fn tokenize(input: &str) -> VecDeque<EToken> {
@@ -60,8 +60,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         // two dots detected
                         source.next_char();
 
-                        ast_builder
-                            .push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
+                        ast_builder.push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
                     }
                 }
             }
@@ -76,11 +75,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     }
                 } else {
                     // no comments
-                    ast_builder.push_node(
-                        DivideMultiply as u32,
-                        MathOperatorEnum::Division.into(),
-                        build_any_operator,
-                    );
+                    ast_builder.push_node(DivideMultiply as u32, MathOperatorEnum::Division.into(), build_any_operator);
                 }
             }
             &C_ASSIGN => {
@@ -89,8 +84,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = false;
                 after_colon = true;
 
-                ast_builder
-                    .push_node(Assign as u32, Unparsed(AssignToken), build_assignment);
+                ast_builder.push_node(Assign as u32, Unparsed(AssignToken), build_assignment);
             }
             '+' | '-' | '*' | '×' | '÷' | '^' | '%' => {
                 let extracted = source.next_char().unwrap();
@@ -109,9 +103,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     let is_unary = if let Some(token) = ast_builder.last_token() {
                         !matches!(
                             token,
-                            Expression(_)
-                                | Unparsed(BracketOpenToken)
-                                | Unparsed(LiteralToken(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
+                            Expression(_) | Unparsed(BracketOpenToken) | Unparsed(LiteralToken(Cow::Borrowed(")"))) // Check for closing paren if it were stored? No, ) calls merge.
                         )
                     } else {
                         true
@@ -142,8 +134,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 left_side = true;
                 after_colon = false;
 
-                ast_builder
-                    .push_node(ContextPriority as u32, Unparsed(ObjectToken), build_context);
+                ast_builder.push_node(ContextPriority as u32, Unparsed(ObjectToken), build_context);
 
                 //ctx_open += 1;
                 ast_builder.incl_level();
@@ -248,7 +239,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                                 ast_builder.dec_level();
                                 ast_builder.push_node(
                                     ReservedWords as u32,
-                                     Unparsed(LiteralToken(literal.into())),
+                                    Unparsed(LiteralToken(literal.into())),
                                     build_if_then_else,
                                 )
                             }
@@ -296,28 +287,28 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             }
 
                             "not" => ast_builder.push_node(
-                                 LogicalOperatorEnum::Not as u32,
-                                 Unparsed(LiteralToken(literal.into())),
-                                 build_logical_operator,
-                             ),
+                                LogicalOperatorEnum::Not as u32,
+                                Unparsed(LiteralToken(literal.into())),
+                                build_logical_operator,
+                            ),
 
                             "and" => ast_builder.push_node(
                                 LogicalOperatorEnum::And as u32,
                                 Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                             ),
+                            ),
 
                             "or" => ast_builder.push_node(
                                 LogicalOperatorEnum::Or as u32,
                                 Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                             ),
+                            ),
 
                             "xor" => ast_builder.push_node(
                                 LogicalOperatorEnum::Xor as u32,
                                 Unparsed(LiteralToken(literal.into())),
                                 build_logical_operator,
-                             ),
+                            ),
 
                             "func" => {
                                 // @Todo: the func is recognized, so it can be mapped to Unparsed::UserFunctionGateOpen
@@ -340,27 +331,20 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                             }
                             _ => {
                                 if after_colon {
-                                    if let Some(tref) = parse_type_with_trailing_lists(
-                                        literal.as_str(),
-                                        &mut source,
-                                    ) {
-                                        ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(
-                                            tref,
-                                        )));
+                                    if let Some(tref) = parse_type_with_trailing_lists(literal.as_str(), &mut source) {
+                                        ast_builder.push_element(Unparsed(TypeReferenceLiteralToken(tref)));
                                         after_colon = false;
                                         continue;
                                     }
                                 }
 
-                                ast_builder
-                                    .push_element(VariableLink::new_unlinked(literal).into());
+                                ast_builder.push_element(VariableLink::new_unlinked(literal).into());
                                 after_colon = false;
                             }
                         }
                     }
                     Either::Right(expression) => {
-                        ast_builder
-                            .push_element(VariableLink::new_unlinked_path(expression).into());
+                        ast_builder.push_element(VariableLink::new_unlinked_path(expression).into());
                         after_colon = false;
                     }
                 }
@@ -379,16 +363,11 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                         ast_builder.push_element(Expression(ContextVariable));
                     } else {
-                        ast_builder
-                            .push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
+                        ast_builder.push_node(RangePriority as u32, Unparsed(RangeToken), build_range);
                     }
                 } else {
                     // merge_left_if_can must already be called with ]
-                    ast_builder.push_node(
-                        FieldSelectionPriority as u32,
-                        Unparsed(DotToken),
-                        build_field_selection,
-                    );
+                    ast_builder.push_node(FieldSelectionPriority as u32, Unparsed(DotToken), build_field_selection);
                 }
             }
             //----------------------------------------------------------------------------------
@@ -404,9 +383,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     && if let Some(token) = ast_builder.last_token() {
                         matches!(
                             token,
-                            Expression(Variable(_))
-                                | Expression(FunctionCall(_))
-                                | Expression(Collection(_))
+                            Expression(Variable(_)) | Expression(FunctionCall(_)) | Expression(Collection(_))
                         )
                     } else {
                         // if first item general
@@ -414,17 +391,9 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                     };
 
                 if is_select {
-                    ast_builder.push_node(
-                        FilterArray as u32,
-                        Unparsed(BracketOpenToken),
-                        build_filter,
-                    );
+                    ast_builder.push_node(FilterArray as u32, Unparsed(BracketOpenToken), build_filter);
                 } else {
-                    ast_builder.push_node(
-                        FilterArray as u32,
-                        Unparsed(BracketOpenToken),
-                        build_sequence,
-                    );
+                    ast_builder.push_node(FilterArray as u32, Unparsed(BracketOpenToken), build_sequence);
                 };
 
                 source.next_char();
@@ -460,10 +429,8 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                         build_comparator,
                     );
                 } else {
-                    ast_builder.push_element(error_token!(
-                        "Unrecognized comparator after '{}'",
-                        source.next_char().unwrap()
-                    ));
+                    ast_builder
+                        .push_element(error_token!("Unrecognized comparator after '{}'", source.next_char().unwrap()));
                 }
             }
             '"' | '\'' => {
@@ -475,10 +442,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
                 after_colon = false;
             }
             _ => {
-                ast_builder.push_element(error_token!(
-                    "unexpected character '{}'",
-                    source.next_char().unwrap()
-                ));
+                ast_builder.push_element(error_token!("unexpected character '{}'", source.next_char().unwrap()));
             }
         }
     }
@@ -510,18 +474,13 @@ pub fn parse_complex_type_in_angle(source: &mut CharStream) -> Result<ComplexTyp
     if let Some('>') = source.peek() {
         source.next_char();
     } else {
-        return Err(ParseErrorEnum::WrongFormat(
-            "Missing closing '>' in type reference".to_string(),
-        ));
+        return Err(ParseErrorEnum::WrongFormat("Missing closing '>' in type reference".to_string()));
     }
 
     Ok(type_ref)
 }
 
-fn parse_default_value(
-    type_ref: &mut ComplexTypeRef,
-    source: &mut CharStream,
-) -> Result<(), ParseErrorEnum> {
+fn parse_default_value(type_ref: &mut ComplexTypeRef, source: &mut CharStream) -> Result<(), ParseErrorEnum> {
     let val = match source.peek() {
         Some('[') => {
             source.next_char();
@@ -558,18 +517,13 @@ fn parse_default_value(
                 }
             }
 
-            let item_type = if let Some(first) = elements.first() {
-                first.get_type()
-            } else {
-                ValueType::UndefinedType
-            };
+            let item_type =
+                if let Some(first) = elements.first() { first.get_type() } else { ValueType::UndefinedType };
 
-            Some(ValueEnum::Array(
-                crate::typesystem::values::ArrayValue::PrimitivesArray {
-                    values: elements,
-                    item_type,
-                },
-            ))
+            Some(ValueEnum::Array(crate::typesystem::values::ArrayValue::PrimitivesArray {
+                values: elements,
+                item_type,
+            }))
         }
         Some('"') | Some('\'') => {
             let quote = source.next_char().unwrap();
@@ -582,15 +536,10 @@ fn parse_default_value(
             } else if literal == "false" {
                 Some(ValueEnum::BooleanValue(false))
             } else {
-                return Err(ParseErrorEnum::WrongFormat(format!(
-                    "Invalid boolean default: {}",
-                    literal
-                )));
+                return Err(ParseErrorEnum::WrongFormat(format!("Invalid boolean default: {}", literal)));
             }
         }
-        Some(symbol) if symbol.is_numeric() || *symbol == '-' => {
-            Some(ValueEnum::NumberValue(source.get_number()))
-        }
+        Some(symbol) if symbol.is_numeric() || *symbol == '-' => Some(ValueEnum::NumberValue(source.get_number())),
         _ => None,
     };
 

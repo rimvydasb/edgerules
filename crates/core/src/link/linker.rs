@@ -50,8 +50,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                                 }
                                 Err(mut err) => {
                                     if err.location().is_empty() {
-                                        *err.location_mut() =
-                                            build_location_from_context(&context, name);
+                                        *err.location_mut() = build_location_from_context(&context, name);
                                     }
                                     if !err.has_expression() {
                                         err.set_expression(expression_display);
@@ -86,11 +85,7 @@ pub fn link_parts(context: Rc<RefCell<ContextObject>>) -> Link<Rc<RefCell<Contex
                     _ => unreachable!(),
                 };
 
-                let assigned_name = reference
-                    .borrow()
-                    .node()
-                    .get_assigned_to_field()
-                    .unwrap_or(default_name);
+                let assigned_name = reference.borrow().node().get_assigned_to_field().unwrap_or(default_name);
                 if reference.try_borrow_mut().is_ok() {
                     references.push((name, reference.clone()));
                 } else {
@@ -119,11 +114,7 @@ pub fn find_implementation(
     let mut ctx: Rc<RefCell<ContextObject>> = context;
 
     loop {
-        trace!(
-            "find_implementation: searching {} in {} ",
-            function_name,
-            ctx.borrow().node().node_type
-        );
+        trace!("find_implementation: searching {} in {} ", function_name, ctx.borrow().node().node_type);
 
         let implementation = (*ctx).borrow().get_function(function_name.as_str());
 
@@ -140,19 +131,11 @@ pub fn find_implementation(
             if let Some(parent_to_check) = maybe_parent {
                 ctx = parent_to_check;
             } else {
-                error!(
-                    "find_implementation: Cannot find {} in {} ",
-                    function_name,
-                    ctx.borrow().node().node_type
-                );
+                error!("find_implementation: Cannot find {} in {} ", function_name, ctx.borrow().node().node_type);
 
                 let known_metaphors = collect_known_implementations(Rc::clone(&ctx));
 
-                return LinkingError::new(FunctionNotFound {
-                    name: function_name,
-                    known_metaphors,
-                })
-                .into();
+                return LinkingError::new(FunctionNotFound { name: function_name, known_metaphors }).into();
             }
         }
     }
@@ -189,20 +172,14 @@ pub fn collect_known_implementations(context: Rc<RefCell<ContextObject>>) -> Vec
     implementations
 }
 
-pub(crate) fn build_location_from_context(
-    context: &Rc<RefCell<ContextObject>>,
-    field_name: &str,
-) -> Vec<String> {
+pub(crate) fn build_location_from_context(context: &Rc<RefCell<ContextObject>>, field_name: &str) -> Vec<String> {
     let mut location = vec![field_name.to_string()];
     let mut current = Some(Rc::clone(context));
 
     while let Some(ctx) = current {
         let (parent, assigned) = {
             let borrowed = ctx.borrow();
-            (
-                borrowed.node().node_type.get_parent(),
-                borrowed.node().node_type.get_assigned_name(),
-            )
+            (borrowed.node().node_type.get_parent(), borrowed.node().node_type.get_assigned_name())
         };
 
         if let Some(name) = assigned {
@@ -215,10 +192,7 @@ pub(crate) fn build_location_from_context(
     location
 }
 
-pub fn get_till_root<T: Node<T>>(
-    ctx: Rc<RefCell<T>>,
-    name: &str,
-) -> Result<BrowseResultFound<T>, LinkingError> {
+pub fn get_till_root<T: Node<T>>(ctx: Rc<RefCell<T>>, name: &str) -> Result<BrowseResultFound<T>, LinkingError> {
     let interned = intern_field_name(name);
     ctx.borrow().node().lock_field(interned)?;
     let result;
@@ -230,10 +204,7 @@ pub fn get_till_root<T: Node<T>>(
             if let FieldNotFound(obj_name, field) = err.kind() {
                 match ctx.borrow().node().node_type.get_parent() {
                     None => {
-                        result = Err(LinkingError::new(FieldNotFound(
-                            obj_name.clone(),
-                            field.clone(),
-                        )));
+                        result = Err(LinkingError::new(FieldNotFound(obj_name.clone(), field.clone())));
                     }
                     Some(parent) => {
                         result = get_till_root(parent, name);
@@ -260,16 +231,8 @@ pub struct BrowseResultFound<T: Node<T>> {
 }
 
 impl<T: Node<T>> BrowseResultFound<T> {
-    pub fn new(
-        context: Rc<RefCell<T>>,
-        field_name: &'static str,
-        content: EObjectContent<T>,
-    ) -> BrowseResultFound<T> {
-        BrowseResultFound {
-            context,
-            field_name,
-            content,
-        }
+    pub fn new(context: Rc<RefCell<T>>, field_name: &'static str, content: EObjectContent<T>) -> BrowseResultFound<T> {
+        BrowseResultFound { context, field_name, content }
     }
 }
 
@@ -286,10 +249,7 @@ impl BrowseResultFound<ExecutionContext> {
                     Ok(v) => Ok(v),
                     Err(mut err) => {
                         if err.location().is_empty() {
-                            *err.location_mut() = build_location_from_execution_context(
-                                &self.context,
-                                self.field_name,
-                            );
+                            *err.location_mut() = build_location_from_execution_context(&self.context, self.field_name);
                         }
                         if !err.has_expression() {
                             err.set_expression(value.borrow().expression.to_string());
@@ -300,9 +260,7 @@ impl BrowseResultFound<ExecutionContext> {
                 let final_result = result?;
 
                 // no need to check if in stack, if it was already acquired as expression, it is not in stack
-                self.context
-                    .borrow()
-                    .stack_insert(self.field_name, Ok(final_result.clone()));
+                self.context.borrow().stack_insert(self.field_name, Ok(final_result.clone()));
                 Ok(final_result)
             }
             UserFunctionRef(_value) => {
@@ -312,23 +270,16 @@ impl BrowseResultFound<ExecutionContext> {
                 NodeData::attach_child(&self.context, value);
                 Ok(ValueEnum::Reference(Rc::clone(value)))
             }
-            Definition(definition) => Err(RuntimeError::eval_error(format!(
-                "Cannot evaluate definition: {}",
-                definition
-            ))),
+            Definition(definition) => {
+                Err(RuntimeError::eval_error(format!("Cannot evaluate definition: {}", definition)))
+            }
         }
     }
 }
 
 impl<T: Node<T>> Display for BrowseResultFound<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}.{} = {}",
-            self.context.borrow().node().node_type,
-            self.field_name,
-            self.content
-        )
+        write!(f, "{}.{} = {}", self.context.borrow().node().node_type, self.field_name, self.content)
     }
 }
 
@@ -344,11 +295,7 @@ pub enum BrowseResult<'a, T: Node<T>> {
 }
 
 impl<'a, T: Node<T>> BrowseResult<'a, T> {
-    pub fn found(
-        context: Rc<RefCell<T>>,
-        field_name: &'a str,
-        content: EObjectContent<T>,
-    ) -> BrowseResult<'a, T> {
+    pub fn found(context: Rc<RefCell<T>>, field_name: &'a str, content: EObjectContent<T>) -> BrowseResult<'a, T> {
         let interned = intern_field_name(field_name);
         BrowseResult::Found(BrowseResultFound::new(context, interned, content))
     }
@@ -359,16 +306,8 @@ impl<'a, T: Node<T>> BrowseResult<'a, T> {
         mut on_object_type: FC,
     ) -> Result<BrowseResultFound<T>, LinkingError>
     where
-        FE: FnMut(
-            Rc<RefCell<T>>,
-            Rc<RefCell<ExpressionEntry>>,
-            &[&'a str],
-        ) -> Result<EObjectContent<T>, LinkingError>,
-        FC: FnMut(
-            Rc<RefCell<T>>,
-            Rc<RefCell<ContextObject>>,
-            &[&'a str],
-        ) -> Result<EObjectContent<T>, LinkingError>,
+        FE: FnMut(Rc<RefCell<T>>, Rc<RefCell<ExpressionEntry>>, &[&'a str]) -> Result<EObjectContent<T>, LinkingError>,
+        FC: FnMut(Rc<RefCell<T>>, Rc<RefCell<ContextObject>>, &[&'a str]) -> Result<EObjectContent<T>, LinkingError>,
     {
         //trace!("on_incomplete: {:?}", self);
         match self {
@@ -396,10 +335,7 @@ pub fn browse<'a, T: Node<T>>(
 ) -> Result<BrowseResult<'a, T>, LinkingError> {
     // Path is empty - this is abnormal and should never happen
     if path.is_empty() {
-        return Err(LinkingError::field_not_found(
-            ctx.borrow().node().node_type.to_string().as_str(),
-            "",
-        ));
+        return Err(LinkingError::field_not_found(ctx.borrow().node().node_type.to_string().as_str(), ""));
     }
 
     // Path is 1
@@ -409,11 +345,7 @@ pub fn browse<'a, T: Node<T>>(
             let result = get_till_root(ctx, field_name)?;
             Ok(BrowseResult::Found(result))
         } else {
-            Ok(BrowseResult::found(
-                Rc::clone(&ctx),
-                field_name,
-                ctx.borrow().get(field_name)?,
-            ))
+            Ok(BrowseResult::found(Rc::clone(&ctx), field_name, ctx.borrow().get(field_name)?))
         };
     }
 
@@ -468,18 +400,10 @@ fn continue_browse<'a, T: Node<T>>(
     while let (ref context, ref item) = starting {
         if index >= path.len() {
             return if let Some(current_search) = current_search_end {
-                Ok(BrowseResult::found(
-                    Rc::clone(context),
-                    current_search,
-                    item.clone(),
-                ))
+                Ok(BrowseResult::found(Rc::clone(context), current_search, item.clone()))
             } else {
                 // Path is empty so there is nothing to resolve for this context.
-                return LinkingError::field_not_found(
-                    &context.borrow().node().node_type.to_string(),
-                    "<empty>",
-                )
-                .into();
+                return LinkingError::field_not_found(&context.borrow().node().node_type.to_string(), "<empty>").into();
             };
         }
 
@@ -524,15 +448,9 @@ fn continue_browse<'a, T: Node<T>>(
                             "hours" => Some(number_value_from_i128(hours)),
                             "minutes" => Some(number_value_from_i128(minutes)),
                             "seconds" => Some(number_value_from_i128(seconds)),
-                            "totalSeconds" => {
-                                Some(number_value_from_i128(dur.total_seconds_signed()))
-                            }
-                            "totalMinutes" => {
-                                Some(VE::NumberValue(NumberEnum::from(dur.total_minutes())))
-                            }
-                            "totalHours" => {
-                                Some(VE::NumberValue(NumberEnum::from(dur.total_hours())))
-                            }
+                            "totalSeconds" => Some(number_value_from_i128(dur.total_seconds_signed())),
+                            "totalMinutes" => Some(VE::NumberValue(NumberEnum::from(dur.total_minutes()))),
+                            "totalHours" => Some(VE::NumberValue(NumberEnum::from(dur.total_hours()))),
                             _ => None,
                         }
                     }
@@ -542,9 +460,7 @@ fn continue_browse<'a, T: Node<T>>(
                             "years" => Some(number_value_from_i128(years)),
                             "months" => Some(number_value_from_i128(months)),
                             "days" => Some(number_value_from_i128(period.total_days_signed())),
-                            "totalMonths" => {
-                                Some(number_value_from_i128(period.total_months_signed()))
-                            }
+                            "totalMonths" => Some(number_value_from_i128(period.total_months_signed())),
                             "totalDays" => Some(number_value_from_i128(period.total_days_signed())),
                             _ => None,
                         }
@@ -561,11 +477,7 @@ fn continue_browse<'a, T: Node<T>>(
                 }
             }
             ExpressionRef(expression) => {
-                return Ok(BrowseResult::OnExpression(
-                    Rc::clone(context),
-                    Rc::clone(expression),
-                    &path[index - 1..],
-                ));
+                return Ok(BrowseResult::OnExpression(Rc::clone(context), Rc::clone(expression), &path[index - 1..]));
             }
             UserFunctionRef(metaphor) => {
                 let metaphor_name = metaphor.borrow().function_definition.get_name();
@@ -578,11 +490,7 @@ fn continue_browse<'a, T: Node<T>>(
                 starting = (Rc::clone(object), result)
             }
             Definition(ObjectType(object)) => {
-                return Ok(BrowseResult::OnObjectType(
-                    Rc::clone(context),
-                    Rc::clone(object),
-                    &path[index - 1..],
-                ));
+                return Ok(BrowseResult::OnObjectType(Rc::clone(context), Rc::clone(object), &path[index - 1..]));
             }
             Definition(definition) => {
                 use crate::typesystem::types::ValueType;
@@ -632,11 +540,9 @@ fn continue_browse<'a, T: Node<T>>(
                 if let Some(def) = next_def {
                     starting = (Rc::clone(context), Definition(def));
                 } else {
-                    let object_name = current_search_end
-                        .map(|name| name.to_string())
-                        .unwrap_or_else(|| definition.to_string());
-                    return LinkingError::field_not_found(object_name.as_str(), current_search)
-                        .into();
+                    let object_name =
+                        current_search_end.map(|name| name.to_string()).unwrap_or_else(|| definition.to_string());
+                    return LinkingError::field_not_found(object_name.as_str(), current_search).into();
                 }
             }
         }
@@ -646,9 +552,5 @@ fn continue_browse<'a, T: Node<T>>(
 
     // Path iteration is exhausted; this branch should be unreachable because we return earlier
     // once `index >= path.len()`. Keep a defensive fallback to avoid panics.
-    Ok(BrowseResult::found(
-        starting.0,
-        "this should not happen",
-        starting.1,
-    ))
+    Ok(BrowseResult::found(starting.0, "this should not happen", starting.1))
 }

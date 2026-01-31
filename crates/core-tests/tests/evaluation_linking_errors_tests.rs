@@ -218,10 +218,7 @@ fn reports_location_for_missing_user_function() {
         code,
         &["calculations", "answer"],
         "missingFunction(1)",
-        LinkingErrorEnum::FunctionNotFound {
-            name: "missingFunction".to_string(),
-            known_metaphors: vec![],
-        },
+        LinkingErrorEnum::FunctionNotFound { name: "missingFunction".to_string(), known_metaphors: vec![] },
     );
 }
 
@@ -253,11 +250,7 @@ fn reports_location_for_unsupported_operations() {
         code,
         &["nested", "compare"],
         "true < false",
-        LinkingErrorEnum::OperationNotSupported(
-            "<".to_string(),
-            ValueType::BooleanType,
-            ValueType::BooleanType,
-        ),
+        LinkingErrorEnum::OperationNotSupported("<".to_string(), ValueType::BooleanType, ValueType::BooleanType),
     );
 }
 
@@ -285,12 +278,7 @@ fn reports_location_for_unset_it_binding() {
 }
 "#;
 
-    link_error_location(
-        code,
-        &["wrapper", "inner", "value"],
-        "it",
-        LinkingErrorEnum::NotLinkedYet,
-    );
+    link_error_location(code, &["wrapper", "inner", "value"], "it", LinkingErrorEnum::NotLinkedYet);
 }
 
 mod utilities;

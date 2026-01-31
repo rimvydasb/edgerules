@@ -9,9 +9,7 @@ use edge_rules::ast::ifthenelse::IfThenElseFunction;
 use edge_rules::ast::metaphors::metaphor::UserFunction;
 use edge_rules::ast::operators::comparators::{ComparatorEnum, ComparatorOperator};
 use edge_rules::ast::operators::logical_operators::{LogicalOperator, LogicalOperatorEnum};
-use edge_rules::ast::operators::math_operators::{
-    MathOperator, MathOperatorEnum, NegationOperator,
-};
+use edge_rules::ast::operators::math_operators::{MathOperator, MathOperatorEnum, NegationOperator};
 use edge_rules::ast::selections::{ExpressionFilter, FieldSelection};
 use edge_rules::ast::sequence::CollectionExpression;
 use edge_rules::ast::token::ExpressionEnum;
@@ -114,11 +112,7 @@ fn render_value(value: &ValueEnum, scope: Option<&str>, fallback_scope: Option<&
         ValueEnum::Array(array) => render_array(array, scope, fallback_scope),
         ValueEnum::Reference(ctx) => render_execution_context(&ctx.borrow(), None, None),
         ValueEnum::RangeValue(range) => {
-            format!(
-                "({{start: {}, end: {}}})",
-                range.start,
-                range.end.saturating_sub(1)
-            )
+            format!("({{start: {}, end: {}}})", range.start, range.end.saturating_sub(1))
         }
         ValueEnum::TypeValue(value_type) => quote_str(&value_type.to_string()),
     }
@@ -138,27 +132,15 @@ fn render_array(array: &ArrayValue, scope: Option<&str>, fallback_scope: Option<
             let mut parts = Vec::with_capacity(values.len());
             for (idx, ctx) in values.iter().enumerate() {
                 let scope_name = format!("obj{}", idx);
-                parts.push(render_execution_context(
-                    &ctx.borrow(),
-                    Some(&scope_name),
-                    fallback_scope,
-                ));
+                parts.push(render_execution_context(&ctx.borrow(), Some(&scope_name), fallback_scope));
             }
             format!("[{}]", parts.join(", "))
         }
     }
 }
 
-fn render_variable(
-    variable: &VariableLink,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> String {
-    let key = variable
-        .path
-        .iter()
-        .map(|segment| quote_key(segment))
-        .collect::<Vec<_>>();
+fn render_variable(variable: &VariableLink, scope: Option<&str>, fallback_scope: Option<&str>) -> String {
+    let key = variable.path.iter().map(|segment| quote_key(segment)).collect::<Vec<_>>();
 
     let build_path = |root: &str| {
         let mut path = root.to_string();
@@ -182,11 +164,7 @@ fn render_variable(
     format!("({})", candidates.join(" ?? "))
 }
 
-fn render_math_operator(
-    op: &MathOperator,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> Option<String> {
+fn render_math_operator(op: &MathOperator, scope: Option<&str>, fallback_scope: Option<&str>) -> Option<String> {
     let symbol = match op.data.operator {
         MathOperatorEnum::Addition => "+",
         MathOperatorEnum::Subtraction => "-",
@@ -200,11 +178,7 @@ fn render_math_operator(
     Some(format!("({} {} {})", left, symbol, right))
 }
 
-fn render_comparator(
-    op: &ComparatorOperator,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> Option<String> {
+fn render_comparator(op: &ComparatorOperator, scope: Option<&str>, fallback_scope: Option<&str>) -> Option<String> {
     let symbol = match op.data.operator {
         ComparatorEnum::Equals => "===",
         ComparatorEnum::NotEquals => "!==",
@@ -218,11 +192,7 @@ fn render_comparator(
     Some(format!("({} {} {})", left, symbol, right))
 }
 
-fn render_logical(
-    op: &LogicalOperator,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> Option<String> {
+fn render_logical(op: &LogicalOperator, scope: Option<&str>, fallback_scope: Option<&str>) -> Option<String> {
     let symbol = match op.data.operator {
         LogicalOperatorEnum::And => "&&",
         LogicalOperatorEnum::Or => "||",
@@ -289,11 +259,7 @@ fn render_function_call(
     None
 }
 
-fn render_expression(
-    expr: &ExpressionEnum,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> String {
+fn render_expression(expr: &ExpressionEnum, scope: Option<&str>, fallback_scope: Option<&str>) -> String {
     match expr {
         ExpressionEnum::Value(value) => render_value(value, scope, fallback_scope),
         ExpressionEnum::Variable(var) => render_variable(var, scope, fallback_scope),
@@ -315,14 +281,11 @@ fn render_expression(
             .unwrap_or_else(|| quote_str(&expr.to_string()))
         }
         ExpressionEnum::FunctionCall(func) => {
-            render_function_call(func.as_ref(), scope, fallback_scope)
-                .unwrap_or_else(|| quote_str(&expr.to_string()))
+            render_function_call(func.as_ref(), scope, fallback_scope).unwrap_or_else(|| quote_str(&expr.to_string()))
         }
         ExpressionEnum::Selection(selection) => render_selection(selection, scope, fallback_scope),
         ExpressionEnum::Filter(filter) => render_filter(filter, scope, fallback_scope),
-        ExpressionEnum::Collection(collection) => {
-            render_collection(collection, scope, fallback_scope)
-        }
+        ExpressionEnum::Collection(collection) => render_collection(collection, scope, fallback_scope),
         ExpressionEnum::RangeExpression(left, right) => {
             format!(
                 "({{start: {}, end: {}}})",
@@ -332,21 +295,13 @@ fn render_expression(
         }
         ExpressionEnum::StaticObject(obj) => render_context_object(&obj.borrow(), "ctx", None, None),
         ExpressionEnum::ObjectField(name, right) => {
-            format!(
-                "({{{}: {}}})",
-                quote_key(name),
-                render_expression(right, scope, fallback_scope)
-            )
+            format!("({{{}: {}}})", quote_key(name), render_expression(right, scope, fallback_scope))
         }
         ExpressionEnum::TypePlaceholder(tref) => quote_str(&format!("<{}>", tref)),
     }
 }
 
-fn render_collection(
-    collection: &CollectionExpression,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> String {
+fn render_collection(collection: &CollectionExpression, scope: Option<&str>, fallback_scope: Option<&str>) -> String {
     let mut parts = Vec::with_capacity(collection.elements.len());
     for element in &collection.elements {
         parts.push(render_expression(element, scope, fallback_scope));
@@ -354,11 +309,7 @@ fn render_collection(
     format!("[{}]", parts.join(", "))
 }
 
-fn render_filter(
-    filter: &ExpressionFilter,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> String {
+fn render_filter(filter: &ExpressionFilter, scope: Option<&str>, fallback_scope: Option<&str>) -> String {
     let source_js = render_expression(&filter.source, scope, fallback_scope);
     let method_js = render_expression(&filter.method, Some("it"), scope);
     format!(
@@ -380,25 +331,13 @@ fn render_filter(
     )
 }
 
-fn render_for_function(
-    for_fn: &ForFunction,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> String {
+fn render_for_function(for_fn: &ForFunction, scope: Option<&str>, fallback_scope: Option<&str>) -> String {
     let source_js = render_expression(&for_fn.in_expression, scope, fallback_scope);
     let loop_scope = format!("loop_{}", sanitize_identifier(&for_fn.in_loop_variable));
     let return_js = {
         let ret_ctx = for_fn.return_expression.borrow();
-        let return_entry = ret_ctx
-            .expressions
-            .get(RETURN_EXPRESSION)
-            .expect("return expression must exist")
-            .borrow();
-        render_expression(
-            &return_entry.expression,
-            Some(&loop_scope),
-            scope.or(fallback_scope),
-        )
+        let return_entry = ret_ctx.expressions.get(RETURN_EXPRESSION).expect("return expression must exist").borrow();
+        render_expression(&return_entry.expression, Some(&loop_scope), scope.or(fallback_scope))
     };
     let loop_var = quote_key(&for_fn.in_loop_variable);
     format!(
@@ -424,23 +363,11 @@ fn render_for_function(
             "    return source;\n",
             "}})()"
         ),
-        source_js,
-        loop_scope,
-        loop_scope,
-        loop_var,
-        return_js,
-        loop_scope,
-        loop_scope,
-        loop_var,
-        return_js
+        source_js, loop_scope, loop_scope, loop_var, return_js, loop_scope, loop_scope, loop_var, return_js
     )
 }
 
-fn render_selection(
-    selection: &FieldSelection,
-    scope: Option<&str>,
-    fallback_scope: Option<&str>,
-) -> String {
+fn render_selection(selection: &FieldSelection, scope: Option<&str>, fallback_scope: Option<&str>) -> String {
     let source_js = render_expression(&selection.source, scope, fallback_scope);
     let mut accessors = String::new();
     for segment in &selection.method.path {
@@ -448,10 +375,7 @@ fn render_selection(
         accessors.push_str(&quote_key(segment));
         accessors.push(']');
     }
-    format!(
-        "(() => {{\n    const source = {};\n    return source{};\n}})()",
-        source_js, accessors
-    )
+    format!("(() => {{\n    const source = {};\n    return source{};\n}})()", source_js, accessors)
 }
 
 fn render_function_definition_args(args: &[FormalParameter]) -> String {
@@ -483,12 +407,7 @@ fn render_context_object(
             let nested_scope = format!("{}_{}", scope, sanitize_identifier(name));
             let nested_js = render_context_object(&child.borrow(), &nested_scope, Some(scope), closure_scope);
             lines.push(format!("const {} = {};", nested_scope, nested_js));
-            lines.push(format!(
-                "{}[{}] = {};",
-                scope,
-                quote_key(name),
-                nested_scope
-            ));
+            lines.push(format!("{}[{}] = {};", scope, quote_key(name), nested_scope));
             continue;
         }
 
@@ -496,12 +415,8 @@ fn render_context_object(
             let def = &method.borrow().function_definition;
             let args_js = render_function_definition_args(def.get_parameters());
             let body_ctx = def.get_body().expect("function body available");
-            let body_js = render_context_object(
-                &body_ctx.borrow(),
-                &format!("{}_{}", scope, "fn"),
-                Some(scope),
-                closure_scope,
-            );
+            let body_js =
+                render_context_object(&body_ctx.borrow(), &format!("{}_{}", scope, "fn"), Some(scope), closure_scope);
             lines.push(format!(
                 "{}[{}] = {{ name: {}, args: {}, body: {} }};",
                 scope,
@@ -518,11 +433,7 @@ fn render_context_object(
     format!("(() => {{\n    {}\n}})()", lines.join("\n    "))
 }
 
-fn render_execution_context(
-    ctx: &ExecutionContext,
-    scope: Option<&str>,
-    parent_scope: Option<&str>,
-) -> String {
+fn render_execution_context(ctx: &ExecutionContext, scope: Option<&str>, parent_scope: Option<&str>) -> String {
     let scope_name = scope.unwrap_or("ctx");
     let mut lines = Vec::new();
     lines.push(format!("const {} = {{}};", scope_name));
@@ -531,30 +442,15 @@ fn render_execution_context(
         match ctx.get(name) {
             Ok(EObjectContent::ConstantValue(value)) => {
                 let value_js = render_value(&value, Some(scope_name), parent_scope);
-                lines.push(format!(
-                    "{}[{}] = {};",
-                    scope_name,
-                    quote_key(name),
-                    value_js
-                ));
+                lines.push(format!("{}[{}] = {};", scope_name, quote_key(name), value_js));
             }
             Ok(EObjectContent::ExpressionRef(expr)) => {
-                let expr_js =
-                    render_expression(&expr.borrow().expression, Some(scope_name), parent_scope);
-                lines.push(format!(
-                    "{}[{}] = {};",
-                    scope_name,
-                    quote_key(name),
-                    expr_js
-                ));
+                let expr_js = render_expression(&expr.borrow().expression, Some(scope_name), parent_scope);
+                lines.push(format!("{}[{}] = {};", scope_name, quote_key(name), expr_js));
             }
             Ok(EObjectContent::UserFunctionRef(method)) => {
                 let def = &method.borrow().function_definition;
-                let fn_var = format!(
-                    "{}_fn_{}",
-                    scope_name,
-                    sanitize_identifier(def.get_name().as_str())
-                );
+                let fn_var = format!("{}_fn_{}", scope_name, sanitize_identifier(def.get_name().as_str()));
                 let arg_scope = format!("{}_args", fn_var);
                 let body_scope = format!("{}_body", fn_var);
 
@@ -563,12 +459,7 @@ fn render_execution_context(
                 for (idx, arg) in def.get_parameters().iter().enumerate() {
                     let arg_ident = sanitize_identifier(arg.name.as_str());
                     lines.push(format!("    const {} = __args[{}];", arg_ident, idx));
-                    lines.push(format!(
-                        "    {}[{}] = {};",
-                        arg_scope,
-                        quote_key(arg.name.as_str()),
-                        arg_ident
-                    ));
+                    lines.push(format!("    {}[{}] = {};", arg_scope, quote_key(arg.name.as_str()), arg_ident));
                 }
                 let body_ctx = def.get_body().expect("function body available");
                 let body_js =
@@ -581,15 +472,9 @@ fn render_execution_context(
             }
             Ok(EObjectContent::ObjectRef(obj)) => {
                 let nested_scope = format!("{}_{}", scope_name, sanitize_identifier(name));
-                let nested_js =
-                    render_execution_context(&obj.borrow(), Some(&nested_scope), Some(scope_name));
+                let nested_js = render_execution_context(&obj.borrow(), Some(&nested_scope), Some(scope_name));
                 lines.push(format!("const {} = {};", nested_scope, nested_js));
-                lines.push(format!(
-                    "{}[{}] = {};",
-                    scope_name,
-                    quote_key(name),
-                    nested_scope
-                ));
+                lines.push(format!("{}[{}] = {};", scope_name, quote_key(name), nested_scope));
             }
             Ok(EObjectContent::Definition(definition)) => {
                 lines.push(format!(
@@ -691,10 +576,7 @@ mod tests {
     #[test]
     fn renders_primitives() {
         assert_eq!(ValueEnum::NumberValue(NumberEnum::from(5)).to_js(), "5");
-        assert_eq!(
-            ValueEnum::StringValue(StringEnum::String("hi\"there".into())).to_js(),
-            "\"hi\\\"there\""
-        );
+        assert_eq!(ValueEnum::StringValue(StringEnum::String("hi\"there".into())).to_js(), "\"hi\\\"there\"");
     }
 
     #[test]
@@ -706,8 +588,7 @@ mod tests {
 
     #[test]
     fn renders_filter_expression() {
-        let expr =
-            EdgeRulesModel::parse_expression("[1,2,3][...>1]").expect("parse filter expression");
+        let expr = EdgeRulesModel::parse_expression("[1,2,3][...>1]").expect("parse filter expression");
         let js = expr.to_js();
         assert!(js.contains("Array.isArray(source)"));
         assert!(js.contains("filter("));
@@ -715,8 +596,7 @@ mod tests {
 
     #[test]
     fn renders_selection_expression() {
-        let expr =
-            EdgeRulesModel::parse_expression("[1,2,3][...>1].length").expect("parse selection");
+        let expr = EdgeRulesModel::parse_expression("[1,2,3][...>1].length").expect("parse selection");
         let js = expr.to_js();
         assert!(js.contains("return source"));
         assert!(js.contains("?.[\"length\"]"));
@@ -751,8 +631,7 @@ mod tests {
 
     #[test]
     fn renders_array_and_selection_nodes() {
-        let expr =
-            EdgeRulesModel::parse_expression("[{a: 1}][0].a").expect("parse collection selection");
+        let expr = EdgeRulesModel::parse_expression("[{a: 1}][0].a").expect("parse collection selection");
         assert!(expr.to_js().contains("source.filter"));
 
         if let ExpressionEnum::Selection(selection) = &expr {
@@ -773,7 +652,9 @@ mod tests {
     #[test]
     fn renders_nested_function_with_closure() {
         let mut model = EdgeRulesModel::new();
-        model.append_source(r#"
+        model
+            .append_source(
+                r#"
             {
                 func outer(x): {
                     func inner(y): x + y
@@ -781,7 +662,9 @@ mod tests {
                 }
                 value: outer(10)
             }
-        "#).expect("parse");
+        "#,
+            )
+            .expect("parse");
         let js = to_js_model(&mut model).expect("to_js");
         // Verify that x is resolved via the closure scope
         assert!(js.contains("inner"));

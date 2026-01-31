@@ -9,7 +9,7 @@ mod wasm_convert;
 
 use conversion::{FromJs, ToJs};
 use edge_rules::typesystem::values::ValueEnum;
-use portable::{DecisionServiceController, PortableError};
+use portable::{DecisionServiceController, PortableError, PortableObjectKey, SchemaViolationType};
 use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
@@ -29,9 +29,7 @@ fn with_decision_service<R>(
     DECISION_SERVICE.with(|slot| {
         let mut guard = slot.borrow_mut();
         let Some(controller) = guard.as_mut() else {
-            return Err(PortableError::new(
-                "Decision service is not initialized. Call create_decision_service first.",
-            ));
+            return Err(PortableError::DecisionServiceError("NotInitialized".to_string()));
         };
         f(controller)
     })
@@ -42,7 +40,8 @@ fn throw_portable_error(err: PortableError) -> ! {
 }
 
 fn js_request_to_value(js: &JsValue) -> Result<ValueEnum, PortableError> {
-    ValueEnum::from_js(js).map_err(|e| PortableError::new(e))
+    ValueEnum::from_js(js)
+        .map_err(|_| PortableError::SchemaViolation(PortableObjectKey::Value, SchemaViolationType::InvalidFieldType))
 }
 
 #[cfg(feature = "console_error_panic_hook")]

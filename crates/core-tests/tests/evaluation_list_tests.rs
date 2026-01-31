@@ -15,10 +15,7 @@ fn list_membership_and_boolean_aggregates() {
         "true"
     );
     assert_value!("contains([true,false], true)", "true");
-    assert_value!(
-        "contains([date('2017-05-03'), date('2017-05-04')], date('2017-05-04'))",
-        "true"
-    );
+    assert_value!("contains([date('2017-05-03'), date('2017-05-04')], date('2017-05-04'))", "true");
 
     // all/any for booleans
     assert_value!("all([true,true,false])", "false");
@@ -63,10 +60,7 @@ fn list_slicing_and_mutation() {
 fn list_order_and_indexing() {
     // reverse (list)
     assert_value!("reverse([1,2,3])", "[3, 2, 1]");
-    assert_eq!(
-        crate::eval_value("value : reverse(['a','b','c'])"),
-        "['c', 'b', 'a']"
-    );
+    assert_eq!(crate::eval_value("value : reverse(['a','b','c'])"), "['c', 'b', 'a']");
 
     // indexOf returns 1-based positions (list)
     assert_value!("indexOf([1,2,3,2], 2)", "[2, 4]");
@@ -150,14 +144,8 @@ fn list_numeric_unhappy_paths() {
     link_error_contains("value : stddev(['x','y'])", &["unexpected", "number"]);
 
     // Using dates where numbers are expected
-    link_error_contains(
-        "value : product([date('2017-05-03')])",
-        &["unexpected", "number"],
-    );
-    link_error_contains(
-        "value : mean([date('2017-05-03'), date('2017-05-04')])",
-        &["unexpected", "number"],
-    );
+    link_error_contains("value : product([date('2017-05-03')])", &["unexpected", "number"]);
+    link_error_contains("value : mean([date('2017-05-03'), date('2017-05-04')])", &["unexpected", "number"]);
 }
 
 #[test]
@@ -186,12 +174,6 @@ fn list_boolean_and_matrix_evaluation() {
             ]
         }
         "#,
-        &[
-            "{",
-            "a: 2",
-            "b: 6",
-            "matrix: [[true, true], [true, true], [true, false]]",
-            "}",
-        ],
+        &["{", "a: 2", "b: 6", "matrix: [[true, true], [true, true], [true, false]]", "}"],
     );
 }

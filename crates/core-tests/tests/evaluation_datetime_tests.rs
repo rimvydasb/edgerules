@@ -54,30 +54,12 @@ fn period_object_properties() {
 
 #[test]
 fn invalid_temporal_properties() {
-    link_error_contains(
-        "value: duration('PT1H').years",
-        &["duration does not have 'years'"],
-    );
-    link_error_contains(
-        "value: duration('PT1H').weekday",
-        &["duration does not have 'weekday'"],
-    );
-    link_error_contains(
-        "value: time('13:10:30').year",
-        &["time does not have 'year'"],
-    );
-    link_error_contains(
-        "value: period('P1Y').totalHours",
-        &["period does not have 'totalhours'"],
-    );
-    link_error_contains(
-        "value: date('2020-01-01').hour",
-        &["date does not have 'hour'"],
-    );
-    link_error_contains(
-        "value: datetime('2016-12-09T15:37:00').timezone",
-        &["datetime does not have 'timezone'"],
-    );
+    link_error_contains("value: duration('PT1H').years", &["duration does not have 'years'"]);
+    link_error_contains("value: duration('PT1H').weekday", &["duration does not have 'weekday'"]);
+    link_error_contains("value: time('13:10:30').year", &["time does not have 'year'"]);
+    link_error_contains("value: period('P1Y').totalHours", &["period does not have 'totalhours'"]);
+    link_error_contains("value: date('2020-01-01').hour", &["date does not have 'hour'"]);
+    link_error_contains("value: datetime('2016-12-09T15:37:00').timezone", &["datetime does not have 'timezone'"]);
 }
 
 #[test]
@@ -99,30 +81,12 @@ fn date_comparator_operators() {
 
 #[test]
 fn datetime_comparator_operators() {
-    assert_value!(
-        "datetime('2020-01-01T10:00:00') = datetime('2020-01-01T10:00:00')",
-        "true"
-    );
-    assert_value!(
-        "datetime('2020-01-01T10:00:00') <> datetime('2020-01-01T12:00:00')",
-        "true"
-    );
-    assert_value!(
-        "datetime('2020-01-01T08:00:00') < datetime('2020-01-01T09:00:00')",
-        "true"
-    );
-    assert_value!(
-        "datetime('2020-01-01T09:00:00') <= datetime('2020-01-01T09:00:00')",
-        "true"
-    );
-    assert_value!(
-        "datetime('2020-01-01T11:00:00') > datetime('2020-01-01T09:00:00')",
-        "true"
-    );
-    assert_value!(
-        "datetime('2020-01-01T11:00:00') >= datetime('2020-01-01T11:00:00')",
-        "true"
-    );
+    assert_value!("datetime('2020-01-01T10:00:00') = datetime('2020-01-01T10:00:00')", "true");
+    assert_value!("datetime('2020-01-01T10:00:00') <> datetime('2020-01-01T12:00:00')", "true");
+    assert_value!("datetime('2020-01-01T08:00:00') < datetime('2020-01-01T09:00:00')", "true");
+    assert_value!("datetime('2020-01-01T09:00:00') <= datetime('2020-01-01T09:00:00')", "true");
+    assert_value!("datetime('2020-01-01T11:00:00') > datetime('2020-01-01T09:00:00')", "true");
+    assert_value!("datetime('2020-01-01T11:00:00') >= datetime('2020-01-01T11:00:00')", "true");
 }
 
 #[test]
@@ -155,34 +119,13 @@ fn period_parsing_and_operations() {
 
 #[test]
 fn duration_with_temporal_values() {
-    assert_value!(
-        "date('2017-05-03') + duration('P1D')",
-        "2017-05-04T00:00:00"
-    );
-    assert_value!(
-        "date('2017-05-03') - duration('P1D')",
-        "2017-05-02T00:00:00"
-    );
-    assert_value!(
-        "datetime('2016-12-09T15:37:00') + duration('PT23H')",
-        "2016-12-10T14:37:00"
-    );
-    assert_value!(
-        "datetime('2016-12-10T14:37:00') - duration('PT23H')",
-        "2016-12-09T15:37:00"
-    );
-    assert_value!(
-        "datetime('2020-01-02T00:00:00') - datetime('2020-01-01T08:00:00')",
-        "PT16H"
-    );
-    assert_value!(
-        "date('2020-01-02') - datetime('2020-01-01T12:00:00')",
-        "PT12H"
-    );
-    assert_value!(
-        "datetime('2020-01-01T12:00:00') - date('2020-01-01')",
-        "PT12H"
-    );
+    assert_value!("date('2017-05-03') + duration('P1D')", "2017-05-04T00:00:00");
+    assert_value!("date('2017-05-03') - duration('P1D')", "2017-05-02T00:00:00");
+    assert_value!("datetime('2016-12-09T15:37:00') + duration('PT23H')", "2016-12-10T14:37:00");
+    assert_value!("datetime('2016-12-10T14:37:00') - duration('PT23H')", "2016-12-09T15:37:00");
+    assert_value!("datetime('2020-01-02T00:00:00') - datetime('2020-01-01T08:00:00')", "PT16H");
+    assert_value!("date('2020-01-02') - datetime('2020-01-01T12:00:00')", "PT12H");
+    assert_value!("datetime('2020-01-01T12:00:00') - date('2020-01-01')", "PT12H");
     assert_value!("time('13:10:30') - duration('PT1H10M30S')", "12:00:00");
     assert_value!("time('13:10:30') + duration('PT50S')", "13:11:20");
     assert_value!("time('13:10:30') - time('12:00:00')", "PT1H10M30S");
@@ -192,26 +135,14 @@ fn duration_with_temporal_values() {
 fn period_with_temporal_values() {
     assert_value!("date('2020-01-31') + period('P1M')", "2020-02-29");
     assert_value!("date('2020-02-29') - period('P1M')", "2020-01-29");
-    assert_value!(
-        "datetime('2020-01-15T10:30:00') + period('P1Y2M')",
-        "2021-03-15T10:30:00"
-    );
-    assert_value!(
-        "datetime('2021-03-15T10:30:00') - period('P1Y2M')",
-        "2020-01-15T10:30:00"
-    );
+    assert_value!("datetime('2020-01-15T10:30:00') + period('P1Y2M')", "2021-03-15T10:30:00");
+    assert_value!("datetime('2021-03-15T10:30:00') - period('P1Y2M')", "2020-01-15T10:30:00");
 }
 
 #[test]
 fn calendar_diff_produces_period() {
-    assert_value!(
-        "calendarDiff(date('2000-05-03'), date('2025-09-10'))",
-        "P25Y4M7D"
-    );
-    assert_value!(
-        "calendarDiff(date('2025-03-10'), date('2024-01-15'))",
-        "-P1Y1M23D"
-    );
+    assert_value!("calendarDiff(date('2000-05-03'), date('2025-09-10'))", "P25Y4M7D");
+    assert_value!("calendarDiff(date('2025-03-10'), date('2024-01-15'))", "-P1Y1M23D");
 }
 
 #[test]
@@ -242,34 +173,16 @@ fn duration_literal_with_years_is_invalid() {
 
 #[test]
 fn addition_with_identical_temporal_types_is_rejected() {
-    link_error_contains(
-        "value: date('2020-01-01') + date('2020-01-02')",
-        &["Operator '+'"],
-    );
-    link_error_contains(
-        "value: datetime('2020-01-01T00:00:00') + datetime('2020-01-02T00:00:00')",
-        &["Operator '+'"],
-    );
-    link_error_contains(
-        "value: time('12:00:00') + time('01:00:00')",
-        &["Operator '+'"],
-    );
+    link_error_contains("value: date('2020-01-01') + date('2020-01-02')", &["Operator '+'"]);
+    link_error_contains("value: datetime('2020-01-01T00:00:00') + datetime('2020-01-02T00:00:00')", &["Operator '+'"]);
+    link_error_contains("value: time('12:00:00') + time('01:00:00')", &["Operator '+'"]);
 }
 
 #[test]
 fn comparator_type_mismatch_is_rejected() {
-    link_error_contains(
-        "value: date('2020-01-01') = time('12:00:00')",
-        &["Comparator"],
-    );
-    link_error_contains(
-        "value: datetime('2020-01-01T00:00:00') = time('12:00:00')",
-        &["Comparator"],
-    );
-    link_error_contains(
-        "value: duration('PT1H') = time('12:00:00')",
-        &["Comparator"],
-    );
+    link_error_contains("value: date('2020-01-01') = time('12:00:00')", &["Comparator"]);
+    link_error_contains("value: datetime('2020-01-01T00:00:00') = time('12:00:00')", &["Comparator"]);
+    link_error_contains("value: duration('PT1H') = time('12:00:00')", &["Comparator"]);
 }
 
 #[test]

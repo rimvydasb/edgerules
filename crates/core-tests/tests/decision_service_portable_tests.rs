@@ -9,13 +9,9 @@ use wasm_bindgen::JsValue;
 fn build_request_value(source: &str) -> ValueEnum {
     let mut model = EdgeRulesModel::new();
     let payload = format!("{{ requestData: {} }}", source.trim());
-    model
-        .append_source(&payload)
-        .expect("request object should parse");
+    model.append_source(&payload).expect("request object should parse");
     let runtime = model.to_runtime().expect("request object should link");
-    runtime
-        .evaluate_field("requestData")
-        .expect("request field should evaluate")
+    runtime.evaluate_field("requestData").expect("request field should evaluate")
 }
 
 fn value_to_string(value: &ValueEnum) -> String {
@@ -44,21 +40,14 @@ fn portable_controller_executes_requests() {
         let params = obj();
         set(&params, "request", &JsValue::from_str("Request"));
         set(&decide, "@parameters", &JsValue::from(params.clone()));
-        set(
-            &decide,
-            "decision",
-            &JsValue::from_str("request.amount * 2"),
-        );
+        set(&decide, "decision", &JsValue::from_str("request.amount * 2"));
         set(&root, "decide", &JsValue::from(decide.clone()));
         JsValue::from(root)
     };
 
-    let mut controller =
-        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+    let mut controller = DecisionServiceController::from_portable(&portable).expect("controller from portable");
     let request = build_request_value("{ amount: 10 }");
-    let response = controller
-        .execute_value("decide", request)
-        .expect("execute portable controller");
+    let response = controller.execute_value("decide", request).expect("execute portable controller");
     assert!(value_to_string(&response).contains("decision:20"));
 }
 
@@ -83,20 +72,15 @@ fn portable_controller_updates_entries() {
         JsValue::from(root)
     };
 
-    let mut controller =
-        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+    let mut controller = DecisionServiceController::from_portable(&portable).expect("controller from portable");
 
-    let updated = controller
-        .set_entry("config.threshold", &JsValue::from_f64(5.0))
-        .expect("set new config value");
+    let updated = controller.set_entry("config.threshold", &JsValue::from_f64(5.0)).expect("set new config value");
     assert_eq!(updated.as_f64(), Some(5.0));
 
     let entry = controller.get_entry("config.threshold").expect("get entry");
     assert_eq!(entry.as_f64(), Some(5.0));
 
-    controller
-        .remove_entry("config.threshold")
-        .expect("remove entry");
+    controller.remove_entry("config.threshold").expect("remove entry");
     let err = controller.get_entry("config.threshold").unwrap_err();
     assert!(err.to_string().to_lowercase().contains("not found"));
 }
@@ -122,16 +106,11 @@ fn portable_controller_serializes_snapshot() {
         JsValue::from(root)
     };
 
-    let mut controller =
-        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+    let mut controller = DecisionServiceController::from_portable(&portable).expect("controller from portable");
 
-    let _ = controller
-        .set_entry("config.featureEnabled", &JsValue::from_bool(true))
-        .expect("set config value");
+    let _ = controller.set_entry("config.featureEnabled", &JsValue::from_bool(true)).expect("set config value");
 
-    let snapshot = controller
-        .model_snapshot()
-        .expect("snapshot portable model");
+    let snapshot = controller.model_snapshot().expect("snapshot portable model");
 
     // Check that Request has @type == "type"
     let request = js_sys::Reflect::get(&snapshot, &JsValue::from_str("Request")).unwrap();
@@ -162,8 +141,7 @@ fn portable_controller_sets_nested_entries() {
         JsValue::from(root)
     };
 
-    let mut controller =
-        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+    let mut controller = DecisionServiceController::from_portable(&portable).expect("controller from portable");
 
     // Expression nested under function context
     let nested_expr = controller
@@ -174,32 +152,19 @@ fn portable_controller_sets_nested_entries() {
     // Function nested under function body
     let helper = obj();
     set(&helper, "@type", &JsValue::from_str("function"));
-    set(
-        &helper,
-        "@parameters",
-        &JsValue::from(js_sys::Object::new()),
-    );
+    set(&helper, "@parameters", &JsValue::from(js_sys::Object::new()));
     set(&helper, "value", &JsValue::from_str("42"));
-    controller
-        .set_entry("decide.helper", &JsValue::from(helper))
-        .expect("set nested function");
+    controller.set_entry("decide.helper", &JsValue::from(helper)).expect("set nested function");
 
     // Type nested under function body
     let nested_type = obj();
     set(&nested_type, "@type", &JsValue::from_str("type"));
     set(&nested_type, "amount", &JsValue::from_str("<number>"));
-    controller
-        .set_entry("decide.Result", &JsValue::from(nested_type))
-        .expect("set nested type");
+    controller.set_entry("decide.Result", &JsValue::from(nested_type)).expect("set nested type");
 
     let request = build_request_value("{ input: { enabled: true } }");
-    let response = controller
-        .execute_value("decide", request)
-        .expect("execute decide with nested additions");
-    assert!(
-        value_to_string(&response).contains("flag:true"),
-        "flag should evaluate under nested additions"
-    );
+    let response = controller.execute_value("decide", request).expect("execute decide with nested additions");
+    assert!(value_to_string(&response).contains("flag:true"), "flag should evaluate under nested additions");
 }
 
 #[test]
@@ -211,28 +176,13 @@ fn portable_controller_set_entry_errors_on_invalid_paths() {
         set(&root, "config", &JsValue::from(ctx));
         JsValue::from(root)
     };
-    let mut controller =
-        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+    let mut controller = DecisionServiceController::from_portable(&portable).expect("controller from portable");
 
-    let err = controller
-        .set_entry("", &JsValue::from_str("2"))
-        .unwrap_err();
-    assert!(
-        err.to_string()
-            .to_lowercase()
-            .contains("path cannot be empty"),
-        "empty path should error, got {}",
-        err
-    );
+    let err = controller.set_entry("", &JsValue::from_str("2")).unwrap_err();
+    assert!(err.to_string().to_lowercase().contains("path cannot be empty"), "empty path should error, got {}", err);
 
-    let err = controller
-        .set_entry("missing.path", &JsValue::from_str("2"))
-        .unwrap_err();
-    assert!(
-        err.to_string().to_lowercase().contains("not found"),
-        "missing parent should error, got {}",
-        err
-    );
+    let err = controller.set_entry("missing.path", &JsValue::from_str("2")).unwrap_err();
+    assert!(err.to_string().to_lowercase().contains("not found"), "missing parent should error, got {}", err);
 }
 
 #[test]
@@ -250,30 +200,18 @@ fn portable_controller_removes_nested_entries_and_rejects_invalid() {
         JsValue::from(root)
     };
 
-    let mut controller =
-        DecisionServiceController::from_portable(&portable).expect("controller from portable");
+    let mut controller = DecisionServiceController::from_portable(&portable).expect("controller from portable");
 
-    controller
-        .remove_entry("config.value")
-        .expect("remove nested expression");
+    controller.remove_entry("config.value").expect("remove nested expression");
     let err = controller.get_entry("config.value").unwrap_err();
-    assert!(
-        err.to_string().to_lowercase().contains("not found"),
-        "removed entry should not be readable"
-    );
+    assert!(err.to_string().to_lowercase().contains("not found"), "removed entry should not be readable");
 
     let err = controller.remove_entry("config.missing").unwrap_err();
-    assert!(
-        err.to_string().to_lowercase().contains("not found"),
-        "missing nested removal should error"
-    );
+    assert!(err.to_string().to_lowercase().contains("not found"), "missing nested removal should error");
 
     let invalid = controller.remove_entry("").unwrap_err();
     assert!(
-        invalid
-            .to_string()
-            .to_lowercase()
-            .contains("cannot be empty"),
+        invalid.to_string().to_lowercase().contains("cannot be empty"),
         "empty path removal should error, got {}",
         invalid
     );
@@ -282,8 +220,7 @@ fn portable_controller_removes_nested_entries_and_rejects_invalid() {
     let request = build_request_value("{}");
     let err = controller.execute_value("decide", request).unwrap_err();
     assert!(
-        err.to_string().to_lowercase().contains("not found")
-            || err.to_string().to_lowercase().contains("missing"),
+        err.to_string().to_lowercase().contains("not found") || err.to_string().to_lowercase().contains("missing"),
         "execution should fail after removing required entry, got {}",
         err
     );

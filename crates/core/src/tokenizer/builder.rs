@@ -13,11 +13,8 @@ use log::error;
 use std::collections::vec_deque::VecDeque;
 use std::fmt;
 
-type FactoryFunction = fn(
-    left: &mut TokenChain,
-    token: EToken,
-    right: &mut TokenChain,
-) -> Result<EToken, ParseErrorEnum>;
+type FactoryFunction =
+    fn(left: &mut TokenChain, token: EToken, right: &mut TokenChain) -> Result<EToken, ParseErrorEnum>;
 
 //----------------------------------------------------------------------------------------------
 
@@ -49,11 +46,7 @@ pub struct ASTBuilder {
 
 impl ASTBuilder {
     pub fn new() -> ASTBuilder {
-        ASTBuilder {
-            result: TokenChain::new(),
-            last_priority_list: VecDeque::new(),
-            current_level: 0,
-        }
+        ASTBuilder { result: TokenChain::new(), last_priority_list: VecDeque::new(), current_level: 0 }
     }
 
     pub fn merge(&mut self) {
@@ -61,10 +54,7 @@ impl ASTBuilder {
     }
 
     pub fn merge_level(&mut self, current_level: u32) {
-        trace!(
-            "merge_left_if_can. lastPriorityList={}",
-            to_string(&mut self.last_priority_list.clone())
-        );
+        trace!("merge_left_if_can. lastPriorityList={}", to_string(&mut self.last_priority_list.clone()));
 
         while let Some(check_build_task) = self.last_priority_list.back() {
             // eliminate bigger priority items from the left side
@@ -77,11 +67,7 @@ impl ASTBuilder {
                 );
 
                 if let Some(build_task) = self.last_priority_list.pop_back() {
-                    trace!(
-                        "full = {:?} --- split at {}",
-                        self.result,
-                        build_task.position
-                    );
+                    trace!("full = {:?} --- split at {}", self.result, build_task.position);
 
                     let mut right = TokenChain(self.result.split_off(build_task.position));
 
@@ -91,8 +77,7 @@ impl ASTBuilder {
                         trace!("mid = {:?}", token);
                         trace!("right = {:?}", right);
 
-                        let build_result =
-                            (build_task.factory)(&mut self.result, token, &mut right);
+                        let build_result = (build_task.factory)(&mut self.result, token, &mut right);
 
                         match build_result {
                             Ok(token) => self.result.push_back(token),
@@ -120,11 +105,7 @@ impl ASTBuilder {
                     #[cfg(target_arch = "wasm32")]
                     let _ = token;
                 } else {
-                    trace!(
-                        "no merge: position={} left={:?}",
-                        check_build_task.position,
-                        self.result
-                    );
+                    trace!("no merge: position={} left={:?}", check_build_task.position, self.result);
                 }
 
                 break;
@@ -170,20 +151,14 @@ impl ASTBuilder {
 
         self.merge_level(lvl);
 
-        self.last_priority_list.push_back(ItemBuildTask {
-            position: self.result.len(),
-            priority: lvl,
-            factory,
-        });
+        self.last_priority_list
+            .push_back(ItemBuildTask { position: self.result.len(), priority: lvl, factory });
 
         self.push_element(token);
     }
 
     pub fn finalize(mut self) -> TokenChain {
-        trace!(
-            "Finalizing. lastPriorityList={}",
-            to_string(&mut self.last_priority_list.clone())
-        );
+        trace!("Finalizing. lastPriorityList={}", to_string(&mut self.last_priority_list.clone()));
 
         // @TODO need to make sure that infinity loop will not occur
         while self.last_priority_list.back().is_some() {
@@ -226,8 +201,8 @@ pub mod factory {
     use crate::ast::context::context_object_type::FormalParameter;
     use crate::ast::foreach::ForFunction;
     use crate::ast::functions::function_types::{
-        BinaryFunction, MultiFunction, UnaryFunction, BINARY_BUILT_IN_FUNCTIONS,
-        BUILT_IN_ALL_FUNCTIONS, MULTI_BUILT_IN_FUNCTIONS, UNARY_BUILT_IN_FUNCTIONS,
+        BinaryFunction, MultiFunction, UnaryFunction, BINARY_BUILT_IN_FUNCTIONS, BUILT_IN_ALL_FUNCTIONS,
+        MULTI_BUILT_IN_FUNCTIONS, UNARY_BUILT_IN_FUNCTIONS,
     };
     use crate::ast::ifthenelse::IfThenElseFunction;
     use crate::ast::metaphors::functions::{FunctionDefinition, InlineFunctionDefinition};
@@ -247,9 +222,7 @@ pub mod factory {
     use crate::tokenizer::parser::parse_type;
     use crate::tokenizer::utils::*;
     use crate::typesystem::errors::ParseErrorEnum;
-    use crate::typesystem::errors::ParseErrorEnum::{
-        FunctionWrongNumberOfArguments, UnexpectedToken, WrongFormat,
-    };
+    use crate::typesystem::errors::ParseErrorEnum::{FunctionWrongNumberOfArguments, UnexpectedToken, WrongFormat};
     use crate::typesystem::values::ValueEnum;
     use crate::utils::intern_field_name;
     use std::cell::RefCell;
@@ -271,13 +244,13 @@ pub mod factory {
         _token: EToken,
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
-        let left_token = left.pop_left().map_err(|err| {
-            WrongFormat("Left assignment side is not complete".to_string()).before(err)
-        })?;
+        let left_token = left
+            .pop_left()
+            .map_err(|err| WrongFormat("Left assignment side is not complete".to_string()).before(err))?;
 
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat(format!("'{}' assignment side is not complete", left_token)).before(err)
-        })?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat(format!("'{}' assignment side is not complete", left_token)).before(err))?;
 
         // Detect if this is a `type Alias : ...` statement by checking the token immediately preceding the name
         let is_type_stmt = matches!(
@@ -287,9 +260,7 @@ pub mod factory {
 
         match (left_token, right_token) {
             // Type alias: type Alias : <Type>
-            (Expression(Variable(link)), Unparsed(TypeReferenceLiteralToken(tref)))
-                if is_type_stmt =>
-            {
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteralToken(tref))) if is_type_stmt => {
                 let _ = left.pop_left_as_expected("type");
                 Ok(Definition(DefinitionEnum::UserType(UserTypeDefinition {
                     name: link.get_name(),
@@ -297,12 +268,9 @@ pub mod factory {
                 })))
             }
             // Typed placeholder: field : <Type>
-            (Expression(Variable(link)), Unparsed(TypeReferenceLiteralToken(tref))) => Ok(
-                Expression(ObjectField(
-                    link.get_name(),
-                    Box::new(TypePlaceholder(tref)),
-                )),
-            ),
+            (Expression(Variable(link)), Unparsed(TypeReferenceLiteralToken(tref))) => {
+                Ok(Expression(ObjectField(link.get_name(), Box::new(TypePlaceholder(tref)))))
+            }
             // Type alias with object body: type Alias : { ... }
             (Expression(Variable(link)), Expression(StaticObject(object))) if is_type_stmt => {
                 let _ = left.pop_left_as_expected("type");
@@ -311,15 +279,9 @@ pub mod factory {
                 let field_entries: Vec<(&'static str, Rc<RefCell<ExpressionEntry>>)> = {
                     let obj_ref = object.borrow();
                     if !obj_ref.metaphors.is_empty() {
-                        return Err(WrongFormat(
-                            "Type definition cannot contain function definitions".to_string(),
-                        ));
+                        return Err(WrongFormat("Type definition cannot contain function definitions".to_string()));
                     }
-                    obj_ref
-                        .expressions
-                        .iter()
-                        .map(|(&name, entry)| (name, Rc::clone(entry)))
-                        .collect()
+                    obj_ref.expressions.iter().map(|(&name, entry)| (name, Rc::clone(entry))).collect()
                 };
 
                 for (fname, entry_rc) in field_entries {
@@ -328,14 +290,10 @@ pub mod factory {
                         StaticObject(_) => { /* ok: nested type object */ }
                         TypePlaceholder(_) => { /* ok: typed field in type body */ }
                         Variable(alias_link) => {
-                            entry.expression =
-                                TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name(), None));
+                            entry.expression = TypePlaceholder(ComplexTypeRef::Alias(alias_link.get_name(), None));
                         }
                         _ => {
-                            return Err(WrongFormat(format!(
-                                "Type definition contains non-type field '{}'",
-                                fname
-                            )));
+                            return Err(WrongFormat(format!("Type definition contains non-type field '{}'", fname)));
                         }
                     }
                 }
@@ -350,19 +308,13 @@ pub mod factory {
                 if is_type_stmt {
                     if let Variable(alias_link) = right {
                         let type_ref = ComplexTypeRef::Alias(alias_link.get_name(), None);
-                        return Ok(Expression(ObjectField(
-                            field_name,
-                            Box::new(TypePlaceholder(type_ref)),
-                        )));
+                        return Ok(Expression(ObjectField(field_name, Box::new(TypePlaceholder(type_ref)))));
                     }
                 }
 
                 Ok(Expression(ObjectField(field_name, Box::new(right))))
             }
-            (
-                Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)),
-                Expression(StaticObject(object)),
-            ) => {
+            (Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)), Expression(StaticObject(object))) => {
                 let try_collapse_inline = {
                     let obj_ref = object.borrow();
                     if obj_ref.metaphors.is_empty()
@@ -385,34 +337,22 @@ pub mod factory {
                 };
 
                 if let Some(inline_body) = try_collapse_inline {
-                    let function =
-                        InlineFunctionDefinition::build(function_name, arguments, inline_body)?;
+                    let function = InlineFunctionDefinition::build(function_name, arguments, inline_body)?;
                     Ok(Definition(InlineUserFunction(function)))
                 } else {
                     let function = FunctionDefinition::build(function_name, arguments, object)?;
                     Ok(Definition(UserFunctionDef(function)))
                 }
             }
-            (
-                Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)),
-                Expression(non_object_body),
-            ) => {
-                let function =
-                    InlineFunctionDefinition::build(function_name, arguments, non_object_body)?;
+            (Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)), Expression(non_object_body)) => {
+                let function = InlineFunctionDefinition::build(function_name, arguments, non_object_body)?;
                 Ok(Definition(InlineUserFunction(function)))
             }
-            (Unparsed(FunctionDefinitionLiteralToken(name, _)), _) => Err(WrongFormat(format!(
-                "function '{}' body is not defined",
-                name
-            ))),
-            (unexpected, Expression(_right)) => Err(WrongFormat(format!(
-                "'{}' cannot be a variable name",
-                unexpected
-            ))),
-            (a, b) => Err(WrongFormat(format!(
-                "'{}' is not proper variable name to assign '{}'",
-                a, b
-            ))),
+            (Unparsed(FunctionDefinitionLiteralToken(name, _)), _) => {
+                Err(WrongFormat(format!("function '{}' body is not defined", name)))
+            }
+            (unexpected, Expression(_right)) => Err(WrongFormat(format!("'{}' cannot be a variable name", unexpected))),
+            (a, b) => Err(WrongFormat(format!("'{}' is not proper variable name to assign '{}'", a, b))),
         }
     }
 
@@ -441,19 +381,13 @@ pub mod factory {
 
                 // @Todo: need to accumulate errors instead of just returning - same applies for an array
                 Unparsed(unparsed) => {
-                    return Err(WrongFormat(format!(
-                        "'{}' is not a proper context element",
-                        unparsed
-                    )));
+                    return Err(WrongFormat(format!("'{}' is not a proper context element", unparsed)));
                 }
                 ParseError(error) => {
                     return Err(error);
                 }
                 _ => {
-                    return Err(WrongFormat(format!(
-                        "'{}' is not a proper object field",
-                        right_token
-                    )));
+                    return Err(WrongFormat(format!("'{}' is not a proper object field", right_token)));
                 }
             }
         }
@@ -477,56 +411,40 @@ pub mod factory {
         if arguments.len() == 1 {
             if let Some(function) = UNARY_BUILT_IN_FUNCTIONS.get(name) {
                 let expression = arguments.pop().unwrap();
-                return Ok(Expression(
-                    UnaryFunction::build(function.clone(), expression).into(),
-                ));
+                return Ok(Expression(UnaryFunction::build(function.clone(), expression).into()));
             }
         } else if arguments.len() == 2 {
             if let Some(function) = BINARY_BUILT_IN_FUNCTIONS.get(name) {
                 let right_expression = arguments.pop().unwrap();
                 let left_expression = arguments.pop().unwrap();
                 return Ok(Expression(
-                    BinaryFunction::build(function.clone(), left_expression, right_expression)
-                        .into(),
+                    BinaryFunction::build(function.clone(), left_expression, right_expression).into(),
                 ));
             }
         }
 
         if let Some(function) = MULTI_BUILT_IN_FUNCTIONS.get(name) {
-            return Ok(Expression(
-                MultiFunction::build(function.clone(), arguments).into(),
-            ));
+            return Ok(Expression(MultiFunction::build(function.clone(), arguments).into()));
         }
 
         match BUILT_IN_ALL_FUNCTIONS.get(name) {
-            None => Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(
-                name_string,
-                arguments,
-            ))))),
-            Some(finding) => Err(FunctionWrongNumberOfArguments(
-                name.to_string(),
-                finding.clone(),
-                arguments.len(),
-            )),
+            None => Ok(Expression(FunctionCall(Box::new(UserFunctionCall::new(name_string, arguments))))),
+            Some(finding) => Err(FunctionWrongNumberOfArguments(name.to_string(), finding.clone(), arguments.len())),
         }
     }
 
-    pub fn build_cast(
-        left: &mut TokenChain,
-        _token: EToken,
-        right: &mut TokenChain,
-    ) -> Result<EToken, ParseErrorEnum> {
+    pub fn build_cast(left: &mut TokenChain, _token: EToken, right: &mut TokenChain) -> Result<EToken, ParseErrorEnum> {
         let left_expr = left
             .pop_left_expression()
             .map_err(|err| WrongFormat("Left 'as' side is not complete".to_string()).before(err))?;
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat("Type after 'as' is not complete".to_string()).before(err)
-        })?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat("Type after 'as' is not complete".to_string()).before(err))?;
 
         match right_token {
-            Unparsed(TypeReferenceLiteralToken(tref)) => Ok(Expression(FunctionCall(Box::new(
-                crate::ast::expression::CastCall::new(left_expr, tref),
-            )))),
+            Unparsed(TypeReferenceLiteralToken(tref)) => {
+                Ok(Expression(FunctionCall(Box::new(crate::ast::expression::CastCall::new(left_expr, tref)))))
+            }
             _ => Err(WrongFormat("Invalid type after 'as'".to_string())),
         }
     }
@@ -542,9 +460,7 @@ pub mod factory {
             match right_token {
                 Unparsed(CommaToken) => {
                     if arguments.is_empty() {
-                        return Err(WrongFormat(
-                            "Very first function argument is missing".to_string(),
-                        ));
+                        return Err(WrongFormat("Very first function argument is missing".to_string()));
                     }
                 }
                 ParseError(err) => return Err(err),
@@ -553,10 +469,7 @@ pub mod factory {
                     arguments.push(parameter);
                 }
                 other => {
-                    return Err(WrongFormat(format!(
-                        "Unsupported token `{}` in function parameter list",
-                        other
-                    )));
+                    return Err(WrongFormat(format!("Unsupported token `{}` in function parameter list", other)));
                 }
             }
         }
@@ -564,35 +477,24 @@ pub mod factory {
         let function_name = match token {
             Unparsed(FunctionNameToken(variable)) => {
                 if variable.path.len() != 1 {
-                    return Err(WrongFormat(format!(
-                        "Function name must be a simple identifier, got `{}`",
-                        variable
-                    )));
+                    return Err(WrongFormat(format!("Function name must be a simple identifier, got `{}`", variable)));
                 }
 
                 variable.get_name()
             }
             Expression(Variable(variable)) => {
                 if variable.path.len() != 1 {
-                    return Err(WrongFormat(format!(
-                        "Function name must be a simple identifier, got `{}`",
-                        variable
-                    )));
+                    return Err(WrongFormat(format!("Function name must be a simple identifier, got `{}`", variable)));
                 }
                 variable.get_name()
             }
             other => other.into_string_or_literal()?,
         };
 
-        Ok(Unparsed(FunctionDefinitionLiteralToken(
-            function_name,
-            arguments,
-        )))
+        Ok(Unparsed(FunctionDefinitionLiteralToken(function_name, arguments)))
     }
 
-    fn parse_function_parameter(
-        expression: ExpressionEnum,
-    ) -> Result<FormalParameter, ParseErrorEnum> {
+    fn parse_function_parameter(expression: ExpressionEnum) -> Result<FormalParameter, ParseErrorEnum> {
         match expression {
             Variable(variable) => {
                 if variable.path.len() != 1 {
@@ -602,26 +504,18 @@ pub mod factory {
                     )));
                 }
 
-                Ok(FormalParameter::with_type_ref(
-                    variable.get_name(),
-                    ComplexTypeRef::undefined(),
-                ))
+                Ok(FormalParameter::with_type_ref(variable.get_name(), ComplexTypeRef::undefined()))
             }
             ObjectField(name, boxed_expression) => {
                 let annotation = extract_type_annotation(*boxed_expression)?;
                 let parameter_type = annotation.unwrap_or_else(ComplexTypeRef::undefined);
                 Ok(FormalParameter::with_type_ref(name, parameter_type))
             }
-            _ => Err(WrongFormat(format!(
-                "Unsupported expression `{}` in function parameter list",
-                expression
-            ))),
+            _ => Err(WrongFormat(format!("Unsupported expression `{}` in function parameter list", expression))),
         }
     }
 
-    fn extract_type_annotation(
-        expression: ExpressionEnum,
-    ) -> Result<Option<ComplexTypeRef>, ParseErrorEnum> {
+    fn extract_type_annotation(expression: ExpressionEnum) -> Result<Option<ComplexTypeRef>, ParseErrorEnum> {
         match expression {
             TypePlaceholder(tref) => Ok(Some(tref)),
             Variable(variable) => {
@@ -635,13 +529,8 @@ pub mod factory {
                 let type_name = variable.get_name();
                 Ok(Some(parse_type(&type_name)))
             }
-            Value(_) => Err(WrongFormat(
-                "Default values for function parameters are not supported".to_string(),
-            )),
-            other => Err(WrongFormat(format!(
-                "Unsupported type annotation expression `{}`",
-                other
-            ))),
+            Value(_) => Err(WrongFormat("Default values for function parameters are not supported".to_string())),
+            other => Err(WrongFormat(format!("Unsupported type annotation expression `{}`", other))),
         }
     }
 
@@ -659,9 +548,7 @@ pub mod factory {
                 Unparsed(CommaToken) => {
                     if args.is_empty() {
                         right.clear(); // forgets all possible other errors
-                        return Err(WrongFormat(
-                            "Very first sequence element is missing".to_string(),
-                        ));
+                        return Err(WrongFormat("Very first sequence element is missing".to_string()));
                     }
                 }
                 ParseError(error) => {
@@ -670,16 +557,11 @@ pub mod factory {
                 }
                 Unparsed(_) => {
                     right.clear(); // forgets all possible other errors
-                    return Err(WrongFormat(format!(
-                        "'{}' is not a proper sequence element",
-                        right_token
-                    )));
+                    return Err(WrongFormat(format!("'{}' is not a proper sequence element", right_token)));
                 }
                 Definition(_) => {
                     right.clear(); // forgets all possible other errors
-                    return Err(WrongFormat(
-                        "Function definition is not allowed in sequence".to_string(),
-                    ));
+                    return Err(WrongFormat("Function definition is not allowed in sequence".to_string()));
                 }
             }
         }
@@ -695,13 +577,11 @@ pub mod factory {
         // application.applicants[0].age
         // left-----------------^   ^------right
 
-        let left_token = left
-            .pop_left()
-            .map_err(|err| WrongFormat("Filter not applicable".to_string()).before(err))?;
+        let left_token = left.pop_left().map_err(|err| WrongFormat("Filter not applicable".to_string()).before(err))?;
 
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat(format!("Filter '{}' not applicable", left_token)).before(err)
-        })?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat(format!("Filter '{}' not applicable", left_token)).before(err))?;
 
         match (left_token, right_token) {
             (Expression(left_expression), Expression(right_expression)) => {
@@ -710,35 +590,25 @@ pub mod factory {
                     Err(error) => Err(error),
                 }
             }
-            (_left_unknown, _right_unknown) => {
-                Err(WrongFormat(format!("Filter not completed '{}'", token)))
-            }
+            (_left_unknown, _right_unknown) => Err(WrongFormat(format!("Filter not completed '{}'", token))),
         }
     }
 
-    pub fn build_range(
-        left: &mut TokenChain,
-        token: EToken,
-        right: &mut TokenChain,
-    ) -> Result<EToken, ParseErrorEnum> {
+    pub fn build_range(left: &mut TokenChain, token: EToken, right: &mut TokenChain) -> Result<EToken, ParseErrorEnum> {
         // number in 1..5
         // left------^  ^------right
 
-        let left_token = left
-            .pop_left()
-            .map_err(|err| WrongFormat("Range not applicable".to_string()).before(err))?;
+        let left_token = left.pop_left().map_err(|err| WrongFormat("Range not applicable".to_string()).before(err))?;
 
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat(format!("Range '{}' not applicable", left_token)).before(err)
-        })?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat(format!("Range '{}' not applicable", left_token)).before(err))?;
 
         match (left_token, right_token) {
-            (Expression(left_expression), Expression(right_expression)) => Ok(Expression(
-                RangeExpression(Box::new(left_expression), Box::new(right_expression)),
-            )),
-            (_left_unknown, _right_unknown) => {
-                Err(WrongFormat(format!("Range not completed '{}'", token)))
+            (Expression(left_expression), Expression(right_expression)) => {
+                Ok(Expression(RangeExpression(Box::new(left_expression), Box::new(right_expression))))
             }
+            (_left_unknown, _right_unknown) => Err(WrongFormat(format!("Range not completed '{}'", token))),
         }
     }
 
@@ -750,12 +620,9 @@ pub mod factory {
         // application.applicants[0].age
         // left-----------------^   ^------right
 
-        let left_token = left
-            .pop_left()
-            .map_err(|_| WrongFormat("Field not applicable".to_string()))?;
-        let right_token = right
-            .pop_right()
-            .map_err(|_| WrongFormat(format!("Field '{}' not applicable", left_token)))?;
+        let left_token = left.pop_left().map_err(|_| WrongFormat("Field not applicable".to_string()))?;
+        let right_token =
+            right.pop_right().map_err(|_| WrongFormat(format!("Field '{}' not applicable", left_token)))?;
 
         match (left_token, right_token) {
             (Expression(left_expression), Expression(right_expression)) => {
@@ -764,9 +631,7 @@ pub mod factory {
                     Err(error) => Err(error),
                 }
             }
-            (_left_unknown, _right_unknown) => {
-                Err(WrongFormat(format!("Selection not completed '{}'", token)))
-            }
+            (_left_unknown, _right_unknown) => Err(WrongFormat(format!("Selection not completed '{}'", token))),
         }
     }
 
@@ -842,24 +707,22 @@ pub mod factory {
         right: &mut TokenChain,
     ) -> Result<EToken, ParseErrorEnum> {
         let op = MathOperatorEnum::try_from(token)?;
-        let left_token = left.pop_left().map_err(|err| {
-            WrongFormat(format!("Left '{}' operator side is not complete", op)).before(err)
-        })?;
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat(format!("{} {} - not completed", left_token, op)).before(err)
-        })?;
+        let left_token = left
+            .pop_left()
+            .map_err(|err| WrongFormat(format!("Left '{}' operator side is not complete", op)).before(err))?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat(format!("{} {} - not completed", left_token, op)).before(err))?;
 
         match (left_token, right_token) {
-            (Expression(_left), Expression(_right)) => Ok(Expression(Operator(Box::new(
-                MathOperator::build(op, _left, _right)?,
-            )))),
+            (Expression(_left), Expression(_right)) => {
+                Ok(Expression(Operator(Box::new(MathOperator::build(op, _left, _right)?))))
+            }
             (Unparsed(_left), Expression(_right)) => {
                 // @Todo: that's absolutely not clear
                 left.push_back(Unparsed(_left));
                 if op == MathOperatorEnum::Subtraction {
-                    Ok(Expression(FunctionCall(Box::new(NegationOperator::new(
-                        _right,
-                    )))))
+                    Ok(Expression(FunctionCall(Box::new(NegationOperator::new(_right)))))
                 } else {
                     Err(WrongFormat(format!("Not completed '{}'", op)))
                 }
@@ -881,28 +744,22 @@ pub mod factory {
             other => return Err(UnexpectedToken(Box::new(other), Some("comparator".into()))),
         };
 
-        let left_token = left.pop_left().map_err(|err| {
-            WrongFormat(format!(
-                "Left '{}' comparator side is not complete",
-                comparator
-            ))
-            .before(err)
-        })?;
+        let left_token = left
+            .pop_left()
+            .map_err(|err| WrongFormat(format!("Left '{}' comparator side is not complete", comparator)).before(err))?;
 
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat(format!("{} {} - not completed", left_token, comparator)).before(err)
-        })?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat(format!("{} {} - not completed", left_token, comparator)).before(err))?;
 
         match (left_token, right_token) {
             (Expression(left_token), Expression(right_token)) => {
-                let comparator_operator =
-                    ComparatorOperator::build(comparator, left_token, right_token)?;
+                let comparator_operator = ComparatorOperator::build(comparator, left_token, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))
             }
             (Unparsed(BracketOpenToken), Expression(right_token)) => {
                 left.push_back(Unparsed(BracketOpenToken));
-                let comparator_operator =
-                    ComparatorOperator::build(comparator, ContextVariable, right_token)?;
+                let comparator_operator = ComparatorOperator::build(comparator, ContextVariable, right_token)?;
                 Ok(Expression(Operator(Box::new(comparator_operator))))
             }
             (_left, _right) => Err(WrongFormat(format!("Not completed '{}'", comparator))),
@@ -918,9 +775,9 @@ pub mod factory {
 
         // Support unary prefix: `not <expr>`
         if let LogicalOperatorEnum::Not = operator {
-            let right_token = right.pop_right().map_err(|err| {
-                WrongFormat("'not' right side is not complete".to_string()).before(err)
-            })?;
+            let right_token = right
+                .pop_right()
+                .map_err(|err| WrongFormat("'not' right side is not complete".to_string()).before(err))?;
 
             match right_token {
                 Expression(right_expr) => {
@@ -937,13 +794,13 @@ pub mod factory {
         }
 
         // Binary logical operators: and, or, xor
-        let left_token = left.pop_left().map_err(|err| {
-            WrongFormat(format!("Left '{}' operator side is not complete", operator)).before(err)
-        })?;
+        let left_token = left
+            .pop_left()
+            .map_err(|err| WrongFormat(format!("Left '{}' operator side is not complete", operator)).before(err))?;
 
-        let right_token = right.pop_right().map_err(|err| {
-            WrongFormat(format!("{} {} - not completed", left_token, operator)).before(err)
-        })?;
+        let right_token = right
+            .pop_right()
+            .map_err(|err| WrongFormat(format!("{} {} - not completed", left_token, operator)).before(err))?;
 
         match (left_token, right_token) {
             (Expression(left_token), Expression(right_token)) => {

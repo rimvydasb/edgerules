@@ -52,10 +52,7 @@ fn test_builder() -> Result<(), EvalError> {
 
     link_parts(Rc::clone(&obj3))?;
 
-    assert_eq!(
-        obj3.borrow().to_schema(),
-        "{x: string; y: number; a: number; b: number}"
-    );
+    assert_eq!(obj3.borrow().to_schema(), "{x: string; y: number; a: number; b: number}");
 
     Ok(())
 }
@@ -86,14 +83,8 @@ fn test_nesting() -> Result<(), EvalError> {
 
     link_parts(Rc::clone(&obj))?;
 
-    assert_eq!(
-        obj.borrow().to_string(),
-        "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}"
-    );
-    assert_eq!(
-        obj.borrow().to_schema(),
-        "{a: number; b: number; c: {x: string; y: number}}"
-    );
+    assert_eq!(obj.borrow().to_string(), "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}");
+    assert_eq!(obj.borrow().to_schema(), "{a: number; b: number; c: {x: string; y: number}}");
 
     Ok(())
 }

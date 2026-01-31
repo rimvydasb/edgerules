@@ -54,11 +54,7 @@ impl StaticLink for IfThenElseFunction {
             let then_expression = self.then_expression.link(Rc::clone(&ctx))?;
             self.result_type = self.else_expression.link(Rc::clone(&ctx));
 
-            LinkingError::expect_single_type(
-                "if condition",
-                condition_type,
-                &ValueType::BooleanType,
-            )?;
+            LinkingError::expect_single_type("if condition", condition_type, &ValueType::BooleanType)?;
 
             if let Ok(else_expression) = &self.result_type {
                 LinkingError::expect_same_types(

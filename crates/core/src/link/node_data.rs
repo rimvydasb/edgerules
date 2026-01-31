@@ -153,26 +153,15 @@ impl<T: Node<T>> NodeData<T> {
     //     }
     // }
     //
-    pub fn new_fixed(
-        childs: HashMap<&'static str, Rc<RefCell<T>>>,
-        node_type: NodeDataEnum<T>,
-    ) -> Self {
+    pub fn new_fixed(childs: HashMap<&'static str, Rc<RefCell<T>>>, node_type: NodeDataEnum<T>) -> Self {
         let object_field_locks = RefCell::new(HashSet::with_capacity(childs.len()));
         let childs = RefCell::new(childs);
 
-        Self {
-            node_type,
-            childs,
-            object_field_locks,
-        }
+        Self { node_type, childs, object_field_locks }
     }
 
     pub fn new(node_type: NodeDataEnum<T>) -> Self {
-        Self {
-            node_type,
-            childs: RefCell::new(HashMap::new()),
-            object_field_locks: RefCell::new(HashSet::new()),
-        }
+        Self { node_type, childs: RefCell::new(HashMap::new()), object_field_locks: RefCell::new(HashSet::new()) }
     }
 
     pub fn get_assigned_to_field(&self) -> Option<&'static str> {

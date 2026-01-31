@@ -93,8 +93,9 @@ impl StaticLink for ComparatorOperator {
             LinkingError::expect_same_types("Comparator", type_pair.0, type_pair.1)?
         } else {
             match type_pair {
-                (ValueType::DateType, ValueType::DateTimeType)
-                | (ValueType::DateTimeType, ValueType::DateType) => ValueType::DateTimeType,
+                (ValueType::DateType, ValueType::DateTimeType) | (ValueType::DateTimeType, ValueType::DateType) => {
+                    ValueType::DateTimeType
+                }
                 (left, right) => {
                     return LinkingError::expect_same_types("Comparator", left, right);
                 }
@@ -105,22 +106,14 @@ impl StaticLink for ComparatorOperator {
             (ValueType::BooleanType, Equals) => {}
             (ValueType::BooleanType, NotEquals) => {}
             (ValueType::BooleanType, operator) => {
-                return Err(LinkingError::operation_not_supported(
-                    operator.as_str(),
-                    same_type.clone(),
-                    same_type,
-                ));
+                return Err(LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type));
             }
 
             // if both are strings, only = and <> are allowed
             (ValueType::StringType, Equals) => {}
             (ValueType::StringType, NotEquals) => {}
             (ValueType::StringType, operator) => {
-                return Err(LinkingError::operation_not_supported(
-                    operator.as_str(),
-                    same_type.clone(),
-                    same_type,
-                ));
+                return Err(LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type));
             }
 
             // if both are dates, only =, <>, <, <=, >, >= are allowed
@@ -158,11 +151,7 @@ impl StaticLink for ComparatorOperator {
             // periods support only equality / inequality
             (ValueType::PeriodType, Equals) | (ValueType::PeriodType, NotEquals) => {}
             (ValueType::PeriodType, operator) => {
-                return Err(LinkingError::operation_not_supported(
-                    operator.as_str(),
-                    same_type.clone(),
-                    same_type,
-                ));
+                return Err(LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type));
             }
 
             // if both are numbers all comparators are allowed
@@ -190,13 +179,7 @@ impl ComparatorOperator {
         left: ExpressionEnum,
         right: ExpressionEnum,
     ) -> Result<Self, ParseErrorEnum> {
-        let comparator = ComparatorOperator {
-            data: OperatorData {
-                operator,
-                left,
-                right,
-            },
-        };
+        let comparator = ComparatorOperator { data: OperatorData { operator, left, right } };
 
         Ok(comparator)
     }
@@ -210,31 +193,21 @@ impl ComparatorOperator {
     }
 
     fn date_datetime_ordering(date: &time::Date, datetime: &time::OffsetDateTime) -> Ordering {
-        time::PrimitiveDateTime::new(*date, time::Time::MIDNIGHT)
-            .assume_utc()
-            .cmp(datetime)
+        time::PrimitiveDateTime::new(*date, time::Time::MIDNIGHT).assume_utc().cmp(datetime)
     }
 
     fn datetime_date_ordering(datetime: &time::OffsetDateTime, date: &time::Date) -> Ordering {
         Self::date_datetime_ordering(date, datetime).reverse()
     }
 
-    fn eval_operator(
-        &self,
-        left: &ValueEnum,
-        right: &ValueEnum,
-    ) -> Result<ValueEnum, RuntimeError> {
+    fn eval_operator(&self, left: &ValueEnum, right: &ValueEnum) -> Result<ValueEnum, RuntimeError> {
         use crate::typesystem::values::ValueOrSv::Value;
         match (left, &self.data.operator, right) {
             (NumberValue(left), Equals, NumberValue(right)) => Ok(BooleanValue(left == right)),
             (BooleanValue(left), Equals, BooleanValue(right)) => Ok(BooleanValue(left == right)),
             (StringValue(left), Equals, StringValue(right)) => Ok(BooleanValue(left == right)),
-            (DateValue(ValueOrSv::Value(a)), Equals, DateValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a == b))
-            }
-            (TimeValue(ValueOrSv::Value(a)), Equals, TimeValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a == b))
-            }
+            (DateValue(ValueOrSv::Value(a)), Equals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a == b)),
+            (TimeValue(ValueOrSv::Value(a)), Equals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a == b)),
             (DateTimeValue(ValueOrSv::Value(a)), Equals, DateTimeValue(ValueOrSv::Value(b))) => {
                 Ok(BooleanValue(a == b))
             }
@@ -242,135 +215,91 @@ impl ComparatorOperator {
             (NumberValue(left), NotEquals, NumberValue(right)) => Ok(BooleanValue(left != right)),
             (BooleanValue(left), NotEquals, BooleanValue(right)) => Ok(BooleanValue(left != right)),
             (StringValue(left), NotEquals, StringValue(right)) => Ok(BooleanValue(left != right)),
-            (DateValue(ValueOrSv::Value(a)), NotEquals, DateValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a != b))
-            }
-            (TimeValue(ValueOrSv::Value(a)), NotEquals, TimeValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a != b))
-            }
+            (DateValue(ValueOrSv::Value(a)), NotEquals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a != b)),
+            (TimeValue(ValueOrSv::Value(a)), NotEquals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a != b)),
             (DateTimeValue(ValueOrSv::Value(a)), NotEquals, DateTimeValue(ValueOrSv::Value(b))) => {
                 Ok(BooleanValue(a != b))
             }
 
             (NumberValue(left), LessEquals, NumberValue(right)) => Ok(BooleanValue(left <= right)),
-            (NumberValue(left), GreaterEquals, NumberValue(right)) => {
-                Ok(BooleanValue(left >= right))
-            }
+            (NumberValue(left), GreaterEquals, NumberValue(right)) => Ok(BooleanValue(left >= right)),
             (NumberValue(left), Less, NumberValue(right)) => Ok(BooleanValue(left < right)),
             (NumberValue(left), Greater, NumberValue(right)) => Ok(BooleanValue(left > right)),
 
-            (DateValue(ValueOrSv::Value(a)), LessEquals, DateValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a <= b))
-            }
-            (DateValue(ValueOrSv::Value(a)), GreaterEquals, DateValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a >= b))
-            }
-            (DateValue(ValueOrSv::Value(a)), Less, DateValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a < b))
-            }
-            (DateValue(ValueOrSv::Value(a)), Greater, DateValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a > b))
-            }
+            (DateValue(ValueOrSv::Value(a)), LessEquals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a <= b)),
+            (DateValue(ValueOrSv::Value(a)), GreaterEquals, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a >= b)),
+            (DateValue(ValueOrSv::Value(a)), Less, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a < b)),
+            (DateValue(ValueOrSv::Value(a)), Greater, DateValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a > b)),
 
-            (TimeValue(Value(a)), LessEquals, TimeValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a <= b))
-            }
-            (TimeValue(Value(a)), GreaterEquals, TimeValue(ValueOrSv::Value(b))) => {
-                Ok(BooleanValue(a >= b))
-            }
+            (TimeValue(Value(a)), LessEquals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a <= b)),
+            (TimeValue(Value(a)), GreaterEquals, TimeValue(ValueOrSv::Value(b))) => Ok(BooleanValue(a >= b)),
             (TimeValue(Value(a)), Less, TimeValue(Value(b))) => Ok(BooleanValue(a < b)),
             (TimeValue(Value(a)), Greater, TimeValue(Value(b))) => Ok(BooleanValue(a > b)),
 
-            (DateTimeValue(ValueOrSv::Value(a)), LessEquals, DateTimeValue(Value(b))) => {
-                Ok(BooleanValue(a <= b))
-            }
-            (DateTimeValue(Value(a)), GreaterEquals, DateTimeValue(Value(b))) => {
-                Ok(BooleanValue(a >= b))
-            }
+            (DateTimeValue(ValueOrSv::Value(a)), LessEquals, DateTimeValue(Value(b))) => Ok(BooleanValue(a <= b)),
+            (DateTimeValue(Value(a)), GreaterEquals, DateTimeValue(Value(b))) => Ok(BooleanValue(a >= b)),
             (DateTimeValue(Value(a)), Less, DateTimeValue(Value(b))) => Ok(BooleanValue(a < b)),
             (DateTimeValue(Value(a)), Greater, DateTimeValue(Value(b))) => Ok(BooleanValue(a > b)),
 
-            (DateValue(Value(date)), Equals, DateTimeValue(Value(datetime))) => Ok(BooleanValue(
-                Self::date_datetime_ordering(date, datetime) == Ordering::Equal,
-            )),
-            (DateValue(Value(date)), NotEquals, DateTimeValue(Value(datetime))) => Ok(
-                BooleanValue(Self::date_datetime_ordering(date, datetime) != Ordering::Equal),
-            ),
-            (DateValue(Value(date)), Less, DateTimeValue(Value(datetime))) => Ok(BooleanValue(
-                Self::date_datetime_ordering(date, datetime) == Ordering::Less,
-            )),
-            (DateValue(Value(date)), Greater, DateTimeValue(Value(datetime))) => Ok(BooleanValue(
-                Self::date_datetime_ordering(date, datetime) == Ordering::Greater,
-            )),
-            (DateValue(Value(date)), LessEquals, DateTimeValue(Value(datetime))) => {
-                Ok(BooleanValue({
-                    let ordering = Self::date_datetime_ordering(date, datetime);
-                    ordering == Ordering::Less || ordering == Ordering::Equal
-                }))
+            (DateValue(Value(date)), Equals, DateTimeValue(Value(datetime))) => {
+                Ok(BooleanValue(Self::date_datetime_ordering(date, datetime) == Ordering::Equal))
             }
-            (DateValue(Value(date)), GreaterEquals, DateTimeValue(Value(datetime))) => {
-                Ok(BooleanValue({
-                    let ordering = Self::date_datetime_ordering(date, datetime);
-                    ordering == Ordering::Greater || ordering == Ordering::Equal
-                }))
+            (DateValue(Value(date)), NotEquals, DateTimeValue(Value(datetime))) => {
+                Ok(BooleanValue(Self::date_datetime_ordering(date, datetime) != Ordering::Equal))
             }
+            (DateValue(Value(date)), Less, DateTimeValue(Value(datetime))) => {
+                Ok(BooleanValue(Self::date_datetime_ordering(date, datetime) == Ordering::Less))
+            }
+            (DateValue(Value(date)), Greater, DateTimeValue(Value(datetime))) => {
+                Ok(BooleanValue(Self::date_datetime_ordering(date, datetime) == Ordering::Greater))
+            }
+            (DateValue(Value(date)), LessEquals, DateTimeValue(Value(datetime))) => Ok(BooleanValue({
+                let ordering = Self::date_datetime_ordering(date, datetime);
+                ordering == Ordering::Less || ordering == Ordering::Equal
+            })),
+            (DateValue(Value(date)), GreaterEquals, DateTimeValue(Value(datetime))) => Ok(BooleanValue({
+                let ordering = Self::date_datetime_ordering(date, datetime);
+                ordering == Ordering::Greater || ordering == Ordering::Equal
+            })),
 
-            (DateTimeValue(Value(datetime)), Equals, DateValue(Value(date))) => Ok(BooleanValue(
-                Self::datetime_date_ordering(datetime, date) == Ordering::Equal,
-            )),
-            (DateTimeValue(Value(datetime)), NotEquals, DateValue(Value(date))) => Ok(
-                BooleanValue(Self::datetime_date_ordering(datetime, date) != Ordering::Equal),
-            ),
-            (DateTimeValue(Value(datetime)), Less, DateValue(Value(date))) => Ok(BooleanValue(
-                Self::datetime_date_ordering(datetime, date) == Ordering::Less,
-            )),
-            (DateTimeValue(Value(datetime)), Greater, DateValue(Value(date))) => Ok(BooleanValue(
-                Self::datetime_date_ordering(datetime, date) == Ordering::Greater,
-            )),
-            (DateTimeValue(Value(datetime)), LessEquals, DateValue(Value(date))) => {
-                Ok(BooleanValue({
-                    let ordering = Self::datetime_date_ordering(datetime, date);
-                    ordering == Ordering::Less || ordering == Ordering::Equal
-                }))
+            (DateTimeValue(Value(datetime)), Equals, DateValue(Value(date))) => {
+                Ok(BooleanValue(Self::datetime_date_ordering(datetime, date) == Ordering::Equal))
             }
-            (DateTimeValue(Value(datetime)), GreaterEquals, DateValue(Value(date))) => {
-                Ok(BooleanValue({
-                    let ordering = Self::datetime_date_ordering(datetime, date);
-                    ordering == Ordering::Greater || ordering == Ordering::Equal
-                }))
+            (DateTimeValue(Value(datetime)), NotEquals, DateValue(Value(date))) => {
+                Ok(BooleanValue(Self::datetime_date_ordering(datetime, date) != Ordering::Equal))
             }
+            (DateTimeValue(Value(datetime)), Less, DateValue(Value(date))) => {
+                Ok(BooleanValue(Self::datetime_date_ordering(datetime, date) == Ordering::Less))
+            }
+            (DateTimeValue(Value(datetime)), Greater, DateValue(Value(date))) => {
+                Ok(BooleanValue(Self::datetime_date_ordering(datetime, date) == Ordering::Greater))
+            }
+            (DateTimeValue(Value(datetime)), LessEquals, DateValue(Value(date))) => Ok(BooleanValue({
+                let ordering = Self::datetime_date_ordering(datetime, date);
+                ordering == Ordering::Less || ordering == Ordering::Equal
+            })),
+            (DateTimeValue(Value(datetime)), GreaterEquals, DateValue(Value(date))) => Ok(BooleanValue({
+                let ordering = Self::datetime_date_ordering(datetime, date);
+                ordering == Ordering::Greater || ordering == Ordering::Equal
+            })),
 
-            (DurationVariant(Value(a)), Equals, DurationVariant(Value(b))) => {
-                Ok(BooleanValue(a == b))
-            }
-            (DurationVariant(Value(a)), NotEquals, DurationVariant(Value(b))) => {
-                Ok(BooleanValue(a != b))
-            }
-            (DurationVariant(Value(a)), Less, DurationVariant(Value(b))) => {
-                match self.duration_ordering(a, b) {
-                    Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
-                    None => RuntimeError::internal_integrity_error(150).into(),
-                }
-            }
-            (DurationVariant(Value(a)), Greater, DurationVariant(Value(b))) => {
-                match self.duration_ordering(a, b) {
-                    Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
-                    None => RuntimeError::internal_integrity_error(151).into(),
-                }
-            }
-            (DurationVariant(Value(a)), LessEquals, DurationVariant(Value(b))) => {
-                match self.duration_ordering(a, b) {
-                    Some(ordering) => Ok(BooleanValue(
-                        ordering == Ordering::Less || ordering == Ordering::Equal,
-                    )),
-                    None => RuntimeError::internal_integrity_error(152).into(),
-                }
-            }
+            (DurationVariant(Value(a)), Equals, DurationVariant(Value(b))) => Ok(BooleanValue(a == b)),
+            (DurationVariant(Value(a)), NotEquals, DurationVariant(Value(b))) => Ok(BooleanValue(a != b)),
+            (DurationVariant(Value(a)), Less, DurationVariant(Value(b))) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less)),
+                None => RuntimeError::internal_integrity_error(150).into(),
+            },
+            (DurationVariant(Value(a)), Greater, DurationVariant(Value(b))) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater)),
+                None => RuntimeError::internal_integrity_error(151).into(),
+            },
+            (DurationVariant(Value(a)), LessEquals, DurationVariant(Value(b))) => match self.duration_ordering(a, b) {
+                Some(ordering) => Ok(BooleanValue(ordering == Ordering::Less || ordering == Ordering::Equal)),
+                None => RuntimeError::internal_integrity_error(152).into(),
+            },
             (DurationVariant(Value(a)), GreaterEquals, DurationVariant(Value(b))) => {
                 match self.duration_ordering(a, b) {
-                    Some(ordering) => Ok(BooleanValue(
-                        ordering == Ordering::Greater || ordering == Ordering::Equal,
-                    )),
+                    Some(ordering) => Ok(BooleanValue(ordering == Ordering::Greater || ordering == Ordering::Equal)),
                     None => {
                         trace!("Durations: a: {:?}, b: {:?}", a, b);
                         RuntimeError::internal_integrity_error(153).into()
@@ -378,9 +307,7 @@ impl ComparatorOperator {
                 }
             }
             (PeriodVariant(Value(a)), Equals, PeriodVariant(Value(b))) => Ok(BooleanValue(a == b)),
-            (PeriodVariant(Value(a)), NotEquals, PeriodVariant(Value(b))) => {
-                Ok(BooleanValue(a != b))
-            }
+            (PeriodVariant(Value(a)), NotEquals, PeriodVariant(Value(b))) => Ok(BooleanValue(a != b)),
             (PeriodVariant(Value(_)), _comparator, PeriodVariant(Value(_))) => {
                 RuntimeError::internal_integrity_error(154).into()
             }

@@ -45,8 +45,7 @@ fn eval_value(code: &str) -> Result<Option<String>, String> {
 fn read_code(args: &[String]) -> Result<String, String> {
     if let Some(first) = args.first() {
         if let Some(path) = first.strip_prefix('@') {
-            fs::read_to_string(path)
-                .map_err(|error| format!("Failed to read file '{}': {}", path, error))
+            fs::read_to_string(path).map_err(|error| format!("Failed to read file '{}': {}", path, error))
         } else {
             Ok(args.join(" "))
         }

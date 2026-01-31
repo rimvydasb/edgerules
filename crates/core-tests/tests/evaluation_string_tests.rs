@@ -15,10 +15,7 @@ fn test_string_functions() {
     assert_value!("endsWith('foobar', 'r')", "true");
     assert_value!("split('John Doe', ' ')", "['John', 'Doe']");
     assert_value!("split('a-b-c', '-')", "['a', 'b', 'c']");
-    assert_value!(
-        "regexSplit('one   two\tthree', '\\s+')",
-        "['one', 'two', 'three']"
-    );
+    assert_value!("regexSplit('one   two\tthree', '\\s+')", "['one', 'two', 'three']");
     assert_value!("trim('  hello  ')", "'hello'");
     assert_value!("toBase64('FEEL')", "'RkVFTA=='");
     assert_value!("fromBase64('RkVFTA==')", "'FEEL'");
@@ -53,25 +50,13 @@ fn test_string_logic() {
     assert_value!("'a' = 'a'", "true");
     assert_value!("'a' <> 'b'", "true");
 
-    link_error_contains(
-        "value: 'a' < 'b'",
-        &["Operation '<' not supported for types 'string' and 'string'"],
-    );
+    link_error_contains("value: 'a' < 'b'", &["Operation '<' not supported for types 'string' and 'string'"]);
 
-    link_error_contains(
-        "value: 'a' <= 'a'",
-        &["Operation '<=' not supported for types 'string' and 'string'"],
-    );
+    link_error_contains("value: 'a' <= 'a'", &["Operation '<=' not supported for types 'string' and 'string'"]);
 
-    link_error_contains(
-        "value: 'b' > 'a'",
-        &["Operation '>' not supported for types 'string' and 'string'"],
-    );
+    link_error_contains("value: 'b' > 'a'", &["Operation '>' not supported for types 'string' and 'string'"]);
 
-    link_error_contains(
-        "value: 'b' >= 'b'",
-        &["Operation '>=' not supported for types 'string' and 'string'"],
-    );
+    link_error_contains("value: 'b' >= 'b'", &["Operation '>=' not supported for types 'string' and 'string'"]);
 }
 
 #[test]

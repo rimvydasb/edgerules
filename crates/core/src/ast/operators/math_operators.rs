@@ -11,18 +11,14 @@ use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::number::NumberEnum::{Int, Real};
 use crate::typesystem::types::string::StringEnum as TStringEnum;
 use crate::typesystem::types::ValueType::StringType;
-use crate::typesystem::types::ValueType::{
-    DateTimeType, DateType, DurationType, NumberType, PeriodType, TimeType,
-};
+use crate::typesystem::types::ValueType::{DateTimeType, DateType, DurationType, NumberType, PeriodType, TimeType};
 use crate::typesystem::types::{Float, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
-    DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue,
-    PeriodValue as PeriodVariant, StringValue, TimeValue,
+    DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue, PeriodValue as PeriodVariant, StringValue,
+    TimeValue,
 };
-use crate::typesystem::values::{
-    DurationValue as ErDurationValue, PeriodValue as ErPeriodValue, ValueOrSv,
-};
+use crate::typesystem::values::{DurationValue as ErDurationValue, PeriodValue as ErPeriodValue, ValueOrSv};
 use rust_decimal::prelude::*;
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -36,8 +32,7 @@ use time::Duration as TDuration;
 //----------------------------------------------------------------------------------------------
 // Operator
 
-pub type BinaryNumberFunction =
-    fn(a: NumberEnum, b: NumberEnum) -> Result<NumberEnum, RuntimeError>;
+pub type BinaryNumberFunction = fn(a: NumberEnum, b: NumberEnum) -> Result<NumberEnum, RuntimeError>;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub trait Operator: Display + Debug + EvaluatableExpression {}
@@ -65,11 +60,7 @@ impl Display for OperatorData<MathOperatorEnum> {
 }
 
 impl<T: Display> OperatorData<T> {
-    pub fn link(
-        &mut self,
-        ctx: Rc<RefCell<ContextObject>>,
-        expected_type: ValueType,
-    ) -> Link<ValueType> {
+    pub fn link(&mut self, ctx: Rc<RefCell<ContextObject>>, expected_type: ValueType) -> Link<ValueType> {
         let left_type = self.left.link(ctx.clone())?;
         let right_type = self.right.link(ctx)?;
 
@@ -79,11 +70,8 @@ impl<T: Display> OperatorData<T> {
             return Ok(expected_type);
         }
 
-        let expected = LinkingError::expect_same_types(
-            self.operator.to_string().as_str(),
-            left_type,
-            right_type.clone(),
-        )?;
+        let expected =
+            LinkingError::expect_same_types(self.operator.to_string().as_str(), left_type, right_type.clone())?;
         LinkingError::expect_single_type("Left side of operator", expected, &expected_type)?;
         LinkingError::expect_single_type("Right side of operator", right_type, &expected_type)
     }
@@ -146,10 +134,7 @@ impl TryFrom<&str> for MathOperatorEnum {
             }
         }
 
-        Err(ParseErrorEnum::WrongFormat(format!(
-            "Unknown operator: {}",
-            value
-        )))
+        Err(ParseErrorEnum::WrongFormat(format!("Unknown operator: {}", value)))
     }
 }
 
@@ -164,10 +149,7 @@ impl TryFrom<char> for MathOperatorEnum {
             '/' | '÷' => Ok(Division),
             '^' => Ok(Power),
             '%' => Ok(Modulus),
-            _ => Err(ParseErrorEnum::WrongFormat(format!(
-                "Unknown operator: {}",
-                value
-            ))),
+            _ => Err(ParseErrorEnum::WrongFormat(format!("Unknown operator: {}", value))),
         }
     }
 }
@@ -179,10 +161,7 @@ impl TryFrom<EToken> for MathOperatorEnum {
         if let Unparsed(EUnparsedToken::MathOperatorToken(operator)) = value {
             Ok(operator)
         } else {
-            Err(ParseErrorEnum::WrongFormat(format!(
-                "Unknown operator: {}",
-                value
-            )))
+            Err(ParseErrorEnum::WrongFormat(format!("Unknown operator: {}", value)))
         }
     }
 }
@@ -220,9 +199,7 @@ impl StaticLink for MathOperator {
         let right_type = self.data.right.link(ctx)?;
 
         // If either side is unresolved, defer with a sensible default (number)
-        if matches!(left_type, ValueType::UndefinedType)
-            || matches!(right_type, ValueType::UndefinedType)
-        {
+        if matches!(left_type, ValueType::UndefinedType) || matches!(right_type, ValueType::UndefinedType) {
             return Ok(NumberType);
         }
 
@@ -236,16 +213,8 @@ impl StaticLink for MathOperator {
                 // First handle string combinations explicitly for readability
                 match (left_type.clone(), right_type.clone()) {
                     (StringType, StringType) => Ok(StringType),
-                    (lt, StringType) => LinkingError::expect_single_type(
-                        "Left side of operator '+'",
-                        lt,
-                        &StringType,
-                    ),
-                    (StringType, rt) => LinkingError::expect_single_type(
-                        "Right side of operator '+'",
-                        rt,
-                        &StringType,
-                    ),
+                    (lt, StringType) => LinkingError::expect_single_type("Left side of operator '+'", lt, &StringType),
+                    (StringType, rt) => LinkingError::expect_single_type("Right side of operator '+'", rt, &StringType),
                     (DurationType, DurationType) => Ok(DurationType),
                     (PeriodType, PeriodType) => Ok(PeriodType),
                     (DateType, DurationType) | (DurationType, DateType) => Ok(DateTimeType),
@@ -259,14 +228,7 @@ impl StaticLink for MathOperator {
                     _ => LinkingError::types_not_compatible(
                         Some("Operator '+'".to_string()),
                         left_type,
-                        Some(vec![
-                            NumberType,
-                            DateType,
-                            DateTimeType,
-                            TimeType,
-                            DurationType,
-                            PeriodType,
-                        ]),
+                        Some(vec![NumberType, DateType, DateTimeType, TimeType, DurationType, PeriodType]),
                     )
                     .into(),
                 }
@@ -275,9 +237,7 @@ impl StaticLink for MathOperator {
                 // date - date => duration; time - time => duration; datetime - datetime => duration
                 // date - duration => date; datetime - duration => datetime; time - duration => time
                 match (left_type.clone(), right_type.clone()) {
-                    (DateType, DateType) | (TimeType, TimeType) | (DateTimeType, DateTimeType) => {
-                        Ok(DurationType)
-                    }
+                    (DateType, DateType) | (TimeType, TimeType) | (DateTimeType, DateTimeType) => Ok(DurationType),
                     (DateType, DurationType) => Ok(DateTimeType),
                     (DateTimeType, DurationType) => Ok(DateTimeType),
                     (TimeType, DurationType) => Ok(TimeType),
@@ -289,13 +249,7 @@ impl StaticLink for MathOperator {
                     _ => LinkingError::types_not_compatible(
                         Some("Operator '-'".to_string()),
                         left_type,
-                        Some(vec![
-                            NumberType,
-                            DateType,
-                            DateTimeType,
-                            TimeType,
-                            DurationType,
-                        ]),
+                        Some(vec![NumberType, DateType, DateTimeType, TimeType, DurationType]),
                     )
                     .into(),
                 }
@@ -316,21 +270,17 @@ impl MathOperator {
         right: ExpressionEnum,
     ) -> Result<Self, ParseErrorEnum> {
         let function = match operator {
-            Addition => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
-                Ok(left + right)
-            },
-            Subtraction => |left: NumberEnum,
-                            right: NumberEnum|
-             -> Result<NumberEnum, RuntimeError> { Ok(left - right) },
-            Multiplication => |left: NumberEnum,
-                               right: NumberEnum|
-             -> Result<NumberEnum, RuntimeError> { Ok(left * right) },
+            Addition => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> { Ok(left + right) },
+            Subtraction => {
+                |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> { Ok(left - right) }
+            }
+            Multiplication => {
+                |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> { Ok(left * right) }
+            }
             Division => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
                 match right {
                     NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
-                    NumberEnum::Real(r) if r == Float::ZERO => {
-                        return Err(RuntimeError::division_by_zero())
-                    }
+                    NumberEnum::Real(r) if r == Float::ZERO => return Err(RuntimeError::division_by_zero()),
                     _ => {}
                 }
                 Ok(left / right)
@@ -345,35 +295,22 @@ impl MathOperator {
                         }
                     }
                     (Real(left), Int(right)) => Ok(NumberEnum::from(left.powi(right))),
-                    (Int(left), Real(right)) => {
-                        Ok(NumberEnum::from((left as f64).powf(right.to_f64().unwrap_or(0.0))))
-                    }
-                    (Real(left), Real(right)) => {
-                        Ok(NumberEnum::from(left.powf(right.to_f64().unwrap_or(0.0))))
-                    }
+                    (Int(left), Real(right)) => Ok(NumberEnum::from((left as f64).powf(right.to_f64().unwrap_or(0.0)))),
+                    (Real(left), Real(right)) => Ok(NumberEnum::from(left.powf(right.to_f64().unwrap_or(0.0)))),
                     _ => RuntimeError::internal_integrity_error(100).into(),
                 }
             },
             Modulus => |left: NumberEnum, right: NumberEnum| -> Result<NumberEnum, RuntimeError> {
                 match right {
                     NumberEnum::Int(0) => return Err(RuntimeError::division_by_zero()),
-                    NumberEnum::Real(r) if r == Float::ZERO => {
-                        return Err(RuntimeError::division_by_zero())
-                    }
+                    NumberEnum::Real(r) if r == Float::ZERO => return Err(RuntimeError::division_by_zero()),
                     _ => {}
                 }
                 Ok(left % right)
             },
         };
 
-        Ok(MathOperator {
-            data: OperatorData {
-                operator,
-                left,
-                right,
-            },
-            function,
-        })
+        Ok(MathOperator { data: OperatorData { operator, left, right }, function })
     }
 }
 
@@ -428,9 +365,8 @@ fn shift_date_by_months(date: time::Date, months_delta: i128) -> Result<time::Da
         return Ok(date);
     }
 
-    let delta_i32 = i32::try_from(months_delta).map_err(|_| {
-        RuntimeError::eval_error("Month offset is out of range for date adjustment".to_string())
-    })?;
+    let delta_i32 = i32::try_from(months_delta)
+        .map_err(|_| RuntimeError::eval_error("Month offset is out of range for date adjustment".to_string()))?;
 
     let year = date.year();
     let mut month = date.month() as i32;
@@ -445,14 +381,8 @@ fn shift_date_by_months(date: time::Date, months_delta: i128) -> Result<time::Da
     let day = date.day();
     let last = super::super::functions::function_date::last_day_of_month(new_year, new_month_u8);
     let new_day = if day > last { last } else { day };
-    time::Date::from_calendar_date(
-        new_year,
-        time::Month::try_from(new_month_u8).unwrap(),
-        new_day,
-    )
-    .map_err(|_| {
-        RuntimeError::eval_error("Invalid date produced by duration adjustment".to_string())
-    })
+    time::Date::from_calendar_date(new_year, time::Month::try_from(new_month_u8).unwrap(), new_day)
+        .map_err(|_| RuntimeError::eval_error("Invalid date produced by duration adjustment".to_string()))
 }
 
 fn apply_duration_to_date(
@@ -465,15 +395,12 @@ fn apply_duration_to_date(
         seconds_delta = -seconds_delta;
     }
 
-    let seconds_i64 = i64::try_from(seconds_delta).map_err(|_| {
-        RuntimeError::eval_error("Second offset is out of range for date adjustment".to_string())
-    })?;
+    let seconds_i64 = i64::try_from(seconds_delta)
+        .map_err(|_| RuntimeError::eval_error("Second offset is out of range for date adjustment".to_string()))?;
     let delta = TDuration::seconds(seconds_i64);
     datetime_at_midnight(date)
         .checked_add(delta)
-        .ok_or_else(|| {
-            RuntimeError::eval_error("Date adjustment with duration overflowed".to_string())
-        })
+        .ok_or_else(|| RuntimeError::eval_error("Date adjustment with duration overflowed".to_string()))
 }
 
 fn apply_duration_to_datetime(
@@ -486,15 +413,12 @@ fn apply_duration_to_datetime(
         seconds_delta = -seconds_delta;
     }
 
-    let seconds_i64 = i64::try_from(seconds_delta).map_err(|_| {
-        RuntimeError::eval_error(
-            "Second offset is out of range for datetime adjustment".to_string(),
-        )
-    })?;
+    let seconds_i64 = i64::try_from(seconds_delta)
+        .map_err(|_| RuntimeError::eval_error("Second offset is out of range for datetime adjustment".to_string()))?;
     let delta = TDuration::seconds(seconds_i64);
-    datetime.checked_add(delta).ok_or_else(|| {
-        RuntimeError::eval_error("Datetime adjustment with duration overflowed".to_string())
-    })
+    datetime
+        .checked_add(delta)
+        .ok_or_else(|| RuntimeError::eval_error("Datetime adjustment with duration overflowed".to_string()))
 }
 
 fn apply_duration_to_time(
@@ -507,17 +431,15 @@ fn apply_duration_to_time(
         seconds_delta = -seconds_delta;
     }
 
-    let mut total_secs: i128 =
-        (time.hour() as i128) * 3_600 + (time.minute() as i128) * 60 + time.second() as i128;
+    let mut total_secs: i128 = (time.hour() as i128) * 3_600 + (time.minute() as i128) * 60 + time.second() as i128;
     total_secs += seconds_delta;
 
     let secs_mod = total_secs.rem_euclid(86_400);
     let hours = (secs_mod / 3_600) as u8;
     let minutes = ((secs_mod % 3_600) / 60) as u8;
     let seconds = (secs_mod % 60) as u8;
-    time::Time::from_hms(hours, minutes, seconds).map_err(|_| {
-        RuntimeError::eval_error("Invalid time produced by duration adjustment".to_string())
-    })
+    time::Time::from_hms(hours, minutes, seconds)
+        .map_err(|_| RuntimeError::eval_error("Invalid time produced by duration adjustment".to_string()))
 }
 
 fn apply_days_to_date(date: time::Date, days_delta: i128) -> Result<time::Date, RuntimeError> {
@@ -525,13 +447,11 @@ fn apply_days_to_date(date: time::Date, days_delta: i128) -> Result<time::Date, 
         return Ok(date);
     }
 
-    let days_i64 = i64::try_from(days_delta).map_err(|_| {
-        RuntimeError::eval_error("Day offset is out of range for date adjustment".to_string())
-    })?;
+    let days_i64 = i64::try_from(days_delta)
+        .map_err(|_| RuntimeError::eval_error("Day offset is out of range for date adjustment".to_string()))?;
     let delta = TDuration::days(days_i64);
-    date.checked_add(delta).ok_or_else(|| {
-        RuntimeError::eval_error("Date adjustment with period overflowed".to_string())
-    })
+    date.checked_add(delta)
+        .ok_or_else(|| RuntimeError::eval_error("Date adjustment with period overflowed".to_string()))
 }
 
 fn apply_period_to_date(
@@ -605,19 +525,12 @@ impl EvaluatableExpression for MathOperator {
                 }
                 Ok(ValueEnum::StringValue(TStringEnum::String(out)))
             }
-            (
-                DurationVariant(ValueOrSv::Value(left_dur)),
-                DurationVariant(ValueOrSv::Value(right_dur)),
-            ) => {
+            (DurationVariant(ValueOrSv::Value(left_dur)), DurationVariant(ValueOrSv::Value(right_dur))) => {
                 let combined = operate_duration_values(&self.data.operator, left_dur, right_dur)?;
                 Ok(DurationVariant(ValueOrSv::Value(combined)))
             }
-            (
-                PeriodVariant(ValueOrSv::Value(left_period)),
-                PeriodVariant(ValueOrSv::Value(right_period)),
-            ) => {
-                let combined =
-                    operate_period_values(&self.data.operator, left_period, right_period)?;
+            (PeriodVariant(ValueOrSv::Value(left_period)), PeriodVariant(ValueOrSv::Value(right_period))) => {
+                let combined = operate_period_values(&self.data.operator, left_period, right_period)?;
                 Ok(PeriodVariant(ValueOrSv::Value(combined)))
             }
             (DateValue(ValueOrSv::Value(date)), DurationVariant(ValueOrSv::Value(duration))) => {
@@ -634,24 +547,18 @@ impl EvaluatableExpression for MathOperator {
                 let result = apply_duration_to_date(*date, duration, &MathOperatorEnum::Addition)?;
                 Ok(DateTimeValue(ValueOrSv::Value(result)))
             }
-            (
-                DateTimeValue(ValueOrSv::Value(datetime)),
-                DurationVariant(ValueOrSv::Value(duration)),
-            ) => {
+            (DateTimeValue(ValueOrSv::Value(datetime)), DurationVariant(ValueOrSv::Value(duration))) => {
                 if matches!(self.data.operator, Addition | Subtraction) {
-                    let result =
-                        apply_duration_to_datetime(*datetime, duration, &self.data.operator)?;
+                    let result = apply_duration_to_datetime(*datetime, duration, &self.data.operator)?;
                     Ok(DateTimeValue(ValueOrSv::Value(result)))
                 } else {
                     RuntimeError::internal_integrity_error(104).into()
                 }
             }
-            (
-                DurationVariant(ValueOrSv::Value(duration)),
-                DateTimeValue(ValueOrSv::Value(datetime)),
-            ) if matches!(self.data.operator, Addition) => {
-                let result =
-                    apply_duration_to_datetime(*datetime, duration, &MathOperatorEnum::Addition)?;
+            (DurationVariant(ValueOrSv::Value(duration)), DateTimeValue(ValueOrSv::Value(datetime)))
+                if matches!(self.data.operator, Addition) =>
+            {
+                let result = apply_duration_to_datetime(*datetime, duration, &MathOperatorEnum::Addition)?;
                 Ok(DateTimeValue(ValueOrSv::Value(result)))
             }
             (TimeValue(ValueOrSv::Value(time)), DurationVariant(ValueOrSv::Value(duration))) => {
@@ -679,12 +586,10 @@ impl EvaluatableExpression for MathOperator {
             (TimeValue(ValueOrSv::Value(left)), TimeValue(ValueOrSv::Value(right)))
                 if matches!(self.data.operator, Subtraction) =>
             {
-                let left_secs = i128::from(left.hour()) * 3_600
-                    + i128::from(left.minute()) * 60
-                    + i128::from(left.second());
-                let right_secs = i128::from(right.hour()) * 3_600
-                    + i128::from(right.minute()) * 60
-                    + i128::from(right.second());
+                let left_secs =
+                    i128::from(left.hour()) * 3_600 + i128::from(left.minute()) * 60 + i128::from(left.second());
+                let right_secs =
+                    i128::from(right.hour()) * 3_600 + i128::from(right.minute()) * 60 + i128::from(right.second());
                 let diff = left_secs - right_secs;
                 let duration = ErDurationValue::from_signed_seconds(diff)?;
                 Ok(DurationVariant(ValueOrSv::Value(duration)))
@@ -726,10 +631,7 @@ impl EvaluatableExpression for MathOperator {
                 let result = apply_period_to_date(*date, period, &MathOperatorEnum::Addition)?;
                 Ok(DateValue(ValueOrSv::Value(result)))
             }
-            (
-                DateTimeValue(ValueOrSv::Value(datetime)),
-                PeriodVariant(ValueOrSv::Value(period)),
-            ) => {
+            (DateTimeValue(ValueOrSv::Value(datetime)), PeriodVariant(ValueOrSv::Value(period))) => {
                 if matches!(self.data.operator, Addition | Subtraction) {
                     let result = apply_period_to_datetime(*datetime, period, &self.data.operator)?;
                     Ok(DateTimeValue(ValueOrSv::Value(result)))
@@ -737,12 +639,10 @@ impl EvaluatableExpression for MathOperator {
                     RuntimeError::internal_integrity_error(107).into()
                 }
             }
-            (
-                PeriodVariant(ValueOrSv::Value(period)),
-                DateTimeValue(ValueOrSv::Value(datetime)),
-            ) if matches!(self.data.operator, Addition) => {
-                let result =
-                    apply_period_to_datetime(*datetime, period, &MathOperatorEnum::Addition)?;
+            (PeriodVariant(ValueOrSv::Value(period)), DateTimeValue(ValueOrSv::Value(datetime)))
+                if matches!(self.data.operator, Addition) =>
+            {
+                let result = apply_period_to_datetime(*datetime, period, &MathOperatorEnum::Addition)?;
                 Ok(DateTimeValue(ValueOrSv::Value(result)))
             }
             (DurationVariant(ValueOrSv::Value(_)), PeriodVariant(ValueOrSv::Value(_)))

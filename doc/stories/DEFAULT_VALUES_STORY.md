@@ -60,21 +60,10 @@ default value. This default value should only be supported for primitive types (
     * Ensure that default values do not interfere with type resolution during the linking phase. The linked type remains
       the same; only the evaluation behavior changes when a value is absent.
 
-## Tasks
+## Tasks (completed)
 
-- [x] **AST Update**: Modify `ComplexTypeRef` to support `Option<ValueEnum>` for defaults.
-- [x] **Parser Update**: Modify `parse_complex_type_in_angle` to parse and validate default values.
-- [x] **Runtime Update**: Update `cast_value_to_type` to respect default values for missing fields.
-- [x] **Evaluation Update**: Update `TypePlaceholder` evaluation to return the default value.
-- [x] **Testing Strategy** (extend `evaluation_types.rs` tests):
-    - [x] **Rust**: Verify AST parsing of various default value combinations.
-    - [x] **Rust**: Test casting behavior where missing fields are replaced by defaults.
-    - [x] **Rust**: Test nested object casting with defaults.
-    - [x] **Rust**: Ensure invalid default types (e.g., `<number, "text">`) throw a proper parse error.
-- [x] During parsing, it is important that default value matches the declared type. If there is a mismatch,
-  `WrongFormat` error should be raised with a clear message. Add Rust tests to assert it.
-- [x] For unsupported types, if defaults are provided, raise `UnexpectedToken` error during parsing. Add Rust tests to
-  assert it.
+All tasks in this story have been delivered and validated in code and tests. The specification in `TYPES_SPEC.md` already
+reflects default value support.
 
 ## Portable Support
 

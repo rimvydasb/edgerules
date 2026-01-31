@@ -13,7 +13,7 @@ cycle-prevention that comes with a small runtime and hardly matched interpretati
 of Pratt’s top‑down operator precedence.
 
 - Language Reference / Demo: [edgerules-page](https://rimvydasb.github.io/edgerules-page/)
-- [Development](AGENTS.md)
+- [Development](GEMINI.md)
 - [License](LICENSE)
 
 ### Comparison to the similar projects:
@@ -36,13 +36,13 @@ of Pratt’s top‑down operator precedence.
 
 EdgeRules is ready for four options based on your requirements:
 
-| Option            | Description | Size (approx) |
-|-------------------|-------------|---------------|
-| Native CLI        | `just cli`  | ~1.8MB        |
-| WASM for Web      | `just web`  | ~400KB        |
-| WASM for Node.js  | `just node` | ~400KB        |
-| WASM for Wasmtime | `just wasi` | ~1.5MB        |
-| Rust Crate        | TBA         |               |
+| Option            | Description                                | Size (approx) |
+|-------------------|--------------------------------------------|---------------|
+| Native CLI        | `just cli`                                 | ~1.8MB        |
+| WASM for Web      | `just web`                                 | ~400KB        |
+| WASM for Node.js  | `just node`                                | ~400KB        |
+| WASM for Wasmtime | `just wasi`                                | ~1.5MB        |
+| Rust Crate        | `edge-rules` library (workspace member)    | n/a           |
 
 ## Features / Roadmap
 
@@ -56,7 +56,7 @@ EdgeRules is ready for four options based on your requirements:
 - [x] Hard to fail: no reference loops (Cycle-reference prevention)
 - [ ] Hard to fail: no infinite loops (TBA: optimistic limits strategy)
 - [x] Boolean literals (`true`/`false`) and logical operators (`and`, `or`, `xor`, `not`)
-- [x] Full DMN FEEL coverage
+- [ ] DMN FEEL subset (coverage in progress)
 - [x] Strongly typed and statically typed with type inference
 - [ ] Fractional mathematics for infinite precision
 - [ ] Infinite lists

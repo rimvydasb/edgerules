@@ -6,18 +6,15 @@ use crate::typesystem::types::number::NumberEnum::{Int, Real, SV};
 use crate::typesystem::types::ValueType::{
     DateTimeType, DateType, DurationType, ListType, NumberType, RangeType, TimeType, UndefinedType,
 };
-use crate::typesystem::types::{Integer, SpecialValueEnum, TypedValue, ValueType, Float};
+use crate::typesystem::types::{Float, Integer, SpecialValueEnum, TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{
-    Array, DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue, RangeValue,
-    TimeValue,
+    Array, DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue, RangeValue, TimeValue,
 };
-use crate::typesystem::values::{
-    ArrayValue, DurationValue as DurationStruct, ValueEnum, ValueOrSv,
-};
-use std::cmp::Ordering;
-use std::f64::consts::PI;
+use crate::typesystem::values::{ArrayValue, DurationValue as DurationStruct, ValueEnum, ValueOrSv};
 use rust_decimal::prelude::*;
 use rust_decimal::MathematicalOps;
+use std::cmp::Ordering;
+use std::f64::consts::PI;
 
 // Helper to extract NumberEnum
 fn get_number(v: &ValueEnum) -> Option<NumberEnum> {
@@ -35,7 +32,7 @@ pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             } else {
                 Ok(NumberValue(Real(n.ln())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             if n <= 0 {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("ln of non-positive number"))))
@@ -43,7 +40,7 @@ pub fn eval_ln(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
                 // ln() on Decimal takes f64? No, MathematicalOps adds ln() to Decimal
                 Ok(NumberValue(Real(Float::from(n).ln())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -57,14 +54,14 @@ pub fn eval_log10(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             } else {
                 Ok(NumberValue(Real(n.log10())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             if n <= 0 {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("log10 of non-positive number"))))
             } else {
                 Ok(NumberValue(Real(Float::from(n).log10())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -137,15 +134,15 @@ pub fn eval_asin(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             } else {
                 Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).asin())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             let val = n as f64;
-             if !(-1.0..=1.0).contains(&val) {
+            if !(-1.0..=1.0).contains(&val) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("asin input out of range [-1, 1]"))))
             } else {
                 Ok(NumberValue(NumberEnum::from(val.asin())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -160,15 +157,15 @@ pub fn eval_acos(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
             } else {
                 Ok(NumberValue(NumberEnum::from(n.to_f64().unwrap_or(0.0).acos())))
             }
-        },
+        }
         NumberValue(Int(n)) => {
             let val = n as f64;
-             if !(-1.0..=1.0).contains(&val) {
+            if !(-1.0..=1.0).contains(&val) {
                 Ok(NumberValue(SV(SpecialValueEnum::not_applicable("acos input out of range [-1, 1]"))))
             } else {
                 Ok(NumberValue(NumberEnum::from(val.acos())))
             }
-        },
+        }
         NumberValue(SV(sv)) => Ok(NumberValue(SV(sv))),
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
@@ -187,7 +184,9 @@ pub fn eval_atan2(y_val: ValueEnum, x_val: ValueEnum) -> Result<ValueEnum, Runti
     if let (Some(y), Some(x)) = (get_number(&y_val), get_number(&x_val)) {
         match (y, x) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
-            (Real(y_f), Real(x_f)) => Ok(NumberValue(NumberEnum::from(y_f.to_f64().unwrap_or(0.0).atan2(x_f.to_f64().unwrap_or(0.0))))),
+            (Real(y_f), Real(x_f)) => {
+                Ok(NumberValue(NumberEnum::from(y_f.to_f64().unwrap_or(0.0).atan2(x_f.to_f64().unwrap_or(0.0)))))
+            }
             (Int(y_i), Int(x_i)) => Ok(NumberValue(NumberEnum::from((y_i as f64).atan2(x_i as f64)))),
             (Real(y_f), Int(x_i)) => Ok(NumberValue(NumberEnum::from(y_f.to_f64().unwrap_or(0.0).atan2(x_i as f64)))),
             (Int(y_i), Real(x_f)) => Ok(NumberValue(NumberEnum::from((y_i as f64).atan2(x_f.to_f64().unwrap_or(0.0))))),
@@ -206,14 +205,10 @@ pub fn eval_abs(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
-pub fn eval_round(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_round(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 1 or 2 arguments
-    let number = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let number = get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
@@ -245,14 +240,10 @@ pub fn eval_round(
     }
 }
 
-pub fn eval_round_up(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_round_up(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 1 or 2 arguments
-    let number = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let number = get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
@@ -288,14 +279,10 @@ pub fn eval_round_up(
     }
 }
 
-pub fn eval_round_down(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_round_down(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 1 or 2 arguments
-    let number = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let number = get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
     let digits = if vals.len() == 2 {
         match get_number(&vals[1]) {
             Some(Int(d)) => d,
@@ -358,49 +345,41 @@ pub fn eval_modulo(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runti
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
+                if r2 == Float::ZERO {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let rem = r1 % r2;
                 // Match f64 behavior: if rem != 0 and rem.signum != r2.signum, add r2.
                 // Decimal has signum() via Signed trait.
-                let res = if rem != Float::ZERO && rem.signum() != r2.signum() {
-                    rem + r2
-                } else {
-                    rem
-                };
+                let res = if rem != Float::ZERO && rem.signum() != r2.signum() { rem + r2 } else { rem };
                 Ok(NumberValue(Real(res)))
-            },
+            }
             (Int(i1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let rem = i1 % i2;
-                let res = if rem != 0 && rem.signum() != i2.signum() {
-                    rem + i2
-                } else {
-                    rem
-                };
+                let res = if rem != 0 && rem.signum() != i2.signum() { rem + i2 } else { rem };
                 Ok(NumberValue(Int(res)))
-            },
+            }
             (Real(r1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let r2 = Float::from(i2);
                 let rem = r1 % r2;
-                let res = if rem != Float::ZERO && rem.signum() != r2.signum() {
-                    rem + r2
-                } else {
-                    rem
-                };
+                let res = if rem != Float::ZERO && rem.signum() != r2.signum() { rem + r2 } else { rem };
                 Ok(NumberValue(Real(res)))
-            },
+            }
             (Int(i1), Real(r2)) => {
-                if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
+                if r2 == Float::ZERO {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let r1 = Float::from(i1);
                 let rem = r1 % r2;
-                let res = if rem != Float::ZERO && rem.signum() != r2.signum() {
-                    rem + r2
-                } else {
-                    rem
-                };
+                let res = if rem != Float::ZERO && rem.signum() != r2.signum() { rem + r2 } else { rem };
                 Ok(NumberValue(Real(res)))
-            },
+            }
         }
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
@@ -412,28 +391,32 @@ pub fn eval_idiv(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runtime
         match (a, b) {
             (SV(sv), _) | (_, SV(sv)) => Ok(NumberValue(SV(sv))),
             (Real(r1), Real(r2)) => {
-                if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
+                if r2 == Float::ZERO {
+                    return RuntimeError::division_by_zero().into();
+                }
                 Ok(NumberValue(Real((r1 / r2).floor())))
-            },
+            }
             (Int(i1), Int(i2)) => {
-                if i2 == 0 { return RuntimeError::division_by_zero().into(); }
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
                 let d = i1 / i2;
                 let r = i1 % i2;
-                let res = if (r > 0 && i2 < 0) || (r < 0 && i2 > 0) {
-                    d - 1
-                } else {
-                    d
-                };
+                let res = if (r > 0 && i2 < 0) || (r < 0 && i2 > 0) { d - 1 } else { d };
                 Ok(NumberValue(Int(res)))
-            },
+            }
             (Real(r1), Int(i2)) => {
-                 if i2 == 0 { return RuntimeError::division_by_zero().into(); }
-                 Ok(NumberValue(Real((r1 / Float::from(i2)).floor())))
-            },
+                if i2 == 0 {
+                    return RuntimeError::division_by_zero().into();
+                }
+                Ok(NumberValue(Real((r1 / Float::from(i2)).floor())))
+            }
             (Int(i1), Real(r2)) => {
-                 if r2 == Float::ZERO { return RuntimeError::division_by_zero().into(); }
-                 Ok(NumberValue(Real((Float::from(i1) / r2).floor())))
-            },
+                if r2 == Float::ZERO {
+                    return RuntimeError::division_by_zero().into();
+                }
+                Ok(NumberValue(Real((Float::from(i1) / r2).floor())))
+            }
         }
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
@@ -444,19 +427,15 @@ pub fn eval_sqrt(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
         NumberValue(Real(n)) => {
             if n < Float::ZERO {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
-                    "sqrt of negative number",
-                ))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("sqrt of negative number"))))
             } else {
-                Ok(NumberValue(Real(n.sqrt().unwrap_or(Float::ZERO)))) // sqrt returns Option in some versions or Decimal? 
-                // MathematicalOps sqrt() returns Option<Decimal>.
+                Ok(NumberValue(Real(n.sqrt().unwrap_or(Float::ZERO)))) // sqrt returns Option in some versions or Decimal?
+                                                                       // MathematicalOps sqrt() returns Option<Decimal>.
             }
         }
         NumberValue(Int(n)) => {
             if n < 0 {
-                Ok(NumberValue(SV(SpecialValueEnum::not_applicable(
-                    "sqrt of negative number",
-                ))))
+                Ok(NumberValue(SV(SpecialValueEnum::not_applicable("sqrt of negative number"))))
             } else {
                 Ok(NumberValue(Real(Float::from(n).sqrt().unwrap_or(Float::ZERO))))
             }
@@ -466,23 +445,23 @@ pub fn eval_sqrt(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 
-pub fn eval_clamp(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_clamp(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 arguments
-    let n = get_number(&vals[0])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let min = get_number(&vals[1])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let max = get_number(&vals[2])
-        .ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let n = get_number(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let min = get_number(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let max = get_number(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
 
     // If any is SV, return SV
-    if let SV(sv) = n { return Ok(NumberValue(SV(sv))); }
-    if let SV(sv) = min { return Ok(NumberValue(SV(sv))); }
-    if let SV(sv) = max { return Ok(NumberValue(SV(sv))); }
+    if let SV(sv) = n {
+        return Ok(NumberValue(SV(sv)));
+    }
+    if let SV(sv) = min {
+        return Ok(NumberValue(SV(sv)));
+    }
+    if let SV(sv) = max {
+        return Ok(NumberValue(SV(sv)));
+    }
 
     // min(max(n, min), max) logic
     let lower = if n < min { min } else { n };
@@ -529,7 +508,6 @@ pub fn validate_zero_args(args: Vec<ValueType>) -> Link<()> {
     }
     Ok(())
 }
-
 
 #[derive(Clone, Copy)]
 enum ExtremaOrder {
@@ -579,10 +557,7 @@ fn kind_from_value(value: &ValueEnum) -> Option<ExtremaKind> {
     }
 }
 
-fn detect_extrema_kind(
-    list_type: &ValueType,
-    values: &[ValueEnum],
-) -> Result<ExtremaKind, RuntimeError> {
+fn detect_extrema_kind(list_type: &ValueType, values: &[ValueEnum]) -> Result<ExtremaKind, RuntimeError> {
     if let Some(kind) = kind_from_value_type(list_type) {
         return Ok(kind);
     }
@@ -604,9 +579,7 @@ fn missing_extrema_value(kind: ExtremaKind) -> ValueEnum {
         ExtremaKind::Date => DateValue(ValueOrSv::Sv(SpecialValueEnum::missing_for(None))),
         ExtremaKind::Time => TimeValue(ValueOrSv::Sv(SpecialValueEnum::missing_for(None))),
         ExtremaKind::DateTime => DateTimeValue(ValueOrSv::Sv(SpecialValueEnum::missing_for(None))),
-        ExtremaKind::Duration => {
-            DurationVariant(ValueOrSv::Sv(SpecialValueEnum::missing_for(None)))
-        }
+        ExtremaKind::Duration => DurationVariant(ValueOrSv::Sv(SpecialValueEnum::missing_for(None))),
     }
 }
 
@@ -631,10 +604,7 @@ fn should_replace_duration(
     match (current, candidate) {
         (ValueOrSv::Value(a), ValueOrSv::Value(b)) => match a.partial_cmp(b) {
             Some(ordering) => Ok(order.should_replace(ordering)),
-            None => {
-                RuntimeError::eval_error("Cannot compare durations of different kinds".to_string())
-                    .into()
-            }
+            None => RuntimeError::eval_error("Cannot compare durations of different kinds".to_string()).into(),
         },
         (ValueOrSv::Sv(_), ValueOrSv::Value(_)) => Ok(matches!(order, ExtremaOrder::Max)),
         (ValueOrSv::Value(_), ValueOrSv::Sv(_)) => Ok(matches!(order, ExtremaOrder::Min)),
@@ -674,9 +644,7 @@ fn eval_extrema_all(
                 }
             }
 
-            Ok(best
-                .map(NumberValue)
-                .unwrap_or_else(|| missing_extrema_value(ExtremaKind::Number)))
+            Ok(best.map(NumberValue).unwrap_or_else(|| missing_extrema_value(ExtremaKind::Number)))
         }
         ExtremaKind::Date => {
             let mut best: Option<ValueOrSv<time::Date, SpecialValueEnum>> = None;
@@ -694,9 +662,7 @@ fn eval_extrema_all(
                 }
             }
 
-            Ok(best
-                .map(DateValue)
-                .unwrap_or_else(|| missing_extrema_value(ExtremaKind::Date)))
+            Ok(best.map(DateValue).unwrap_or_else(|| missing_extrema_value(ExtremaKind::Date)))
         }
         ExtremaKind::Time => {
             let mut best: Option<ValueOrSv<time::Time, SpecialValueEnum>> = None;
@@ -714,9 +680,7 @@ fn eval_extrema_all(
                 }
             }
 
-            Ok(best
-                .map(TimeValue)
-                .unwrap_or_else(|| missing_extrema_value(ExtremaKind::Time)))
+            Ok(best.map(TimeValue).unwrap_or_else(|| missing_extrema_value(ExtremaKind::Time)))
         }
         ExtremaKind::DateTime => {
             let mut best: Option<ValueOrSv<time::OffsetDateTime, SpecialValueEnum>> = None;
@@ -734,9 +698,7 @@ fn eval_extrema_all(
                 }
             }
 
-            Ok(best
-                .map(DateTimeValue)
-                .unwrap_or_else(|| missing_extrema_value(ExtremaKind::DateTime)))
+            Ok(best.map(DateTimeValue).unwrap_or_else(|| missing_extrema_value(ExtremaKind::DateTime)))
         }
         ExtremaKind::Duration => {
             let mut best: Option<ValueOrSv<DurationStruct, SpecialValueEnum>> = None;
@@ -754,17 +716,12 @@ fn eval_extrema_all(
                 }
             }
 
-            Ok(best
-                .map(DurationVariant)
-                .unwrap_or_else(|| missing_extrema_value(ExtremaKind::Duration)))
+            Ok(best.map(DurationVariant).unwrap_or_else(|| missing_extrema_value(ExtremaKind::Duration)))
         }
     }
 }
 
-pub fn eval_max_all(
-    values: Vec<ValueEnum>,
-    list_type: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_max_all(values: Vec<ValueEnum>, list_type: ValueType) -> Result<ValueEnum, RuntimeError> {
     eval_extrema_all(values, list_type, ExtremaOrder::Max)
 }
 
@@ -778,33 +735,21 @@ pub fn eval_max_multi(
 
 pub fn eval_max(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        NumberValue(_) | DateValue(_) | TimeValue(_) | DateTimeValue(_) | DurationVariant(_) => {
-            Ok(value)
-        }
-        Array(ArrayValue::ObjectsArray {
-            values: _,
-            object_type,
-        }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+        NumberValue(_) | DateValue(_) | TimeValue(_) | DateTimeValue(_) | DurationVariant(_) => Ok(value),
+        Array(ArrayValue::ObjectsArray { values: _, object_type }) => {
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
         Array(ArrayValue::PrimitivesArray { values, item_type }) => eval_max_all(values, item_type),
         RangeValue(range) => match range.max() {
-            None => RuntimeError::eval_error(
-                "Max is not implemented for this particular range".to_string(),
-            )
-            .into(),
+            None => RuntimeError::eval_error("Max is not implemented for this particular range".to_string()).into(),
             Some(max) => Ok(NumberValue(NumberEnum::from(max))),
         },
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
 
-pub fn eval_min_all(
-    values: Vec<ValueEnum>,
-    list_type: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_min_all(values: Vec<ValueEnum>, list_type: ValueType) -> Result<ValueEnum, RuntimeError> {
     eval_extrema_all(values, list_type, ExtremaOrder::Min)
 }
 
@@ -818,33 +763,21 @@ pub fn eval_min_multi(
 
 pub fn eval_min(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     match value {
-        NumberValue(_) | DateValue(_) | TimeValue(_) | DateTimeValue(_) | DurationVariant(_) => {
-            Ok(value)
-        }
-        Array(ArrayValue::ObjectsArray {
-            values: _,
-            object_type,
-        }) => {
-            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type)))
-                .into()
+        NumberValue(_) | DateValue(_) | TimeValue(_) | DateTimeValue(_) | DurationVariant(_) => Ok(value),
+        Array(ArrayValue::ObjectsArray { values: _, object_type }) => {
+            RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
         }
         Array(ArrayValue::EmptyUntyped) => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
         Array(ArrayValue::PrimitivesArray { values, item_type }) => eval_min_all(values, item_type),
         RangeValue(range) => match range.min() {
-            None => RuntimeError::eval_error(
-                "Min is not implemented for this particular range".to_string(),
-            )
-            .into(),
+            None => RuntimeError::eval_error("Min is not implemented for this particular range".to_string()).into(),
             Some(min) => Ok(NumberValue(NumberEnum::from(min))),
         },
         other => RuntimeError::type_not_supported(other.get_type()).into(),
     }
 }
 
-pub fn eval_sum_all(
-    values: Vec<ValueEnum>,
-    list_type: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_sum_all(values: Vec<ValueEnum>, list_type: ValueType) -> Result<ValueEnum, RuntimeError> {
     if matches!(list_type, ValueType::DurationType) {
         return sum_duration_values(values);
     }
@@ -897,9 +830,7 @@ fn sum_duration_values(values: Vec<ValueEnum>) -> Result<ValueEnum, RuntimeError
         let result = DurationStruct::from_signed_seconds(seconds_total)?;
         Ok(DurationVariant(ValueOrSv::Value(result)))
     } else {
-        Ok(DurationVariant(ValueOrSv::Sv(
-            SpecialValueEnum::missing_for(None),
-        )))
+        Ok(DurationVariant(ValueOrSv::Sv(SpecialValueEnum::missing_for(None))))
     }
 }
 
@@ -917,10 +848,9 @@ pub fn eval_sum(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         DurationVariant(_) => Ok(value),
         Array(array) => match array {
             ArrayValue::EmptyUntyped => Ok(NumberValue(0.into())),
-            ArrayValue::ObjectsArray { object_type, .. } => RuntimeError::type_not_supported(
-                ValueType::list_of(ValueType::ObjectType(object_type)),
-            )
-            .into(),
+            ArrayValue::ObjectsArray { object_type, .. } => {
+                RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
+            }
             ArrayValue::PrimitivesArray { values, item_type } => eval_sum_all(values, item_type),
         },
         RangeValue(range) => Ok(ValueEnum::from(range.sum::<Integer>())),
@@ -944,10 +874,9 @@ pub fn eval_find(maybe_array: ValueEnum, search: ValueEnum) -> Result<ValueEnum,
     if let ValueEnum::Array(array) = maybe_array {
         match array {
             ArrayValue::EmptyUntyped => Ok(NumberValue(SV(SpecialValueEnum::missing_for(None)))),
-            ArrayValue::ObjectsArray { object_type, .. } => RuntimeError::type_not_supported(
-                ValueType::list_of(ValueType::ObjectType(object_type)),
-            )
-            .into(),
+            ArrayValue::ObjectsArray { object_type, .. } => {
+                RuntimeError::type_not_supported(ValueType::list_of(ValueType::ObjectType(object_type))).into()
+            }
             ArrayValue::PrimitivesArray { values, .. } => {
                 let maybe_index = values.iter().position(|value| value.eq(&search));
                 match maybe_index {
@@ -975,28 +904,18 @@ pub fn number_range_or_any_list(value_type: ValueType) -> Link<()> {
         _ => LinkingError::types_not_compatible(
             None,
             value_type,
-            Some(vec![
-                NumberType,
-                RangeType,
-                ListType(Some(Box::new(NumberType))),
-            ]),
+            Some(vec![NumberType, RangeType, ListType(Some(Box::new(NumberType)))]),
         )
         .into(),
     }
 }
 
 fn is_extrema_scalar_type(value_type: &ValueType) -> bool {
-    matches!(
-        value_type,
-        NumberType | DateType | TimeType | DateTimeType | DurationType
-    )
+    matches!(value_type, NumberType | DateType | TimeType | DateTimeType | DurationType)
 }
 
 pub fn validate_extrema_input(value_type: ValueType) -> Link<()> {
-    if matches!(
-        value_type,
-        NumberType | RangeType | DateType | TimeType | DateTimeType | DurationType
-    ) {
+    if matches!(value_type, NumberType | RangeType | DateType | TimeType | DateTimeType | DurationType) {
         return Ok(());
     }
 
@@ -1047,13 +966,7 @@ pub fn validate_multi_extrema_args(args: Vec<ValueType>) -> Link<()> {
             return LinkingError::types_not_compatible(
                 None,
                 arg,
-                Some(vec![
-                    NumberType,
-                    DateType,
-                    TimeType,
-                    DateTimeType,
-                    DurationType,
-                ]),
+                Some(vec![NumberType, DateType, TimeType, DateTimeType, DurationType]),
             )
             .into();
         }
@@ -1109,12 +1022,7 @@ pub fn validate_multi_sum_args(args: Vec<ValueType>) -> Link<()> {
                 expected = Some(arg.clone());
             }
         } else {
-            return LinkingError::types_not_compatible(
-                None,
-                arg,
-                Some(vec![NumberType, DurationType]),
-            )
-            .into();
+            return LinkingError::types_not_compatible(None, arg, Some(vec![NumberType, DurationType])).into();
         }
     }
 
@@ -1143,8 +1051,5 @@ pub fn return_uni_extrema(arg: ValueType) -> ValueType {
 }
 
 pub fn return_multi_extrema(args: &[ValueType]) -> ValueType {
-    args.first()
-        .cloned()
-        .map(return_uni_extrema)
-        .unwrap_or(UndefinedType)
+    args.first().cloned().map(return_uni_extrema).unwrap_or(UndefinedType)
 }

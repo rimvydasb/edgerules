@@ -116,8 +116,13 @@ Follow this loop for every change to ensure quality and prevent regressions:
 3. **Performance Third:** Optimize for speed only after size and stack considerations are met.
 4. **Maintainability** and code clarity are important but secondary to the above goals.
 
-**Tips for keeping WASM size small:**
+## WASM Optimization Checklist
 
+- **Profile:** Ensure `opt-level = "z"`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`.
+- **Strings:** Prefer `as_str()` over `Display`. Avoid `format!` for simple concatenation.
+- **Panic:** Never `unwrap()`. Always propagate `Result`. Panics bloat the binary with error messages.
+- **Post-Process:** Always run `wasm-opt -Oz` on the final binary.
+- **Dependencies:** Audit `Cargo.toml` for `default-features = false`.
 - Avoid unnecessary `#[derive(...)]` if not strictly needed.
 - Be mindful of generic monomorphization bloat.
 - Do not use `Debug` or `Display` derives for WASM target.
@@ -126,13 +131,19 @@ Follow this loop for every change to ensure quality and prevent regressions:
 ## Error Handling
 
 - Use `?` for propagation.
-- Avoid `unwrap()`/`expect()` in runtime code; reserve them for tests.
-- Avoid `.ok()` that discards errors. Propagate errors instead.
+- Avoid `unwrap()`/`expect()` in runtime code - you can use them for tests only.
+- Avoid `.ok()` that discards errors especially if it hides EdgeRules errors. Propagate errors instead.
 
 ## Tips and Tricks
 
 - Do not use `grep` or `find` on the root of the project - you will end up searching in `target/` that is huge for cargo
   projects.
+
+## Post Task Activities
+
+1. Do not commit and prepare changes only. You're not allowed to commit or even push changes to git.
+2. Run all tests and ensure they pass.
+3. Apply formatting and linting.
 
 # Instructions for Jules
 

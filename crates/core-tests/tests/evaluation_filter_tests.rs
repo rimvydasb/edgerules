@@ -65,10 +65,7 @@ fn test_filter_not_alias() {
 
 #[test]
 fn test_string_filters() {
-    assert_value!(
-        "['happy','unhappy','harp'][startsWith(...,'ha')]",
-        "['happy', 'harp']"
-    );
+    assert_value!("['happy','unhappy','harp'][startsWith(...,'ha')]", "['happy', 'harp']");
 
     // @Todo: it appears that type is a reserved word, need to make it not reserved based on context
     let model = r#"

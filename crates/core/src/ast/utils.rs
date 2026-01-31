@@ -2,10 +2,7 @@ extern crate proc_macro;
 use std::fmt::Display;
 
 pub fn array_to_code_sep(parts: impl Iterator<Item = impl Display>, sep: &str) -> String {
-    parts
-        .map(|s| format!("{}", s))
-        .collect::<Vec<String>>()
-        .join(sep)
+    parts.map(|s| format!("{}", s)).collect::<Vec<String>>().join(sep)
 }
 
 pub fn trim(s: &str, start: char, end: char) -> &str {

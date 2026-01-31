@@ -5,9 +5,7 @@ use crate::link::node_data::ContentHolder;
 use crate::typesystem::errors::{LinkingError, RuntimeError};
 use crate::typesystem::types::number::NumberEnum;
 use crate::typesystem::types::string::StringEnum::{Char as SChar, String as SString};
-use crate::typesystem::types::ValueType::{
-    BooleanType, ListType as VTList, NumberType, StringType,
-};
+use crate::typesystem::types::ValueType::{BooleanType, ListType as VTList, NumberType, StringType};
 use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum::{BooleanValue, NumberValue, StringValue};
 use crate::typesystem::values::{ArrayValue, ValueEnum};
@@ -15,8 +13,8 @@ use crate::typesystem::values::{ArrayValue, ValueEnum};
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(feature = "regex_functions")]
 use regex::RegexBuilder;
-use std::rc::Rc;
 use rust_decimal::prelude::*;
+use std::rc::Rc;
 
 fn as_string(v: &ValueEnum) -> Option<String> {
     match v {
@@ -166,16 +164,11 @@ pub fn eval_ends_with(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Ru
         RuntimeError::type_not_supported(left.get_type()).into()
     }
 }
-pub fn eval_substring(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_substring(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 2 or 3 arguments
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let start =
-        as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let start = as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
     let len_opt = if vals.len() == 3 {
         Some(as_int(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?)
     } else {
@@ -202,11 +195,7 @@ pub fn eval_substring(
         _ => n,
     };
     let (i, j) = (idx as usize, end as usize);
-    let out: String = if j >= i {
-        chars[i..j].iter().collect()
-    } else {
-        chars[j..i].iter().collect()
-    };
+    let out: String = if j >= i { chars[i..j].iter().collect() } else { chars[j..i].iter().collect() };
     Ok(StringValue(SString(out)))
 }
 pub fn eval_substring_before(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
@@ -238,31 +227,19 @@ pub fn eval_substring_after(left: ValueEnum, right: ValueEnum) -> Result<ValueEn
 
 pub fn eval_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
-        let parts: Vec<ValueEnum> = h
-            .split(&pat)
-            .map(|s| StringValue(SString(s.to_string())))
-            .collect();
-        Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
-            values: parts,
-            item_type: StringType,
-        }))
+        let parts: Vec<ValueEnum> = h.split(&pat).map(|s| StringValue(SString(s.to_string()))).collect();
+        Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: parts, item_type: StringType }))
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
     }
 }
 
-pub fn eval_replace(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_replace(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 or 4 arguments
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let pattern =
-        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let repl =
-        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern = as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl = as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
 
     // Fast path: standard replace or empty pattern
     if vals.len() == 3 || pattern.is_empty() {
@@ -277,12 +254,8 @@ pub fn eval_replace(
         {
             let mut builder = RegexBuilder::new(&regex::escape(&pattern));
             builder.case_insensitive(true);
-            let re = builder
-                .build()
-                .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
-            return Ok(StringValue(SString(
-                re.replace_all(&s, repl.as_str()).into_owned(),
-            )));
+            let re = builder.build().map_err(|e| RuntimeError::eval_error(e.to_string()))?;
+            return Ok(StringValue(SString(re.replace_all(&s, repl.as_str()).into_owned())));
         }
 
         // Fallback (no-regex build): ASCII case-insensitive replace of all occurrences
@@ -321,12 +294,9 @@ pub fn eval_replace_first(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 arguments
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let pattern =
-        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let repl =
-        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern = as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl = as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
 
     if pattern.is_empty() {
         return Ok(StringValue(SString(format!("{}{}", repl, s))));
@@ -349,12 +319,9 @@ pub fn eval_replace_last(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 arguments
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let pattern =
-        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let repl =
-        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern = as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl = as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
 
     if pattern.is_empty() {
         return Ok(StringValue(SString(format!("{}{}", s, repl))));
@@ -374,38 +341,22 @@ pub fn eval_replace_last(
 #[cfg(feature = "regex_functions")]
 pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
-        let re = RegexBuilder::new(&pat)
-            .build()
-            .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
-        let parts: Vec<ValueEnum> = re
-            .split(&h)
-            .map(|s| StringValue(SString(s.to_string())))
-            .collect();
-        Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
-            values: parts,
-            item_type: StringType,
-        }))
+        let re = RegexBuilder::new(&pat).build().map_err(|e| RuntimeError::eval_error(e.to_string()))?;
+        let parts: Vec<ValueEnum> = re.split(&h).map(|s| StringValue(SString(s.to_string()))).collect();
+        Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: parts, item_type: StringType }))
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
     }
 }
 
 // WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
-#[cfg(all(
-    not(feature = "regex_functions"),
-    target_arch = "wasm32",
-    feature = "wasm"
-))]
+#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
 pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let (Some(h), Some(pat)) = (as_string(&left), as_string(&right)) {
         match crate::wasm::regex_split_js(&h, &pat, Some("g")) {
             Ok(vec) => {
-                let parts: Vec<ValueEnum> =
-                    vec.into_iter().map(|s| StringValue(SString(s))).collect();
-                Ok(ValueEnum::Array(ArrayValue::PrimitivesArray {
-                    values: parts,
-                    item_type: StringType,
-                }))
+                let parts: Vec<ValueEnum> = vec.into_iter().map(|s| StringValue(SString(s))).collect();
+                Ok(ValueEnum::Array(ArrayValue::PrimitivesArray { values: parts, item_type: StringType }))
             }
             Err(e) => RuntimeError::eval_error(e).into(),
         }
@@ -415,10 +366,7 @@ pub fn eval_regex_split(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
 }
 
 // Fallback for non-WASM builds when regex feature is disabled
-#[cfg(all(
-    not(feature = "regex_functions"),
-    not(all(target_arch = "wasm32", feature = "wasm"))
-))]
+#[cfg(all(not(feature = "regex_functions"), not(all(target_arch = "wasm32", feature = "wasm"))))]
 pub fn eval_regex_split(_left: ValueEnum, _right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::internal_integrity_error(200).into()
 }
@@ -432,11 +380,7 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 // WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
-#[cfg(all(
-    not(feature = "base64_functions"),
-    target_arch = "wasm32",
-    feature = "wasm"
-))]
+#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
 pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match crate::wasm::to_base64_js(&s) {
@@ -447,10 +391,7 @@ pub fn eval_to_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
-#[cfg(all(
-    not(feature = "base64_functions"),
-    not(all(target_arch = "wasm32", feature = "wasm"))
-))]
+#[cfg(all(not(feature = "base64_functions"), not(all(target_arch = "wasm32", feature = "wasm"))))]
 pub fn eval_to_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::internal_integrity_error(202).into()
 }
@@ -458,9 +399,7 @@ pub fn eval_to_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match general_purpose::STANDARD.decode(s) {
-            Ok(bytes) => Ok(StringValue(SString(
-                String::from_utf8_lossy(&bytes).to_string(),
-            ))),
+            Ok(bytes) => Ok(StringValue(SString(String::from_utf8_lossy(&bytes).to_string()))),
             Err(e) => RuntimeError::eval_error(e.to_string()).into(),
         }
     } else {
@@ -468,11 +407,7 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     }
 }
 // WASM (web/node) path without Rust base64 crate: use host atob/btoa or Buffer
-#[cfg(all(
-    not(feature = "base64_functions"),
-    target_arch = "wasm32",
-    feature = "wasm"
-))]
+#[cfg(all(not(feature = "base64_functions"), target_arch = "wasm32", feature = "wasm"))]
 pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
         match crate::wasm::from_base64_js(&s) {
@@ -483,10 +418,7 @@ pub fn eval_from_base64(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
-#[cfg(all(
-    not(feature = "base64_functions"),
-    not(all(target_arch = "wasm32", feature = "wasm"))
-))]
+#[cfg(all(not(feature = "base64_functions"), not(all(target_arch = "wasm32", feature = "wasm"))))]
 pub fn eval_from_base64(_value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     RuntimeError::internal_integrity_error(203).into()
 }
@@ -497,12 +429,9 @@ pub fn eval_regex_replace(
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 or 4 arguments
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let pattern =
-        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let repl =
-        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern = as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl = as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
     let mut builder = RegexBuilder::new(&pattern);
     if vals.len() == 4 {
         if let Some(flags) = as_string(&vals[3]) {
@@ -511,37 +440,22 @@ pub fn eval_regex_replace(
             }
         }
     }
-    let re = builder
-        .build()
-        .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
-    Ok(StringValue(SString(
-        re.replace_all(&s, repl.as_str()).into_owned(),
-    )))
+    let re = builder.build().map_err(|e| RuntimeError::eval_error(e.to_string()))?;
+    Ok(StringValue(SString(re.replace_all(&s, repl.as_str()).into_owned())))
 }
 
 // WASM (web/node) implementation without Rust regex crate: delegates to host RegExp
-#[cfg(all(
-    not(feature = "regex_functions"),
-    target_arch = "wasm32",
-    feature = "wasm"
-))]
+#[cfg(all(not(feature = "regex_functions"), target_arch = "wasm32", feature = "wasm"))]
 pub fn eval_regex_replace(
     args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
 ) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
     // validation ensures 3 or 4 arguments
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let pattern =
-        as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
-    let repl =
-        as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
-    let flags = if vals.len() == 4 {
-        as_string(&vals[3]).unwrap_or_default()
-    } else {
-        String::from("g")
-    };
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let pattern = as_string(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let repl = as_string(&vals[2]).ok_or_else(|| RuntimeError::type_not_supported(vals[2].get_type()))?;
+    let flags = if vals.len() == 4 { as_string(&vals[3]).unwrap_or_default() } else { String::from("g") };
 
     match crate::wasm::regex_replace_js(&s, &pattern, Some(flags.as_str()), &repl) {
         Ok(out) => Ok(StringValue(SString(out))),
@@ -550,10 +464,7 @@ pub fn eval_regex_replace(
 }
 
 // Fallback for non-WASM builds when regex feature is disabled
-#[cfg(all(
-    not(feature = "regex_functions"),
-    not(all(target_arch = "wasm32", feature = "wasm"))
-))]
+#[cfg(all(not(feature = "regex_functions"), not(all(target_arch = "wasm32", feature = "wasm"))))]
 pub fn eval_regex_replace(
     _args: Vec<Result<ValueEnum, RuntimeError>>,
     _ret: ValueType,
@@ -565,11 +476,7 @@ pub fn eval_char_at(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, Runt
     if let (Some(s), Some(i)) = (as_string(&left), as_int(&right)) {
         let mut iter = s.chars();
         let ch = iter.nth(i as usize).unwrap_or('\0');
-        Ok(StringValue(SString(if ch == '\0' {
-            String::new()
-        } else {
-            ch.to_string()
-        })))
+        Ok(StringValue(SString(if ch == '\0' { String::new() } else { ch.to_string() })))
     } else {
         RuntimeError::type_not_supported(left.get_type()).into()
     }
@@ -619,15 +526,10 @@ pub fn eval_from_char_code(
     }
     Ok(StringValue(SString(s)))
 }
-pub fn eval_pad_start(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_pad_start(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let target =
-        as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let target = as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
     let pad = as_string(&vals[2]).unwrap_or(" ".to_string());
     let mut out = s.clone();
     if target as usize > s.chars().count() {
@@ -638,15 +540,10 @@ pub fn eval_pad_start(
     }
     Ok(StringValue(SString(out)))
 }
-pub fn eval_pad_end(
-    args: Vec<Result<ValueEnum, RuntimeError>>,
-    _ret: ValueType,
-) -> Result<ValueEnum, RuntimeError> {
+pub fn eval_pad_end(args: Vec<Result<ValueEnum, RuntimeError>>, _ret: ValueType) -> Result<ValueEnum, RuntimeError> {
     let vals = into_valid(args)?;
-    let s =
-        as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
-    let target =
-        as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
+    let s = as_string(&vals[0]).ok_or_else(|| RuntimeError::type_not_supported(vals[0].get_type()))?;
+    let target = as_int(&vals[1]).ok_or_else(|| RuntimeError::type_not_supported(vals[1].get_type()))?;
     let pad = as_string(&vals[2]).unwrap_or(" ".to_string());
     let mut out = s.clone();
     if target as usize > s.chars().count() {
@@ -674,18 +571,15 @@ pub fn eval_reverse(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
 }
 pub fn eval_sanitize_filename(value: ValueEnum) -> Result<ValueEnum, RuntimeError> {
     if let Some(s) = as_string(&value) {
-        let filtered: String = s
-            .chars()
-            .filter(|c| !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
-            .collect();
+        let filtered: String =
+            s.chars().filter(|c| !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')).collect();
         Ok(StringValue(SString(filtered)))
     } else {
         RuntimeError::type_not_supported(value.get_type()).into()
     }
 }
 pub fn eval_interpolate(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, RuntimeError> {
-    let template =
-        as_string(&left).ok_or_else(|| RuntimeError::type_not_supported(left.get_type()))?;
+    let template = as_string(&left).ok_or_else(|| RuntimeError::type_not_supported(left.get_type()))?;
     if let ValueEnum::Reference(ctx) = right {
         let mut out = String::new();
         let mut i = 0;
@@ -709,12 +603,8 @@ pub fn eval_interpolate(left: ValueEnum, right: ValueEnum) -> Result<ValueEnum, 
                                 Err(_) => {} // Ignore eval errors for interpolation
                             }
                         }
-                        Ok(EObjectContent::ConstantValue(ValueEnum::StringValue(SString(s)))) => {
-                            out.push_str(&s)
-                        }
-                        Ok(EObjectContent::ConstantValue(ValueEnum::StringValue(SChar(c)))) => {
-                            out.push(c)
-                        }
+                        Ok(EObjectContent::ConstantValue(ValueEnum::StringValue(SString(s)))) => out.push_str(&s),
+                        Ok(EObjectContent::ConstantValue(ValueEnum::StringValue(SChar(c)))) => out.push(c),
                         Ok(EObjectContent::ConstantValue(v)) => out.push_str(&v.to_string()),
                         _ => {} // Ignore other types or errors
                     }

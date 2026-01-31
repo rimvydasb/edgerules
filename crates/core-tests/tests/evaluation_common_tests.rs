@@ -81,10 +81,7 @@ fn test_common() {
     );
 
     // FieldNotFound link error
-    link_error_contains(
-        "{ record: { age: somefield; value: 1 + 2 }}",
-        &["field", "somefield"],
-    );
+    link_error_contains("{ record: { age: somefield; value: 1 + 2 }}", &["field", "somefield"]);
 
     assert_eq!(
         eval_field(
@@ -192,35 +189,20 @@ fn test_common() {
 fn test_functions_count() {
     assert_value!("count([1,2,3]) + 1", "4");
     assert_value!("count(['a','b','c'])", "3");
-    assert_value!(
-        "count(['a',toString(5),toString(date('2012-01-01')),'1'])",
-        "4"
-    );
+    assert_value!("count(['a',toString(5),toString(date('2012-01-01')),'1'])", "4");
 }
 
 #[test]
 fn test_functions_max_temporal() {
     assert_value!("max([1,2,3]) + 1", "4");
-    assert_value!(
-        "max([date('2012-01-01'),date('2011-01-01'),date('2012-01-02')])",
-        "2012-01-02"
-    );
-    assert_value!(
-        "max([time('10:00:00'),time('23:15:00'),time('05:00:00')])",
-        "23:15:00"
-    );
+    assert_value!("max([date('2012-01-01'),date('2011-01-01'),date('2012-01-02')])", "2012-01-02");
+    assert_value!("max([time('10:00:00'),time('23:15:00'),time('05:00:00')])", "23:15:00");
     assert_value!(
         "max([datetime('2012-01-01T10:00:00'),datetime('2012-01-01T23:15:00'),datetime('2011-12-31T23:59:59')])",
         "2012-01-01T23:15:00"
     );
-    assert_value!(
-        "max([date('2020-01-01'), date('2020-05-01')])",
-        "2020-05-01"
-    );
-    assert_value!(
-        "max([datetime('2020-01-01T00:00:00'), datetime('2020-01-02T03:00:00')])",
-        "2020-01-02T03:00:00"
-    );
+    assert_value!("max([date('2020-01-01'), date('2020-05-01')])", "2020-05-01");
+    assert_value!("max([datetime('2020-01-01T00:00:00'), datetime('2020-01-02T03:00:00')])", "2020-01-02T03:00:00");
     assert_value!("max([duration('P1D'), duration('P2D')])", "P2D");
     assert_value!("max(date('2020-01-01'), date('2020-05-01'))", "2020-05-01");
 }
@@ -228,14 +210,8 @@ fn test_functions_max_temporal() {
 #[test]
 fn test_functions_min_temporal() {
     assert_value!("min([1,2,3])", "1");
-    assert_value!(
-        "min([date('2012-01-01'),date('2011-01-01'),date('2012-01-02')])",
-        "2011-01-01"
-    );
-    assert_value!(
-        "min([time('10:00:00'),time('23:15:00'),time('05:00:00')])",
-        "05:00:00"
-    );
+    assert_value!("min([date('2012-01-01'),date('2011-01-01'),date('2012-01-02')])", "2011-01-01");
+    assert_value!("min([time('10:00:00'),time('23:15:00'),time('05:00:00')])", "05:00:00");
     assert_value!(
         "min([datetime('2012-01-01T10:00:00'),datetime('2012-01-01T23:15:00'),datetime('2011-12-31T23:59:59')])",
         "2011-12-31T23:59:59"
@@ -498,10 +474,7 @@ fn order_test() {
 #[test]
 fn test_problems() {
     // nested value
-    assert_eq!(
-        eval_field("{ record: { age: 18; value: 1 + 2 }}", "record.value"),
-        "3"
-    );
+    assert_eq!(eval_field("{ record: { age: 18; value: 1 + 2 }}", "record.value"), "3");
 
     // cyclic link errors
     link_error_contains("value: value + 1", &["cyclic"]);
@@ -511,13 +484,7 @@ fn test_problems() {
     );
 
     // simple arithmetic across fields
-    assert_eq!(
-        eval_field(
-            "{ record1: { age: 18}; record2: record1.age + record1.age}",
-            "record2"
-        ),
-        "36"
-    );
+    assert_eq!(eval_field("{ record1: { age: 18}; record2: record1.age + record1.age}", "record2"), "36");
 }
 
 #[test]

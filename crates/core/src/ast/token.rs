@@ -258,9 +258,7 @@ impl StaticLink for ExpressionEnum {
 
         if let Err(error) = linking_result {
             let field_name = trace_context.borrow().node.node_type.to_string();
-            return error
-                .with_context(|| format!("Error in:`{}`\nTrace:`{}`", field_name, self))
-                .into();
+            return error.with_context(|| format!("Error in:`{}`\nTrace:`{}`", field_name, self)).into();
         }
 
         linking_result
@@ -355,13 +353,7 @@ impl Display for ExpressionEnum {
             FunctionCall(function) => Display::fmt(function, f),
             Selection(selection) => Display::fmt(selection, f),
             ObjectField(field_name, right_side) => {
-                write!(
-                    f,
-                    "{} {} {}",
-                    field_name,
-                    C_ASSIGN,
-                    trim(format!("{}", right_side).as_str(), '(', ')')
-                )
+                write!(f, "{} {} {}", field_name, C_ASSIGN, trim(format!("{}", right_side).as_str(), '(', ')'))
             }
             Collection(values) => Display::fmt(values, f),
             Value(value) => Display::fmt(value, f),

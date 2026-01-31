@@ -18,9 +18,7 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
     "#
     .trim();
     let mut service = edge_rules::runtime::edge_rules::EdgeRulesModel::new();
-    service
-        .append_source(code1)
-        .expect("parse type with placeholders");
+    service.append_source(code1).expect("parse type with placeholders");
 
     // 2) Using a function in type body should fail
     let code2 = r#"
@@ -34,8 +32,7 @@ fn type_alias_with_nested_types_only_disallows_placeholders_and_functions() {
     .trim();
     let err2 = service.append_source(code2).err().unwrap().to_string();
     assert!(
-        err2.to_lowercase()
-            .contains(&"Type definition cannot contain function definitions".to_lowercase()),
+        err2.to_lowercase().contains(&"Type definition cannot contain function definitions".to_lowercase()),
         "expected parse error about function definitions, got: {}",
         err2
     );
@@ -175,10 +172,7 @@ fn cast_primitive_to_number_changes_do_not_change_type() {
     let mut service = EdgeRulesModel::new();
     service.append_source(code).unwrap();
     let runtime_snapshot = service.to_runtime_snapshot().expect("runtime snapshot");
-    let value = runtime_snapshot
-        .evaluate_field("y")
-        .expect("evaluate field")
-        .to_string();
+    let value = runtime_snapshot.evaluate_field("y").expect("evaluate field").to_string();
     assert_eq!(value, "7");
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_schema();
@@ -240,11 +234,7 @@ fn cast_to_nested_alias() {
         .unwrap();
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_schema();
-    assert!(
-        ty.contains("Customer: {name: string; birthdate: date; income: number}"),
-        "got `{}`",
-        ty
-    );
+    assert!(ty.contains("Customer: {name: string; birthdate: date; income: number}"), "got `{}`", ty);
     assert!(ty.contains("c: Customer"), "got `{}`", ty);
 }
 
@@ -297,14 +287,7 @@ fn input_type_validation() {
     }
     "#;
 
-    link_error_contains(
-        model,
-        &[
-            "Argument `x` of function `inc`",
-            "type 'number'",
-            "expected '{eligible: boolean",
-        ],
-    );
+    link_error_contains(model, &["Argument `x` of function `inc`", "type 'number'", "expected '{eligible: boolean"]);
 
     let model = r#"
     {
@@ -313,14 +296,7 @@ fn input_type_validation() {
     }
     "#;
 
-    link_error_contains(
-        model,
-        &[
-            "Argument `name` of function `greet`",
-            "type 'number'",
-            "expected 'string'",
-        ],
-    );
+    link_error_contains(model, &["Argument `name` of function `greet`", "type 'number'", "expected 'string'"]);
 
     let model = r#"
     {
@@ -329,14 +305,7 @@ fn input_type_validation() {
     }
     "#;
 
-    link_error_contains(
-        model,
-        &[
-            "Argument `value` of function `flag`",
-            "type 'string'",
-            "expected 'boolean'",
-        ],
-    );
+    link_error_contains(model, &["Argument `value` of function `flag`", "type 'string'", "expected 'boolean'"]);
 
     link_error_contains(
         r#"
@@ -347,11 +316,7 @@ fn input_type_validation() {
             value: double([1,2,3]).result
         }
         "#,
-        &[
-            "Argument `xs` of function `double`",
-            "type 'number[]'",
-            "expected 'number'",
-        ],
+        &["Argument `xs` of function `double`", "type 'number[]'", "expected 'number'"],
     );
 
     let model = r#"
@@ -424,14 +389,7 @@ fn complex_type_array_function_argument() {
             value: incAll([{amount: 1}, {amount: 2}])
         }
         "#,
-        &[
-            "{",
-            "value: {",
-            "simpleResult: 3",
-            "forResult: [2, 3]",
-            "}",
-            "}",
-        ],
+        &["{", "value: {", "simpleResult: 3", "forResult: [2, 3]", "}", "}"],
     );
 }
 
@@ -574,7 +532,7 @@ fn complex_nested_types_in_function_argument() {
 #[test]
 fn cast_object_list_to_typed_list() {
     // This test exercises `cast_value_to_type` where `ValueType::ListType(Some(other_item_type))` is handled for `ObjectsArray`.
-    // We define a list of objects and cast it to a list of a compatible alias type. 
+    // We define a list of objects and cast it to a list of a compatible alias type.
     // This triggers the deep casting logic for array elements.
     let model = r#"
     {
@@ -597,12 +555,12 @@ fn cast_object_list_to_typed_list() {
 #[test]
 fn cast_object_list_to_incompatible_primitive_list() {
     // This test ensures that casting a list of objects to a list of primitives (e.g. string[]) is handled.
-    // While structurally objects != strings, `cast_value_to_type` for `ObjectsArray` -> `other_item_type` 
+    // While structurally objects != strings, `cast_value_to_type` for `ObjectsArray` -> `other_item_type`
     // attempts to cast each element. `cast_value_to_type(Reference, StringType)` returns the reference value (no error, just passes through).
     // This results in a `PrimitivesArray` containing `Reference`s, but typed as `string`.
     // This behavior effectively "stringifies" the objects if used in string context, or remains as references.
     // This specifically targets the `Some(other_item_type)` branch for `ObjectsArray` in `cast_value_to_type`.
-    
+
     let model = r#"
     {
         rawItems: [{id: 1}]
@@ -700,10 +658,7 @@ fn date_time_and_duration_roundtrip_to_string() {
     // date/time/datetime/duration constructors and their stringification
     assert_value!("toString(date('2024-01-01'))", "'2024-01-01'");
     assert_value!("toString(time('12:00:00'))", "'12:00:00'");
-    assert_value!(
-        "toString(datetime('2024-06-05T07:30:00'))",
-        "'2024-06-05T07:30:00'"
-    );
+    assert_value!("toString(datetime('2024-06-05T07:30:00'))", "'2024-06-05T07:30:00'");
     assert_value!("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'");
     assert_value!("toString(duration('PT90M'))", "'PT1H30M'");
     assert_value!("toString(period('P1Y2M'))", "'P1Y2M'");
@@ -884,10 +839,7 @@ fn using_types_in_deeper_scope() {
 fn explicit_cast_to_temporal_types() {
     assert_value!("'2026-01-26' as date", "2026-01-26");
     assert_value!("'12:00:00' as time", "12:00:00");
-    assert_value!(
-        "'2026-01-26T21:33:35' as datetime",
-        "2026-01-26T21:33:35"
-    );
+    assert_value!("'2026-01-26T21:33:35' as datetime", "2026-01-26T21:33:35");
     assert_value!("'P1DT1H' as duration", "P1DT1H");
     assert_value!("'P1Y2M' as period", "P1Y2M");
 }
@@ -924,9 +876,7 @@ fn cast_strings_to_temporal_types_via_decision_service() {
     "#;
 
     let mut request_model = EdgeRulesModel::new();
-    request_model
-        .append_source(&format!("{{ {} }}", request_code))
-        .unwrap();
+    request_model.append_source(&format!("{{ {} }}", request_code)).unwrap();
     let request_rt = request_model.to_runtime().unwrap();
     let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
 
@@ -958,20 +908,11 @@ fn invalid_cast_to_various_temporal_types_fails() {
         .unwrap();
     let runtime = service.to_runtime().unwrap();
 
-    for (field, target) in [
-        ("v1", "date"),
-        ("v2", "time"),
-        ("v3", "datetime"),
-        ("v4", "duration"),
-        ("v5", "period"),
-    ] {
+    for (field, target) in [("v1", "date"), ("v2", "time"), ("v3", "datetime"), ("v4", "duration"), ("v5", "period")] {
         let result = runtime.evaluate_field(field);
         assert!(result.is_err(), "Expected error for {}", field);
         let err_msg = result.unwrap_err().to_string();
-        assert_string_contains!(
-            &format!("Cannot convert value from type 'string' to type '{}'", target),
-            &err_msg
-        );
+        assert_string_contains!(&format!("Cannot convert value from type 'string' to type '{}'", target), &err_msg);
     }
 }
 
@@ -997,9 +938,7 @@ fn cast_string_array_to_temporal_array_via_decision_service() {
     "#;
 
     let mut request_model = EdgeRulesModel::new();
-    request_model
-        .append_source(&format!("{{ {} }}", request_code))
-        .unwrap();
+    request_model.append_source(&format!("{{ {} }}", request_code)).unwrap();
     let request_rt = request_model.to_runtime().unwrap();
     let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
 
@@ -1010,5 +949,3 @@ fn cast_string_array_to_temporal_array_via_decision_service() {
     assert_string_contains!("firstYear:2026", &rendered);
     assert_string_contains!("secondYear:2027", &rendered);
 }
-
-

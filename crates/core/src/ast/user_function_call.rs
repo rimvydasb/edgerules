@@ -44,11 +44,7 @@ impl UserFunctionCall {
 // eval context is not immediately evaluated for output values, but passed to the caller
 impl EvaluatableExpression for UserFunctionCall {
     fn eval(&self, context: Rc<RefCell<ExecutionContext>>) -> Result<ValueEnum, RuntimeError> {
-        let values = self
-            .args
-            .iter()
-            .map(|expr| expr.eval(Rc::clone(&context)))
-            .collect();
+        let values = self.args.iter().map(|expr| expr.eval(Rc::clone(&context))).collect();
 
         match &self.definition {
             Ok(definition) => {
@@ -72,9 +68,7 @@ impl EvaluatableExpression for UserFunctionCall {
     }
 }
 
-fn eval_content_to_value(
-    content: EObjectContent<ExecutionContext>,
-) -> Result<ValueEnum, RuntimeError> {
+fn eval_content_to_value(content: EObjectContent<ExecutionContext>) -> Result<ValueEnum, RuntimeError> {
     match content {
         EObjectContent::ConstantValue(v) => Ok(v),
         EObjectContent::ObjectRef(ctx) => Ok(ValueEnum::Reference(ctx)),
@@ -118,8 +112,7 @@ impl StaticLink for UserFunctionCall {
 
             let mut parameters = Vec::new();
 
-            for (parameter, input_argument) in declared_parameters.iter().zip(self.args.iter_mut())
-            {
+            for (parameter, input_argument) in declared_parameters.iter().zip(self.args.iter_mut()) {
                 // Link the argument within the current call context. Passing the function's own context is disallowed to
                 // prevent accidental self-references before the function body is evaluated.
                 let arg_link_result = if let ExpressionEnum::Variable(var) = input_argument {
@@ -153,27 +146,20 @@ impl StaticLink for UserFunctionCall {
 
                 if let Some(tref) = parameter.declared_type() {
                     // Step 4: resolve the parameter's declared type (including aliases) and coerce when safe.
-                    let expected_type =
-                        resolve_declared_type(tref, Some(&function_body_ctx), &ctx)?;
+                    let expected_type = resolve_declared_type(tref, Some(&function_body_ctx), &ctx)?;
 
                     // Alias parameters may need an explicit cast to resolve the correct runtime type.
                     if resolved_type != expected_type
                         && complex_type_ref_contains_alias(tref)
                         && can_cast_alias(&resolved_type, &expected_type)
                     {
-                        let original = std::mem::replace(
-                            input_argument,
-                            ExpressionEnum::Value(ValueEnum::BooleanValue(false)),
-                        );
-                        *input_argument =
-                            ExpressionEnum::from(CastCall::new(original, tref.clone()));
+                        let original =
+                            std::mem::replace(input_argument, ExpressionEnum::Value(ValueEnum::BooleanValue(false)));
+                        *input_argument = ExpressionEnum::from(CastCall::new(original, tref.clone()));
                         resolved_type = input_argument.link(Rc::clone(&ctx))?;
                     }
                     let validated = LinkingError::expect_single_type(
-                        &format!(
-                            "Argument `{}` of function `{}`",
-                            parameter.name, function_name
-                        ),
+                        &format!("Argument `{}` of function `{}`", parameter.name, function_name),
                         resolved_type.clone(),
                         &expected_type,
                     )?;
@@ -184,10 +170,8 @@ impl StaticLink for UserFunctionCall {
             }
 
             // Step 5: build and cache the callable function context with all resolved parameter types.
-            self.definition = Ok(definition
-                .borrow()
-                .function_definition
-                .create_context(parameters, Some(Rc::clone(&ctx)))?);
+            self.definition =
+                Ok(definition.borrow().function_definition.create_context(parameters, Some(Rc::clone(&ctx)))?);
 
             // Determine return type respecting explicit return field when present
             let return_key = intern_field_name("return");
@@ -197,10 +181,8 @@ impl StaticLink for UserFunctionCall {
             // @Todo: investigate if is_ok does not hide important linking errors
             if linker::link_parts(Rc::clone(&function_body_ctx)).is_ok() {
                 let borrowed_body = function_body_ctx.borrow();
-                if let Some(entry) = borrowed_body
-                    .expressions
-                    .get(return_key)
-                    .or_else(|| borrowed_body.expressions.get(hidden_return))
+                if let Some(entry) =
+                    borrowed_body.expressions.get(return_key).or_else(|| borrowed_body.expressions.get(hidden_return))
                 {
                     if let Ok(ft) = &entry.borrow().field_type {
                         rt = Some(ft.clone());
@@ -250,9 +232,7 @@ fn can_cast_alias(actual: &ValueType, expected: &ValueType) -> bool {
         (ValueType::ObjectType(_), ValueType::ObjectType(_)) => true,
         (ValueType::ListType(inner_actual), ValueType::ListType(inner_expected)) => {
             match (inner_actual.as_ref(), inner_expected.as_ref()) {
-                (Some(actual_inner), Some(expected_inner)) => {
-                    can_cast_alias(actual_inner, expected_inner)
-                }
+                (Some(actual_inner), Some(expected_inner)) => can_cast_alias(actual_inner, expected_inner),
                 (None, None) => true,
                 _ => false,
             }
@@ -263,11 +243,6 @@ fn can_cast_alias(actual: &ValueType, expected: &ValueType) -> bool {
 
 impl Display for UserFunctionCall {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}({})",
-            self.name,
-            array_to_code_sep(self.args.iter(), ", ")
-        )
+        write!(f, "{}({})", self.name, array_to_code_sep(self.args.iter(), ", "))
     }
 }

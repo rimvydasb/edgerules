@@ -56,12 +56,7 @@ macro_rules! assert_value {
 #[macro_export]
 macro_rules! assert_string_contains {
     ($needle:expr, $haystack:expr) => {
-        assert!(
-            $haystack.contains($needle),
-            "expected `{}` to contain `{}`",
-            $haystack,
-            $needle
-        );
+        assert!($haystack.contains($needle), "expected `{}` to contain `{}`", $haystack, $needle);
     };
 }
 
@@ -134,14 +129,8 @@ pub fn assert_eval_all(lines: &str, expected_lines: &[&str]) {
     let model = wrap_in_object(lines);
     let evaluated = eval_all(&model);
     assert_eq!(
-        evaluated
-            .lines()
-            .map(|l| inline(l.trim()))
-            .collect::<Vec<_>>(),
-        expected_lines
-            .iter()
-            .map(|l| inline(l.trim()))
-            .collect::<Vec<_>>()
+        evaluated.lines().map(|l| inline(l.trim())).collect::<Vec<_>>(),
+        expected_lines.iter().map(|l| inline(l.trim())).collect::<Vec<_>>()
     );
 }
 
@@ -181,15 +170,8 @@ pub fn link_error_location(
     match service.to_runtime() {
         Ok(_) => panic!("expected link error, got none\ncode:\n{code}"),
         Err(err) => {
-            let expected = expected_location
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>();
-            assert_eq!(
-                err.location(),
-                expected,
-                "location mismatch for code:\n{code}"
-            );
+            let expected = expected_location.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+            assert_eq!(err.location(), expected, "location mismatch for code:\n{code}");
             assert_eq!(
                 err.expression().map(|s| s.as_str()),
                 Some(expected_expression),
@@ -224,10 +206,7 @@ pub fn parse_error_contains(code: &str, needles: &[&str]) {
 }
 
 pub fn to_lines(text: &str) -> Vec<&str> {
-    text.lines()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .collect()
+    text.lines().map(|line| line.trim()).filter(|line| !line.is_empty()).collect()
 }
 
 #[test]

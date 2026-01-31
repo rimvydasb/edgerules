@@ -28,27 +28,12 @@ fn test_conditionals() {
     assert_value!("if 1 < 2 then 3 else 4", "3");
     assert_value!("if 1 < 2 then 3 + 1 else 5", "4");
     assert_value!("if 1 > 2 then 3 + 1 else 5 * 10", "50");
-    assert_value!(
-        "if 1 > 2 then 3 + 1 else (if 1 < 2 then 5 * 10 else 0)",
-        "50"
-    );
-    assert_value!(
-        "if 1 > 2 then 3 + 1 else (if 1 > 2 then 5 * 10 else 0)",
-        "0"
-    );
+    assert_value!("if 1 > 2 then 3 + 1 else (if 1 < 2 then 5 * 10 else 0)", "50");
+    assert_value!("if 1 > 2 then 3 + 1 else (if 1 > 2 then 5 * 10 else 0)", "0");
     assert_value!("if 1 < 2 then (if 5 > 2 then 5 * 10 else 0) else 1", "50");
-    assert_value!(
-        "(if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1",
-        "51"
-    );
-    assert_value!(
-        "1 + (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1",
-        "52"
-    );
-    assert_value!(
-        "2 * (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1",
-        "101"
-    );
+    assert_value!("(if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1", "51");
+    assert_value!("1 + (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1", "52");
+    assert_value!("2 * (if 1 < 2 then if 5 > 2 then 5 * 10 else 0 else 1) + 1", "101");
 }
 
 #[test]
@@ -61,25 +46,13 @@ fn test_boolean_literals_comparators() {
     assert_value!("true <> true", "false");
     assert_value!("true <> false", "true");
 
-    link_error_contains(
-        "value: true < false",
-        &["operation '<' not supported for types 'boolean' and 'boolean'"],
-    );
+    link_error_contains("value: true < false", &["operation '<' not supported for types 'boolean' and 'boolean'"]);
 
-    link_error_contains(
-        "value: true <= false",
-        &["operation '<=' not supported for types 'boolean' and 'boolean'"],
-    );
+    link_error_contains("value: true <= false", &["operation '<=' not supported for types 'boolean' and 'boolean'"]);
 
-    link_error_contains(
-        "value: true > false",
-        &["operation '>' not supported for types 'boolean' and 'boolean'"],
-    );
+    link_error_contains("value: true > false", &["operation '>' not supported for types 'boolean' and 'boolean'"]);
 
-    link_error_contains(
-        "value: true >= false",
-        &["operation '>=' not supported for types 'boolean' and 'boolean'"],
-    );
+    link_error_contains("value: true >= false", &["operation '>=' not supported for types 'boolean' and 'boolean'"]);
 
     assert_value!("value: true = (1 = 1)", "true");
     assert_value!("value: false = (1 = 2)", "true");
@@ -122,10 +95,7 @@ fn test_boolean_literals_and_logic() {
     assert_value!("(true and (1 < 2)) or (false and (3 = 4))", "true");
     assert_value!("(true xor (1 = 1 and false)) or (2 < 1)", "true");
     assert_value!("(true and true) xor (false or (1 < 1))", "true");
-    assert_value!(
-        "(true and (2 > 1 and (3 > 2))) and (false or (5 = 5))",
-        "true"
-    );
+    assert_value!("(true and (2 > 1 and (3 > 2))) and (false or (5 = 5))", "true");
 }
 
 mod utilities;

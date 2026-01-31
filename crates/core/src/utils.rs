@@ -5,16 +5,11 @@ use std::ops::Add;
 use std::sync::{Mutex, OnceLock};
 
 pub fn to_display<T: Display>(vec: &[T], sep: &str) -> String {
-    vec.iter()
-        .map(|s| format!("{}", s))
-        .collect::<Vec<String>>()
-        .join(sep)
+    vec.iter().map(|s| format!("{}", s)).collect::<Vec<String>>().join(sep)
 }
 
 pub fn to_string<T: Display>(deque: &mut VecDeque<T>) -> String {
-    deque.iter_mut().fold(String::new(), |acc, item| {
-        acc.add(item.to_string().as_str())
-    })
+    deque.iter_mut().fold(String::new(), |acc, item| acc.add(item.to_string().as_str()))
 }
 
 pub fn bracket_unwrap(input: String) -> String {
@@ -68,14 +63,7 @@ pub fn intern_field_name(name: &str) -> &'static str {
     leaked
 }
 
-static TABS: [&str; 6] = [
-    "",
-    "   ",
-    "      ",
-    "         ",
-    "            ",
-    "               ",
-];
+static TABS: [&str; 6] = ["", "   ", "      ", "         ", "            ", "               "];
 
 pub struct Lines {
     ident: usize,
@@ -88,10 +76,7 @@ pub struct Line {
 
 impl Lines {
     pub fn new() -> Self {
-        Lines {
-            lines: Vec::new(),
-            ident: 0,
-        }
+        Lines { lines: Vec::new(), ident: 0 }
     }
 
     pub fn add(&mut self, line: Line) -> &mut Self {
@@ -153,9 +138,7 @@ impl Display for Lines {
 
 impl Line {
     pub fn new() -> Line {
-        Line {
-            text: String::new(),
-        }
+        Line { text: String::new() }
     }
 
     pub fn add(&mut self, text: &str) -> &mut Self {

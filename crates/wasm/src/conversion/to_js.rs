@@ -11,10 +11,10 @@ use edge_rules::typesystem::types::string::StringEnum;
 use edge_rules::typesystem::types::ValueType;
 use edge_rules::typesystem::values::{ArrayValue, ValueEnum, ValueOrSv};
 use js_sys::{Array, Object};
+use rust_decimal::prelude::ToPrimitive;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
-use rust_decimal::prelude::ToPrimitive;
 
 impl ToJs for ValueType {
     fn to_js(&self) -> Result<JsValue, RuntimeError> {
@@ -39,8 +39,7 @@ impl ToJs for ValueType {
                             }
                             EObjectContent::ObjectRef(child) => {
                                 let child_type = ValueType::ObjectType(child);
-                                set_prop(&js_object, name, &child_type.to_js()?)
-                                    .map_err(RuntimeError::eval_error)?;
+                                set_prop(&js_object, name, &child_type.to_js()?).map_err(RuntimeError::eval_error)?;
                             }
                             _ => {}
                         }
@@ -68,8 +67,7 @@ impl ToJs for ValueType {
             }
             ValueType::ListType(Some(inner)) => {
                 let js_obj = Object::new();
-                set_prop(&js_obj, "type", &JsValue::from_str("list"))
-                    .map_err(RuntimeError::eval_error)?;
+                set_prop(&js_obj, "type", &JsValue::from_str("list")).map_err(RuntimeError::eval_error)?;
                 set_prop(&js_obj, "itemType", &inner.to_js()?).map_err(RuntimeError::eval_error)?;
                 Ok(JsValue::from(js_obj))
             }
@@ -101,18 +99,13 @@ impl ToJs for ValueEnum {
                 let js_range = Object::new();
                 set_prop(&js_range, "start", &JsValue::from_f64(range.start as f64))
                     .map_err(RuntimeError::eval_error)?;
-                set_prop(
-                    &js_range,
-                    "endExclusive",
-                    &JsValue::from_f64(range.end as f64),
-                )
-                .map_err(RuntimeError::eval_error)?;
+                set_prop(&js_range, "endExclusive", &JsValue::from_f64(range.end as f64))
+                    .map_err(RuntimeError::eval_error)?;
                 Ok(JsValue::from(js_range))
             }
             ValueEnum::DurationValue(inner) => match inner {
                 ValueOrSv::Value(duration) => {
-                    let text =
-                        ValueEnum::DurationValue(ValueOrSv::Value(duration.clone())).to_string();
+                    let text = ValueEnum::DurationValue(ValueOrSv::Value(duration.clone())).to_string();
                     Ok(JsValue::from_str(&text))
                 }
                 ValueOrSv::Sv(sv) => Ok(JsValue::from_str(&sv.to_string())),
@@ -161,21 +154,14 @@ impl ToJs for Rc<RefCell<ExecutionContext>> {
             let field_val_opt = self.borrow().get(field_name);
             match field_val_opt {
                 Ok(EObjectContent::ConstantValue(value)) => {
-                    set_prop(&js_object, field_name, &value.to_js()?)
-                        .map_err(RuntimeError::eval_error)?;
+                    set_prop(&js_object, field_name, &value.to_js()?).map_err(RuntimeError::eval_error)?;
                 }
                 Ok(EObjectContent::ObjectRef(child)) => {
-                    set_prop(&js_object, field_name, &child.to_js()?)
-                        .map_err(RuntimeError::eval_error)?;
+                    set_prop(&js_object, field_name, &child.to_js()?).map_err(RuntimeError::eval_error)?;
                 }
-                Ok(EObjectContent::UserFunctionRef(_)) | Ok(EObjectContent::Definition(_)) => {
-                    continue
-                }
+                Ok(EObjectContent::UserFunctionRef(_)) | Ok(EObjectContent::Definition(_)) => continue,
                 Ok(EObjectContent::ExpressionRef(_)) => {
-                    return Err(RuntimeError::eval_error(format!(
-                        "Field '{}' is not evaluated",
-                        field_name
-                    )))
+                    return Err(RuntimeError::eval_error(format!("Field '{}' is not evaluated", field_name)))
                 }
                 Err(err) => return Err(RuntimeError::eval_error(err.to_string())),
             }

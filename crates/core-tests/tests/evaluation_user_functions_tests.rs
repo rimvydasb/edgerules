@@ -1,13 +1,13 @@
 mod utilities;
-use edge_rules::test_support::expr;
-pub use utilities::*;
-use edge_rules::runtime::edge_rules::{EdgeRulesModel, UserFunctionDefinition};
-use edge_rules::typesystem::values::ValueEnum;
-use edge_rules::link::node_data::ContentHolder;
-use edge_rules::ast::user_function_call::UserFunctionCall;
-use edge_rules::ast::token::ExpressionEnum;
 use edge_rules::ast::metaphors::metaphor::UserFunction;
+use edge_rules::ast::token::ExpressionEnum;
+use edge_rules::ast::user_function_call::UserFunctionCall;
+use edge_rules::link::node_data::ContentHolder;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, UserFunctionDefinition};
+use edge_rules::test_support::expr;
 use edge_rules::typesystem::types::TypedValue;
+use edge_rules::typesystem::values::ValueEnum;
+pub use utilities::*;
 
 // Dedicated coverage for user-defined functions (custom functions)
 
@@ -23,7 +23,7 @@ fn execute_no_arg_function_root_manual() {
     let runtime = model.to_runtime().unwrap();
 
     let result = runtime.call_method("main", vec![]).unwrap();
-    
+
     if let ValueEnum::Reference(ctx) = result {
         let borrowed = ctx.borrow();
         let val = borrowed.get("result").unwrap();
@@ -44,7 +44,7 @@ fn execute_no_arg_function_nested_manual() {
     "#;
     let mut model = EdgeRulesModel::new();
     model.append_source(code).unwrap();
-    
+
     let method_entry = model.get_user_function("nested.getVal").unwrap();
     let definition = method_entry.borrow().function_definition.create_context(vec![], None).unwrap();
 
@@ -53,7 +53,7 @@ fn execute_no_arg_function_nested_manual() {
     let mut call = UserFunctionCall::new("nested.getVal".to_string(), vec![]);
     call.return_type = Ok(definition.get_type());
     call.definition = Ok(definition);
-    
+
     let result = runtime.evaluate_expression(ExpressionEnum::from(call)).unwrap();
 
     if let ValueEnum::Reference(ctx) = result {
@@ -79,7 +79,7 @@ fn unhappy_execute_no_arg_function_with_arg() {
     // Call with 1 argument
     let args = vec![ExpressionEnum::from(1)];
     let result = runtime.call_method("main", args);
-    
+
     match result {
         Err(e) => {
             let msg = format!("{}", e);
@@ -102,7 +102,7 @@ fn unhappy_execute_arg_function_with_no_arg() {
 
     // Call with 0 arguments
     let result = runtime.call_method("add", vec![]);
-    
+
     match result {
         Err(e) => {
             let msg = format!("{}", e);
@@ -417,19 +417,7 @@ fn user_function_has_types() {
     output2: testFunction(1,'x', date('2023-05-03')).label
     "#;
 
-    assert_eval_all(
-        code,
-        &[
-            "{",
-            "all: {",
-            "sumAll: 6",
-            "label: '1x'",
-            "}",
-            "output1: 6",
-            "output2: '1x'",
-            "}",
-        ],
-    );
+    assert_eval_all(code, &["{", "all: {", "sumAll: 6", "label: '1x'", "}", "output1: 6", "output2: '1x'", "}"]);
 }
 
 #[test]
@@ -504,10 +492,7 @@ fn user_function_accepts_alias_and_fills_missing_fields() {
 #[test]
 fn user_function_not_found() {
     let model = "{ value: inc(1) }";
-    link_error_contains(
-        model,
-        &["Function 'inc(...)' not found", "No metaphors in scope"],
-    );
+    link_error_contains(model, &["Function 'inc(...)' not found", "No metaphors in scope"]);
 
     let model = r#"
     {
@@ -516,14 +501,7 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(
-        model,
-        &[
-            "Function 'missingFunc(...)' not found",
-            "Known metaphors in scope",
-            "addOne(...)",
-        ],
-    );
+    link_error_contains(model, &["Function 'missingFunc(...)' not found", "Known metaphors in scope", "addOne(...)"]);
 
     let model = r#"
     {
@@ -532,10 +510,7 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(
-        model,
-        &["Function 'inc(...)' not found", "No metaphors in scope"],
-    );
+    link_error_contains(model, &["Function 'inc(...)' not found", "No metaphors in scope"]);
 
     let model = r#"
     {
@@ -544,13 +519,7 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(
-        model,
-        &[
-            "Function 'deeper.inc(...)' not found",
-            "No metaphors in scope",
-        ],
-    );
+    link_error_contains(model, &["Function 'deeper.inc(...)' not found", "No metaphors in scope"]);
 }
 
 #[test]
@@ -586,18 +555,7 @@ fn user_function_nesting_is_allowed_and_function_context_is_forgotten() {
     }
     "#;
 
-    assert_eval_all(
-        model,
-        &[
-            "{",
-            "deeper: {",
-            "value1: 11",
-            "value2: 51",
-            "}",
-            "value: 62",
-            "}",
-        ],
-    );
+    assert_eval_all(model, &["{", "deeper: {", "value1: 11", "value2: 51", "}", "value: 62", "}"]);
 }
 
 #[test]
@@ -624,10 +582,7 @@ fn accessing_function_in_different_context() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(
-        exe_field(&rt, "applicationResponse"),
-        "applicationResponse:{oldAmount:1000newAmount:1001}"
-    );
+    assert_eq!(exe_field(&rt, "applicationResponse"), "applicationResponse:{oldAmount:1000newAmount:1001}");
 }
 
 #[test]
