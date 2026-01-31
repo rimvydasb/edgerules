@@ -7,6 +7,7 @@ use crate::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, EdgeRule
 use crate::typesystem::errors::RuntimeError;
 use crate::typesystem::types::ValueType;
 use crate::typesystem::values::ValueEnum;
+use crate::runtime::execution_context::ExecutionContext;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,6 +41,7 @@ impl DecisionService {
         let method_path = Self::clean_method_name(service_method)?;
         let runtime_method_name = Self::runtime_method_name(&method_path);
 
+        let runtime = self.ensure_runtime()?;
         let method_entry = self.resolve_method_entry(&method_path)?;
         let (parameter_count, param_type_opt) = {
             let borrowed = method_entry.borrow();
@@ -51,8 +53,6 @@ impl DecisionService {
         };
         Self::ensure_single_argument(&method_path, parameter_count)?;
 
-        let runtime = self.ensure_runtime()?;
-
         let final_request = if let Some(tref) = param_type_opt {
             let expected_type =
                 runtime.context.borrow().object.borrow().resolve_type_ref(&tref).unwrap_or(ValueType::UndefinedType);
@@ -61,10 +61,15 @@ impl DecisionService {
         } else {
             decision_request
         };
-
-        runtime
-            .call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)])
-            .map_err(EvalError::from)
+        let final_request = match final_request {
+            ValueEnum::Reference(ctx) => {
+                let reparented =
+                    ExecutionContext::create_temp_child_context(Rc::clone(&runtime.context), Rc::clone(&ctx.borrow().object));
+                ValueEnum::Reference(reparented)
+            }
+            other => other,
+        };
+        runtime.call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)]).map_err(EvalError::from)
     }
 
     /// Evaluates a field by path in the decision service.
@@ -105,6 +110,15 @@ impl DecisionService {
     fn ensure_runtime(&mut self) -> Result<EdgeRulesRuntime, EvalError> {
         if self.runtime_dirty {
             let runtime = self.model.borrow_mut().to_runtime_snapshot()?;
+            {
+                let ctx = runtime.static_tree.borrow();
+                for entry in ctx.metaphors.values() {
+                    let borrowed_entry = entry.borrow();
+                    if let Ok(body) = borrowed_entry.function_definition.get_body() {
+                        link_parts(Rc::clone(&body)).map_err(EvalError::from)?;
+                    }
+                }
+            }
             self.static_context = Rc::clone(&runtime.static_tree);
             self.runtime_dirty = false;
             return Ok(runtime);
