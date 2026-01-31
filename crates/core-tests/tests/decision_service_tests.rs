@@ -1,11 +1,11 @@
 use edge_rules::runtime::decision_service::DecisionService;
 use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
-#[cfg(feature = "mutable_decision_service")]
-use edge_rules::runtime::edge_rules::InvocationSpec;
-#[cfg(feature = "mutable_decision_service")]
-use edge_rules::test_support::ExpressionEnum;
+use edge_rules::runtime::edge_rules::{ExpressionEnum, InvocationSpec};
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
+
+mod utilities;
+pub use utilities::*;
 
 fn build_request_value(source: &str) -> ValueEnum {
     let mut model = EdgeRulesModel::new();
@@ -19,7 +19,6 @@ fn value_to_string(value: &ValueEnum) -> String {
     value.to_string().replace(['\n', ' '], "")
 }
 
-#[cfg(feature = "mutable_decision_service")]
 #[test]
 fn set_invocation_invokes_function() {
     let mut model = EdgeRulesModel::new();
@@ -90,7 +89,6 @@ fn execute_errors_when_method_has_wrong_arity() {
     assert!(err.to_string().to_lowercase().contains("exactly one argument"), "expected arity error, got: {}", err);
 }
 
-#[cfg(feature = "mutable_decision_service")]
 #[test]
 fn invalid_invocation_surfaces_link_error() {
     let model = r#"
@@ -119,12 +117,12 @@ fn invalid_invocation_surfaces_link_error() {
     );
 }
 
-#[cfg(feature = "mutable_decision_service")]
 #[test]
 fn execute_relinks_after_model_updates() {
     let model = r#"
     {
-        func decide(request): {
+        type Request: { amount: <number> }
+        func decide(request: Request): {
             value: request.amount + 1
         }
     }
@@ -133,7 +131,7 @@ fn execute_relinks_after_model_updates() {
     let mut service = DecisionService::from_source(model).expect("service from model");
     let request = build_request_value("{ amount: 3 }");
     let first = service.execute("decide", request.clone()).expect("first execution");
-    assert!(value_to_string(&first).contains("value:4"), "expected request.amount+1 result, got {}", first);
+    assert_string_contains("value:4", &inline_text(first.to_string()));
 
     let model_ref = service.get_model();
     {
@@ -143,7 +141,7 @@ fn execute_relinks_after_model_updates() {
             .append_source(
                 r#"
             {
-                func decide(request): {
+                func decide(request: Request): {
                     value: request.amount + 10
                 }
             }
@@ -153,7 +151,7 @@ fn execute_relinks_after_model_updates() {
     }
 
     let second = service.execute("decide", request).expect("execution after edit");
-    assert!(value_to_string(&second).contains("value:13"), "expected updated decide result, got {}", second);
+    assert_string_contains("value:13", &inline_text(second.to_string()));
 }
 
 #[test]

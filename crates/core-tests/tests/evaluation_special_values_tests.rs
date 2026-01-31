@@ -3,31 +3,31 @@ pub use utilities::*;
 
 #[test]
 fn list_comprehension_missing_origin() {
-    assert_value!(
+    assert_eval_value(
         r#"
         data: [{amount: 1}, {amount: 2}, {}]
         value: for item in data return item.amount
         "#,
-        "[1, 2, Missing('amount')]"
+        "[1, 2, Missing('amount')]",
     );
 }
 
 #[test]
 fn sum_propagates_missing_origin() {
-    assert_value!(
+    assert_eval_value(
         r#"
         data: [{amount: 1}, {amount: 2}, {}]
         value: sum(for item in data return item.amount)
         "#,
-        "Missing('amount')"
+        "Missing('amount')",
     );
 }
 
 #[test]
 fn max_empty_list_uses_default_origin() {
-    assert_value!("sum([])", "0");
-    assert_value!("max([])", "Missing('N/A')");
-    assert_value!("min([])", "Missing('N/A')");
+    assert_expression_value("sum([])", "0");
+    assert_expression_value("max([])", "Missing('N/A')");
+    assert_expression_value("min([])", "Missing('N/A')");
 }
 
 #[test]
@@ -53,8 +53,8 @@ fn cast_nested_object_tracks_field_path() {
 
 #[test]
 fn referencing_context_variable() {
-    assert_value!("for item in [{a:1},{a:2},{a:3}] return item.a", "[1, 2, 3]");
-    assert_value!("for item in [{a:1},{a:2},{b:3}] return item.a", "[1, 2, Missing('a')]");
+    assert_expression_value("for item in [{a:1},{a:2},{a:3}] return item.a", "[1, 2, 3]");
+    assert_expression_value("for item in [{a:1},{a:2},{b:3}] return item.a", "[1, 2, Missing('a')]");
 }
 
 #[test]

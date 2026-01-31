@@ -1,8 +1,8 @@
 use edge_rules::tokenizer::parser::tokenize;
 use std::fmt::Display;
 
-mod test_utils;
-use test_utils::test::*;
+mod utilities;
+pub use utilities::*;
 
 fn array_to_code_sep(parts: impl Iterator<Item = impl Display>, sep: &str) -> String {
     parts.map(|part| format!("{}", part)).collect::<Vec<String>>().join(sep)

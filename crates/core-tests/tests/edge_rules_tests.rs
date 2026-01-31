@@ -1,164 +1,17 @@
 use edge_rules::runtime::edge_rules::{
-    ContextObjectBuilder, ContextQueryErrorEnum, EdgeRulesModel, EdgeRulesRuntime, EvalError, ExpressionEnum,
-    ParseErrors, UserFunctionDefinition,
+    ContextObjectBuilder, ContextQueryErrorEnum, EdgeRulesModel, EvalError, ExpressionEnum, UserFunctionDefinition,
 };
-use edge_rules::runtime::ToSchema;
 use edge_rules::test_support::NumberEnum::Int;
-use edge_rules::test_support::ParseErrorEnum::{Stacked, UnexpectedToken, WrongFormat};
+use edge_rules::test_support::ParseErrorEnum::{UnexpectedToken, WrongFormat};
 use edge_rules::test_support::SpecialValueEnum::Missing;
 use edge_rules::test_support::{
-    expr, ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingError, LinkingErrorEnum, NumberEnum,
-    ParseErrorEnum, StaticLink, UserTypeBody, ValueEnum, ValueType,
+    expr, ComplexTypeRef, EToken, EUnparsedToken, FunctionDefinition, LinkingErrorEnum, NumberEnum, UserTypeBody,
+    ValueEnum, ValueType,
 };
-use edge_rules::utils::to_display;
-use log::error;
-use std::fmt::Display;
-use std::mem::discriminant;
 use std::rc::Rc;
 
-mod test_utils;
-use test_utils::test::init_logger;
-
-pub fn test_code(code: &str) -> TestServiceBuilder {
-    TestServiceBuilder::build(code)
-}
-
-pub fn test_code_lines<T: Display>(code: &[T]) -> TestServiceBuilder {
-    TestServiceBuilder::build(format!("{{{}}}", to_display(code, "\n")).as_str())
-}
-
-pub fn inline<S: AsRef<str>>(code: S) -> String {
-    code.as_ref().replace('\n', " ").replace(" ", "")
-}
-
-pub struct TestServiceBuilder {
-    original_code: String,
-    runtime: Option<EdgeRulesRuntime>,
-    parse_errors: Option<ParseErrors>,
-    linking_errors: Option<LinkingError>,
-}
-
-impl TestServiceBuilder {
-    pub fn build(code: &str) -> Self {
-        let mut service = EdgeRulesModel::new();
-
-        match service.append_source(code) {
-            Ok(_model) => match service.to_runtime() {
-                Ok(runtime) => TestServiceBuilder {
-                    original_code: code.to_string(),
-                    runtime: Some(runtime),
-                    parse_errors: None,
-                    linking_errors: None,
-                },
-                Err(linking_errors) => TestServiceBuilder {
-                    original_code: code.to_string(),
-                    runtime: None,
-                    parse_errors: None,
-                    linking_errors: Some(linking_errors),
-                },
-            },
-            Err(errors) => TestServiceBuilder {
-                original_code: code.to_string(),
-                runtime: None,
-                parse_errors: Some(errors),
-                linking_errors: None,
-            },
-        }
-    }
-
-    pub fn expect_type(&self, expected_type: &str) -> &Self {
-        self.expect_no_errors();
-
-        match &self.runtime {
-            None => {
-                panic!("Expected runtime, but got nothing: `{}`", self.original_code);
-            }
-            Some(runtime) => {
-                assert_eq!(runtime.static_tree.borrow().to_schema(), expected_type);
-            }
-        }
-
-        self
-    }
-
-    pub fn expect_num(&self, variable: &str, expected: NumberEnum) {
-        self.expect(&mut ExpressionEnum::variable(variable), ValueEnum::NumberValue(expected))
-    }
-
-    pub fn expect_parse_error(&self, expected: ParseErrorEnum) -> &Self {
-        if let Some(errors) = &self.parse_errors {
-            fn matches_error(found: &ParseErrorEnum, expected: &ParseErrorEnum) -> bool {
-                if discriminant(found) == discriminant(expected) {
-                    return true;
-                }
-
-                if let Stacked(inner) = found {
-                    return inner.iter().any(|err| matches_error(err, expected));
-                }
-
-                false
-            }
-
-            if errors.errors().iter().any(|err| matches_error(err, &expected)) {
-                return self;
-            }
-
-            panic!("Expected parse error `{}`, but got: `{:?}`", expected, errors);
-        } else {
-            panic!("Expected parse error, but got no errors: `{}`", self.original_code);
-        }
-    }
-
-    pub fn expect_no_errors(&self) -> &Self {
-        if let Some(errors) = &self.parse_errors {
-            panic!("Expected no errors, but got parse errors: `{}`\nFailed to parse:\n{}", errors, self.original_code);
-        }
-
-        if let Some(errors) = &self.linking_errors {
-            panic!(
-                "Expected no errors, but got linking errors: `{}`\nFailed to parse:\n{}",
-                errors, self.original_code
-            );
-        }
-
-        self
-    }
-
-    pub fn expect_link_error(&self, expected: LinkingErrorEnum) -> &Self {
-        if let Some(errors) = &self.parse_errors {
-            panic!(
-                "Expected linking error, but got parse errors: `{:?}`\nFailed to parse:\n{}",
-                errors, self.original_code
-            );
-        }
-
-        if let Some(errors) = &self.linking_errors {
-            assert_eq!(&expected, errors.kind(), "Testing:\n{}", self.original_code);
-        } else {
-            panic!("Expected linking error, but got no errors: `{}`", self.original_code);
-        }
-
-        self
-    }
-
-    pub fn expect(&self, _expr: &mut ExpressionEnum, _expected: ValueEnum) {
-        self.expect_no_errors();
-
-        if let Err(error) = _expr.link(self.runtime.as_ref().unwrap().static_tree.clone()) {
-            panic!("Expected value, but got linking errors: `{:?}`\nFailed to parse:\n{}", error, _expr);
-        }
-
-        match _expr.eval(self.runtime.as_ref().unwrap().context.clone()) {
-            Ok(value) => {
-                assert_eq!(value, _expected, "Context:\n{}", self.runtime.as_ref().unwrap().context.borrow());
-            }
-            Err(error) => {
-                error!("{}", error);
-                panic!("Failed to parse: `{:?}`", _expr);
-            }
-        }
-    }
-}
+mod utilities;
+pub use utilities::*;
 
 #[test]
 fn test_service() -> Result<(), EvalError> {
@@ -619,10 +472,10 @@ fn call_method_happy_path_with_single_and_multiple_arguments() -> Result<(), Eva
     let runtime = service.to_runtime_snapshot()?;
 
     let single = runtime.call_method("inc", vec![expr("41")?])?;
-    assert_eq!(inline(single.to_string()), inline("{result: 42}"));
+    assert_eq!(inline_text(single.to_string()), inline_text("{result: 42}"));
 
     let multiple = runtime.call_method("add", vec![expr("1")?, expr("2")?])?;
-    assert_eq!(inline(multiple.to_string()), inline("{result: 3}"));
+    assert_eq!(inline_text(multiple.to_string()), inline_text("{result: 3}"));
 
     Ok(())
 }
@@ -642,10 +495,10 @@ fn call_method_type_mismatch_does_not_poison_context() -> Result<(), EvalError> 
     assert!(message.contains("Argument `offer` of function `inc`"), "unexpected error: {message}");
 
     let first = runtime.call_method("inc", vec![expr("{amount: 10}")?])?;
-    assert_eq!(inline(first.to_string()), inline("{result: 11}"));
+    assert_eq!(inline_text(first.to_string()), inline_text("{result: 11}"));
 
     let second = runtime.call_method("inc", vec![expr("{amount: 20}")?])?;
-    assert_eq!(inline(second.to_string()), inline("{result: 21}"));
+    assert_eq!(inline_text(second.to_string()), inline_text("{result: 21}"));
 
     Ok(())
 }
@@ -668,7 +521,7 @@ fn call_method_list_iteration() -> Result<(), EvalError> {
     let runtime = service.to_runtime_snapshot()?;
 
     let first = runtime.call_method("interpolate", vec![expr("[1,2,3,4,5]")?])?;
-    assert_eq!(inline(first.to_string()), inline("{resultset: [2, 4, 6, 8, 10]}"));
+    assert_eq!(inline_text(first.to_string()), inline_text("{resultset: [2, 4, 6, 8, 10]}"));
 
     Ok(())
 }

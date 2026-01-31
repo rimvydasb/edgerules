@@ -633,6 +633,7 @@ impl EdgeRulesModel {
 // Runtime
 //--------------------------------------------------------------------------------------------------
 
+#[derive(Clone)]
 pub struct EdgeRulesRuntime {
     pub context: Rc<RefCell<ExecutionContext>>,
     pub static_tree: Rc<RefCell<ContextObject>>,
@@ -645,6 +646,17 @@ impl EdgeRulesRuntime {
     pub fn new(static_tree: Rc<RefCell<ContextObject>>) -> EdgeRulesRuntime {
         let context = ExecutionContext::create_root_context(static_tree.clone());
         EdgeRulesRuntime { context, static_tree }
+    }
+
+    pub fn from_source(source: &str) -> Result<Self, EvalError> {
+        let mut model = EdgeRulesModel::new();
+        let wrapped = if (source.trim().starts_with('{') && source.trim().ends_with('}')) || source.trim().is_empty() {
+            source.to_string()
+        } else {
+            format!("{{{}}}", source.trim())
+        };
+        model.append_source(&wrapped).map_err(EvalError::from)?;
+        model.to_runtime().map_err(EvalError::from)
     }
 
     /**
@@ -754,5 +766,24 @@ impl EdgeRulesRuntime {
                 Err(ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
             }
         }
+    }
+}
+
+impl From<&EdgeRulesRuntime> for EdgeRulesRuntime {
+    fn from(rt: &EdgeRulesRuntime) -> Self {
+        rt.clone()
+    }
+}
+
+impl From<&str> for EdgeRulesRuntime {
+    fn from(source: &str) -> Self {
+        Self::from_source(source)
+            .unwrap_or_else(|err| panic!("Failed to create EdgeRulesRuntime from source: {}\nSource:\n{}", err, source))
+    }
+}
+
+impl From<String> for EdgeRulesRuntime {
+    fn from(source: String) -> Self {
+        Self::from(source.as_str())
     }
 }
