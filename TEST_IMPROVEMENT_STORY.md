@@ -1,541 +1,129 @@
-# Test Infrastructure Improvement Strategy
+# Test Infrastructure Improvement - Post-Mortem
 
 > **Role**: Senior Rust Engineer specializing in Test Infrastructure and Developer Experience (DX)  
 > **Objective**: Reduce code volume, maintain 100% coverage, and optimize for "Agent Readability"
 
 ## Executive Summary
 
-The EdgeRules test suite contains **373 tests** across **28 test files**, with existing test infrastructure including
-macros (`assert_value!`, `assert_string_contains!`), helper functions, and a `TestServiceBuilder`. This document
-provides a strategic roadmap for test refactoring that shrinks code size while improving maintainability for both humans
-and AI coding assistants.
+This document provides an honest post-mortem of the test infrastructure refactoring effort, including what was actually delivered vs. what was planned.
 
 ---
 
-## Current State Analysis
+## What Was Actually Delivered ✅
 
-### Strengths
+### 1. rstest Parameterization (SUCCESS)
 
-1. **Existing Utilities** (`utilities.rs`):
-    - `assert_value!` macro handles multiple input formats cleanly
-    - `eval_field()`, `eval_value()`, `eval_all()` provide consistent evaluation patterns
-    - `link_error_contains()` and `parse_error_contains()` abstract error testing
+The `rstest` crate was added and effectively applied to parameterize tests:
 
-2. **Test Builder Pattern** (`edge_rules_tests.rs`):
-    - `TestServiceBuilder` exists with fluent API
-    - Methods: `expect_num()`, `expect_type()`, `expect_parse_error()`, `expect_link_error()`
+**Files Updated:**
+- `evaluation_math_tests.rs` - 15+ parameterized test groups
+- `evaluation_logic_tests.rs` - 14 parameterized test groups  
+- `evaluation_string_tests.rs` - 12 parameterized test groups
+- `evaluation_datetime_tests.rs` - 26 parameterized test groups
+- `built_in_functions_validation_tests.rs` - converted loop-based tests
 
-3. **Clear Separation**:
-    - Tests are organized by domain (math, logic, datetime, strings, lists, etc.)
-    - Each test file includes its own `mod utilities; pub use utilities::*;` pattern
-
-### Weaknesses
-
-1. **Verbose Test Setups**: Many tests repeat boilerplate initialization
-2. **Mixed Assertion Styles**: Some tests use raw `assert_eq!`, others use custom macros
-3. **Limited Parameterization**: No `rstest` or table-driven tests for repetitive patterns
-4. **Inconsistent Naming**: Variables like `tb`, `rt`, `err` lack semantic clarity
-5. **Implicit AAA**: Arrange-Act-Assert phases are often blended together
-
----
-
-## Recommended Patterns and Refactoring Strategies
-
-### 1. Shrink via Abstraction (Builders & Factories)
-
-#### Pattern 1A: Expression Test Builder
-
-Current verbose pattern:
-
+**Example (actual code):**
 ```rust
-#[test]
-fn test_math_abs() {
-    init_logger();
-    assert_value!("abs(10)", "10");
-    assert_value!("abs(-10)", "10");
-    assert_value!("abs(0)", "0");
-    assert_value!("abs(-1.5)", "1.5");
-}
-```
-
-**Recommended** – Use domain-specific builder that groups related cases:
-
-```rust
-#[test]
-fn test_math_abs() {
-    ExpressionTest::new("abs")
-        .case("abs(10)", "10")
-        .case("abs(-10)", "10")
-        .case("abs(0)", "0")
-        .case("abs(-1.5)", "1.5")
-        .run_all();
-}
-```
-
-**Implementation** – Add to `utilities.rs`:
-
-```rust
-pub struct ExpressionTest {
-    function_name: String,
-    cases: Vec<(String, String)>,
-}
-
-impl ExpressionTest {
-    pub fn new(function_name: &str) -> Self {
-        init_logger();
-        Self { function_name: function_name.to_string(), cases: Vec::new() }
-    }
-    
-    pub fn case(mut self, input: &str, expected: &str) -> Self {
-        self.cases.push((input.to_string(), expected.to_string()));
-        self
-    }
-    
-    pub fn run_all(&self) {
-        for (input, expected) in &self.cases {
-            let actual = eval_value(&format!("value: {}", input));
-            assert_eq!(
-                actual, expected.as_str(),
-                "Function {} failed for input: {}", self.function_name, input
-            );
-        }
-    }
-}
-```
-
-#### Pattern 1B: Error Expectation Builder
-
-Current verbose pattern:
-
-```rust
-#[test]
-fn test_unary_numeric_validation() {
-    let numeric_funcs = ["abs", "floor", "ceiling", "trunc", "sqrt"];
-    
-    for func in numeric_funcs {
-        let code = format!("{{ value: {}() }}", func);
-        parse_error_contains(&code, &[&format!("Function '{}' got no arguments", func)]);
-        
-        let code = format!("{{ value: {}('abc') }}", func);
-        link_error_location(
-            &code,
-            &["value"],
-            &format!("{}('abc')", func),
-            LinkingErrorEnum::TypesNotCompatible(None, ValueType::StringType, Some(vec![ValueType::NumberType])),
-        );
-    }
-}
-```
-
-**Recommended** – Introduce validation builder:
-
-```rust
-#[test]
-fn test_unary_numeric_validation() {
-    UnaryFunctionValidator::for_number_functions(&["abs", "floor", "ceiling", "trunc", "sqrt"])
-        .expect_parse_error_when_no_args()
-        .expect_link_error_when_wrong_type("'abc'", ValueType::StringType)
-        .validate();
-}
-```
-
----
-
-### 2. Shrink via Parameterization (rstest)
-
-#### Pattern 2A: Simple Parameterized Tests
-
-**Add `rstest` to `Cargo.toml`**:
-
-```toml
-[dev-dependencies]
-rstest = "0.24"
-```
-
-Current repetitive pattern:
-
-```rust
-#[test]
-fn test_math_rounding_basic() {
-    assert_value!("floor(1.1)", "1");
-    assert_value!("floor(1.9)", "1");
-    assert_value!("floor(-1.1)", "-2");
-    assert_value!("floor(-1.9)", "-2");
-    assert_value!("ceiling(1.1)", "2");
-    assert_value!("ceiling(1.9)", "2");
-    // ... more cases
-}
-```
-
-**Recommended with rstest**:
-
-```rust
-use rstest::rstest;
-
 #[rstest]
 #[case("floor(1.1)", "1")]
 #[case("floor(1.9)", "1")]
-#[case("floor(-1.1)", "-2")]
-#[case("floor(-1.9)", "-2")]
 #[case("ceiling(1.1)", "2")]
-#[case("ceiling(1.9)", "2")]
-#[case("ceiling(-1.1)", "-1")]
-#[case("ceiling(-1.9)", "-1")]
-fn test_rounding_functions(#[case] expression: &str, #[case] expected: &str) {
-    assert_eq!(eval_value(&format!("value: {}", expression)), expected);
+fn test_math_rounding_basic(#[case] expr: &str, #[case] expected: &str) {
+    assert_value!(expr, expected);
 }
 ```
 
-#### Pattern 2B: Grouped Parameterized Tests with Fixtures
+**Result:** Test count increased from 373 → 803 due to individual test case reporting.
 
-```rust
-use rstest::{rstest, fixture};
+### 2. AAA Pattern & Variable Naming (PARTIAL SUCCESS)
 
-#[fixture]
-fn math_runtime() -> EdgeRulesRuntime {
-    let mut model = EdgeRulesModel::new();
-    model.append_source("{ pi_val: 3.14159 }").unwrap();
-    model.to_runtime().unwrap()
-}
-
-#[rstest]
-#[case("abs(10)", "10")]
-#[case("abs(-10)", "10")]
-#[case("sqrt(4)", "2")]
-fn test_math_functions(math_runtime: EdgeRulesRuntime, #[case] expr: &str, #[case] expected: &str) {
-    let result = math_runtime.evaluate_expression_str(expr).unwrap();
-    assert_eq!(result.to_string(), expected);
-}
-```
-
-#### Pattern 2C: Parameterized Error Tests
-
-```rust
-#[rstest]
-#[case("value: 10 / 0", "[runtime] Division by zero")]
-#[case("value: 10 % 0", "[runtime] Division by zero")]
-#[case("value: modulo(10, 0)", "[runtime] Division by zero")]
-#[case("value: idiv(10, 0)", "[runtime] Division by zero")]
-fn test_division_by_zero_errors(#[case] input: &str, #[case] expected_error: &str) {
-    assert_string_contains!(expected_error, eval_value(input));
-}
-```
+Applied to `edge_rules_tests.rs` and `decision_service_tests.rs`:
+- Added explicit // Arrange, // Act, // Assert comments
+- Improved variable naming (e.g., `service` → `edge_rules_model`)
 
 ---
 
-### 3. Optimize for Agents (Context & Structure)
+## What Was NOT Delivered ❌
 
-#### Pattern 3A: Strict AAA Separation
+### 1. ExpressionTest Builder - REMOVED
 
-Current blended pattern:
+**Status:** Created but never applied beyond self-tests. Removed as it added no value.
 
-```rust
-#[test]
-fn test_complex_calculation() {
-    let code = r#"{ func calc(x): { result: x * 2 }; value: calc(5).result }"#;
-    assert_eq!(eval_field(code, "value"), "10");
-}
-```
+**Lesson:** Creating utilities without immediately applying them to real tests leads to dead code.
 
-**Recommended** – Explicit AAA with comments:
+### 2. UnaryFunctionValidator Builder - REMOVED
 
-```rust
-#[test]
-fn test_user_function_doubles_input() {
-    // Arrange
-    let function_definition = "func doubleInput(x): { result: x * 2 }";
-    let invocation = "value: doubleInput(5).result";
-    let source_code = format!("{{ {}; {} }}", function_definition, invocation);
-    
-    // Act
-    let evaluated_result = eval_field(&source_code, "value");
-    
-    // Assert
-    assert_eq!(evaluated_result, "10", "doubleInput(5) should return 10");
-}
-```
+**Status:** Created but only used in 2 self-tests. Removed as it added no value.
 
-#### Pattern 3B: Semantic Variable Naming
+**Lesson:** Same as above. The utility was over-engineered for a problem that didn't exist at scale.
 
-**Bad** (ambiguous for agents):
+### 3. Custom Assertion Macros - REMOVED
 
-```rust
-let tb = test_code_lines(&["func f(a): { result: a }", "value: f(35).result"]);
-tb.expect_num("value", Int(35));
-```
+**Status:** `assert_link_error!`, `assert_expr_value!`, `assert_eval_error!`, etc. were created in `test_assertions.rs` but NEVER adopted in actual tests. File removed.
 
-**Good** (explicit intent):
+**Lesson:** The existing `assert_value!` and `link_error_contains()` were already sufficient.
 
-```rust
-let user_function_test = test_code_lines(&[
-    "func returnArgument(input): { result: input }",
-    "invokedResult: returnArgument(35).result",
-]);
-user_function_test.expect_num("invokedResult", Int(35));
-```
+### 4. ErrorTestBuilder - REMOVED
 
-#### Pattern 3C: Structured Test Documentation
-
-```rust
-/// Tests that the `abs` function correctly handles positive, negative, and zero inputs.
-/// 
-/// # Test Cases
-/// | Input      | Expected |
-/// |------------|----------|
-/// | `abs(10)`  | `10`     |
-/// | `abs(-10)` | `10`     |
-/// | `abs(0)`   | `0`      |
-#[test]
-fn test_abs_function_for_all_sign_types() {
-    // Test implementation
-}
-```
+**Status:** Created but never used beyond self-test. Removed.
 
 ---
 
-### 4. Custom Assertions
+## rstest & IntelliJ Ergonomics Issue ⚠️
 
-#### Pattern 4A: Domain-Specific Assertions
+**Problem:** IntelliJ IDEA's Rust plugin has poor support for rstest parameterized tests. Individual `#[case]` tests cannot be run directly from the IDE gutter.
 
-**Create `test_assertions.rs`**:
+**Workaround Options:**
+1. Run from terminal: `cargo test test_name::case_1`
+2. Use `--test-threads=1` for sequential debugging
+3. Consider using `test-case` crate instead (better IntelliJ support)
 
-```rust
-/// Asserts that evaluating the given expression results in a link error
-/// containing the expected message fragments.
-#[macro_export]
-macro_rules! assert_link_error {
-    ($code:expr, $( $needle:expr ),+ $(,)?) => {{
-        let needles: &[&str] = &[$($needle),+];
-        link_error_contains($code, needles)
-    }};
-}
-
-/// Asserts that evaluating the given expression results in a parse error
-/// containing the expected message fragments.
-#[macro_export]
-macro_rules! assert_parse_error {
-    ($code:expr, $( $needle:expr ),+ $(,)?) => {{
-        let needles: &[&str] = &[$($needle),+];
-        parse_error_contains($code, needles)
-    }};
-}
-
-/// Asserts that a runtime error occurs at the specified location
-/// with the expected expression.
-#[macro_export]
-macro_rules! assert_runtime_error {
-    ($runtime:expr, $field:expr, $expected_location:expr, $expected_expr:expr) => {{
-        let err = $runtime.evaluate_field($field).expect_err("expected runtime error");
-        assert_eq!(err.location(), $expected_location, "Location mismatch");
-        assert_eq!(err.expression().map(|s| s.as_str()), Some($expected_expr), "Expression mismatch");
-    }};
-}
-
-/// Asserts that two code outputs are equivalent after whitespace normalization.
-/// Note: `inline` function must be imported from utilities.rs
-#[macro_export]
-macro_rules! assert_code_eq {
-    ($actual:expr, $expected:expr) => {{
-        let actual_normalized = inline($actual);
-        let expected_normalized = inline($expected);
-        assert_eq!(
-            actual_normalized, expected_normalized,
-            "Code mismatch:\nActual: {}\nExpected: {}", $actual, $expected
-        );
-    }};
-}
-```
-
-Usage example:
-
-```rust
-#[test]
-fn test_cyclic_reference_detection() {
-    assert_link_error!("value: value + 1", "cyclic");
-    assert_link_error!(
-        "{ record1: 15 + record2; record2: 7 + record3; record3: record1 * 10 }",
-        "cyclic", "record1"
-    );
-}
-```
-
-#### Pattern 4B: Type-Specific Assertions
-
-```rust
-/// Asserts that evaluating the expression produces a number value.
-#[macro_export]
-macro_rules! assert_number_value {
-    ($code:expr, $expected:expr) => {{
-        let result = eval_value(&format!("value: {}", $code));
-        assert_eq!(
-            result.parse::<f64>().ok(),
-            Some($expected),
-            "Expected number {}, got: {}", $expected, result
-        )
-    }};
-}
-
-/// Asserts that evaluating the expression produces a boolean value.
-#[macro_export]
-macro_rules! assert_boolean_value {
-    ($code:expr, $expected:expr) => {{
-        let result = eval_value(&format!("value: {}", $code));
-        assert_eq!(
-            result,
-            if $expected { "true" } else { "false" },
-            "Expected boolean {}, got: {}", $expected, result
-        )
-    }};
-}
-```
+**Recommendation:** If IntelliJ ergonomics are critical, consider reverting rstest parameterization to traditional `#[test]` functions with loops or dedicated test functions.
 
 ---
 
-### 5. Safety Improvements
+## Honest Metrics
 
-#### Pattern 5A: Result-Based Tests
-
-Current pattern with unwrap:
-
-```rust
-#[test]
-fn test_service() {
-    let mut service = EdgeRulesModel::new();
-    service.append_source("value: 2 + 2").unwrap();
-    let runtime = service.to_runtime().unwrap();
-    let result = runtime.evaluate_field("value").unwrap();
-    assert_eq!(result, ValueEnum::NumberValue(Int(4)));
-}
-```
-
-**Recommended** – Return `Result`:
-
-```rust
-#[test]
-fn test_service() -> Result<(), EvalError> {
-    // Arrange
-    let mut service = EdgeRulesModel::new();
-    service.append_source("value: 2 + 2")?;
-    let runtime = service.to_runtime()?;
-    
-    // Act
-    let result = runtime.evaluate_field("value")?;
-    
-    // Assert
-    assert_eq!(result, ValueEnum::NumberValue(Int(4)));
-    Ok(())
-}
-```
-
-#### Pattern 5B: Contextual Error Handling
-
-```rust
-/// Evaluates an expression and returns a descriptive error on failure.
-fn evaluate_with_context(code: &str, field: &str) -> Result<String, String> {
-    let mut service = EdgeRulesModel::new();
-    service.append_source(code).map_err(|e| format!("Parse error for code '{code}': {e}"))?;
-    let runtime = service.to_runtime().map_err(|e| format!("Link error for code '{code}': {e}"))?;
-    runtime.evaluate_field(field).map(|v| v.to_string()).map_err(|e| format!("Runtime error for field '{field}': {e}"))
-}
-
-#[test]
-fn test_with_better_errors() {
-    let result = evaluate_with_context("value: 2 + 2", "value");
-    assert_eq!(result, Ok("4".to_string()));
-}
-```
+| Metric | Before | After | Notes |
+|--------|--------|-------|-------|
+| Test cases | 373 | 803 | Increased due to parameterization |
+| Parameterized groups | 0 | ~60 | Using rstest `#[case]` |
+| Custom builders | 0 | 0 | Created then removed (unused) |
+| Custom macros | 2 | 2 | Kept existing `assert_value!`, `assert_string_contains!` |
+| Utility functions | 15 | 16 | Added `eval_lines_field()` |
 
 ---
 
-## Actionable Refactoring Plan
+## Lessons Learned
 
-### Phase 1: Foundation (Week 1)
-
-- [x] Add `rstest` dependency to `crates/core-tests/Cargo.toml` (High Priority)
-- [x] Create `test_assertions.rs` in `crates/core-tests/tests/` (High Priority)
-- [x] Enhance `ExpressionTest` builder in `utilities.rs` (High Priority)
-- [x] Add function validation builder (`UnaryFunctionValidator`) in `utilities.rs` (Medium Priority)
-- [x] Add error test builder (`ErrorTestBuilder`) in `utilities.rs` (Medium Priority)
-- [x] Run all tests to ensure coverage is maintained (430 tests passing)
-
-### Phase 2: Math & Logic Tests (Week 2)
-
-- [x] Parameterize rounding tests (`evaluation_math_tests.rs`) - ~40% LOC reduction
-- [x] Parameterize division by zero tests (`evaluation_math_tests.rs`) - ~30% LOC reduction
-- [x] Parameterize boolean comparisons (`evaluation_logic_tests.rs`) - ~50% LOC reduction
-- [x] Convert validation loops to rstest (`built_in_functions_validation_tests.rs`) - ~40% LOC reduction
-- [x] Run all tests to ensure coverage is maintained (774 tests passing)
-- [x] Mark Phase 2 as completed
-
-### Phase 3: String & DateTime Tests (Week 3)
-
-- [x] Parameterize string functions (`evaluation_string_tests.rs`) - ~35% LOC reduction
-- [x] Parameterize datetime comparisons (`evaluation_datetime_tests.rs`) - ~45% LOC reduction
-- [x] Parameterize duration/period ops (`evaluation_datetime_tests.rs`) - ~40% LOC reduction
-- [x] Run all tests to ensure coverage is maintained (911 tests passing)
-- [x] Mark Phase 3 as completed
-
-### Phase 4: Integration & Service Tests (Week 4)
-
-- [x] Apply AAA pattern strictly (`edge_rules_tests.rs`) - Readability
-- [x] Improve variable naming (`decision_service_tests.rs`) - Agent clarity
-- [x] Convert to Result-based tests (Already using Result where appropriate) - Safety
-- [x] Run all tests to ensure coverage is maintained (911 tests passing)
-- [x] Mark Phase 4 as completed
+1. **Don't create utilities speculatively** - Only build what you're going to use immediately
+2. **Test infrastructure should be minimal** - The existing `assert_value!` macro was already good enough
+3. **rstest has IDE tradeoffs** - Consider IntelliJ/VS Code support before adopting
+4. **Verify adoption** - Check that new utilities are actually being used in production tests
 
 ---
 
-## Estimated Impact
+## Files Changed Summary
 
-| Metric                 | Current State | After Refactoring |
-|------------------------|---------------|-------------------|
-| Total test LOC         | ~4,500        | ~3,000 (-33%)     |
-| Test files             | 28            | 28 (unchanged)    |
-| Parameterized tests    | 0             | ~80 cases         |
-| Custom assertions      | 2 macros      | 8+ macros         |
-| Result-based tests     | ~30%          | ~90%              |
-| AAA compliance         | ~40%          | ~95%              |
+### Modified:
+- `crates/core-tests/Cargo.toml` - Added rstest dependency
+- `crates/core-tests/tests/utilities.rs` - Cleaned up unused builders
+- `crates/core-tests/tests/evaluation_math_tests.rs` - rstest parameterization
+- `crates/core-tests/tests/evaluation_logic_tests.rs` - rstest parameterization
+- `crates/core-tests/tests/evaluation_string_tests.rs` - rstest parameterization
+- `crates/core-tests/tests/evaluation_datetime_tests.rs` - rstest parameterization
+- `crates/core-tests/tests/built_in_functions_validation_tests.rs` - rstest parameterization
+- `crates/core-tests/tests/edge_rules_tests.rs` - AAA pattern, better naming
+- `crates/core-tests/tests/decision_service_tests.rs` - AAA pattern, better naming
 
----
-
-## Appendix: Files Requiring Changes
-
-### High Priority (High test volume, repetitive patterns)
-
-1. `evaluation_math_tests.rs` – 15 tests, heavy parameterization opportunity
-2. `evaluation_logic_tests.rs` – 3 tests, large boolean truth tables
-3. `evaluation_datetime_tests.rs` – 19 tests, temporal comparison patterns
-4. `built_in_functions_validation_tests.rs` – 13 tests, loop-based validation
-
-### Medium Priority (Moderate improvement potential)
-
-5. `evaluation_string_tests.rs` – 4 tests, string function coverage
-6. `evaluation_list_tests.rs` – 7 tests, list operation coverage
-7. `evaluation_filter_tests.rs` – 5 tests, filter expression coverage
-8. `evaluation_user_functions_tests.rs` – 25 tests, function call patterns
-
-### Lower Priority (Already well-structured)
-
-9. `edge_rules_tests.rs` – Uses TestServiceBuilder, needs naming/AAA cleanup
-10. `decision_service_tests.rs` – Clean structure, needs Result-based conversion
-11. `context_object_tests.rs` – Well-organized, minimal changes needed
-
----
-
-## Implementation Notes for AI Agents
-
-When implementing these refactoring patterns, AI coding assistants should:
-
-1. **Preserve Test Intent**: Never change what the test validates, only how it's expressed
-2. **Maintain Coverage**: Run `cargo test` after each refactoring batch to verify 100% pass rate
-3. **Use Consistent Patterns**: Apply the same pattern across all tests of the same category
-4. **Document Decisions**: Add comments explaining why a particular pattern was chosen
-5. **Prefer Composition**: Build complex test helpers from simpler, reusable components
+### Removed:
+- `crates/core-tests/tests/test_assertions.rs` - Unused macros
 
 ---
 
 ## Version History
 
-| Version | Date       | Author | Changes               |
-|---------|------------|--------|-----------------------|
+| Version | Date       | Author | Changes |
+|---------|------------|--------|---------|
 | 1.0     | 2026-01-29 | Agent  | Initial specification |
+| 2.0     | 2026-01-31 | Agent  | Post-mortem: removed unused utilities |
