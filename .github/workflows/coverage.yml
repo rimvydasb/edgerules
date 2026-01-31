@@ -2,13 +2,18 @@ name: Coverage
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
 
 jobs:
   test:
-    name: Coverage
+    name: Coverage Report
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -23,7 +28,6 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Generate Coverage Report
-        # This runs your tests and creates the lcov.info file Codecov needs
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload to Codecov
