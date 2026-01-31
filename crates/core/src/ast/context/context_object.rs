@@ -103,7 +103,7 @@ impl ContentHolder<ContextObject> for ContextObject {
         } else if let Some(content) = self.metaphors.get(name) {
             Ok(EObjectContent::UserFunctionRef(Rc::clone(content)))
         } else if let Some(parameter) = self.parameters.iter().find(|p| p.name == name) {
-            let runtime_type = parameter.runtime_value_type().unwrap_or(ValueType::UndefinedType);
+            let runtime_type = self.resolve_type_ref(&parameter.parameter_type).unwrap_or(ValueType::UndefinedType);
             Ok(EObjectContent::Definition(runtime_type))
         } else {
             let object_name = {

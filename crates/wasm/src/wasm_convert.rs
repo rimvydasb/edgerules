@@ -1,10 +1,11 @@
 use crate::conversion::ToJs;
 use crate::portable::model::model_from_portable;
-use crate::portable::PortableError;
+use crate::portable::{PortableError, PortableObjectKey, SchemaViolationType};
 use edge_rules::ast::metaphors::metaphor::UserFunction;
 use edge_rules::ast::token::ExpressionEnum;
 use edge_rules::ast::user_function_call::UserFunctionCall;
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::test_support::ContextQueryErrorEnum;
 use edge_rules::typesystem::types::TypedValue;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
@@ -13,10 +14,10 @@ fn execute_or_evaluate(service: EdgeRulesModel, field: Option<String>) -> Result
     if let Some(f) = &field {
         if let Ok(method) = service.get_user_function(f) {
             if !method.borrow().function_definition.get_parameters().is_empty() {
-                return Err(PortableError::new(format!(
-                    "Function '{}' requires arguments and cannot be evaluated via evaluate. Use DecisionService instead.",
-                    f
-                )));
+                return Err(PortableError::SchemaViolation(
+                    PortableObjectKey::Function,
+                    SchemaViolationType::MissingRequiredField,
+                ));
             }
 
             let definition_result = method.borrow().function_definition.create_context(vec![], None);
@@ -59,8 +60,8 @@ pub fn evaluate_inner(input: &JsValue, field: Option<String>) -> Result<JsValue,
             service.append_source(&code).map_err(PortableError::from)?;
             execute_or_evaluate(service, field)
         } else {
-            if field.is_some() {
-                return Err(PortableError::new("Field path is not applicable for single expression"));
+            if let Some(f) = field {
+                return Err(PortableError::EdgeRulesAPIError(ContextQueryErrorEnum::ContextNotFoundError(f)));
             }
             let mut service = EdgeRulesModel::new();
             let runtime = service.to_runtime_snapshot().map_err(PortableError::from)?;

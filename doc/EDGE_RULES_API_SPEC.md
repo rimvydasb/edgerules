@@ -2,8 +2,8 @@
 
 ## Overview
 
-EdgeRules provides a lightweight, embeddable rules engine. The system consists of a core Rust library (
-`edge-rules-core`) and a WASM wrapper (`edge-rules-wasm`) for usage in web and edge environments.
+EdgeRules provides a lightweight, embeddable rules engine. The system consists of a core Rust library
+(`edge-rules`) and a WASM wrapper (`edge-rules-wasi`) for usage in web and edge environments.
 
 The API supports two main modes of operation:
 

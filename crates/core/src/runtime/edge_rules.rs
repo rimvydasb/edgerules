@@ -165,6 +165,12 @@ impl ParseErrors {
     }
 }
 
+impl From<ParseErrorEnum> for ParseErrors {
+    fn from(err: ParseErrorEnum) -> Self {
+        ParseErrors(vec![err])
+    }
+}
+
 impl Display for ParseErrors {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", array_to_code_sep(self.0.iter(), "; "))

@@ -1,5 +1,5 @@
 use edge_rules::runtime::decision_service::DecisionService;
-use edge_rules::runtime::edge_rules::EdgeRulesModel;
+use edge_rules::runtime::edge_rules::{EdgeRulesModel, EvalError};
 use edge_rules::test_support::ValueEnum;
 use std::rc::Rc;
 
@@ -47,7 +47,8 @@ fn set_invocation_invokes_function() {
 fn execute_returns_response_object() {
     let model = r#"
     {
-        func decide(request): {
+        type RequestType: { amount: <number> }
+        func decide(request: RequestType): {
             decision: request.amount * 2
         }
     }
@@ -170,4 +171,63 @@ fn from_context_reuses_provided_tree() {
     let request = build_request_value("{ amount: 7 }");
     let response = service.execute("decide", request).expect("execute from context");
     assert!(value_to_string(&response).contains("value:21"), "expected context-driven result, got {}", response);
+}
+
+#[test]
+fn test_incompatible_types_in_function_fails_at_runtime() {
+    let model = r#"
+    {
+        func valid(val: number): { result: val > 0 }
+        func isEligible(age: number): {
+            return: age >= 18 + 'invalid_string'
+        }
+    }
+    "#;
+
+    // The service must not initialize if any root function has linking errors.
+    let result = DecisionService::from_source(model);
+
+    match result {
+        Err(EvalError::FailedExecution(runtime_err)) => {
+            let err_str = runtime_err.to_string();
+            assert!(
+                err_str.contains("expected 'string'") || err_str.contains("not compatible"),
+                "expected linking/runtime error about incompatible types, but got: {}",
+                err_str
+            );
+        }
+        Err(EvalError::FailedParsing(parse_errors)) => {
+            panic!("Should not have failed parsing, but got: {}", parse_errors);
+        }
+        Ok(_) => {
+            panic!("Service should have failed initialization due to incompatible types in root function");
+        }
+    }
+}
+
+#[test]
+fn execute_nested_method_fails() {
+    // Nested method execution is not supported by design.
+    // The execute() method expects the function to be in the root context.
+    let model = r#"
+        {
+            deeper: {
+                func nested(req): { result: true }
+            }
+        }
+    "#;
+
+    let mut service = DecisionService::from_source(model).expect("service with nested function");
+    let request = ValueEnum::from(1);
+
+    // This should fail because "nested" is not in the root context,
+    // and "deeper.nested" path resolution is not supported for execution entry points.
+    let err = service.execute("deeper.nested", request).unwrap_err();
+    let err_str = err.to_string().to_lowercase();
+
+    assert!(
+        err_str.contains("not found") || err_str.contains("entry 'nested' not found"),
+        "expected error about missing function, got: {}",
+        err_str
+    );
 }

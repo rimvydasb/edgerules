@@ -3,4 +3,4 @@ pub mod error;
 pub mod model;
 
 pub use controller::DecisionServiceController;
-pub use error::PortableError;
+pub use error::{PortableError, PortableObjectKey, SchemaViolationType};

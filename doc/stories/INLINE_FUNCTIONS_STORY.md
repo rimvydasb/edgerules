@@ -58,34 +58,10 @@ expression.
 
 > No functions can be recursive, because it will raise cycle reference error during linking phase.
 
-### Tasks
+### Tasks (completed)
 
-- [x] **AST Update**: Add `InlineFunctionDefinition` struct and `DefinitionEnum::InlineUserFunction`.
-- [x] **Parser Update**: Modify `build_assignment` in `tokenizer/builder.rs` to produce `InlineUserFunction` for inline
-  bodies.
-- [x] **Serialization Update**: Implement `to_portable` for `InlineUserFunction` (expanding to `{return: ...}`) and
-  update `from_portable` to detect return-only bodies (collapsing to `InlineUserFunction`).
-- [x] **Testing Strategy**:
-    - [x] **Rust**: Verify AST construction for inline syntax.
-    - [x] **Rust**: Verify execution of inline functions (correct wrapping).
-    - [x] **WASM/JS**: Test Round-trip Serialization: `Inline -> Portable (expanded) -> Inline`.
-    - [x] **WASM/JS**: Test that `getFunction` returns the expanded Portable definition for inline functions (Rule: API
-      returns Portable structure).
-    - [x] **WASM/JS**: Test that importing a "return-only" Portable definition behaves as an inline function.
-    - [x] **Rust**: Add nested execution tests as below:
-
-```edgerules
-{
-    func addOne(x): x + 1
-    func doubleAndAddOne(y): addOne(y * 2)
-    result: doubleAndAddOne(3)  // Expected: 7
-}
-```
-
-- [x] Explorer edge cases and check if all tests pass.
-- [x] Support optional type annotations, e.g., `func f(a: number): a + a`
-- [x] Check tasks if completed.
-- [x] Once again review completed tasks and ensure that all edge cases are covered and happy tests exists as well.
+All tasks in this story are delivered across parser, AST, serialization, runtime, and WASM layers. Inline functions and
+optional return bodies are covered by Rust and WASM tests. No further action required here.
 
 **Edge cases to consider:**
 
