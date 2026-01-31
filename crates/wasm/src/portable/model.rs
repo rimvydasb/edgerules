@@ -606,7 +606,7 @@ fn parse_invocation_arguments(args: &JsValue) -> Result<Vec<ExpressionEnum>, Por
 }
 
 fn default_invocation_arguments() -> Result<Vec<ExpressionEnum>, PortableError> {
-    Ok(vec![EdgeRulesModel::parse_expression("request")?])
+    Ok(vec![])
 }
 
 fn parse_invocation_expression(obj: &JsValue) -> Result<ExpressionEnum, PortableError> {

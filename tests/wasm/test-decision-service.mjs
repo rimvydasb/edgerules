@@ -99,7 +99,8 @@ const INVOCATION_MODEL = {
         '@parameters': {request: 'InvocationRequest'},
         summary: {
             '@type': 'invocation',
-            '@method': 'evaluateEligibility'
+            '@method': 'evaluateEligibility',
+            '@arguments': ['request']
         },
         score: 'request.score'
     }
@@ -497,6 +498,47 @@ describe('Decision Service', () => {
             const decision = service.execute('applicationDecisions', 22);
             assert.strictEqual(decision.isEligible, true, 'Outer function should still evaluate eligibility');
             assert.strictEqual(decision.scholarship.result, 1000, 'Invocation should reuse inner function and compute scholarship');
+        });
+
+        it('handles no-arg function invocation internally', () => {
+            const service = new wasm.DecisionService({
+                simpleCheck: {
+                    '@type': 'function', '@parameters': {req: 'number'}, // Must have 1 arg to be executable by DecisionService
+                    staticVal: {
+                        '@type': 'invocation', '@method': 'getConstant', '@arguments': []
+                    },
+                    getConstant: {
+                        '@type': 'function', '@parameters': {}, return: 42
+                    },
+                    return: {
+                        val: 'staticVal'
+                    }
+                }
+            });
+
+            const result = service.execute('simpleCheck', 1);
+            assert.strictEqual(result.val, 42, 'Should be able to invoke no-arg function with empty arguments array internally');
+        });
+
+        it('defaults to no-arg function invocation when arguments are missing', () => {
+            const service = new wasm.DecisionService({
+                simpleCheck: {
+                    '@type': 'function', '@parameters': {req: 'number'},
+                    staticVal: {
+                        '@type': 'invocation', '@method': 'getConstant'
+                        // No @arguments provided -> defaults to []
+                    },
+                    getConstant: {
+                        '@type': 'function', '@parameters': {}, return: 100
+                    },
+                    return: {
+                        val: 'staticVal'
+                    }
+                }
+            });
+
+            const result = service.execute('simpleCheck', 1);
+            assert.strictEqual(result.val, 100, 'Should invoke no-arg function when arguments are missing');
         });
     });
 

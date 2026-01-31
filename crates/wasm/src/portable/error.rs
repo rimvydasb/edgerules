@@ -158,9 +158,7 @@ impl PortableError {
             PortableError::DecisionServiceError(msg) => {
                 JsBuilder::new().add_type("DecisionServiceError").add_str("message", msg).into_js()
             }
-            PortableError::EdgeRulesAPIError(err) => {
-                JsBuilder::new().add_str("message", &err.to_string()).into_js()
-            },
+            PortableError::EdgeRulesAPIError(err) => JsBuilder::new().add_str("message", &err.to_string()).into_js(),
             PortableError::ParsingStage(err) => {
                 JsBuilder::new().add_str("stage", "parse").add_str("message", &err.to_string()).into_js()
             }
