@@ -84,12 +84,24 @@ const MODEL_SCHEMA = {
 }
 
 const INVOCATION_MODEL = {
-    '@model_name': 'InvocationDemo', evaluateEligibility: {
-        '@type': 'function', '@parameters': {request: null}, approved: 'request.score >= 640'
-    }, buildResponse: {
-        '@type': 'function', '@parameters': {request: null}, summary: {
-            '@type': 'invocation', '@method': 'evaluateEligibility'
-        }, score: 'request.score'
+    '@model_name': 'InvocationDemo',
+    InvocationRequest: {
+        '@type': 'type',
+        score: '<number>'
+    },
+    evaluateEligibility: {
+        '@type': 'function',
+        '@parameters': {request: null},
+        approved: 'request.score >= 640'
+    },
+    buildResponse: {
+        '@type': 'function',
+        '@parameters': {request: 'InvocationRequest'},
+        summary: {
+            '@type': 'invocation',
+            '@method': 'evaluateEligibility'
+        },
+        score: 'request.score'
     }
 };
 
@@ -490,18 +502,16 @@ describe('Decision Service', () => {
 
     describe('Unhappy Paths', () => {
         it('throws on invalid logic during creation', () => {
-            let service = null;
-            try {
-                service = new wasm.DecisionService({
+            assert.throws(() => {
+                new wasm.DecisionService({
                     applicationDecisions: {
                         // should trigger linking error due to invalid expression
-                        '@type': 'function', '@parameters': {age: 'number'}, isEligible: 'age >= 18 + "invalid_string"'
+                        '@type': 'function',
+                        '@parameters': {age: '<number>'},
+                        isEligible: 'age >= 18 + "invalid_string"'
                     }
                 });
-            } catch (e) {
-                assert.ok(e, 'Should have thrown an error');
-            }
-            assert.equal(service, null, 'Service should not have been created');
+            });
         });
     });
 

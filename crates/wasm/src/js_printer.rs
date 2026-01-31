@@ -10,7 +10,6 @@ pub fn expression_to_js(code: &str) -> Result<String, PortableError> {
 pub fn model_to_js(code: &str) -> Result<String, PortableError> {
     let mut model = EdgeRulesModel::new();
     model.append_source(code).map_err(PortableError::from)?;
-    to_js_model(&mut model).map_err(|_| {
-        PortableError::SerializationError(PortableObjectKey::Root, SchemaViolationType::NotSupported)
-    })
+    to_js_model(&mut model)
+        .map_err(|_| PortableError::SerializationError(PortableObjectKey::Root, SchemaViolationType::NotSupported))
 }

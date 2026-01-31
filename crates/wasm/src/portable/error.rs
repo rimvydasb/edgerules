@@ -143,6 +143,7 @@ impl Display for SchemaViolationType {
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum PortableError {
+    DecisionServiceError(String),
     EdgeRulesAPIError(ContextQueryErrorEnum),
     LinkingStage(LinkingError),
     ParsingStage(ParseErrors),
@@ -152,16 +153,17 @@ pub enum PortableError {
 }
 
 impl PortableError {
-
     pub fn to_js(&self) -> JsValue {
         match self {
-            PortableError::EdgeRulesAPIError(err) => JsBuilder::new()
-                .add_str("message", &err.to_string())
-                .into_js(),
-            PortableError::ParsingStage(err) => JsBuilder::new()
-                .add_str("stage", "parse")
-                .add_str("message", &err.to_string())
-                .into_js(),
+            PortableError::DecisionServiceError(msg) => {
+                JsBuilder::new().add_type("DecisionServiceError").add_str("message", msg).into_js()
+            }
+            PortableError::EdgeRulesAPIError(err) => {
+                JsBuilder::new().add_str("message", &err.to_string()).into_js()
+            },
+            PortableError::ParsingStage(err) => {
+                JsBuilder::new().add_str("stage", "parse").add_str("message", &err.to_string()).into_js()
+            }
             PortableError::RuntimeStage(err) => {
                 let builder = JsBuilder::new()
                     .add_str("stage", "runtime")
