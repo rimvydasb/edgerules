@@ -61,6 +61,14 @@ impl DecisionService {
         } else {
             decision_request
         };
+        let final_request = match final_request {
+            ValueEnum::Reference(ctx) => {
+                let reparented =
+                    ExecutionContext::create_temp_child_context(Rc::clone(&runtime.context), Rc::clone(&ctx.borrow().object));
+                ValueEnum::Reference(reparented)
+            }
+            other => other,
+        };
         runtime.call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)]).map_err(EvalError::from)
     }
 
