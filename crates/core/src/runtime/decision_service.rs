@@ -41,8 +41,6 @@ impl DecisionService {
         let method_path = Self::clean_method_name(service_method)?;
         let runtime_method_name = Self::runtime_method_name(&method_path);
 
-        // Resolve against the latest model state; ensure_runtime will rebuild if the model was mutated.
-        self.runtime_dirty = true;
         let runtime = self.ensure_runtime()?;
         let method_entry = self.resolve_method_entry(&method_path)?;
         let (parameter_count, param_type_opt) = {
@@ -63,18 +61,7 @@ impl DecisionService {
         } else {
             decision_request
         };
-        let final_request = match final_request {
-            ValueEnum::Reference(ctx) => {
-                let reparented =
-                    ExecutionContext::create_temp_child_context(Rc::clone(&runtime.context), Rc::clone(&ctx.borrow().object));
-                ValueEnum::Reference(reparented)
-            }
-            other => other,
-        };
-
-        runtime
-            .call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)])
-            .map_err(EvalError::from)
+        runtime.call_method(runtime_method_name, vec![ExpressionEnum::from(final_request)]).map_err(EvalError::from)
     }
 
     /// Evaluates a field by path in the decision service.
@@ -84,6 +71,7 @@ impl DecisionService {
         runtime.evaluate_field(path).map_err(EvalError::from)
     }
 
+    #[cfg(feature = "mutable_decision_service")]
     pub fn get_model(&mut self) -> Rc<RefCell<EdgeRulesModel>> {
         self.runtime_dirty = true;
         Rc::clone(&self.model)
