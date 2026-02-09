@@ -154,4 +154,17 @@ describe('Decision Service Date/Time Strings', () => {
         const res = subService.execute('check', "");
         assert.equal(res.isUtc, true);
     });
+
+    it('prints subseconds when present', () => {
+        const model = {
+            "check": {
+                "@type": "function",
+                "@parameters": {"r": "string"},
+                "val": "toString(datetime('2026-01-26T21:33:35.123Z'))"
+            }
+        };
+        const subService = new wasm.DecisionService(model);
+        const res = subService.execute('check', "");
+        assert.equal(res.val, "2026-01-26T21:33:35.123");
+    });
 });

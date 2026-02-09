@@ -200,16 +200,13 @@ fn flexible_datetime_parsing() {
     assert_expression_value("datetime('2026-01-27T10:00:00Z')", "2026-01-27T10:00:00");
 
     // 4. YYYY-MM-DDTHH:MM:SS.sssZ (UTC with subseconds)
-    // Subseconds might be truncated in our default formatter or printed?
-    // format_datetime_value uses default printing which doesn't seem to include subseconds in my implementation.
-    // Let's check: {:02} for seconds.
-    assert_expression_value("datetime('2026-01-27T10:00:00.123Z')", "2026-01-27T10:00:00");
+    assert_expression_value("datetime('2026-01-27T10:00:00.123Z')", "2026-01-27T10:00:00.123");
 
     // 5. YYYY-MM-DDTHH:MM:SS+00:00 (UTC with offset)
     assert_expression_value("datetime('2026-01-27T10:00:00+00:00')", "2026-01-27T10:00:00");
 
     // 6. YYYY-MM-DDTHH:MM:SS.sss+00:00 (UTC with offset and subseconds)
-    assert_expression_value("datetime('2026-01-27T10:00:00.123+00:00')", "2026-01-27T10:00:00");
+    assert_expression_value("datetime('2026-01-27T10:00:00.123+00:00')", "2026-01-27T10:00:00.123");
 
     // 7. Non-UTC offset
     // 2026-01-27T10:00:00+02:00
@@ -220,10 +217,13 @@ fn flexible_datetime_parsing() {
     // 2026-01-27T10:00+02:00
     assert_expression_value("datetime('2026-01-27T10:00+02:00')", "2026-01-27T10:00:00+02:00");
 
-    // 9. Subsecond inequality (verifies preservation)
+    // 9. Non-UTC offset with subseconds
+    assert_expression_value("datetime('2026-01-27T10:00:00.123+02:00')", "2026-01-27T10:00:00.123+02:00");
+
+    // 10. Subsecond inequality (verifies preservation)
     assert_expression_value("datetime('2026-01-27T10:00:00.123Z') = datetime('2026-01-27T10:00:00.456Z')", "false");
     assert_expression_value("datetime('2026-01-27T10:00:00.123Z') = datetime('2026-01-27T10:00:00Z')", "false");
 
-    // 10. Fallback to UTC (verifies that no offset is treated as UTC/Z)
+    // 11. Fallback to UTC (verifies that no offset is treated as UTC/Z)
     assert_expression_value("datetime('2026-01-27T10:00:00') = datetime('2026-01-27T10:00:00Z')", "true");
 }
