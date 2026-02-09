@@ -219,4 +219,11 @@ fn flexible_datetime_parsing() {
     // 8. Non-UTC offset with no seconds
     // 2026-01-27T10:00+02:00
     assert_expression_value("datetime('2026-01-27T10:00+02:00')", "2026-01-27T10:00:00+02:00");
+
+    // 9. Subsecond inequality (verifies preservation)
+    assert_expression_value("datetime('2026-01-27T10:00:00.123Z') = datetime('2026-01-27T10:00:00.456Z')", "false");
+    assert_expression_value("datetime('2026-01-27T10:00:00.123Z') = datetime('2026-01-27T10:00:00Z')", "false");
+
+    // 10. Fallback to UTC (verifies that no offset is treated as UTC/Z)
+    assert_expression_value("datetime('2026-01-27T10:00:00') = datetime('2026-01-27T10:00:00Z')", "true");
 }

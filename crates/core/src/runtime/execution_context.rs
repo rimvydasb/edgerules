@@ -45,12 +45,6 @@ impl PartialEq for ExecutionContext {
     }
 }
 
-impl From<ExecutionContext> for Rc<RefCell<ExecutionContext>> {
-    fn from(val: ExecutionContext) -> Self {
-        Rc::new(RefCell::new(val))
-    }
-}
-
 impl Node<ExecutionContext> for ExecutionContext {
     fn node(&self) -> &NodeData<ExecutionContext> {
         &self.node
