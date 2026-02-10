@@ -49,7 +49,7 @@ impl DecisionService {
             let type_opt = if count == 1 { params[0].declared_type().cloned() } else { None };
             (count, type_opt)
         };
-        Self::ensure_single_argument(&method_path, parameter_count)?;
+        Self::ensure_at_least_one_argument(&method_path, parameter_count)?;
 
         let runtime = self.ensure_runtime()?;
 
@@ -132,10 +132,10 @@ impl DecisionService {
         self.model.borrow().get_user_function(method_path)
     }
 
-    fn ensure_single_argument(method_path: &str, params: usize) -> Result<(), EvalError> {
-        if params != 1 {
+    fn ensure_at_least_one_argument(method_path: &str, params: usize) -> Result<(), EvalError> {
+        if params < 1 {
             return Err(Self::config_error(format!(
-                "Decision service method '{}' must declare exactly one argument, found {}",
+                "Decision service method '{}' must declare at least one argument, found {}",
                 method_path, params
             )));
         }

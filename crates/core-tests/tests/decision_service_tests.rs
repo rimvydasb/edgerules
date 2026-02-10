@@ -86,7 +86,55 @@ fn execute_errors_when_method_has_wrong_arity() {
     let request = build_request_value("{ amount: 5 }");
 
     let err = service.execute("invalid", request).unwrap_err();
-    assert!(err.to_string().to_lowercase().contains("exactly one argument"), "expected arity error, got: {}", err);
+    assert!(
+        err.to_string().to_lowercase().contains("at least one argument"),
+        "expected arity error, got: {}",
+        err
+    );
+}
+
+#[test]
+fn execute_validation_allows_multiple_arguments() {
+    let model = r#"
+    {
+        func oneArg(a): { res: a }
+        func twoArgs(a, b): { res: a + b }
+        func threeArgs(a, b, c): { res: a + b + c }
+    }
+    "#;
+
+    let mut service = DecisionService::from_source(model).expect("service setup");
+    let request = build_request_value("10");
+
+    // 1 arg: Should pass validation and execution
+    let res = service.execute("oneArg", request.clone()).expect("one arg execution");
+    assert_string_contains("res:10", &value_to_string(&res));
+
+    // 2 args: Should pass validation (ensure_at_least_one_argument) but fail runtime (mismatch)
+    let err2 = service.execute("twoArgs", request.clone()).unwrap_err();
+    let err2_str = err2.to_string();
+    assert!(
+        !err2_str.contains("at least one argument"),
+        "Should not fail validation for 2 args"
+    );
+    assert!(
+        err2_str.contains("expects 2 arguments"),
+        "Should fail runtime due to arg mismatch, got: {}",
+        err2_str
+    );
+
+    // 3 args: Should pass validation but fail runtime
+    let err3 = service.execute("threeArgs", request).unwrap_err();
+    let err3_str = err3.to_string();
+    assert!(
+        !err3_str.contains("at least one argument"),
+        "Should not fail validation for 3 args"
+    );
+    assert!(
+        err3_str.contains("expects 3 arguments"),
+        "Should fail runtime due to arg mismatch, got: {}",
+        err3_str
+    );
 }
 
 #[test]
