@@ -10,16 +10,6 @@ pub trait ToSchema {
 
 pub trait TypedValue {
     fn get_type(&self) -> ValueType;
-
-    #[allow(dead_code)]
-    fn instance_of(&self, another: &dyn TypedValue) -> bool {
-        self.get_type() == another.get_type()
-    }
-
-    #[allow(dead_code)]
-    fn instance_of_type(&self, another: ValueType) -> bool {
-        self.get_type() == another
-    }
 }
 
 /// FEEL related documentation:
