@@ -17,11 +17,21 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[derive(PartialEq)]
 pub struct ExpressionEntry {
     pub expression: ExpressionEnum,
     pub field_type: Link<ValueType>,
 }
+
+// impl PartialEq for ExpressionEntry {
+//     fn eq(&self, other: &Self) -> bool {
+//         let expr_eq = self.expression == other.expression;
+//         let type_eq = self.field_type == other.field_type;
+//         if !expr_eq {
+//              // println!("ExpressionEntry unequal: {:?} != {:?}", self.expression, other.expression);
+//         }
+//         expr_eq && type_eq
+//     }
+// }
 
 impl From<ExpressionEnum> for ExpressionEntry {
     fn from(expression: ExpressionEnum) -> Self {
@@ -127,6 +137,22 @@ impl ContentHolder<ContextObject> for ContextObject {
 impl PartialEq for ContextObject {
     fn eq(&self, other: &Self) -> bool {
         self.node() == other.node() && self.all_field_names == other.all_field_names
+
+        // let fields_eq = self.all_field_names == other.all_field_names;
+        // if !fields_eq { return false; }
+        //
+        // if self.expressions.len() != other.expressions.len() { return false; }
+        // if self.expressions != other.expressions { return false; }
+        //
+        // let self_childs = self.node.get_childs();
+        // let other_childs = other.node.get_childs();
+        // if self_childs != other_childs { return false; }
+        //
+        // self.metaphors == other.metaphors
+        //     && self.parameters == other.parameters
+        //     && self.defined_types == other.defined_types
+        //     && self.context_type == other.context_type
+        //     && self.allow_it == other.allow_it
     }
 }
 
@@ -426,7 +452,10 @@ impl ToSchema for ContextObject {
             lines.push(format!("{}: {}", name, body.to_schema()));
         }
 
-        for name in self.all_field_names.iter() {
+        let mut sorted_names = self.all_field_names.clone();
+        sorted_names.sort();
+
+        for name in sorted_names {
             if let Ok(content) = self.get(name) {
                 match content {
                     EObjectContent::ExpressionRef(entry) => {

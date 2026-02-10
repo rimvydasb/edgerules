@@ -11,21 +11,21 @@ pub trait ToSchema {
 pub trait TypedValue {
     fn get_type(&self) -> ValueType;
 
-    #[allow(dead_code)]
-    fn instance_of(&self, another: &dyn TypedValue) -> bool {
-        self.get_type() == another.get_type()
-    }
-
-    #[allow(dead_code)]
-    fn instance_of_type(&self, another: ValueType) -> bool {
-        self.get_type() == another
-    }
+    // #[allow(dead_code)]
+    // fn instance_of(&self, another: &dyn TypedValue) -> bool {
+    //     self.get_type() == another.get_type()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn instance_of_type(&self, another: ValueType) -> bool {
+    //     self.get_type() == another
+    // }
 }
 
 /// FEEL related documentation:
 /// https://docs.camunda.io/docs/components/modeler/feel/language-guide/feel-data-types/
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum ValueType {
     NumberType,
@@ -56,6 +56,34 @@ pub enum ValueType {
     // @Todo: this must not exists in runtime - if it exists, runtime must not start
     UndefinedType,
 }
+
+// impl PartialEq for ValueType {
+//     fn eq(&self, other: &Self) -> bool {
+//         match (self, other) {
+//             (ValueType::NumberType, ValueType::NumberType) => true,
+//             (ValueType::StringType, ValueType::StringType) => true,
+//             (ValueType::BooleanType, ValueType::BooleanType) => true,
+//             (ValueType::DateType, ValueType::DateType) => true,
+//             (ValueType::TimeType, ValueType::TimeType) => true,
+//             (ValueType::DateTimeType, ValueType::DateTimeType) => true,
+//             (ValueType::PeriodType, ValueType::PeriodType) => true,
+//             (ValueType::RangeType, ValueType::RangeType) => true,
+//             (ValueType::DurationType, ValueType::DurationType) => true,
+//             (ValueType::UndefinedType, ValueType::UndefinedType) => true,
+//             (ValueType::ListType(a), ValueType::ListType(b)) => a == b,
+//             (ValueType::ObjectType(a), ValueType::ObjectType(b)) => {
+//                 if Rc::ptr_eq(a, b) {
+//                     return true;
+//                 }
+//                 // Relaxed equality for objects: same fields and same schema
+//                 // We use to_schema() as a proxy for structural type equality.
+//                 // This allows {a: 1} and {a: 2} to be seen as the same type {a: number}.
+//                 a.borrow().to_schema() == b.borrow().to_schema()
+//             }
+//             _ => false,
+//         }
+//     }
+// }
 
 impl ValueType {
     pub fn ptr_eq(&self, other: &ValueType) -> bool {

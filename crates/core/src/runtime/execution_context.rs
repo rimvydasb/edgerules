@@ -41,7 +41,7 @@ impl Display for ExecutionContext {
 
 impl PartialEq for ExecutionContext {
     fn eq(&self, other: &Self) -> bool {
-        self.object == other.object && self.node == other.node && self.stack == other.stack
+        self.object == other.object && self.stack == other.stack && self.context_variable == other.context_variable
     }
 }
 

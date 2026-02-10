@@ -15,6 +15,7 @@ use crate::ast::token::ValueEnum::*;
 use crate::ast::utils::{array_to_code_sep, trim};
 use crate::ast::variable::VariableLink;
 use crate::ast::Link;
+use crate::link::linker;
 use crate::tokenizer::C_ASSIGN;
 use crate::typesystem::errors::ParseErrorEnum::UnexpectedToken;
 use crate::typesystem::errors::{ErrorStack, LinkingError, ParseErrorEnum, RuntimeError};
@@ -250,7 +251,7 @@ impl StaticLink for ExpressionEnum {
                 Ok(RangeType)
             }
             StaticObject(object) => {
-                // @Todo: it is unknown when this must be linked separately or it is callers responsibility
+                linker::link_parts(Rc::clone(object))?;
                 Ok(ObjectType(Rc::clone(object)))
             }
             TypePlaceholder(tref) => ctx.borrow().resolve_type_ref(tref),

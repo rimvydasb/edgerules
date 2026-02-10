@@ -234,7 +234,8 @@ fn cast_to_nested_alias() {
         .unwrap();
     let runtime = service.to_runtime().expect("link");
     let ty = runtime.static_tree.borrow().to_schema();
-    assert!(ty.contains("Customer: {name: string; birthdate: date; income: number}"), "got `{}`", ty);
+    // Sorted fields: birthdate, income, name
+    assert!(ty.contains("Customer: {birthdate: date; income: number; name: string}"), "got `{}`", ty);
     assert!(ty.contains("c: Customer"), "got `{}`", ty);
 }
 
@@ -287,7 +288,7 @@ fn input_type_validation() {
     }
     "#;
 
-    link_error_contains(model, &["Argument `x` of function `inc`", "type 'number'", "expected '{eligible: boolean"]);
+    link_error_contains(model, &["Argument `x` of function `inc`", "type 'number'", "expected '{amount: number; eligible: boolean; monthlyPayment: number; termInMonths: number}'"]);
 
     let model = r#"
     {
@@ -491,7 +492,7 @@ fn to_schema_lists_defined_types_and_fields() {
     let ty = runtime.static_tree.borrow().to_schema();
     assert_eq!(
         ty,
-        "{Customer: {valid: boolean; name: string; birthdate: date; birthtime: time; birthdatetime: datetime; income: number}; value: {primaryCustomer: Customer}}"
+        "{Customer: {birthdate: date; birthdatetime: datetime; birthtime: time; income: number; name: string; valid: boolean}; value: {primaryCustomer: Customer}}"
     );
 }
 

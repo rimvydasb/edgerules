@@ -541,22 +541,22 @@ fn test_linking() -> Result<(), EvalError> {
         .expect_num("b", Int(1));
 
     test_code("{ c: b; a: {x: 1}; b: a.x }")
-        .expect_type("{c: number; a: {x: number}; b: number}")
+        .expect_type("{a: {x: number}; b: number; c: number}")
         .expect_num("c", Int(1));
 
     // roundtrip test
     test_code("{ c: b; a: {x: 1; aa: b}; b: a.x }")
-        .expect_type("{c: number; a: {x: number; aa: number}; b: number}")
+        .expect_type("{a: {aa: number; x: number}; b: number; c: number}")
         .expect_num("c", Int(1));
 
     // messy handover test
     test_code("{ c: b; a: {x: {y: 1}}; b: a.x; d: c.y }")
-        .expect_type("{c: {y: number}; a: {x: {y: number}}; b: {y: number}; d: number}")
+        .expect_type("{a: {x: {y: number}}; b: {y: number}; c: {y: number}; d: number}")
         .expect_num("d", Int(1));
 
     // deep roundtrip test
     test_code("{ c: b; a: {x: {x: 1; aa: b}}; b: a.x.x }")
-        .expect_type("{c: number; a: {x: {x: number; aa: number}}; b: number}")
+        .expect_type("{a: {x: {aa: number; x: number}}; b: number; c: number}")
         .expect_num("c", Int(1));
 
     test_code("{ func f(arg1):  { a: arg1 } }").expect_type("{}");

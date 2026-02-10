@@ -91,7 +91,7 @@ const INVOCATION_MODEL = {
     },
     evaluateEligibility: {
         '@type': 'function',
-        '@parameters': {request: null},
+        '@parameters': {request: 'InvocationRequest'},
         approved: 'request.score >= 640'
     },
     buildResponse: {

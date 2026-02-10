@@ -11,7 +11,7 @@ use crate::typesystem::types::{TypedValue, ValueType};
 use crate::typesystem::values::ValueEnum;
 use crate::typesystem::values::ValueEnum::{
     BooleanValue, DateTimeValue, DateValue, DurationValue as DurationVariant, NumberValue,
-    PeriodValue as PeriodVariant, StringValue, TimeValue,
+    PeriodValue as PeriodVariant, Reference, StringValue, TimeValue,
 };
 use crate::typesystem::values::ValueOrSv;
 use std::cell::RefCell;
@@ -151,6 +151,12 @@ impl StaticLink for ComparatorOperator {
             // periods support only equality / inequality
             (ValueType::PeriodType, Equals) | (ValueType::PeriodType, NotEquals) => {}
             (ValueType::PeriodType, operator) => {
+                return Err(LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type));
+            }
+
+            // objects support only equality / inequality
+            (ValueType::ObjectType(_), Equals) | (ValueType::ObjectType(_), NotEquals) => {}
+            (ValueType::ObjectType(_), operator) => {
                 return Err(LinkingError::operation_not_supported(operator.as_str(), same_type.clone(), same_type));
             }
 
@@ -308,6 +314,8 @@ impl ComparatorOperator {
             }
             (PeriodVariant(Value(a)), Equals, PeriodVariant(Value(b))) => Ok(BooleanValue(a == b)),
             (PeriodVariant(Value(a)), NotEquals, PeriodVariant(Value(b))) => Ok(BooleanValue(a != b)),
+            (Reference(a), Equals, Reference(b)) => Ok(BooleanValue(a == b)),
+            (Reference(a), NotEquals, Reference(b)) => Ok(BooleanValue(a != b)),
             (PeriodVariant(Value(_)), _comparator, PeriodVariant(Value(_))) => {
                 RuntimeError::internal_integrity_error(154).into()
             }

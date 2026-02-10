@@ -52,7 +52,7 @@ fn test_builder() -> Result<(), EvalError> {
 
     link_parts(Rc::clone(&obj3))?;
 
-    assert_eq!(obj3.borrow().to_schema(), "{x: string; y: number; a: number; b: number}");
+    assert_eq!(obj3.borrow().to_schema(), "{a: number; b: number; x: string; y: number}");
 
     Ok(())
 }

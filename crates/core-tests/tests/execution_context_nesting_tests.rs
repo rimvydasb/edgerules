@@ -76,3 +76,29 @@ fn test_nesting() -> Result<(), EvalError> {
 
     Ok(())
 }
+
+#[test]
+fn test_execution_context_equality() -> Result<(), EvalError> {
+    init_logger();
+    let mut builder = ContextObjectBuilder::new();
+    builder.add_expression("a", E::from(10.0))?;
+    let static_ctx = builder.build();
+    link_parts(Rc::clone(&static_ctx))?;
+
+    // Create an execution context
+    let ex1 = ExecutionContext::create_root_context(Rc::clone(&static_ctx));
+
+    // Test that cloned execution contexts are equal (value equality)
+    // Note: ExecutionContext::eq ignores the 'node' field but compares 'object' and 'stack'.
+    let original = ex1.borrow().clone();
+    let copy = original.clone();
+
+    assert_eq!(original, copy, "Cloned execution contexts should be equal by value");
+
+    // Test that modifying the stack makes them unequal
+    copy.stack_insert("foo", Ok(ValueEnum::from(42.0)));
+
+    assert_ne!(original, copy, "Contexts with different stacks should not be equal");
+
+    Ok(())
+}

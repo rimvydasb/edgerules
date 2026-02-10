@@ -21,6 +21,7 @@ use std::collections::HashSet;
 
 /// Non executable function definition holder. For an executable function definition see FunctionContext.
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub struct FunctionDefinition {
     pub name: String,
     // @Todo: body, that is ContextObject, already contains parameters - do we need arguments there?
@@ -113,6 +114,19 @@ pub struct InlineFunctionDefinition {
     pub arguments: Vec<FormalParameter>,
     parent: RefCell<Option<Weak<RefCell<ContextObject>>>>,
     cached_body: Rc<RefCell<ContextObject>>,
+}
+
+impl PartialEq for InlineFunctionDefinition {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.arguments == other.arguments
+            && self.cached_body == other.cached_body
+            && match (&*self.parent.borrow(), &*other.parent.borrow()) {
+                (Some(p1), Some(p2)) => p1.ptr_eq(p2),
+                (None, None) => true,
+                _ => false,
+            }
+    }
 }
 
 impl InlineFunctionDefinition {
@@ -220,6 +234,7 @@ impl UserFunction for InlineFunctionDefinition {
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[derive(PartialEq)]
 pub enum UserFunctionDefinition {
     Function(FunctionDefinition),
     Inline(InlineFunctionDefinition),

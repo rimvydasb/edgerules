@@ -84,6 +84,18 @@ impl<T: Node<T>> NodeDataEnum<T> {
     }
 }
 
+impl<T: Node<T>> PartialEq for NodeDataEnum<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Child(n1, p1), Child(n2, p2)) => n1 == n2 && p1.ptr_eq(p2),
+            (Internal(p1, a1), Internal(p2, a2)) => a1 == a2 && p1.ptr_eq(p2),
+            (Isolated(), Isolated()) => true,
+            (Root(), Root()) => true,
+            _ => false,
+        }
+    }
+}
+
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone)]
 pub struct NodeData<T: Node<T>> {
@@ -134,9 +146,9 @@ pub trait Node<T: Node<T>>: Display + Clone + ContentHolder<T> {
     fn mut_node(&mut self) -> &mut NodeData<T>;
 }
 
-impl<T: Node<T>> PartialEq for NodeData<T> {
+impl<T: Node<T> + PartialEq> PartialEq for NodeData<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.get_assigned_to_field() == other.get_assigned_to_field()
+        self.node_type == other.node_type && *self.childs.borrow() == *other.childs.borrow()
     }
 }
 

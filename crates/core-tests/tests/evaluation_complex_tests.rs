@@ -178,7 +178,7 @@ fn example_variable_library() {
     assert_eval_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[0].status", "'INELIGIBLE'");
     assert_eq!(
             rt.static_tree.borrow().to_schema(),
-            "{Applicant: {name: string; birthDate: date; income: number; expense: number}; Application: {applicationDate: datetime; applicants: Applicant[]; propertyValue: number; loanAmount: number}; applicationResponse: {applicationRecord: {data: Application; applicantsDecisions: {rules: {name: string; rule: boolean}[]; firedRules: string[]; status: string}[]}}}"
+            "{Applicant: {birthDate: date; expense: number; income: number; name: string}; Application: {applicants: Applicant[]; applicationDate: datetime; loanAmount: number; propertyValue: number}; applicationResponse: {applicationRecord: {applicantsDecisions: {firedRules: string[]; rules: {name: string; rule: boolean}[]; status: string}[]; data: Application}}}"
         );
 }
 
