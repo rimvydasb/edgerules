@@ -1,0 +1,155 @@
+{
+    "meta": {
+        "id": "example-loan",
+        "name": "Loan Approval Demo",
+        "description": "Standard DMN-style loan approval logic.",
+        "projectType": "decision-service",
+        "schemaVersion": 1,
+        "createdAt": "2026-01-23T00:00:00.000Z",
+        "updatedAt": "2026-01-23T00:00:00.000Z",
+        "tags": ["finance", "loan"]
+    },
+    "source": {
+        "@version": 1,
+        "@model_name": "LoanApplicationDecisions",
+        "Application": {
+            "@type": "type",
+            "applicationDate": "<datetime>",
+            "applicants": "<Applicant[]>",
+            "propertyValue": "<number>",
+            "loanAmount": "<number>"
+        },
+        "Applicant": {
+            "@type": "type",
+            "name": "<string>",
+            "birthDate": "<date>",
+            "income": "<number>",
+            "expense": "<number>"
+        },
+        "applicantDecisions": {
+            "@type": "function",
+            "@parameters": {
+                "applicant": "Applicant",
+                "applicationRecord": null
+            },
+            "CreditScore": {
+                "@type": "function",
+                "@parameters": {
+                    "age": "number",
+                    "income": "number"
+                },
+                "bins": [
+                    {
+                        "name": "\"AGE_BIN\"",
+                        "score": 20,
+                        "condition": "if age <= 25 then score else 0"
+                    },
+                    {
+                        "name": "\"AGE_BIN\"",
+                        "score": 30,
+                        "condition": "if age > 25 then score else 0"
+                    },
+                    {
+                        "name": "\"INC_BIN\"",
+                        "score": 30,
+                        "condition": "if income >= 1500 then score else 0"
+                    }
+                ],
+                "totalScore": "sum(for bin in bins return bin.condition)"
+            },
+            "EligibilityDecision": {
+                "@type": "function",
+                "@parameters": {
+                    "applicantRecord": null,
+                    "creditScore": null
+                },
+                "rules": [
+                    {
+                        "name": "\"INC_CHECK\"",
+                        "rule": "applicantRecord.data.income > applicantRecord.data.expense * 2"
+                    },
+                    {
+                        "name": "\"MIN_INCOM\"",
+                        "rule": "applicantRecord.data.income > 1000"
+                    },
+                    {
+                        "name": "\"AGE_CHECK\"",
+                        "rule": "applicantRecord.age >= 18"
+                    },
+                    {
+                        "name": "\"SCREDIT_S\"",
+                        "rule": "creditScore.totalScore > 10"
+                    }
+                ],
+                "firedRules": "for invalid in rules[rule = false] return invalid.name",
+                "status": "if count(firedRules) = 0 then \"ELIGIBLE\" else \"INELIGIBLE\""
+            },
+            "applicantRecord": {
+                "data": "applicant",
+                "age": "calendarDiff(applicant.birthDate, applicationRecord.data.applicationDate.date).years"
+            },
+            "creditScore": "CreditScore(applicantRecord.age, applicantRecord.data.income)",
+            "eligibility": "EligibilityDecision(applicantRecord, creditScore)"
+        },
+        "applicationDecisions": {
+            "@type": "function",
+            "@parameters": {
+                "application": "Application"
+            },
+            "applicationRecord": {
+                "data": "application"
+            },
+            "applicantDecisions": "for app in application.applicants return applicantDecisions(app, applicationRecord)",
+            "finalDecision": "if (count(applicantDecisions[eligibility.status=\"INELIGIBLE\"]) > 0) then \"DECLINE\" else \"APPROVE\"",
+            "result": "finalDecision"
+        }
+    },
+    "decisionService": {
+        "entryPoints": [
+            {
+                "methodName": "applicationDecisions",
+                "inputs": {
+                    "application": "Application"
+                },
+                "outputs": {
+                    "result": "string"
+                },
+                "description": "Main entry point for loan application"
+            }
+        ]
+    },
+    "tests": [
+        {
+            "id": "req1",
+            "name": "Request 1",
+            "input": {
+                "applicationDate": "2025-01-01T15:43:56.000Z",
+                "propertyValue": 100000,
+                "loanAmount": 80000,
+                "applicants": [
+                    {
+                        "name": "John Doe",
+                        "birthDate": "1990-06-05",
+                        "income": 1100,
+                        "expense": 600
+                    },
+                    {
+                        "name": "Jane Doe",
+                        "birthDate": "1992-05-01",
+                        "income": 1500,
+                        "expense": 300
+                    },
+                    {
+                        "name": "Alababa",
+                        "birthDate": "1991-05-01",
+                        "income": 200,
+                        "expense": 10
+                    }
+                ]
+            },
+            "expected": {
+                "result": "APPROVE"
+            }
+        }
+    ]
+}

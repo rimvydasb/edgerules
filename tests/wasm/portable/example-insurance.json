@@ -1,0 +1,33 @@
+{
+    "meta": {
+        "id": "example-insurance",
+        "name": "Insurance Quote Engine",
+        "description": "Example of insurance premium calculation.",
+        "projectType": "decision-service",
+        "schemaVersion": 1,
+        "createdAt": "2026-01-23T00:00:00.000Z",
+        "updatedAt": "2026-01-23T00:00:00.000Z",
+        "tags": ["insurance", "premium"]
+    },
+    "source": {
+        "@version": 1,
+        "@model_name": "Insurance Quote Engine",
+        "configuration": {
+            "basePremium": 100,
+            "ageFactors": {
+                "young": 1.5,
+                "adult": 1.0,
+                "senior": 1.2
+            }
+        },
+        "calculatePremium": "configuration.basePremium * configuration.ageFactors.adult"
+    },
+    "tests": [
+        {
+            "id": "t1",
+            "name": "Base premium test",
+            "input": { "age": 35 },
+            "expected": { "premium": 100 }
+        }
+    ]
+}
