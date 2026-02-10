@@ -130,7 +130,7 @@
                     {
                         "name": "John Doe",
                         "birthDate": "1990-06-05",
-                        "income": 1100,
+                        "income": 1500,
                         "expense": 600
                     },
                     {
@@ -138,12 +138,6 @@
                         "birthDate": "1992-05-01",
                         "income": 1500,
                         "expense": 300
-                    },
-                    {
-                        "name": "Alababa",
-                        "birthDate": "1991-05-01",
-                        "income": 200,
-                        "expense": 10
                     }
                 ]
             },

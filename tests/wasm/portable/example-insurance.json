@@ -20,7 +20,7 @@
                 "senior": 1.2
             }
         },
-        "calculatePremium": "configuration.basePremium * configuration.ageFactors.adult"
+        "premium": "configuration.basePremium * configuration.ageFactors.adult"
     },
     "tests": [
         {

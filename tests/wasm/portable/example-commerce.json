@@ -25,7 +25,7 @@
         {
             "id": "c1",
             "name": "Base rate test",
-            "input": { "customerType": "regular" },
+            "input": { "customerType": "'regular'" },
             "expected": { "finalRate": 0.6 }
         }
     ]
