@@ -86,11 +86,7 @@ fn execute_errors_when_method_has_wrong_arity() {
     let request = build_request_value("{ amount: 5 }");
 
     let err = service.execute("invalid", request).unwrap_err();
-    assert!(
-        err.to_string().to_lowercase().contains("at least one argument"),
-        "expected arity error, got: {}",
-        err
-    );
+    assert!(err.to_string().to_lowercase().contains("at least one argument"), "expected arity error, got: {}", err);
 }
 
 #[test]
@@ -108,33 +104,19 @@ fn execute_validation_allows_multiple_arguments() {
 
     // 1 arg: Should pass validation and execution
     let res = service.execute("oneArg", request.clone()).expect("one arg execution");
-    assert_string_contains("res:10", &value_to_string(&res));
+    assert_string_contains("res:10", value_to_string(&res));
 
     // 2 args: Should pass validation (ensure_at_least_one_argument) but fail runtime (mismatch)
     let err2 = service.execute("twoArgs", request.clone()).unwrap_err();
     let err2_str = err2.to_string();
-    assert!(
-        !err2_str.contains("at least one argument"),
-        "Should not fail validation for 2 args"
-    );
-    assert!(
-        err2_str.contains("expects 2 arguments"),
-        "Should fail runtime due to arg mismatch, got: {}",
-        err2_str
-    );
+    assert!(!err2_str.contains("at least one argument"), "Should not fail validation for 2 args");
+    assert!(err2_str.contains("expects 2 arguments"), "Should fail runtime due to arg mismatch, got: {}", err2_str);
 
     // 3 args: Should pass validation but fail runtime
     let err3 = service.execute("threeArgs", request).unwrap_err();
     let err3_str = err3.to_string();
-    assert!(
-        !err3_str.contains("at least one argument"),
-        "Should not fail validation for 3 args"
-    );
-    assert!(
-        err3_str.contains("expects 3 arguments"),
-        "Should fail runtime due to arg mismatch, got: {}",
-        err3_str
-    );
+    assert!(!err3_str.contains("at least one argument"), "Should not fail validation for 3 args");
+    assert!(err3_str.contains("expects 3 arguments"), "Should fail runtime due to arg mismatch, got: {}", err3_str);
 }
 
 #[test]
@@ -179,7 +161,7 @@ fn execute_relinks_after_model_updates() {
     let mut service = DecisionService::from_source(model).expect("service from model");
     let request = build_request_value("{ amount: 3 }");
     let first = service.execute("decide", request.clone()).expect("first execution");
-    assert_string_contains("value:4", &inline_text(first.to_string()));
+    assert_string_contains("value:4", inline_text(first.to_string()));
 
     let model_ref = service.get_model();
     {
@@ -199,7 +181,7 @@ fn execute_relinks_after_model_updates() {
     }
 
     let second = service.execute("decide", request).expect("execution after edit");
-    assert_string_contains("value:13", &inline_text(second.to_string()));
+    assert_string_contains("value:13", inline_text(second.to_string()));
 }
 
 #[test]

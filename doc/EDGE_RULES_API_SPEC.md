@@ -465,3 +465,4 @@ Improve WASM API:
 - [ ] Ensure all previous JavaScript tests still pass, because this change is non-breaking for JavaScript API
 - [ ] Add additional tests where `execute` is called with path. Build a case where you have nested fields and nexted
   functions, so you can check all are reachable with `execute`.
+- [ ] Mark tasks that are really completed and ensure all tests are passing.
