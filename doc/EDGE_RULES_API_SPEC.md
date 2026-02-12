@@ -430,3 +430,38 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
+
+# Next Steps
+
+Improve Rust `DecisionService` API to support multi-argument method execution and field evaluation through a unified
+`execute` method.
+
+- [ ] In `DecisionService` existing `execute` method rename to `execute_method` - this will execute only methods.
+- [ ] Add the new method in `DecisionService` called `execute` with the following behavior:
+    - [ ] if any argument is provided, then call `execute_method` with the provided path to method and request.
+    - [ ] if no argument is provided, then execute `evaluate_field`
+    - [ ] if `path` is `"*"` then execute the entire model and return the full context. If `path` is `"*"` and request
+      is provided, then raise an error that method is not found (find out how this error looks like in the existing
+      code)
+    - [ ] Methods with no arguments are not supported for now
+    - [ ] New `execute` accepts arguments as an array of `ValueEnum` and passes them to the method. arguments are
+      wrapped to `Optional`
+    - [ ] Write Rust tests cases to cover multi arguments `execute` and simple field evaluation with `execute` (no
+      arguments)
+    - [ ] Add test cases for `"*"`
+- [ ] `execute_method` should be able to accept multiple arguments:
+    - [ ] Rename `decision_request` to `args` and type must be an array of `ValueEnum`
+    - [ ] if `parameter_count` does not match `args` count, then raise an error `FunctionWrongNumberOfArguments`
+    - [ ] Call the method with the provided arguments and return the result
+    - [ ] Write Rust tests cases to cover multi arguments `execute_method`
+
+Improve WASM API:
+
+- [ ] Rename `pub fn execute_value(&mut self, method: &str, request: ValueEnum)` to simple `execute`.
+- [ ] `DecisionServiceController` should also use `DecisionService::execute`
+- [ ] Wrap `&JsValue` to array before calling `svc.execute` - this is known limitation, that decision request supports
+  one and only one argument from WASM API (let's leave it for now, and add a note in the documentation that
+  multi-argument execution is not supported in WASM API for now)
+- [ ] Ensure all previous JavaScript tests still pass, because this change is non-breaking for JavaScript API
+- [ ] Add additional tests where `execute` is called with path. Build a case where you have nested fields and nexted
+  functions, so you can check all are reachable with `execute`.
