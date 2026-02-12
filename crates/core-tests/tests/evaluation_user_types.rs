@@ -881,7 +881,7 @@ fn cast_strings_to_temporal_types_via_decision_service() {
     let request_rt = request_model.to_runtime().unwrap();
     let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
 
-    let response = service.execute("check", request).expect("execute");
+    let response = service.execute("check", Some(vec![request])).expect("execute");
     let rendered = inline_text(response.to_string());
 
     assert_string_contains("isDate:true", &rendered);
@@ -943,7 +943,7 @@ fn cast_string_array_to_temporal_array_via_decision_service() {
     let request_rt = request_model.to_runtime().unwrap();
     let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
 
-    let response = service.execute("check", request).expect("execute");
+    let response = service.execute("check", Some(vec![request])).expect("execute");
     let rendered = inline_text(response.to_string());
 
     assert_string_contains("allValid:true", &rendered);

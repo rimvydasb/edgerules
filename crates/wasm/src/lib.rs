@@ -110,8 +110,12 @@ impl DecisionService {
 
     pub fn execute(&self, method: &str, request: &JsValue) -> JsValue {
         let response = match with_decision_service(|svc| {
-            let req_val = js_request_to_value(request)?;
-            svc.execute_value(method, req_val)
+            if request.is_undefined() || request.is_null() {
+                svc.execute(method, None)
+            } else {
+                let req_val = js_request_to_value(request)?;
+                svc.execute(method, Some(vec![req_val]))
+            }
         }) {
             Ok(value) => value,
             Err(err) => throw_portable_error(err),
