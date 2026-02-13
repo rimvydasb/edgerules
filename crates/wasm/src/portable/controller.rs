@@ -23,8 +23,8 @@ impl DecisionServiceController {
         Ok(Self { service })
     }
 
-    pub fn execute_value(&mut self, method: &str, request: ValueEnum) -> Result<ValueEnum, PortableError> {
-        Ok(self.service.execute(method, request)?)
+    pub fn execute(&mut self, method: &str, args: Option<Vec<ValueEnum>>) -> Result<ValueEnum, PortableError> {
+        Ok(self.service.execute(method, args)?)
     }
 
     pub fn model_snapshot(&mut self) -> Result<JsValue, PortableError> {

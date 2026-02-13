@@ -18,6 +18,7 @@ serves as the canonical serialization format.
 
 > EdgeRules Portable Format is designed to exchange the code rather than the data. For this reason, user must know
 > applied exceptions:
+>
 > 1. Variables are represented as JSON stings: { "var": "path.to.variable" }.
 > 2. Strings are escaped with quotes: { "const": "\"string value\"" } or { "const": "'string value'" }.
 
@@ -28,29 +29,26 @@ export type PortableScalar = string | number | boolean;
 
 export type PortableExpressionString = string;
 
-export type PortableValue =
-    | PortableScalar
-    | PortableObject
-    | PortableValue[];
+export type PortableValue = PortableScalar | PortableObject | PortableValue[];
 
 export interface PortableTypeDefinition {
-    '@type': 'type';
-    '@ref'?: string;
+    "@type": "type";
+    "@ref"?: string;
 
     [key: string]: PortableValue | PortableExpressionString | undefined;
 }
 
 export interface PortableFunctionDefinition {
-    '@type': 'function';
-    '@parameters': Record<string, string | null | undefined>;
+    "@type": "function";
+    "@parameters": Record<string, string | null | undefined>;
 
     [key: string]: PortableValue | PortableExpressionString;
 }
 
 export interface PortableInvocationDefinition {
-    '@type': 'invocation';
-    '@method': string;
-    '@arguments'?: (PortableValue | PortableExpressionString)[];
+    "@type": "invocation";
+    "@method": string;
+    "@arguments"?: (PortableValue | PortableExpressionString)[];
 }
 
 export interface PortableObject {
@@ -63,8 +61,8 @@ export interface PortableObject {
 }
 
 export interface PortableContext extends PortableObject {
-    '@version'?: string | number;
-    '@model_name'?: string;
+    "@version"?: string | number;
+    "@model_name"?: string;
 }
 
 export interface PortableError {
@@ -79,15 +77,15 @@ export interface PortableError {
     };
     location: string; // Fully qualified path of the problem, e.g. "calculations.takeDate.year"
     expression: string; // Problematic expression snippet, e.g.  "d.nonexistent"
-    stage: 'linking' | 'runtime';
+    stage: "linking" | "runtime";
 }
 ```
 
 ### Common Metadata
 
-* `@version`: Model version string.
-* `@model_name`: Human-readable model name.
-* `@type`: Discriminator for entry type (`function`, `type`, `invocation`). If omitted, implies a context object or
+- `@version`: Model version string.
+- `@model_name`: Human-readable model name.
+- `@type`: Discriminator for entry type (`function`, `type`, `invocation`). If omitted, implies a context object or
   static value.
 
 ### Entities
@@ -96,10 +94,10 @@ export interface PortableError {
 
 Defines a reusable user function.
 
-* `@type`: `"function"`
-* `@parameters`: Object mapping parameter names to types (or `null` for any).
-* `result`: (Optional) Main body expression.
-* *Additional keys*: Treated as local context variables or sub-functions.
+- `@type`: `"function"`
+- `@parameters`: Object mapping parameter names to types (or `null` for any).
+- `result`: (Optional) Main body expression.
+- _Additional keys_: Treated as local context variables or sub-functions.
 
 ```json
 {
@@ -117,9 +115,9 @@ Defines a reusable user function.
 
 Defines a user-defined type schema.
 
-* `@type`: `"type"`
-* `@ref`: (Optional) Reference to an existing type (e.g., `<string>`).
-* *Body*: If `@ref` is absent, keys define fields and their types (using `<Type>` syntax or nested objects).
+- `@type`: `"type"`
+- `@ref`: (Optional) Reference to an existing type (e.g., `<string>`).
+- _Body_: If `@ref` is absent, keys define fields and their types (using `<Type>` syntax or nested objects).
 
 ```json
 {
@@ -135,9 +133,9 @@ Defines a user-defined type schema.
 
 Represents a call to a user function within the model structure.
 
-* `@type`: `"invocation"`
-* `@method`: Fully qualified path to the function (e.g., `lib.utils.calc`).
-* `@arguments`: Array of expressions (strings, numbers, or portable objects) passed to the function.
+- `@type`: `"invocation"`
+- `@method`: Fully qualified path to the function (e.g., `lib.utils.calc`).
+- `@arguments`: Array of expressions (strings, numbers, or portable objects) passed to the function.
 
 ```json
 {
@@ -161,41 +159,41 @@ Stateless utility for quick evaluation. These methods do not persist any state b
 
 Evaluates the provided EdgeRules code or portable model.
 
-* **Parameters:**
-    * `input`: The EdgeRules DSL source code (string) or a Portable Context object.
-        * If `input` is a string:
-            * If it is wrapped in `{}` (e.g., `{ a: 1 }`), it is treated as a full model.
-            * Otherwise (e.g., `1 + 2`), it is treated as a single expression.
-    * `field`: (Optional) The dot-separated path to the field to evaluate.
-        * If provided, only this field is evaluated.
-        * **Note:** Field path is not applicable if `input` is a single expression string.
-* **Returns:**
-    * If `field` is provided: The result of that field.
-    * If `input` is a single expression (and no `field`): The result of the expression.
-    * If `input` is a model (and no `field`): The fully evaluated context object.
-* **Throws:**
-    * `PortableError`: For syntax errors, linking errors, runtime errors, or invalid usage (e.g., field path with
+- **Parameters:**
+    - `input`: The EdgeRules DSL source code (string) or a Portable Context object.
+        - If `input` is a string:
+            - If it is wrapped in `{}` (e.g., `{ a: 1 }`), it is treated as a full model.
+            - Otherwise (e.g., `1 + 2`), it is treated as a single expression.
+    - `field`: (Optional) The dot-separated path to the field to evaluate.
+        - If provided, only this field is evaluated.
+        - **Note:** Field path is not applicable if `input` is a single expression string.
+- **Returns:**
+    - If `field` is provided: The result of that field.
+    - If `input` is a single expression (and no `field`): The result of the expression.
+    - If `input` is a model (and no `field`): The fully evaluated context object.
+- **Throws:**
+    - `PortableError`: For syntax errors, linking errors, runtime errors, or invalid usage (e.g., field path with
       expression).
 
 #### `printExpressionJs(code: string): string`
 
 (Requires `to_js` feature) Transpiles an EdgeRules expression into a JavaScript expression.
 
-* **Parameters:**
-    * `code`: The EdgeRules expression to transpile.
-* **Returns:** A string containing the equivalent JavaScript code.
-* **Throws:**
-    * `PortableError`: If the expression cannot be parsed or transpiled.
+- **Parameters:**
+    - `code`: The EdgeRules expression to transpile.
+- **Returns:** A string containing the equivalent JavaScript code.
+- **Throws:**
+    - `PortableError`: If the expression cannot be parsed or transpiled.
 
 #### `printModelJs(code: string): string`
 
 (Requires `to_js` feature) Transpiles an entire EdgeRules model into a JavaScript module/object.
 
-* **Parameters:**
-    * `code`: The EdgeRules DSL model code.
-* **Returns:** A string containing the equivalent JavaScript code.
-* **Throws:**
-    * `PortableError`: If the model cannot be parsed or transpiled.
+- **Parameters:**
+    - `code`: The EdgeRules DSL model code.
+- **Returns:** A string containing the equivalent JavaScript code.
+- **Throws:**
+    - `PortableError`: If the model cannot be parsed or transpiled.
 
 > **Deprecated:** `evaluateAll`, `evaluateExpression`, and `evaluateField` are deprecated in favor of `evaluate`.
 
@@ -206,21 +204,24 @@ requests.
 
 #### Initialization
 
-* `new DecisionService(model: string | object)`
-    * Creates a new decision service.
-    * **Parameters:**
-        * `model`: Can be an EdgeRules DSL string or a `PortableContext` (JSON) object.
-    * **Note:** The WASM binding currently uses a thread-local singleton; initializing a new `DecisionService` replaces
+- `new DecisionService(model: string | object)`
+    - Creates a new decision service.
+    - **Parameters:**
+        - `model`: Can be an EdgeRules DSL string or a `PortableContext` (JSON) object.
+    - **Note:** The WASM binding currently uses a thread-local singleton; initializing a new `DecisionService` replaces
       the previous one for the WASM module instance.
 
 #### Execution
 
-* `execute(method: string, request: any): any`
-    * Executes a function defined in the model.
-    * **Parameters:**
-        * `method`: The name or path of the function to execute.
-        * `request`: The input data to pass to the function.
-    * **Returns:** The result of the function execution.
+- `execute(method: string, args?: any | any[]): any`
+    - Executes a function defined in the model or evaluates a field by path.
+    - **Parameters:**
+        - `method`: The name or path of the function or field to execute/evaluate.
+        - `args`: (Optional) The input argument or an array of arguments to pass to the function.
+            - If omitted (`null` or `undefined`), the path is evaluated as a field.
+            - If an array is provided, it is treated as a list of arguments for function execution.
+            - Providing an empty array `[]` indicates a function execution with no arguments.
+    - **Returns:** The result of the execution.
 
 #### CRUD Operations
 
@@ -295,28 +296,28 @@ Retrieves the type definition of the entry at the specified path.
 
 **Array Access Exceptions:**
 
-* **Set:**
-    * **No Gaps:** You cannot add an element at an index that skips existing positions (e.g., `arr[5]` if length is 2).
-    * **Overwrite:** Overwriting an existing index replaces the value without shifting.
-    * **Type Safety:** Setting an element must respect the array's type (e.g., cannot put a string in a number array).
-* **Remove:**
-    * **Shift:** Removing an element (e.g., `arr[1]`) shifts subsequent elements left (index 2 becomes 1).
-    * **Empty:** Removing the last element leaves an empty array.
-* **General:**
-    * **Bounds:** accessing `arr[10]` when length is 5 throws `WrongFieldPathError`.
-    * **Negative Index:** `arr[-1]` throws `WrongFieldPathError`.
+- **Set:**
+    - **No Gaps:** You cannot add an element at an index that skips existing positions (e.g., `arr[5]` if length is 2).
+    - **Overwrite:** Overwriting an existing index replaces the value without shifting.
+    - **Type Safety:** Setting an element must respect the array's type (e.g., cannot put a string in a number array).
+- **Remove:**
+    - **Shift:** Removing an element (e.g., `arr[1]`) shifts subsequent elements left (index 2 becomes 1).
+    - **Empty:** Removing the last element leaves an empty array.
+- **General:**
+    - **Bounds:** accessing `arr[10]` when length is 5 throws `WrongFieldPathError`.
+    - **Negative Index:** `arr[-1]` throws `WrongFieldPathError`.
 
 **Rename Exceptions:**
 
-* **Same Context:** Renaming `user.firstName` to `customer.firstName` throws `WrongFieldPathError` because the parent
+- **Same Context:** Renaming `user.firstName` to `customer.firstName` throws `WrongFieldPathError` because the parent
   context changes from `user` to `customer`.
-* **Collision:** Renaming `a` to `b` when `b` exists throws `DuplicateNameError`.
-* **Root vs Nested:** Renaming a root element to a nested path (or vice versa) throws `WrongFieldPathError`.
+- **Collision:** Renaming `a` to `b` when `b` exists throws `DuplicateNameError`.
+- **Root vs Nested:** Renaming a root element to a nested path (or vice versa) throws `WrongFieldPathError`.
 
 ### JavaScript Example
 
 ```javascript
-import {DecisionEngine, DecisionService} from 'edge-rules';
+import {DecisionEngine, DecisionService} from "edge-rules";
 
 // 1. Stateless Evaluation
 const code = `
@@ -327,37 +328,37 @@ const code = `
     }
 `;
 // Evaluate a specific field
-const result = DecisionEngine.evaluate(code, 'result');
+const result = DecisionEngine.evaluate(code, "result");
 console.log(result); // 20
 
 // 2. Stateful Decision Service
 const model = {
-    '@version': '1.0',
-    'taxRate': 0.2,
-    'calculateTax': {
-        '@type': 'function',
-        '@parameters': {'amount': 'number'},
-        'result': 'amount * taxRate'
-    }
+    "@version": "1.0",
+    taxRate: 0.2,
+    calculateTax: {
+        "@type": "function",
+        "@parameters": {amount: "number"},
+        result: "amount * taxRate",
+    },
 };
 
 // Initialize service with a portable model
 const service = new DecisionService(model);
 
 // Execute a function
-const tax = service.execute('calculateTax', 100);
+const tax = service.execute("calculateTax", 100);
 console.log(tax.result); // 20
 
 // Modify the model at runtime
-service.set('taxRate', 0.25);
-const newTax = service.execute('calculateTax', 100);
+service.set("taxRate", 0.25);
+const newTax = service.execute("calculateTax", 100);
 console.log(newTax.result); // 25
 
 // Inspect types
-const taxRateType = service.getType('taxRate');
+const taxRateType = service.getType("taxRate");
 console.log(taxRateType); // "number"
 
-const funcType = service.getType('calculateTax');
+const funcType = service.getType("calculateTax");
 console.log(funcType);
 // Output:
 // {
@@ -367,11 +368,11 @@ console.log(funcType);
 // }
 
 try {
-    service.execute('calculateTax', 'invalid argument');
+    service.execute("calculateTax", "invalid argument");
 } catch (e) {
-    console.error('Error Type:', e.error.type);
-    console.error('Location:', e.location);
-    console.error('Expression:', e.expression);
+    console.error("Error Type:", e.error.type);
+    console.error("Location:", e.location);
+    console.error("Expression:", e.expression);
 }
 ```
 
@@ -414,7 +415,10 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 - `from_context(context: Rc<RefCell<ContextObject>>) -> Result<Self, EvalError>`: Creates a service from an existing
   context object.
 - `from_model(model: EdgeRulesModel) -> Result<Self, EvalError>`: Creates a service from a model.
-- `execute(&mut self, method: &str, request: ValueEnum) -> Result<ValueEnum, EvalError>`: Executes a service method.
+- `execute(&mut self, path: &str, args: Option<Vec<ValueEnum>>) -> Result<ValueEnum, EvalError>`: Executes a service
+  method or evaluates a field.
+- `execute_method(&mut self, method: &str, args: Vec<ValueEnum>) -> Result<ValueEnum, EvalError>`: Executes a service
+  method with multiple arguments.
 - `evaluate_field(&mut self, path: &str) -> Result<ValueEnum, EvalError>`: Evaluates a specific field path.
 - `get_linked_type(&mut self, path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the linked type of a
   field.
@@ -430,39 +434,3 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
-
-# Next Steps
-
-Improve Rust `DecisionService` API to support multi-argument method execution and field evaluation through a unified
-`execute` method.
-
-- [ ] In `DecisionService` existing `execute` method rename to `execute_method` - this will execute only methods.
-- [ ] Add the new method in `DecisionService` called `execute` with the following behavior:
-    - [ ] if any argument is provided, then call `execute_method` with the provided path to method and request.
-    - [ ] if no argument is provided, then execute `evaluate_field`
-    - [ ] if `path` is `"*"` then execute the entire model and return the full context. If `path` is `"*"` and request
-      is provided, then raise an error that method is not found (find out how this error looks like in the existing
-      code)
-    - [ ] Methods with no arguments are not supported for now
-    - [ ] New `execute` accepts arguments as an array of `ValueEnum` and passes them to the method. arguments are
-      wrapped to `Optional`
-    - [ ] Write Rust tests cases to cover multi arguments `execute` and simple field evaluation with `execute` (no
-      arguments)
-    - [ ] Add test cases for `"*"`
-- [ ] `execute_method` should be able to accept multiple arguments:
-    - [ ] Rename `decision_request` to `args` and type must be an array of `ValueEnum`
-    - [ ] if `parameter_count` does not match `args` count, then raise an error `FunctionWrongNumberOfArguments`
-    - [ ] Call the method with the provided arguments and return the result
-    - [ ] Write Rust tests cases to cover multi arguments `execute_method`
-
-Improve WASM API:
-
-- [ ] Rename `pub fn execute_value(&mut self, method: &str, request: ValueEnum)` to simple `execute`.
-- [ ] `DecisionServiceController` should also use `DecisionService::execute`
-- [ ] Wrap `&JsValue` to array before calling `svc.execute` - this is known limitation, that decision request supports
-  one and only one argument from WASM API (let's leave it for now, and add a note in the documentation that
-  multi-argument execution is not supported in WASM API for now)
-- [ ] Ensure all previous JavaScript tests still pass, because this change is non-breaking for JavaScript API
-- [ ] Add additional tests where `execute` is called with path. Build a case where you have nested fields and nexted
-  functions, so you can check all are reachable with `execute`.
-- [ ] Mark tasks that are really completed and ensure all tests are passing.

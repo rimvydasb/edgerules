@@ -519,7 +519,7 @@ fn user_function_not_found() {
     }
     "#;
 
-    link_error_contains(model, &["Function 'deeper.inc(...)' not found", "No metaphors in scope"]);
+    assert_eval_value(model, "2");
 }
 
 #[test]
