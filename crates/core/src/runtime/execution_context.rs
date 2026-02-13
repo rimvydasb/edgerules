@@ -45,12 +45,6 @@ impl PartialEq for ExecutionContext {
     }
 }
 
-impl From<ExecutionContext> for Rc<RefCell<ExecutionContext>> {
-    fn from(val: ExecutionContext) -> Self {
-        Rc::new(RefCell::new(val))
-    }
-}
-
 impl Node<ExecutionContext> for ExecutionContext {
     fn node(&self) -> &NodeData<ExecutionContext> {
         &self.node
@@ -67,7 +61,12 @@ impl ContentHolder<ExecutionContext> for ExecutionContext {
         match self.stack.borrow().get(name) {
             None => {}
             Some(Err(err)) => {
-                return LinkingError::other_error(err.to_string()).into();
+                let mut linking_err = LinkingError::other_error(err.to_string());
+                *linking_err.location_mut() = err.location().to_vec();
+                if let Some(expr) = err.expression() {
+                    linking_err.set_expression(expr.clone());
+                }
+                return linking_err.into();
             }
             Some(Ok(Reference(value))) => {
                 return Ok(EObjectContent::ObjectRef(Rc::clone(value)));

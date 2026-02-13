@@ -32,9 +32,9 @@ fn test_complex_discount_calculation() {
     // 0.10 + 0.05 = 0.15.
     // 0.16 + 0.05 = 0.21.
 
-    assert_eq!(inline(eval_field(code, "discount1")), inline("discount1: {campaign: 'SUMMER_SALE' discount: 0.25}"));
-    assert_eq!(inline(eval_field(code, "discount2")), inline("discount2: {campaign: 'SUMMER_SALE' discount: 0.15}"));
-    assert_eq!(inline(eval_field(code, "discount3")), inline("discount3: {campaign: 'SUMMER_SALE' discount: 0.21}"));
+    assert_eval_field(code, "discount1", "{campaign: 'SUMMER_SALE' discount: 0.25}");
+    assert_eval_field(code, "discount2", "{campaign: 'SUMMER_SALE' discount: 0.15}");
+    assert_eval_field(code, "discount3", "{campaign: 'SUMMER_SALE' discount: 0.21}");
 }
 
 #[test]
@@ -48,5 +48,5 @@ fn test_simple_addition_precision() {
     }
     "#;
     // 0.1 + 0.2 = 0.3. In f64 this is 0.30000000000000004
-    assert_eq!(inline(eval_field(code, "c")), inline("0.3"));
+    assert_eval_field(code, "c", "0.3");
 }

@@ -1,3 +1,7 @@
+mod utilities;
+use edge_rules::runtime::ToSchema;
+pub use utilities::*;
+
 #[test]
 fn example_context_deep_evaluation() {
     let code = r#"
@@ -14,13 +18,13 @@ fn example_context_deep_evaluation() {
     "#;
 
     let rt = get_runtime(code);
-    assert_eq!(exe_field(&rt, "applicant.income"), "1100");
-    assert_eq!(exe_field(&rt, "applicant.expense"), "600");
-    assert_eq!(exe_field(&rt, "applicant.age"), "22");
+    assert_eval_field(&rt, "applicant.income", "1100");
+    assert_eval_field(&rt, "applicant.expense", "600");
+    assert_eval_field(&rt, "applicant.age", "22");
 
-    assert_eq!(exe_field(&rt, "rules.row1.rule"), "false");
-    assert_eq!(exe_field(&rt, "rules.row2.rule"), "true");
-    assert_eq!(exe_field(&rt, "rules.row3.rule"), "true");
+    assert_eval_field(&rt, "rules.row1.rule", "false");
+    assert_eval_field(&rt, "rules.row2.rule", "true");
+    assert_eval_field(&rt, "rules.row3.rule", "true");
 }
 
 #[test]
@@ -40,18 +44,18 @@ fn example_ruleset_deep_evaluation() {
     "#;
 
     let rt = get_runtime(code);
-    assert_eq!(exe_field(&rt, "applicant.income"), "1100");
-    assert_eq!(exe_field(&rt, "applicant.expense"), "600");
-    assert_eq!(exe_field(&rt, "applicant.age"), "22");
+    assert_eval_field(&rt, "applicant.income", "1100");
+    assert_eval_field(&rt, "applicant.expense", "600");
+    assert_eval_field(&rt, "applicant.age", "22");
 
     // Ensures array indexing resolves correctly (regression guard for RuntimeFieldNotFound).
-    assert_eq!(exe_field(&rt, "rules[0]"), "{rule:false}");
-    assert_eq!(exe_field(&rt, "rules[0].rule"), "false");
-    assert_eq!(exe_field(&rt, "rules[1].rule"), "true");
-    assert_eq!(exe_field(&rt, "rules[2].rule"), "true");
+    assert_eval_field(&rt, "rules[0]", "{rule:false}");
+    assert_eval_field(&rt, "rules[0].rule", "false");
+    assert_eval_field(&rt, "rules[1].rule", "true");
+    assert_eval_field(&rt, "rules[2].rule", "true");
 
-    assert_eq!(exe_field(&rt, "applicantEligibility[0].rule"), "true");
-    assert_eq!(exe_field(&rt, "applicantEligibility[1].rule"), "true");
+    assert_eval_field(&rt, "applicantEligibility[0].rule", "true");
+    assert_eval_field(&rt, "applicantEligibility[1].rule", "true");
 
     let code = r#"
     func eligibilityDecision(applicant): {
@@ -70,7 +74,7 @@ fn example_ruleset_deep_evaluation() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicantEligibility"), "[{rule:false},{rule:true},{rule:true}]");
+    assert_eval_field(&rt, "applicantEligibility", "[{rule:false},{rule:true},{rule:true}]");
 }
 
 #[test]
@@ -96,8 +100,8 @@ fn example_ruleset_collecting() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicantEligibility.firedRules"), "['INC_CHECK']");
-    assert_eq!(exe_field(&rt, "applicantEligibility.status"), "'INELIGIBLE'");
+    assert_eval_field(&rt, "applicantEligibility.firedRules", "['INC_CHECK']");
+    assert_eval_field(&rt, "applicantEligibility.status", "'INELIGIBLE'");
     assert_eq!(rt.static_tree.borrow().to_schema(), "{applicantEligibility: {firedRules: string[]; status: string}}");
 }
 
@@ -171,7 +175,7 @@ fn example_variable_library() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[0].status"), "'INELIGIBLE'");
+    assert_eval_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[0].status", "'INELIGIBLE'");
     assert_eq!(
             rt.static_tree.borrow().to_schema(),
             "{Applicant: {name: string; birthDate: date; income: number; expense: number}; Application: {applicationDate: datetime; applicants: Applicant[]; propertyValue: number; loanAmount: number}; applicationResponse: {applicationRecord: {data: Application; applicantsDecisions: {rules: {name: string; rule: boolean}[]; firedRules: string[]; status: string}[]}}}"
@@ -215,10 +219,11 @@ fn unhappy_unreachable_orphan_child_path() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse.finalEligibility"), "0");
-    assert_eq!(
-        exe_field(&rt, "applicationResponse.results"),
-        "[{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1}]"
+    assert_eval_field(&rt, "applicationResponse.finalEligibility", "0");
+    assert_eval_field(
+        &rt,
+        "applicationResponse.results",
+        "[{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1},{applicantRecord:{checkDate:2}a:1}]",
     );
 }
 
@@ -321,10 +326,5 @@ fn incredibly_nested_vl_record_example() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse.applicantDecisions"), "0");
+    assert_eval_field(&rt, "applicationResponse.applicantDecisions", "0");
 }
-
-mod utilities;
-
-use edge_rules::runtime::ToSchema;
-pub use utilities::*;

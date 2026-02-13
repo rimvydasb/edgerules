@@ -1,0 +1,32 @@
+{
+    "meta": {
+        "id": "example-commerce",
+        "name": "E-commerce Discount Rules",
+        "description": "Rules for applying discounts in an online store.",
+        "projectType": "workbook",
+        "schemaVersion": 1,
+        "createdAt": "2026-01-23T00:00:00.000Z",
+        "updatedAt": "2026-01-23T00:00:00.000Z",
+        "tags": ["retail", "discount"]
+    },
+    "source": {
+        "@version": 1,
+        "@model_name": "E-commerce Discount Rules",
+        "configuration": {
+            "rates": {
+                "base": 0.5,
+                "vip": 0.8
+            },
+            "address": ["'New York'", "'Vilnius'"]
+        },
+        "finalRate": "configuration.rates.base * 1.2"
+    },
+    "tests": [
+        {
+            "id": "c1",
+            "name": "Base rate test",
+            "input": { "customerType": "'regular'" },
+            "expected": { "finalRate": 0.6 }
+        }
+    ]
+}

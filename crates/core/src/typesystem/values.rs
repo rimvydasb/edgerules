@@ -181,34 +181,45 @@ const SECONDS_PER_DAY: i128 = HOURS_PER_DAY * SECONDS_PER_HOUR;
 
 fn format_time_value(time: &Time) -> String {
     let (hour, minute, second) = time.as_hms();
-    format!("{:02}:{:02}:{:02}", hour, minute, second)
+    let milli = time.millisecond();
+    if milli > 0 {
+        format!("{:02}:{:02}:{:02}.{:03}", hour, minute, second, milli)
+    } else {
+        format!("{:02}:{:02}:{:02}", hour, minute, second)
+    }
 }
 
 fn format_datetime_value(value: &OffsetDateTime) -> String {
     let date = value.date();
     let time = value.time();
     let (hour, minute, second) = time.as_hms();
+    let milli = time.millisecond();
     let month: u8 = date.month() as u8;
 
-    // If offset is UTC, we mimic the old behavior (no offset printed) to satisfy existing tests for "local" datetimes.
-    // Ideally we should print 'Z' or '+00:00', but that changes the output contract.
-    // For non-UTC offsets, we append the offset.
-    if value.offset().is_utc() {
-        format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", date.year(), month, date.day(), hour, minute, second)
-    } else {
-        let (off_h, off_m, _) = value.offset().as_hms();
+    let mut base = if milli > 0 {
         format!(
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{:+03}:{:02}",
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}",
             date.year(),
             month,
             date.day(),
             hour,
             minute,
             second,
-            off_h,
-            off_m.abs()
+            milli
         )
+    } else {
+        format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", date.year(), month, date.day(), hour, minute, second)
+    };
+
+    // If offset is UTC, we mimic the old behavior (no offset printed) to satisfy existing tests for "local" datetimes.
+    // Ideally we should print 'Z' or '+00:00', but that changes the output contract.
+    // For non-UTC offsets, we append the offset.
+    if !value.offset().is_utc() {
+        let (off_h, off_m, _) = value.offset().as_hms();
+        base.push_str(&format!("{:+03}:{:02}", off_h, off_m.abs()));
     }
+
+    base
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]

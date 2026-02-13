@@ -26,7 +26,6 @@ pub struct UserFunctionCall {
     pub name: String,
     pub args: Vec<ExpressionEnum>,
     pub definition: Link<FunctionContext>,
-    #[allow(dead_code)]
     pub return_type: Link<ValueType>,
 }
 

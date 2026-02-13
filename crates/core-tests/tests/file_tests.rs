@@ -1,8 +1,8 @@
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
 use std::fs;
 use std::io::Write;
-mod test_utils;
-use test_utils::test::init_test;
+mod utilities;
+use utilities::*;
 
 fn process_file(input_file_name: &str) -> std::io::Result<()> {
     let mut edgerules = EdgeRulesModel::new();

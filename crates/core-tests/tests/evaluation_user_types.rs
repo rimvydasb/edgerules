@@ -105,10 +105,10 @@ fn loan_offer_decision_service_end_to_end() {
     .trim();
 
     let evaluated = eval_all(model);
-    assert_string_contains!("eligible: true", &evaluated);
-    assert_string_contains!("amount: 20000", &evaluated);
-    assert_string_contains!("termInMonths: 24", &evaluated);
-    assert_string_contains!("monthlyPayment: 875", &evaluated);
+    assert_string_contains("eligible: true", &evaluated);
+    assert_string_contains("amount: 20000", &evaluated);
+    assert_string_contains("termInMonths: 24", &evaluated);
+    assert_string_contains("monthlyPayment: 875", &evaluated);
 }
 
 #[test]
@@ -332,27 +332,27 @@ fn input_type_validation() {
 
 #[test]
 fn primitive_function_arguments() {
-    assert_value!(
+    assert_eval_value(
         r#"
         func double(xs: number): {
             result: xs * 2
         }
         value: double(2).result
         "#,
-        "4"
+        "4",
     );
 
-    assert_value!(
+    assert_eval_value(
         r#"
         func doubleAll(xs: number[]): {
             result: for x in xs return x * 2
         }
         value: doubleAll([1,2,3]).result
         "#,
-        "[2, 4, 6]"
+        "[2, 4, 6]",
     );
 
-    assert_value!(
+    assert_eval_value(
         r#"
         func doubleAll(xs: number[]): {
             result: for x in xs return x * 2
@@ -362,17 +362,17 @@ fn primitive_function_arguments() {
         }
         value: doubleAll(baseline.items).result
         "#,
-        "[2, 4, 6]"
+        "[2, 4, 6]",
     );
 
-    assert_value!(
+    assert_eval_value(
         r#"
         func add(dd: datetime, tt: time, do: date): {
             result: dd.hour + 1 + tt.hour + 1 + do.day + 1
         }
         value: add(datetime('2020-01-01T11:00:00'), time('11:00:00'), date('2020-01-01')).result
         "#,
-        "26"
+        "26",
     );
 }
 
@@ -548,8 +548,8 @@ fn cast_object_list_to_typed_list() {
     "#;
 
     let evaluated = eval_all(model);
-    let collapsed = inline(&evaluated); // Use inline helper from utilities to strip whitespace
-    assert!(collapsed.contains("typedItems:[{id:1},{id:2}]"), "evaluated: {}", evaluated);
+    let collapsed = inline_text(&evaluated); // Use inline helper from utilities to strip whitespace
+    assert!(collapsed.contains("typedItems:[{id:1}{id:2}]"), "evaluated: {}", evaluated);
 }
 
 #[test]
@@ -571,7 +571,7 @@ fn cast_object_list_to_incompatible_primitive_list() {
 
     // Based on implementation, this should succeed. The result is a list of references typed as string.
     let evaluated = eval_all(model);
-    let collapsed = inline(&evaluated);
+    let collapsed = inline_text(&evaluated);
     assert!(collapsed.contains("strList:[{id:1}]"), "evaluated: {}", evaluated);
 }
 
@@ -642,26 +642,26 @@ fn assert_type_fields_unordered_block(code: &str, expected_fields: &[&str]) {
 #[test]
 fn to_string_for_various_values_and_lists() {
     // numbers, booleans, strings
-    assert_value!("toString(1)", "'1'");
-    assert_value!("toString(true)", "'true'");
-    assert_value!("toString('hi')", "'hi'");
+    assert_expression_value("toString(1)", "'1'");
+    assert_expression_value("toString(true)", "'true'");
+    assert_expression_value("toString('hi')", "'hi'");
 
     // lists and nested lists
-    assert_value!("toString([1,2,3])", "'[1, 2, 3]'");
-    assert_value!("toString([[1,2], [3]])", "'[[1, 2], [3]]'");
+    assert_expression_value("toString([1,2,3])", "'[1, 2, 3]'");
+    assert_expression_value("toString([[1,2], [3]])", "'[[1, 2], [3]]'");
     // empty list literal via sublist to avoid parse quirks for []
-    assert_value!("toString(sublist([1], 1, 0))", "'[]'");
+    assert_expression_value("toString(sublist([1], 1, 0))", "'[]'");
 }
 
 #[test]
 fn date_time_and_duration_roundtrip_to_string() {
     // date/time/datetime/duration constructors and their stringification
-    assert_value!("toString(date('2024-01-01'))", "'2024-01-01'");
-    assert_value!("toString(time('12:00:00'))", "'12:00:00'");
-    assert_value!("toString(datetime('2024-06-05T07:30:00'))", "'2024-06-05T07:30:00'");
-    assert_value!("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'");
-    assert_value!("toString(duration('PT90M'))", "'PT1H30M'");
-    assert_value!("toString(period('P1Y2M'))", "'P1Y2M'");
+    assert_expression_value("toString(date('2024-01-01'))", "'2024-01-01'");
+    assert_expression_value("toString(time('12:00:00'))", "'12:00:00'");
+    assert_expression_value("toString(datetime('2024-06-05T07:30:00'))", "'2024-06-05T07:30:00'");
+    assert_expression_value("toString(duration('P3DT4H5M6S'))", "'P3DT4H5M6S'");
+    assert_expression_value("toString(duration('PT90M'))", "'PT1H30M'");
+    assert_expression_value("toString(period('P1Y2M'))", "'P1Y2M'");
 }
 
 #[test]
@@ -792,7 +792,7 @@ fn using_types_in_deeper_scope_v1() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(exe_field(&rt, "applicationResponse"), "1001");
+    assert_eval_field(&rt, "applicationResponse", "1001");
 }
 
 #[test]
@@ -829,19 +829,20 @@ fn using_types_in_deeper_scope() {
 
     let rt = get_runtime(code);
 
-    assert_eq!(
-        exe_field(&rt, "applicationResponse"),
-        "applicationResponse:{oldAmount:1000newAmount:1001evenDeeper:{test:1006willItExplode:{yesItWill:2002willBeMissing:Missing('maxAmount')}}}"
+    assert_eval_field(
+        &rt,
+        "applicationResponse",
+        "{oldAmount:1000newAmount:1001evenDeeper:{test:1006willItExplode:{yesItWill:2002willBeMissing:Missing('maxAmount')}}}"
     );
 }
 
 #[test]
 fn explicit_cast_to_temporal_types() {
-    assert_value!("'2026-01-26' as date", "2026-01-26");
-    assert_value!("'12:00:00' as time", "12:00:00");
-    assert_value!("'2026-01-26T21:33:35' as datetime", "2026-01-26T21:33:35");
-    assert_value!("'P1DT1H' as duration", "P1DT1H");
-    assert_value!("'P1Y2M' as period", "P1Y2M");
+    assert_expression_value("'2026-01-26' as date", "2026-01-26");
+    assert_expression_value("'12:00:00' as time", "12:00:00");
+    assert_expression_value("'2026-01-26T21:33:35' as datetime", "2026-01-26T21:33:35");
+    assert_expression_value("'P1DT1H' as duration", "P1DT1H");
+    assert_expression_value("'P1Y2M' as period", "P1Y2M");
 }
 
 #[test]
@@ -880,14 +881,14 @@ fn cast_strings_to_temporal_types_via_decision_service() {
     let request_rt = request_model.to_runtime().unwrap();
     let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
 
-    let response = service.execute("check", request).expect("execute");
-    let rendered = inline(response.to_string());
+    let response = service.execute("check", Some(vec![request])).expect("execute");
+    let rendered = inline_text(response.to_string());
 
-    assert_string_contains!("isDate:true", &rendered);
-    assert_string_contains!("isDateTime:true", &rendered);
-    assert_string_contains!("isTime:true", &rendered);
-    assert_string_contains!("isDuration:true", &rendered);
-    assert_string_contains!("isPeriod:true", &rendered);
+    assert_string_contains("isDate:true", &rendered);
+    assert_string_contains("isDateTime:true", &rendered);
+    assert_string_contains("isTime:true", &rendered);
+    assert_string_contains("isDuration:true", &rendered);
+    assert_string_contains("isPeriod:true", &rendered);
 }
 
 #[test]
@@ -912,7 +913,7 @@ fn invalid_cast_to_various_temporal_types_fails() {
         let result = runtime.evaluate_field(field);
         assert!(result.is_err(), "Expected error for {}", field);
         let err_msg = result.unwrap_err().to_string();
-        assert_string_contains!(&format!("Cannot convert value from type 'string' to type '{}'", target), &err_msg);
+        assert_string_contains(format!("Cannot convert value from type 'string' to type '{}'", target), &err_msg);
     }
 }
 
@@ -942,10 +943,10 @@ fn cast_string_array_to_temporal_array_via_decision_service() {
     let request_rt = request_model.to_runtime().unwrap();
     let request = edge_rules::test_support::ValueEnum::Reference(request_rt.context);
 
-    let response = service.execute("check", request).expect("execute");
-    let rendered = inline(response.to_string());
+    let response = service.execute("check", Some(vec![request])).expect("execute");
+    let rendered = inline_text(response.to_string());
 
-    assert_string_contains!("allValid:true", &rendered);
-    assert_string_contains!("firstYear:2026", &rendered);
-    assert_string_contains!("secondYear:2027", &rendered);
+    assert_string_contains("allValid:true", &rendered);
+    assert_string_contains("firstYear:2026", &rendered);
+    assert_string_contains("secondYear:2027", &rendered);
 }

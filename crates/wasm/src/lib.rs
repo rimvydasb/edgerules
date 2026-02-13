@@ -44,6 +44,20 @@ fn js_request_to_value(js: &JsValue) -> Result<ValueEnum, PortableError> {
         .map_err(|_| PortableError::SchemaViolation(PortableObjectKey::Value, SchemaViolationType::InvalidFieldType))
 }
 
+fn js_args_to_values(js: &JsValue) -> Result<Vec<ValueEnum>, PortableError> {
+    if js_sys::Array::is_array(js) {
+        let array = js_sys::Array::from(js);
+        let mut values = Vec::with_capacity(array.length() as usize);
+        for i in 0..array.length() {
+            let val = array.get(i);
+            values.push(js_request_to_value(&val)?);
+        }
+        Ok(values)
+    } else {
+        Ok(vec![js_request_to_value(js)?])
+    }
+}
+
 #[cfg(feature = "console_error_panic_hook")]
 #[wasm_bindgen]
 pub fn init_panic_hook() {
@@ -108,10 +122,14 @@ impl DecisionService {
         DecisionService
     }
 
-    pub fn execute(&self, method: &str, request: &JsValue) -> JsValue {
+    pub fn execute(&self, method: &str, args: Option<JsValue>) -> JsValue {
         let response = match with_decision_service(|svc| {
-            let req_val = js_request_to_value(request)?;
-            svc.execute_value(method, req_val)
+            let rust_args = match args {
+                None => None,
+                Some(ref js) if js.is_undefined() || js.is_null() => None,
+                Some(ref js) => Some(js_args_to_values(js)?),
+            };
+            svc.execute(method, rust_args)
         }) {
             Ok(value) => value,
             Err(err) => throw_portable_error(err),

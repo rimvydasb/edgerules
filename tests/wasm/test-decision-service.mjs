@@ -591,4 +591,54 @@ describe('Decision Service', () => {
             });
         });
     });
+
+    describe('Multiple Arguments Execution', () => {
+        let service;
+        before(() => {
+            const model = `
+            {
+                func add(a: <number>, b: <number>): a + b
+                func greet(name: <string>): "Hello, " + name
+                func getVersion(): "1.0.0"
+                version: "2.0.0"
+            }
+            `;
+            service = new wasm.DecisionService(model);
+        });
+
+        it('executes function with multiple arguments as an array', () => {
+            const result = service.execute('add', [10, 20]);
+            assert.strictEqual(result, 30);
+        });
+
+        it('executes function with single argument (backward compatibility)', () => {
+            const result = service.execute('greet', 'World');
+            assert.strictEqual(result, 'Hello, World');
+        });
+
+        it('executes function with single argument as an array', () => {
+            const result = service.execute('greet', ['World']);
+            assert.strictEqual(result, 'Hello, World');
+        });
+
+        it('executes no-arg function with empty array', () => {
+            const result = service.execute('getVersion', []);
+            assert.strictEqual(result, '1.0.0');
+        });
+
+        it('evaluates field when arguments are null', () => {
+            const result = service.execute('version', null);
+            assert.strictEqual(result, '2.0.0');
+        });
+
+        it('evaluates field when arguments are undefined', () => {
+            const result = service.execute('version', undefined);
+            assert.strictEqual(result, '2.0.0');
+        });
+
+        it('evaluates field when second argument is omitted', () => {
+            const result = service.execute('version');
+            assert.strictEqual(result, '2.0.0');
+        });
+    });
 });

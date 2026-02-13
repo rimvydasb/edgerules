@@ -86,32 +86,32 @@ object. Used to test full object equality.
 
 ### Phase 1
 
-- [ ] Develop `assert_eval_field` and start using it where `assert_eq!(eval_field(...` is used.
+- [x] Develop `assert_eval_field` and start using it where `assert_eq!(eval_field(...` is used.
 
 ```rust
 //assert_eq!(eval_field("{ record: { age: 18; value: 1 + 2 }}", "record.value"), "3");
 assert_eval_field("{ record: { age: 18; value: 1 + 2 }}", "record.value", "3");
 ```
 
-- [ ] All test utilities must accept `EdgeRulesRuntime` as well, so if the runtime is already created, it can be
+- [x] All test utilities must accept `EdgeRulesRuntime` as well, so if the runtime is already created, it can be
   reused. Use best rust practices and implement `impl From<&str> for EdgeRulesRuntime {...`, then `assert_eval_field`
   can accept both. This probably does not make sense for `parse_error_contains` and `link_error_contains` because they
   are
   used before runtime creation.
-- [ ] Annotate utilities with `#[track_caller]` to improve error reporting.
-- [ ] Convert `assert_string_contains` to utility function with `#[track_caller]`.
+- [x] Annotate utilities with `#[track_caller]` to improve error reporting.
+- [x] Convert `assert_string_contains` to utility function with `#[track_caller]`.
 
 ### Phase 2
 
-- [ ] Eliminate `assert_value` because it creates very bad ergonomics in IntelliJ and is already too complex. Use
+- [x] Eliminate `assert_value` because it creates very bad ergonomics in IntelliJ and is already too complex. Use
   developed utilities instead.
-- [ ] Eliminate `exe_field` and use `assert_eval_field` instead.
-- [ ] Instead of `eval_all`, consider using `assert_expression_value`, `expression_value_contains` or `assert_eval_all`
+- [x] Eliminate `exe_field` and use `assert_eval_field` instead.
+- [x] Instead of `eval_all`, consider using `assert_expression_value`, `expression_value_contains` or `assert_eval_all`
   where appropriate.
-- [ ] Find `assert!(evaluated.contains(...` and use `expression_value_contains` instead.
+- [x] Find `assert!(evaluated.contains(...` and use `expression_value_contains` instead.
 
 ### Phase 3
 
-- [ ] Check `edge_rules_tests.rs` for non-tests (utilities) such as `TestServiceBuilder` and move them to `utilities.rs`
-- [ ] Check `test_utils.rs` and move relevant utilities to `utilities.rs`
-- [ ] Run all tests and check them if passes
+- [x] Check `edge_rules_tests.rs` for non-tests (utilities) such as `TestServiceBuilder` and move them to `utilities.rs`
+- [x] Check `test_utils.rs` and move relevant utilities to `utilities.rs`
+- [x] Run all tests and check them if passes

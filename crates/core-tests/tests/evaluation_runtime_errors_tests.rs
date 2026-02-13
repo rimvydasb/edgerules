@@ -69,3 +69,29 @@ fn runtime_error_deep_dependency_chain() {
     assert_eq!(err.location(), vec!["source", "value"]);
     assert_eq!(err.expression().map(|s| s.as_str()), Some("date('invalid')"));
 }
+
+#[test]
+fn runtime_error_captured_in_eval_all_preserves_location() {
+    let code = r#"
+{
+    // Division by zero is a runtime error
+    bad: 1 / 0
+}
+"#;
+
+    let mut model = EdgeRulesModel::new();
+    model.append_source(code).unwrap();
+    let runtime = model.to_runtime().unwrap();
+
+    // 1. Run eval_all to trigger the code path
+    // This populates the stack with the error (and sets location/expression)
+    runtime.eval_all().expect("eval_all should return Ok even if fields fail");
+
+    // 2. Access the field to get the error
+    let err = runtime.evaluate_field("bad").expect_err("expected error");
+
+    // 3. Verify location and expression
+    assert_eq!(err.location(), vec!["bad"]);
+    assert_eq!(err.expression().map(|s| s.as_str()), Some("1 / 0"));
+    assert!(err.to_string().to_lowercase().contains("division by zero"));
+}

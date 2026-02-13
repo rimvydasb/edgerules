@@ -2,6 +2,7 @@ use crate::ast::context::context_object::{ContextObject, ExpressionEntry, Method
 use crate::ast::context::context_object_type::EObjectContent;
 use crate::ast::context::context_object_type::EObjectContent::*;
 use crate::ast::expression::StaticLink;
+use crate::ast::metaphors::metaphor::UserFunction;
 use crate::ast::Link;
 use crate::link::node_data::{ContentHolder, Node, NodeData};
 use crate::runtime::execution_context::{build_location_from_execution_context, ExecutionContext};
@@ -111,6 +112,24 @@ pub fn find_implementation(
     context: Rc<RefCell<ContextObject>>,
     function_name: String,
 ) -> Link<Rc<RefCell<MethodEntry>>> {
+    if function_name.contains('.') {
+        let segments: Vec<&str> = function_name.split('.').collect();
+        let browse_result = browse(Rc::clone(&context), &segments, true)?;
+        return match browse_result {
+            BrowseResult::Found(found) => match found.content {
+                UserFunctionRef(method) => Ok(method),
+                _ => {
+                    let known_metaphors = collect_known_implementations(Rc::clone(&context));
+                    LinkingError::new(FunctionNotFound { name: function_name, known_metaphors }).into()
+                }
+            },
+            _ => {
+                let known_metaphors = collect_known_implementations(Rc::clone(&context));
+                LinkingError::new(FunctionNotFound { name: function_name, known_metaphors }).into()
+            }
+        };
+    }
+
     let mut ctx: Rc<RefCell<ContextObject>> = context;
 
     loop {
@@ -263,8 +282,14 @@ impl BrowseResultFound<ExecutionContext> {
                 self.context.borrow().stack_insert(self.field_name, Ok(final_result.clone()));
                 Ok(final_result)
             }
-            UserFunctionRef(_value) => {
-                todo!("UserFunctionRef")
+            UserFunctionRef(value) => {
+                let definition = value
+                    .borrow()
+                    .function_definition
+                    .create_context(vec![], Some(Rc::clone(&self.context.borrow().object)))?;
+                let eval_context = definition.create_eval_context(vec![], Rc::clone(&self.context))?;
+                ExecutionContext::eval_all_fields(&eval_context)?;
+                Ok(ValueEnum::Reference(eval_context))
             }
             ObjectRef(value) => {
                 NodeData::attach_child(&self.context, value);

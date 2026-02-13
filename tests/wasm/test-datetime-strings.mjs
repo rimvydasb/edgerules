@@ -124,4 +124,47 @@ describe('Decision Service Date/Time Strings', () => {
         const res = service.execute('check', req);
         assert.equal(res.result.isDateTimeWithOffset, true);
     });
+
+    it('handles subsecond datetime strings', () => {
+        const model = {
+            "check": {
+                "@type": "function",
+                "@parameters": {"r": "string"},
+                "eq": "datetime('2026-01-26T21:33:35.123Z') = datetime('2026-01-26T21:33:35.123Z')",
+                "ne": "datetime('2026-01-26T21:33:35.123Z') = datetime('2026-01-26T21:33:35.456Z')",
+                "ne2": "datetime('2026-01-26T21:33:35.123Z') = datetime('2026-01-26T21:33:35Z')"
+            }
+        };
+        const subService = new wasm.DecisionService(model);
+        const res = subService.execute('check', "");
+        assert.equal(res.eq, true);
+        assert.equal(res.ne, false);
+        assert.equal(res.ne2, false);
+    });
+
+    it('verifies fallback to UTC for no-offset strings', () => {
+        const model = {
+            "check": {
+                "@type": "function",
+                "@parameters": {"r": "string"},
+                "isUtc": "datetime('2026-01-26T21:33:35') = datetime('2026-01-26T21:33:35Z')"
+            }
+        };
+        const subService = new wasm.DecisionService(model);
+        const res = subService.execute('check', "");
+        assert.equal(res.isUtc, true);
+    });
+
+    it('prints subseconds when present', () => {
+        const model = {
+            "check": {
+                "@type": "function",
+                "@parameters": {"r": "string"},
+                "val": "toString(datetime('2026-01-26T21:33:35.123Z'))"
+            }
+        };
+        const subService = new wasm.DecisionService(model);
+        const res = subService.execute('check', "");
+        assert.equal(res.val, "2026-01-26T21:33:35.123");
+    });
 });
