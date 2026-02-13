@@ -213,15 +213,15 @@ requests.
 
 #### Execution
 
-- `execute(method: string, request: any): any`
+- `execute(method: string, args?: any | any[]): any`
     - Executes a function defined in the model or evaluates a field by path.
     - **Parameters:**
         - `method`: The name or path of the function or field to execute/evaluate.
-        - `request`: (Optional) The input data to pass to the function. If omitted (null or undefined), the path is
-          evaluated as a field.
+        - `args`: (Optional) The input argument or an array of arguments to pass to the function.
+            - If omitted (`null` or `undefined`), the path is evaluated as a field.
+            - If an array is provided, it is treated as a list of arguments for function execution.
+            - Providing an empty array `[]` indicates a function execution with no arguments.
     - **Returns:** The result of the execution.
-    - **Note:** The WASM API currently supports one and only one argument for function execution. Multi-argument
-      execution is not yet supported in the WASM binding.
 
 #### CRUD Operations
 

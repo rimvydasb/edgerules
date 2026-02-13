@@ -160,16 +160,6 @@ impl DecisionService {
         self.model.borrow().get_user_function(method_path)
     }
 
-    fn ensure_at_least_one_argument(method_path: &str, params: usize) -> Result<(), EvalError> {
-        if params < 1 {
-            return Err(Self::config_error(format!(
-                "Decision service method '{}' must declare at least one argument, found {}",
-                method_path, params
-            )));
-        }
-        Ok(())
-    }
-
     fn clean_method_name(service_method: &str) -> Result<String, EvalError> {
         let trimmed = service_method.trim();
         if trimmed.is_empty() {

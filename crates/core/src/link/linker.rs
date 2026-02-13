@@ -283,7 +283,10 @@ impl BrowseResultFound<ExecutionContext> {
                 Ok(final_result)
             }
             UserFunctionRef(value) => {
-                let definition = value.borrow().function_definition.create_context(vec![], Some(Rc::clone(&self.context.borrow().object)))?;
+                let definition = value
+                    .borrow()
+                    .function_definition
+                    .create_context(vec![], Some(Rc::clone(&self.context.borrow().object)))?;
                 let eval_context = definition.create_eval_context(vec![], Rc::clone(&self.context))?;
                 ExecutionContext::eval_all_fields(&eval_context)?;
                 Ok(ValueEnum::Reference(eval_context))

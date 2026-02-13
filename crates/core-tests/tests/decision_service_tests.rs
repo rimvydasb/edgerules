@@ -86,7 +86,11 @@ fn execute_errors_when_method_has_wrong_arity() {
     let request = build_request_value("{ amount: 5 }");
 
     let err = service.execute("invalid", Some(vec![request])).unwrap_err();
-    assert!(err.to_string().to_lowercase().contains("expected 0 arguments, but got 1"), "expected arity error, got: {}", err);
+    assert!(
+        err.to_string().to_lowercase().contains("expected 0 arguments, but got 1"),
+        "expected arity error, got: {}",
+        err
+    );
 }
 
 #[test]
