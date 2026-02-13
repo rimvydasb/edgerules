@@ -32,52 +32,52 @@ export type PortableExpressionString = string;
 export type PortableValue = PortableScalar | PortableObject | PortableValue[];
 
 export interface PortableTypeDefinition {
-  "@type": "type";
-  "@ref"?: string;
+    "@type": "type";
+    "@ref"?: string;
 
-  [key: string]: PortableValue | PortableExpressionString | undefined;
+    [key: string]: PortableValue | PortableExpressionString | undefined;
 }
 
 export interface PortableFunctionDefinition {
-  "@type": "function";
-  "@parameters": Record<string, string | null | undefined>;
+    "@type": "function";
+    "@parameters": Record<string, string | null | undefined>;
 
-  [key: string]: PortableValue | PortableExpressionString;
+    [key: string]: PortableValue | PortableExpressionString;
 }
 
 export interface PortableInvocationDefinition {
-  "@type": "invocation";
-  "@method": string;
-  "@arguments"?: (PortableValue | PortableExpressionString)[];
+    "@type": "invocation";
+    "@method": string;
+    "@arguments"?: (PortableValue | PortableExpressionString)[];
 }
 
 export interface PortableObject {
-  [key: string]:
-    | PortableValue
-    | PortableExpressionString
-    | PortableTypeDefinition
-    | PortableFunctionDefinition
-    | PortableInvocationDefinition;
+    [key: string]:
+        | PortableValue
+        | PortableExpressionString
+        | PortableTypeDefinition
+        | PortableFunctionDefinition
+        | PortableInvocationDefinition;
 }
 
 export interface PortableContext extends PortableObject {
-  "@version"?: string | number;
-  "@model_name"?: string;
+    "@version"?: string | number;
+    "@model_name"?: string;
 }
 
 export interface PortableError {
-  message?: string; // formatted message (might be deprecated)
-  error: {
-    type: string; // `FieldNotFound`, `CyclicReference`, `TypesNotCompatible`, etc.
-    fields?: string[]; // for now only `FieldNotFound` and `CyclicReference` uses it (TBC, must be ordered map of key and string)
-    subject?: string; // Used by `DifferentTypesDetected` and `TypesNotCompatible`, and `FieldNotFound` (deprecated, must be in fields)
-    unexpected?: string; // used only for `TypesNotCompatible` (deprecated)
-    expected?: string[]; // used only for `TypesNotCompatible` (deprecated)
-    message?: string; // raw error message without formatting, now only `EvalError` uses it, @TBC
-  };
-  location: string; // Fully qualified path of the problem, e.g. "calculations.takeDate.year"
-  expression: string; // Problematic expression snippet, e.g.  "d.nonexistent"
-  stage: "linking" | "runtime";
+    message?: string; // formatted message (might be deprecated)
+    error: {
+        type: string; // `FieldNotFound`, `CyclicReference`, `TypesNotCompatible`, etc.
+        fields?: string[]; // for now only `FieldNotFound` and `CyclicReference` uses it (TBC, must be ordered map of key and string)
+        subject?: string; // Used by `DifferentTypesDetected` and `TypesNotCompatible`, and `FieldNotFound` (deprecated, must be in fields)
+        unexpected?: string; // used only for `TypesNotCompatible` (deprecated)
+        expected?: string[]; // used only for `TypesNotCompatible` (deprecated)
+        message?: string; // raw error message without formatting, now only `EvalError` uses it, @TBC
+    };
+    location: string; // Fully qualified path of the problem, e.g. "calculations.takeDate.year"
+    expression: string; // Problematic expression snippet, e.g.  "d.nonexistent"
+    stage: "linking" | "runtime";
 }
 ```
 
@@ -142,7 +142,9 @@ Represents a call to a user function within the model structure.
   "score": {
     "@type": "invocation",
     "@method": "calcScore",
-    "@arguments": ["input.data"]
+    "@arguments": [
+      "input.data"
+    ]
   }
 }
 ```
@@ -158,40 +160,40 @@ Stateless utility for quick evaluation. These methods do not persist any state b
 Evaluates the provided EdgeRules code or portable model.
 
 - **Parameters:**
-  - `input`: The EdgeRules DSL source code (string) or a Portable Context object.
-    - If `input` is a string:
-      - If it is wrapped in `{}` (e.g., `{ a: 1 }`), it is treated as a full model.
-      - Otherwise (e.g., `1 + 2`), it is treated as a single expression.
-  - `field`: (Optional) The dot-separated path to the field to evaluate.
-    - If provided, only this field is evaluated.
-    - **Note:** Field path is not applicable if `input` is a single expression string.
+    - `input`: The EdgeRules DSL source code (string) or a Portable Context object.
+        - If `input` is a string:
+            - If it is wrapped in `{}` (e.g., `{ a: 1 }`), it is treated as a full model.
+            - Otherwise (e.g., `1 + 2`), it is treated as a single expression.
+    - `field`: (Optional) The dot-separated path to the field to evaluate.
+        - If provided, only this field is evaluated.
+        - **Note:** Field path is not applicable if `input` is a single expression string.
 - **Returns:**
-  - If `field` is provided: The result of that field.
-  - If `input` is a single expression (and no `field`): The result of the expression.
-  - If `input` is a model (and no `field`): The fully evaluated context object.
+    - If `field` is provided: The result of that field.
+    - If `input` is a single expression (and no `field`): The result of the expression.
+    - If `input` is a model (and no `field`): The fully evaluated context object.
 - **Throws:**
-  - `PortableError`: For syntax errors, linking errors, runtime errors, or invalid usage (e.g., field path with
-    expression).
+    - `PortableError`: For syntax errors, linking errors, runtime errors, or invalid usage (e.g., field path with
+      expression).
 
 #### `printExpressionJs(code: string): string`
 
 (Requires `to_js` feature) Transpiles an EdgeRules expression into a JavaScript expression.
 
 - **Parameters:**
-  - `code`: The EdgeRules expression to transpile.
+    - `code`: The EdgeRules expression to transpile.
 - **Returns:** A string containing the equivalent JavaScript code.
 - **Throws:**
-  - `PortableError`: If the expression cannot be parsed or transpiled.
+    - `PortableError`: If the expression cannot be parsed or transpiled.
 
 #### `printModelJs(code: string): string`
 
 (Requires `to_js` feature) Transpiles an entire EdgeRules model into a JavaScript module/object.
 
 - **Parameters:**
-  - `code`: The EdgeRules DSL model code.
+    - `code`: The EdgeRules DSL model code.
 - **Returns:** A string containing the equivalent JavaScript code.
 - **Throws:**
-  - `PortableError`: If the model cannot be parsed or transpiled.
+    - `PortableError`: If the model cannot be parsed or transpiled.
 
 > **Deprecated:** `evaluateAll`, `evaluateExpression`, and `evaluateField` are deprecated in favor of `evaluate`.
 
@@ -203,23 +205,23 @@ requests.
 #### Initialization
 
 - `new DecisionService(model: string | object)`
-  - Creates a new decision service.
-  - **Parameters:**
-    - `model`: Can be an EdgeRules DSL string or a `PortableContext` (JSON) object.
-  - **Note:** The WASM binding currently uses a thread-local singleton; initializing a new `DecisionService` replaces
-    the previous one for the WASM module instance.
+    - Creates a new decision service.
+    - **Parameters:**
+        - `model`: Can be an EdgeRules DSL string or a `PortableContext` (JSON) object.
+    - **Note:** The WASM binding currently uses a thread-local singleton; initializing a new `DecisionService` replaces
+      the previous one for the WASM module instance.
 
 #### Execution
 
 - `execute(method: string, request: any): any`
-  - Executes a function defined in the model or evaluates a field by path.
-  - **Parameters:**
-    - `method`: The name or path of the function or field to execute/evaluate.
-    - `request`: (Optional) The input data to pass to the function. If omitted (null or undefined), the path is
-      evaluated as a field.
-  - **Returns:** The result of the execution.
-  - **Note:** The WASM API currently supports one and only one argument for function execution. Multi-argument
-    execution is not yet supported in the WASM binding.
+    - Executes a function defined in the model or evaluates a field by path.
+    - **Parameters:**
+        - `method`: The name or path of the function or field to execute/evaluate.
+        - `request`: (Optional) The input data to pass to the function. If omitted (null or undefined), the path is
+          evaluated as a field.
+    - **Returns:** The result of the execution.
+    - **Note:** The WASM API currently supports one and only one argument for function execution. Multi-argument
+      execution is not yet supported in the WASM binding.
 
 #### CRUD Operations
 
@@ -230,80 +232,80 @@ The `DecisionService` provides methods to modify the decision model at runtime.
 Retrieves the value or definition at the specified path.
 
 - **Parameters:**
-  - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
 - **Returns:** The value at the path. If the path points to a context, it returns a JSON object.
 - **Throws:**
-  - `EntryNotFoundError`: If the path does not exist.
-  - `WrongFieldPathError`: If the path is invalid, empty, out of bounds for arrays, or index is negative.
+    - `EntryNotFoundError`: If the path does not exist.
+    - `WrongFieldPathError`: If the path is invalid, empty, out of bounds for arrays, or index is negative.
 
 #### `set(path: string, value: PortableValue): object`
 
 Sets a value or definition at the specified path.
 
 - **Parameters:**
-  - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
-  - `value`: The value to set. Can be a primitive, object, or a function definition.
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
+    - `value`: The value to set. Can be a primitive, object, or a function definition.
 - **Returns:** The set value.
 - **Throws:**
-  - `WrongFieldPathError`: If the path is invalid or attempts to add an array element with gaps (e.g., setting index 5
-    when length is 3).
-  - `LinkingError`: If the new value's type is incompatible with the existing structure or array type.
-  - `PortableError`: For other parsing or structural errors.
+    - `WrongFieldPathError`: If the path is invalid or attempts to add an array element with gaps (e.g., setting index 5
+      when length is 3).
+    - `LinkingError`: If the new value's type is incompatible with the existing structure or array type.
+    - `PortableError`: For other parsing or structural errors.
 
 #### `remove(path: string): void`
 
 Removes the entry at the specified path.
 
 - **Parameters:**
-  - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
 - **Returns:** `void`.
 - **Throws:**
-  - `EntryNotFoundError`: If the path does not exist.
-  - `WrongFieldPathError`: If the path is invalid, out of bounds for arrays, or index is negative.
+    - `EntryNotFoundError`: If the path does not exist.
+    - `WrongFieldPathError`: If the path is invalid, out of bounds for arrays, or index is negative.
 
 #### `rename(oldPath: string, newPath: string): void`
 
 Renames an entry (field, function, type, or invocation) from `oldPath` to `newPath`.
 
 - **Parameters:**
-  - `oldPath`: The current full path of the entry (e.g., `"applicant.age"`).
-  - `newPath`: The new full path of the entry (e.g., `"applicant.years"`).
+    - `oldPath`: The current full path of the entry (e.g., `"applicant.age"`).
+    - `newPath`: The new full path of the entry (e.g., `"applicant.years"`).
 - **Returns:** `void` (or boolean true in some bindings).
 - **Throws:**
-  - `EntryNotFoundError`: If `oldPath` does not exist.
-  - `WrongFieldPathError`:
-    - If `newPath` is invalid or empty.
-    - If `oldPath` and `newPath` do not share the same parent context (you cannot move entries between contexts).
-  - `DuplicateNameError`: If an entry with the name of `newPath` already exists in the target context.
-  - `LinkingError`: If the rename breaks existing references (e.g., referencing a function that was renamed without
-    updating the call site). Note: updating references is not automatic.
+    - `EntryNotFoundError`: If `oldPath` does not exist.
+    - `WrongFieldPathError`:
+        - If `newPath` is invalid or empty.
+        - If `oldPath` and `newPath` do not share the same parent context (you cannot move entries between contexts).
+    - `DuplicateNameError`: If an entry with the name of `newPath` already exists in the target context.
+    - `LinkingError`: If the rename breaks existing references (e.g., referencing a function that was renamed without
+      updating the call site). Note: updating references is not automatic.
 
 #### `getType(path: string): string | object`
 
 Retrieves the type definition of the entry at the specified path.
 
 - **Parameters:**
-  - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`).
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`).
 - **Returns:** The type definition.
-  - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
-  - For complex types: returns a JSON object describing the structure (e.g., `{ "name": "string", "age": "number" }`).
-  - For wildcard `"*"`: returns the entire model schema.
+    - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
+    - For complex types: returns a JSON object describing the structure (e.g., `{ "name": "string", "age": "number" }`).
+    - For wildcard `"*"`: returns the entire model schema.
 - **Throws:**
-  - `EntryNotFoundError`: If the path does not exist.
-  - `WrongFieldPathError`: If the path is invalid or empty.
+    - `EntryNotFoundError`: If the path does not exist.
+    - `WrongFieldPathError`: If the path is invalid or empty.
 
 **Array Access Exceptions:**
 
 - **Set:**
-  - **No Gaps:** You cannot add an element at an index that skips existing positions (e.g., `arr[5]` if length is 2).
-  - **Overwrite:** Overwriting an existing index replaces the value without shifting.
-  - **Type Safety:** Setting an element must respect the array's type (e.g., cannot put a string in a number array).
+    - **No Gaps:** You cannot add an element at an index that skips existing positions (e.g., `arr[5]` if length is 2).
+    - **Overwrite:** Overwriting an existing index replaces the value without shifting.
+    - **Type Safety:** Setting an element must respect the array's type (e.g., cannot put a string in a number array).
 - **Remove:**
-  - **Shift:** Removing an element (e.g., `arr[1]`) shifts subsequent elements left (index 2 becomes 1).
-  - **Empty:** Removing the last element leaves an empty array.
+    - **Shift:** Removing an element (e.g., `arr[1]`) shifts subsequent elements left (index 2 becomes 1).
+    - **Empty:** Removing the last element leaves an empty array.
 - **General:**
-  - **Bounds:** accessing `arr[10]` when length is 5 throws `WrongFieldPathError`.
-  - **Negative Index:** `arr[-1]` throws `WrongFieldPathError`.
+    - **Bounds:** accessing `arr[10]` when length is 5 throws `WrongFieldPathError`.
+    - **Negative Index:** `arr[-1]` throws `WrongFieldPathError`.
 
 **Rename Exceptions:**
 
@@ -315,7 +317,7 @@ Retrieves the type definition of the entry at the specified path.
 ### JavaScript Example
 
 ```javascript
-import { DecisionEngine, DecisionService } from "edge-rules";
+import {DecisionEngine, DecisionService} from "edge-rules";
 
 // 1. Stateless Evaluation
 const code = `
@@ -331,13 +333,13 @@ console.log(result); // 20
 
 // 2. Stateful Decision Service
 const model = {
-  "@version": "1.0",
-  taxRate: 0.2,
-  calculateTax: {
-    "@type": "function",
-    "@parameters": { amount: "number" },
-    result: "amount * taxRate",
-  },
+    "@version": "1.0",
+    taxRate: 0.2,
+    calculateTax: {
+        "@type": "function",
+        "@parameters": {amount: "number"},
+        result: "amount * taxRate",
+    },
 };
 
 // Initialize service with a portable model
@@ -366,11 +368,11 @@ console.log(funcType);
 // }
 
 try {
-  service.execute("calculateTax", "invalid argument");
+    service.execute("calculateTax", "invalid argument");
 } catch (e) {
-  console.error("Error Type:", e.error.type);
-  console.error("Location:", e.location);
-  console.error("Expression:", e.expression);
+    console.error("Error Type:", e.error.type);
+    console.error("Location:", e.location);
+    console.error("Expression:", e.expression);
 }
 ```
 
@@ -435,37 +437,28 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
 
 # Next Steps
 
-Improve Rust `DecisionService` API to support multi-argument method execution and field evaluation through a unified
-`execute` method.
+Align Rust `execute` API from `DecisionService` API with the WASM API, which currently only supports a single argument
+for function execution.
 
-- [x] In `DecisionService` existing `execute` method rename to `execute_method` - this will execute only methods.
-- [x] Add the new method in `DecisionService` called `execute` with the following behavior:
-    - [x] if any argument is provided, then call `execute_method` with the provided path to method and request.
-    - [x] if no argument is provided, then execute `evaluate_field`
-    - [x] if `path` is `"*"` then execute the entire model and return the full context. If `path` is `"*"` and request
-      is provided, then raise an error that method is not found (find out how this error looks like in the existing
-      code)
-    - [x] Methods with no arguments are not supported for now
-    - [x] New `execute` accepts arguments as an array of `ValueEnum` and passes them to the method. arguments are
-      wrapped to `Optional`
-    - [x] Write Rust tests cases to cover multi arguments `execute` and simple field evaluation with `execute` (no
-      arguments)
-    - [x] Add test cases for `"*"`
+**Rust API:**
 
-- [x] `execute_method` should be able to accept multiple arguments:
-    - [x] Rename `decision_request` to `args` and type must be an array of `ValueEnum`
-    - [x] if `parameter_count` does not match `args` count, then raise an error `FunctionWrongNumberOfArguments`
-    - [x] Call the method with the provided arguments and return the result
-    - [x] Write Rust tests cases to cover multi arguments `execute_method`
+`execute(&mut self, path: &str, args: Option<Vec<ValueEnum>>) -> Result<ValueEnum, EvalError>`
 
-Improve WASM API:
+**WASM API:**
 
-- [x] Rename `pub fn execute_value(&mut self, method: &str, request: ValueEnum)` to simple `execute`.
-- [x] `DecisionServiceController` should also use `DecisionService::execute`
-- [x] Wrap `&JsValue` to array before calling `svc.execute` - this is known limitation, that decision request supports
-  one and only one argument from WASM API (let's leave it for now, and add a note in the documentation that
-  multi-argument execution is not supported in WASM API for now)
-- [x] Ensure all previous JavaScript tests still pass, because this change is non-breaking for JavaScript API
-- [x] Add additional tests where `execute` is called with path. Build a case where you have nested fields and nexted
-  functions, so you can check all are reachable with `execute`.
-- [x] Mark tasks that are really completed and ensure all tests are passing.
+Old: `pub fn execute(&self, method: &str, request: &JsValue) -> JsValue {...}`
+
+New proposal: `pub fn execute(&self, method: &str, args: Option<JsValue>) -> JsValue {...}`
+
+- [ ] Decide if it is better to have Optional or later check for absence of arguments (e.g., null or undefined) in the
+  WASM API.
+- [ ] Synchronize APIs:
+    - [ ] `args` should be an array, however, if a single `JsValue` is provided, wrap it into Rust `Vec` for backward
+      compatibility.
+    - [ ] Update documentation to reflect the new API and clarify that `args` is expected to be an array of arguments
+      for function execution, while its absence (null or undefined) indicates field evaluation.
+    - [ ] As in Rust, if no arguments are provided, the API should treat it as a field evaluation request.
+    - [ ] As in Rust, if empty array is provided, it should be treated as a function execution with no arguments.
+- [ ] Carefully review the documentation around `execute` in `EDGE_RULES_API_SPEC.md` and update it to reflect the new
+  API design.
+- [ ] Update JavaScript tests.
