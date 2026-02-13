@@ -434,31 +434,3 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
-
-# Next Steps
-
-Align Rust `execute` API from `DecisionService` API with the WASM API, which currently only supports a single argument
-for function execution.
-
-**Rust API:**
-
-`execute(&mut self, path: &str, args: Option<Vec<ValueEnum>>) -> Result<ValueEnum, EvalError>`
-
-**WASM API:**
-
-Old: `pub fn execute(&self, method: &str, request: &JsValue) -> JsValue {...}`
-
-New proposal: `pub fn execute(&self, method: &str, args: Option<JsValue>) -> JsValue {...}`
-
-- [ ] Decide if it is better to have Optional or later check for absence of arguments (e.g., null or undefined) in the
-  WASM API.
-- [ ] Synchronize APIs:
-    - [ ] `args` should be an array, however, if a single `JsValue` is provided, wrap it into Rust `Vec` for backward
-      compatibility.
-    - [ ] Update documentation to reflect the new API and clarify that `args` is expected to be an array of arguments
-      for function execution, while its absence (null or undefined) indicates field evaluation.
-    - [ ] As in Rust, if no arguments are provided, the API should treat it as a field evaluation request.
-    - [ ] As in Rust, if empty array is provided, it should be treated as a function execution with no arguments.
-- [ ] Carefully review the documentation around `execute` in `EDGE_RULES_API_SPEC.md` and update it to reflect the new
-  API design.
-- [ ] Update JavaScript tests.
