@@ -285,11 +285,10 @@ Renames an entry (field, function, type, or invocation) from `oldPath` to `newPa
 Retrieves the type definition of the entry at the specified path.
 
 - **Parameters:**
-    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`).
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or `*` for the entire model schema.
 - **Returns:** The type definition.
     - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
     - For complex types: returns a JSON object describing the structure (e.g., `{ "name": "string", "age": "number" }`).
-    - For wildcard `"*"`: returns the entire model schema.
 - **Throws:**
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid or empty.
@@ -434,3 +433,42 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
+
+# Next Steps
+
+Currently `getType`, when called on complex type, collects types of function and type definitions. That is incorrect. It
+should return the type of all fields in the complex type and bypass all definitions, so, for the code:
+
+```edgerules
+{
+    func add(a, b): a + b
+    type User: {
+        name: <string>
+        age: <number>
+    }
+    existing: "existing value"
+}
+```
+
+```javascript
+const type = service.getType("*");
+assert.deepEqual(type, {
+    existing: "string",
+});
+```
+
+To fix this problem, we need to:
+
+- [ ] Find `pub fn get_type(&self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum>` and understand how it
+  works.
+- [ ] Fix `get_type` to bypass all definitions and collect types of fields and sub-contexts only.
+- [ ] Fix `JavaScript` tests, for example `it('renames an invocation', () => {` is known to be not properly working.
+- [ ] Ensure that `getType` works correctly when type is requested for the function, e.g.
+
+```javascript
+const type = service.getType("add");
+assert.equal(type, "number");
+```
+
+- [ ] Ensure that `getType` works correctly when type is requested for the inline and complex function. However, inner
+  functions and type definitions will not be returned - `getType` for function basically returns function return type.
