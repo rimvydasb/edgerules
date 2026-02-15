@@ -398,7 +398,7 @@ The primary struct for building and manipulating the AST before compilation.
   context.
 - `get_expression(path: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum>`: Retrieves an expression
   entry.
-- `get_expression_type(path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the type of an expression.
+- `get_expression_type(path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the type of expression.
 - `get_user_type(path: &str) -> Result<UserTypeBody, ContextQueryErrorEnum>`: Retrieves a user type definition.
 - `get_user_function(path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum>`: Retrieves a user function
   entry.
@@ -467,8 +467,31 @@ To fix this problem, we need to:
 
 ```javascript
 const type = service.getType("add");
-assert.equal(type, "number");
+assert.deepEqual(type, {
+    "@type": "function",
+    "@parameters": {a: "number", b: "number"},
+    "return": "number"
+})
 ```
 
+- [ ] For all user defined functions in `evaluation_user_functions_tests.rs` call `get_type` and ensure that it returns
+  correct type definition. Pay attention to the fact that some functions have hidden fields.
 - [ ] Ensure that `getType` works correctly when type is requested for the inline and complex function. However, inner
   functions and type definitions will not be returned - `getType` for function basically returns function return type.
+- [ ] When `getType` is called on the type, e.g. `service.getType("User")`, it should return the type definition of the
+  `User` type, such as:
+
+```json
+{
+  "@type": "type",
+  "name": "string",
+  "age": "number"
+}
+```
+
+It could be that `service.getType("User")` behaviour is exactly the same as `service.get("User")`.
+
+- [ ] Update Rust tests
+- [ ] Update JavaScript tests
+- [ ] Update documentation in EDGE_RULES_API_SPEC.md
+- [ ] If task is completed, mark it as done.
