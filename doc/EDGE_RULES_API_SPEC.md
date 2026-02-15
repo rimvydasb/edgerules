@@ -457,40 +457,55 @@ assert.deepEqual(type, {
 });
 ```
 
-To fix this problem, we need to:
+**Complex and Simple Expression types:**
 
 - [ ] Find `pub fn get_type(&self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum>` and understand how it
-  works.
+  works. Pay attention that `ValueType` is returned. Both function and type definitions "types" could easily fit to
+  `ValueType::ObjectType` or other `ValueType` variants.
 - [ ] Fix `get_type` to bypass all definitions and collect types of fields and sub-contexts only.
-- [ ] Fix `JavaScript` tests, for example `it('renames an invocation', () => {` is known to be not properly working.
-- [ ] Ensure that `getType` works correctly when type is requested for the function, e.g.
+- [ ] Fix `JavaScript` tests, for example `it('renames an invocation', () => {` is known to be not properly working,
+  because it captures function definition.
+
+**Function Return Types:**
+
+- [ ] Fix `to_schema` for `ContextObject` - it must completely bypass and ignore definitions: type definitions and
+  function definitions.
+- [ ] Ensure that
+- [ ] Ensure that WASM API `getType` works correctly when type is requested for the function, e.g.
 
 ```javascript
 const type = service.getType("add");
-assert.deepEqual(type, {
-    "@type": "function",
-    "@parameters": {a: "number", b: "number"},
-    "return": "number"
-})
+assert.deepEqual(type, "number")
 ```
 
 - [ ] For all user defined functions in `evaluation_user_functions_tests.rs` call `get_type` and ensure that it returns
-  correct type definition. Pay attention to the fact that some functions have hidden fields.
+  correct return type definition. Pay attention to the fact that some functions have hidden fields. Complex functions
+  correctly report their return type hiding all internal variables if `RETURN_EXPRESSION` is used.
 - [ ] Ensure that `getType` works correctly when type is requested for the inline and complex function. However, inner
   functions and type definitions will not be returned - `getType` for function basically returns function return type.
+
+> Correct type definitions are asserted such as
+> `assert_eq!(runtime.get_type("*").unwrap().to_string(), "{field: number; nested: {val: number}}");`
+
+> Note that for functions `get_type` basically returns already linked function type.
+
+**Types:**
+
 - [ ] When `getType` is called on the type, e.g. `service.getType("User")`, it should return the type definition of the
-  `User` type, such as:
+  `User` type, such as example below (the whole behaviours is very similar to `service.get("User")`), but only fields
+  and types are returned:
 
 ```json
 {
-  "@type": "type",
   "name": "string",
   "age": "number"
 }
 ```
 
-It could be that `service.getType("User")` behaviour is exactly the same as `service.get("User")`.
+**Completing:**
 
+- [ ] Whenever possible use `rt.get_type("*").unwrap().to_string()` instead of `to_schema` in all the tests! Review the
+  tests to ensure that `get_type("*").unwrap().to_string()` is used instead of `to_schema` for type assertions.
 - [ ] Update Rust tests
 - [ ] Update JavaScript tests
 - [ ] Update documentation in EDGE_RULES_API_SPEC.md
