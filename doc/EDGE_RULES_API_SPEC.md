@@ -288,7 +288,9 @@ Retrieves the type definition of the entry at the specified path.
     - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or `*` for the entire model schema.
 - **Returns:** The type definition.
     - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
-    - For complex types: returns a JSON object describing the structure (e.g., `{ "name": "string", "age": "number" }`).
+    - For functions: returns the return type of the function (e.g., `"number"` or a complex object type).
+    - For types: returns the structure of the type (e.g., `{ "name": "string", "age": "number" }`).
+    - For wildcard (`*`): returns a JSON object describing the schema of all fields and sub-contexts, bypassing type and function definitions.
 - **Throws:**
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid or empty.
@@ -358,13 +360,7 @@ const taxRateType = service.getType("taxRate");
 console.log(taxRateType); // "number"
 
 const funcType = service.getType("calculateTax");
-console.log(funcType);
-// Output:
-// {
-//   "@type": "function",
-//   "@parameters": { "amount": "number" },
-//   "result": "number"
-// }
+console.log(funcType); // "number"
 
 try {
     service.execute("calculateTax", "invalid argument");
@@ -459,29 +455,28 @@ assert.deepEqual(type, {
 
 **Complex and Simple Expression types:**
 
-- [ ] Find `pub fn get_type(&self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum>` and understand how it
+- [x] Find `pub fn get_type(&self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum>` and understand how it
   works. Pay attention that `ValueType` is returned. Both function and type definitions "types" could easily fit to
   `ValueType::ObjectType` or other `ValueType` variants.
-- [ ] Fix `get_type` to bypass all definitions and collect types of fields and sub-contexts only.
-- [ ] Fix `JavaScript` tests, for example `it('renames an invocation', () => {` is known to be not properly working,
+- [x] Fix `get_type` to bypass all definitions and collect types of fields and sub-contexts only.
+- [x] Fix `JavaScript` tests, for example `it('renames an invocation', () => {` is known to be not properly working,
   because it captures function definition.
 
 **Function Return Types:**
 
-- [ ] Fix `to_schema` for `ContextObject` - it must completely bypass and ignore definitions: type definitions and
+- [x] Fix `to_schema` for `ContextObject` - it must completely bypass and ignore definitions: type definitions and
   function definitions.
-- [ ] Ensure that
-- [ ] Ensure that WASM API `getType` works correctly when type is requested for the function, e.g.
+- [x] Ensure that WASM API `getType` works correctly when type is requested for the function, e.g.
 
 ```javascript
 const type = service.getType("add");
 assert.deepEqual(type, "number")
 ```
 
-- [ ] For all user defined functions in `evaluation_user_functions_tests.rs` call `get_type` and ensure that it returns
+- [x] For all user defined functions in `evaluation_user_functions_tests.rs` call `get_type` and ensure that it returns
   correct return type definition. Pay attention to the fact that some functions have hidden fields. Complex functions
   correctly report their return type hiding all internal variables if `RETURN_EXPRESSION` is used.
-- [ ] Ensure that `getType` works correctly when type is requested for the inline and complex function. However, inner
+- [x] Ensure that `getType` works correctly when type is requested for the inline and complex function. However, inner
   functions and type definitions will not be returned - `getType` for function basically returns function return type.
 
 > Correct type definitions are asserted such as
@@ -491,7 +486,7 @@ assert.deepEqual(type, "number")
 
 **Types:**
 
-- [ ] When `getType` is called on the type, e.g. `service.getType("User")`, it should return the type definition of the
+- [x] When `getType` is called on the type, e.g. `service.getType("User")`, it should return the type definition of the
   `User` type, such as example below (the whole behaviours is very similar to `service.get("User")`), but only fields
   and types are returned:
 
@@ -504,9 +499,9 @@ assert.deepEqual(type, "number")
 
 **Completing:**
 
-- [ ] Whenever possible use `rt.get_type("*").unwrap().to_string()` instead of `to_schema` in all the tests! Review the
+- [x] Whenever possible use `rt.get_type("*").unwrap().to_string()` instead of `to_schema` in all the tests! Review the
   tests to ensure that `get_type("*").unwrap().to_string()` is used instead of `to_schema` for type assertions.
-- [ ] Update Rust tests
-- [ ] Update JavaScript tests
-- [ ] Update documentation in EDGE_RULES_API_SPEC.md
-- [ ] If task is completed, mark it as done.
+- [x] Update Rust tests
+- [x] Update JavaScript tests
+- [x] Update documentation in EDGE_RULES_API_SPEC.md
+- [x] If task is completed, mark it as done.

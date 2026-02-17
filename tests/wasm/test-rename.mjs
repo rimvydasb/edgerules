@@ -189,9 +189,6 @@ describe('DecisionService Rename', () => {
         assert.ok(service.get("invoke"));
 
         assert.deepEqual(service.getType("*"), {
-            calc: {
-                res: 'number'
-            },
             invoke: {
                 res: 'number'
             }

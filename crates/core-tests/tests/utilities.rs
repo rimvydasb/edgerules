@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use edge_rules::runtime::edge_rules::{EdgeRulesModel, EdgeRulesRuntime, ExpressionEnum, ParseErrors};
-use edge_rules::runtime::ToSchema;
 use edge_rules::test_support::ParseErrorEnum::Stacked;
 use edge_rules::test_support::{LinkingError, LinkingErrorEnum, NumberEnum, ParseErrorEnum, StaticLink, ValueEnum};
 use edge_rules::utils::to_display;
@@ -271,7 +270,7 @@ impl TestServiceBuilder {
                 panic!("Expected runtime, but got nothing: `{}`", self.original_code);
             }
             Some(runtime) => {
-                assert_eq!(runtime.static_tree.borrow().to_schema(), expected_type);
+                assert_eq!(runtime.get_type("*").unwrap().to_string(), expected_type);
             }
         }
 

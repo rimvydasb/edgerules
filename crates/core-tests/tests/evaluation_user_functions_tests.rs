@@ -610,7 +610,7 @@ fn accessing_function_in_lower_context() {
 
     assert_eq!(
         rt.get_type("*").unwrap().to_string(),
-        "{rootFunction: {zap: number}; processAmount: {newAmount: number}; applicationResponse: {newAmount: number}}"
+        "{applicationResponse: {newAmount: number}}"
     );
 }
 

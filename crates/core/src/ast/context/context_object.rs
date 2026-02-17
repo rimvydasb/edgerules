@@ -9,7 +9,7 @@ use crate::ast::Link;
 use crate::link::linker;
 use crate::link::node_data::{ContentHolder, Node, NodeData, NodeDataEnum};
 use crate::typesystem::errors::LinkingError;
-use crate::typesystem::types::{ToSchema, ValueType};
+use crate::typesystem::types::{ToSchema, TypedValue, ValueType};
 use crate::utils::intern_field_name;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -419,14 +419,11 @@ impl ToSchema for ContextObject {
     fn to_schema(&self) -> String {
         let mut lines: Vec<String> = Vec::new();
 
-        let mut type_entries: Vec<_> = self.defined_types.iter().collect();
-        type_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
-
-        for (name, body) in type_entries {
-            lines.push(format!("{}: {}", name, body.to_schema()));
-        }
-
         for name in self.all_field_names.iter() {
+            if *name == crate::ast::context::function_context::RETURN_EXPRESSION {
+                continue;
+            }
+
             if let Ok(content) = self.get(name) {
                 match content {
                     EObjectContent::ExpressionRef(entry) => {
@@ -439,15 +436,12 @@ impl ToSchema for ContextObject {
                             Err(err) => lines.push(format!("{}: {}", name, err)),
                         }
                     }
-                    EObjectContent::UserFunctionRef(entry) => {
-                        let entry_ref = entry.borrow();
-                        if let Ok(field_type) = &entry_ref.field_type {
-                            let formatted = self.format_value_type(field_type);
-                            lines.push(format!("{}: {}", name, formatted));
-                        }
-                    }
                     EObjectContent::ObjectRef(entry) => {
                         lines.push(format!("{}: {}", name, entry.borrow().to_schema()));
+                    }
+                    EObjectContent::Definition(vt) => {
+                        let formatted = self.format_value_type(&vt);
+                        lines.push(format!("{}: {}", name, formatted));
                     }
                     _ => {}
                 }
@@ -457,3 +451,10 @@ impl ToSchema for ContextObject {
         format!("{{{}}}", lines.join("; "))
     }
 }
+
+impl TypedValue for ContextObject {
+    fn get_type(&self) -> ValueType {
+        ValueType::ObjectType(Rc::new(RefCell::new(self.clone())))
+    }
+}
+
