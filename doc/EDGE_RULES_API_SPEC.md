@@ -290,7 +290,8 @@ Retrieves the type definition of the entry at the specified path.
     - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
     - For functions: returns the return type of the function (e.g., `"number"` or a complex object type).
     - For types: returns the structure of the type (e.g., `{ "name": "string", "age": "number" }`).
-    - For wildcard (`*`): returns a JSON object describing the schema of all fields and sub-contexts, bypassing type and function definitions.
+    - For wildcard (`*`): returns a JSON object describing the schema of all fields and sub-contexts, bypassing type and
+      function definitions.
 - **Throws:**
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid or empty.
@@ -505,3 +506,18 @@ assert.deepEqual(type, "number")
 - [x] Update JavaScript tests
 - [x] Update documentation in EDGE_RULES_API_SPEC.md
 - [x] If task is completed, mark it as done.
+
+# ContextObject Type
+
+The problem is that `ValueType::ObjectType(Rc<RefCell<ContextObject>>)` represents `ContextObject` type - that is
+incorrect, because `ContextObject` stores a lot of things including definitions that are absolutely not tyype related.
+
+- [ ] Change object type tp be represented as string to type map, such as
+  `ValueType::ObjectType(Vec<(&'static str, ValueType)>)` - strings are field names and `ValueType` are field types.
+  This will allow to bypass all definitions and focus only on fields and sub-contexts.
+- [ ] Comparing object types field order does not matter. Add a couple of tests to prove that.
+- [ ] Correctly implement `impl TypedValue for ContextObject` to return correct type information based on the fields and
+  sub-contexts, bypassing all definitions. Based on the best practices and performance considerations, it might be
+  needed to cache the type and carefully rebuild it, because `ContextObject` appears to be mutable.
+- [ ] Remove `to_schema` method from `ContextObject` and replace all its usages with `get_type().to_string()` (from
+  TypedValue) that should print the type.
