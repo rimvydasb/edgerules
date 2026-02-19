@@ -472,7 +472,7 @@ fn special_values_are_set_in_function_argument() {
 }
 
 #[test]
-fn to_schema_lists_defined_types_and_fields() {
+fn get_type_lists_defined_types_and_fields() {
     let mut service = EdgeRulesModel::new();
     service
         .append_source(

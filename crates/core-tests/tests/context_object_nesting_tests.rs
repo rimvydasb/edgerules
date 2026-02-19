@@ -9,7 +9,7 @@ use edge_rules::link::linker::{get_till_root, link_parts};
 use edge_rules::link::node_data::ContentHolder;
 use edge_rules::runtime::edge_rules::EvalError;
 use edge_rules::test_support::expr;
-use edge_rules::typesystem::types::ToSchema;
+use edge_rules::typesystem::types::TypedValue;
 
 mod utilities;
 use utilities::init_logger;
@@ -47,7 +47,7 @@ fn test_nesting() -> Result<(), EvalError> {
     link_parts(Rc::clone(&ctx))?;
 
     assert_eq!(ctx.borrow().to_string(), "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}");
-    assert_eq!(ctx.borrow().to_schema(), "{a: number; b: number; c: {x: string; y: number}}");
+    assert_eq!(ctx.borrow().get_type().to_string(), "{a: number; b: number; c: {x: string; y: number}}");
 
     assert_eq!(ctx.borrow().get("a")?.to_string(), "1");
     assert_eq!(ctx.borrow().get("b")?.to_string(), "2");

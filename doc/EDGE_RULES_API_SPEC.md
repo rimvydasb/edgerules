@@ -509,15 +509,5 @@ assert.deepEqual(type, "number")
 
 # ContextObject Type
 
-The problem is that `ValueType::ObjectType(Rc<RefCell<ContextObject>>)` represents `ContextObject` type - that is
-incorrect, because `ContextObject` stores a lot of things including definitions that are absolutely not tyype related.
-
-- [ ] Change object type tp be represented as string to type map, such as
-  `ValueType::ObjectType(Vec<(&'static str, ValueType)>)` - strings are field names and `ValueType` are field types.
-  This will allow to bypass all definitions and focus only on fields and sub-contexts.
-- [ ] Comparing object types field order does not matter. Add a couple of tests to prove that.
-- [ ] Correctly implement `impl TypedValue for ContextObject` to return correct type information based on the fields and
-  sub-contexts, bypassing all definitions. Based on the best practices and performance considerations, it might be
-  needed to cache the type and carefully rebuild it, because `ContextObject` appears to be mutable.
-- [ ] Remove `to_schema` method from `ContextObject` and replace all its usages with `get_type().to_string()` (from
-  TypedValue) that should print the type.
+- [x] `to_schema` from `ContextObject` is overused in tests. Try replacing all its usages with `get_type().to_string()` (from
+  TypedValue) that should print the type. 

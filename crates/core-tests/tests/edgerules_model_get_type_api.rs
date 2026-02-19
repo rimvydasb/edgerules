@@ -2,7 +2,7 @@ mod utilities;
 
 use std::rc::Rc;
 use edge_rules::runtime::edge_rules::EdgeRulesModel;
-use edge_rules::runtime::ToSchema;
+use edge_rules::runtime::TypedValue;
 use edge_rules::test_support::{ContextQueryErrorEnum, UserTypeBody};
 
 #[test]
@@ -94,7 +94,7 @@ fn test_get_type_on_definition() {
     assert_eq!(runtime.get_type("p").unwrap().to_string(), "{name: string; age: number}");
 
     // Test get_type on a type definition - returns the structure
-    // Since it's now a UserType(TypeObject), calling to_string() calls ContextObject::to_schema()
+    // Since it's now a UserType(TypeObject), calling to_string() on get_type() calls ContextObject::to_schema()
     assert_eq!(runtime.get_type("Person").unwrap().to_string(), "{name: string; age: number}");
 
     // Test primitive alias
@@ -190,7 +190,7 @@ fn test_get_user_type_assertions() {
             assert!(borrowed.field_name_set.contains("name"));
             assert!(borrowed.field_name_set.contains("age"));
             // Verify structure via schema string.
-            assert_eq!(borrowed.to_schema(), "{name: string; age: number}");
+            assert_eq!(borrowed.get_type().to_string(), "{name: string; age: number}");
         }
         _ => panic!("Expected TypeObject for Person, got {:?}", user_type),
     }
@@ -203,7 +203,7 @@ fn test_get_user_type_assertions() {
     match &user_type {
         UserTypeBody::TypeObject(obj) => {
             edge_rules::link::linker::link_parts(Rc::clone(obj)).expect("link type object");
-            assert_eq!(obj.borrow().to_schema(), "{city: string}");
+            assert_eq!(obj.borrow().get_type().to_string(), "{city: string}");
         }
         _ => panic!("Expected TypeObject for nested.Address, got {:?}", user_type),
     }
