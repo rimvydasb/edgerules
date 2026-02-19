@@ -4,4 +4,4 @@ pub mod execution_context;
 
 pub use decision_service::DecisionService;
 
-pub use crate::typesystem::types::ToSchema;
+pub use crate::typesystem::types::{ToSchema, TypedValue};

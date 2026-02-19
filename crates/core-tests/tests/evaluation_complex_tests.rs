@@ -1,5 +1,4 @@
 mod utilities;
-use edge_rules::runtime::ToSchema;
 pub use utilities::*;
 
 #[test]
@@ -102,7 +101,7 @@ fn example_ruleset_collecting() {
 
     assert_eval_field(&rt, "applicantEligibility.firedRules", "['INC_CHECK']");
     assert_eval_field(&rt, "applicantEligibility.status", "'INELIGIBLE'");
-    assert_eq!(rt.static_tree.borrow().to_schema(), "{applicantEligibility: {firedRules: string[]; status: string}}");
+    assert_eq!(rt.get_type("*").unwrap().to_string(), "{applicantEligibility: {firedRules: string[]; status: string}}");
 }
 
 #[test]
@@ -177,8 +176,8 @@ fn example_variable_library() {
 
     assert_eval_field(&rt, "applicationResponse.applicationRecord.applicantsDecisions[0].status", "'INELIGIBLE'");
     assert_eq!(
-            rt.static_tree.borrow().to_schema(),
-            "{Applicant: {name: string; birthDate: date; income: number; expense: number}; Application: {applicationDate: datetime; applicants: Applicant[]; propertyValue: number; loanAmount: number}; applicationResponse: {applicationRecord: {data: Application; applicantsDecisions: {rules: {name: string; rule: boolean}[]; firedRules: string[]; status: string}[]}}}"
+            rt.get_type("*").unwrap().to_string(),
+            "{applicationResponse: {applicationRecord: {data: Application; applicantsDecisions: {rules: {name: string; rule: boolean}[]; firedRules: string[]; status: string}[]}}}"
         );
 }
 

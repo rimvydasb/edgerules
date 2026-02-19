@@ -607,6 +607,11 @@ fn accessing_function_in_lower_context() {
     let rt = get_runtime(code);
 
     assert_eval_field(&rt, "applicationResponse.newAmount", "3001");
+
+    assert_eq!(
+        rt.get_type("*").unwrap().to_string(),
+        "{applicationResponse: {newAmount: number}}"
+    );
 }
 
 #[test]

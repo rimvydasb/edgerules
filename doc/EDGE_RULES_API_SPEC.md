@@ -285,11 +285,13 @@ Renames an entry (field, function, type, or invocation) from `oldPath` to `newPa
 Retrieves the type definition of the entry at the specified path.
 
 - **Parameters:**
-    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`).
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or `*` for the entire model schema.
 - **Returns:** The type definition.
     - For primitives: returns a string (e.g., `"number"`, `"string"`, `"boolean"`).
-    - For complex types: returns a JSON object describing the structure (e.g., `{ "name": "string", "age": "number" }`).
-    - For wildcard `"*"`: returns the entire model schema.
+    - For functions: returns the return type of the function (e.g., `"number"` or a complex object type).
+    - For types: returns the structure of the type (e.g., `{ "name": "string", "age": "number" }`).
+    - For wildcard (`*`): returns a JSON object describing the schema of all fields and sub-contexts, bypassing type and
+      function definitions.
 - **Throws:**
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid or empty.
@@ -359,13 +361,7 @@ const taxRateType = service.getType("taxRate");
 console.log(taxRateType); // "number"
 
 const funcType = service.getType("calculateTax");
-console.log(funcType);
-// Output:
-// {
-//   "@type": "function",
-//   "@parameters": { "amount": "number" },
-//   "result": "number"
-// }
+console.log(funcType); // "number"
 
 try {
     service.execute("calculateTax", "invalid argument");
@@ -399,7 +395,7 @@ The primary struct for building and manipulating the AST before compilation.
   context.
 - `get_expression(path: &str) -> Result<Rc<RefCell<ExpressionEntry>>, ContextQueryErrorEnum>`: Retrieves an expression
   entry.
-- `get_expression_type(path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the type of an expression.
+- `get_expression_type(path: &str) -> Result<ValueType, ContextQueryErrorEnum>`: Retrieves the type of expression.
 - `get_user_type(path: &str) -> Result<UserTypeBody, ContextQueryErrorEnum>`: Retrieves a user type definition.
 - `get_user_function(path: &str) -> Result<Rc<RefCell<MethodEntry>>, ContextQueryErrorEnum>`: Retrieves a user function
   entry.
@@ -434,3 +430,4 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
+ 
