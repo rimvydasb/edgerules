@@ -4,6 +4,9 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
+/// This method returns unlinked or linked schema of the object.
+/// Better use `runtime.get_type("*").unwrap().to_string()` to make sure that type is returned of linked (runtime) object.
+/// @Todo: it would be good to remove ToSchema or at least return ValueType instead.
 pub trait ToSchema {
     fn to_schema(&self) -> String;
 }

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use edge_rules::runtime::edge_rules::DefinitionEnum::UserFunction as UserFunctionDef;
 use edge_rules::runtime::{
     edge_rules::{link_parts, ContextObjectBuilder, EvalError, ExpressionEnum, FunctionDefinition},
-    ToSchema,
+    TypedValue,
 };
 use edge_rules::test_support::expr;
 use log::info;
@@ -31,7 +31,7 @@ fn test_builder() -> Result<(), EvalError> {
     assert_eq!(obj.borrow().metaphors.len(), 0);
     assert_eq!(obj.borrow().all_field_names.len(), 2);
     assert_eq!(obj.borrow().to_string(), "{a: 1; b: 2}");
-    assert_eq!(obj.borrow().to_schema(), "{a: number; b: number}");
+    assert_eq!(obj.borrow().get_type().to_string(), "{a: number; b: number}");
 
     let mut builder2 = ContextObjectBuilder::new();
     builder2.add_expression("x", E::from("Hello"))?;
@@ -41,7 +41,7 @@ fn test_builder() -> Result<(), EvalError> {
 
     link_parts(Rc::clone(&obj2))?;
 
-    assert_eq!(obj2.borrow().to_schema(), "{x: string; y: number}");
+    assert_eq!(obj2.borrow().get_type().to_string(), "{x: string; y: number}");
 
     let mut builder3 = ContextObjectBuilder::new();
     builder3.add_expression("x", E::from("Hello"))?;
@@ -52,7 +52,7 @@ fn test_builder() -> Result<(), EvalError> {
 
     link_parts(Rc::clone(&obj3))?;
 
-    assert_eq!(obj3.borrow().to_schema(), "{x: string; y: number; a: number; b: number}");
+    assert_eq!(obj3.borrow().get_type().to_string(), "{x: string; y: number; a: number; b: number}");
 
     Ok(())
 }
@@ -84,7 +84,7 @@ fn test_nesting() -> Result<(), EvalError> {
     link_parts(Rc::clone(&obj))?;
 
     assert_eq!(obj.borrow().to_string(), "{a: 1; b: 2; c: {x: 'Hello'; y: a + b; income() : {}}}");
-    assert_eq!(obj.borrow().to_schema(), "{a: number; b: number; c: {x: string; y: number}}");
+    assert_eq!(obj.borrow().get_type().to_string(), "{a: number; b: number; c: {x: string; y: number}}");
 
     Ok(())
 }

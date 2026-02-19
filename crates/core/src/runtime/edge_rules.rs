@@ -697,21 +697,6 @@ impl EdgeRulesRuntime {
 
     pub fn get_type(&self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
         if field_path == "*" {
-            // For wildcard requests, we link all top-level functions to ensure they appear in the schema.
-            // This is necessary because link_parts does not link function bodies by default.
-            let field_names = self.static_tree.borrow().get_field_names();
-            for name in field_names {
-                if let Ok(EObjectContent::UserFunctionRef(metaphor)) = self.static_tree.borrow().get(name) {
-                    let mut method = metaphor.borrow_mut();
-                    if method.field_type.is_err() {
-                        if let Ok(body) = method.function_definition.get_body() {
-                            let _ = link_parts(Rc::clone(&body));
-                            let vt = ValueType::ObjectType(body);
-                            method.field_type = Ok(vt);
-                        }
-                    }
-                }
-            }
             return Ok(ValueType::ObjectType(Rc::clone(&self.static_tree)));
         }
 
@@ -742,7 +727,16 @@ impl EdgeRulesRuntime {
                     }
                     if let Ok(body) = entry_mut.function_definition.get_body() {
                         let _ = link_parts(Rc::clone(&body));
-                        let vt = ValueType::ObjectType(body);
+                        let borrowed_body = body.borrow();
+                        let vt = borrowed_body.get(crate::ast::context::function_context::RETURN_EXPRESSION)
+                            .or_else(|_| borrowed_body.get("return"))
+                            .and_then(|content| {
+                                if let EObjectContent::ExpressionRef(e) = content {
+                                    e.borrow().field_type.clone()
+                                } else {
+                                    Err(LinkingError::not_linked())
+                                }
+                            }).unwrap_or_else(|_| ValueType::ObjectType(Rc::clone(&body)));
                         entry_mut.field_type = Ok(vt.clone());
                         Ok(vt)
                     } else {

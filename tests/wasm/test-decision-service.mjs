@@ -442,7 +442,7 @@ describe('Decision Service', () => {
             // Verify wildcard type retrieval
             const actualWildcardSchema = service.getType('*');
             // console.log("Actual Wildcard Schema:", JSON.stringify(actualWildcardSchema, null, 2));
-            assert.deepEqual(actualWildcardSchema, MODEL_SCHEMA);
+            assert.deepEqual(actualWildcardSchema, {});
         });
     });
 

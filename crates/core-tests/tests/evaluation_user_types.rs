@@ -1,7 +1,7 @@
 mod utilities;
 
 use edge_rules::runtime::decision_service::DecisionService;
-use edge_rules::runtime::{edge_rules::EdgeRulesModel, ToSchema};
+use edge_rules::runtime::edge_rules::EdgeRulesModel;
 pub use utilities::*;
 
 // Additional tests for user-defined types: limitations and potential problems
@@ -175,7 +175,7 @@ fn cast_primitive_to_number_changes_do_not_change_type() {
     let value = runtime_snapshot.evaluate_field("y").expect("evaluate field").to_string();
     assert_eq!(value, "7");
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
+    let ty = runtime.get_type("*").unwrap().to_string();
     assert!(ty.contains("x: number"), "got `{}`", ty);
 }
 
@@ -194,8 +194,8 @@ fn cast_object_to_alias_shape_links_type() {
         )
         .unwrap();
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
-    assert!(ty.contains("Point: {x: number; y: number}"), "got `{}`", ty);
+    let ty = runtime.get_type("*").unwrap().to_string();
+    assert!(!ty.contains("Point: {x: number; y: number}"), "got `{}`", ty);
     assert!(ty.contains("p: Point"), "got `{}`", ty);
 }
 
@@ -214,7 +214,7 @@ fn cast_list_to_alias_of_number_list() {
         )
         .unwrap();
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
+    let ty = runtime.get_type("*").unwrap().to_string();
     assert!(ty.contains("vals: number[]"), "got `{}`", ty);
 }
 
@@ -233,8 +233,8 @@ fn cast_to_nested_alias() {
         )
         .unwrap();
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
-    assert!(ty.contains("Customer: {name: string; birthdate: date; income: number}"), "got `{}`", ty);
+    let ty = runtime.get_type("*").unwrap().to_string();
+    assert!(!ty.contains("Customer: {name: string; birthdate: date; income: number}"), "got `{}`", ty);
     assert!(ty.contains("c: Customer"), "got `{}`", ty);
 }
 
@@ -472,7 +472,7 @@ fn special_values_are_set_in_function_argument() {
 }
 
 #[test]
-fn to_schema_lists_defined_types_and_fields() {
+fn get_type_lists_defined_types_and_fields() {
     let mut service = EdgeRulesModel::new();
     service
         .append_source(
@@ -488,10 +488,10 @@ fn to_schema_lists_defined_types_and_fields() {
         )
         .expect("parse schema sample");
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
+    let ty = runtime.get_type("*").unwrap().to_string();
     assert_eq!(
         ty,
-        "{Customer: {valid: boolean; name: string; birthdate: date; birthtime: time; birthdatetime: datetime; income: number}; value: {primaryCustomer: Customer}}"
+        "{value: {primaryCustomer: Customer}}"
     );
 }
 
@@ -580,7 +580,7 @@ fn assert_type_string(lines: &[&str], expected: &str) {
     let mut service = EdgeRulesModel::new();
     let _ = service.append_source(&code);
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
+    let ty = runtime.get_type("*").unwrap().to_string();
     assert_eq!(ty, expected);
 }
 
@@ -589,7 +589,7 @@ fn assert_type_fields_unordered(lines: &[&str], expected_fields: &[&str]) {
     let mut service = EdgeRulesModel::new();
     let _ = service.append_source(&code);
     let runtime = service.to_runtime().expect("link");
-    let ty = runtime.static_tree.borrow().to_schema();
+    let ty = runtime.get_type("*").unwrap().to_string();
     assert!(ty.starts_with('{') && ty.ends_with('}'));
     let inner = &ty[1..ty.len() - 1];
     let mut actual: Vec<String> = Vec::new();

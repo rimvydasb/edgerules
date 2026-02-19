@@ -1,7 +1,6 @@
 use crate::conversion::traits::ToJs;
 use crate::utils::set_prop;
 use edge_rules::ast::context::context_object_type::EObjectContent;
-use edge_rules::ast::token::UserTypeBody;
 use edge_rules::link::node_data::ContentHolder;
 use edge_rules::runtime::execution_context::ExecutionContext;
 
@@ -23,15 +22,13 @@ impl ToJs for ValueType {
                 let js_object = Object::new();
                 let borrowed = obj.borrow();
                 for name in borrowed.get_field_names() {
+                    if *name == *edge_rules::ast::context::function_context::RETURN_EXPRESSION {
+                        continue;
+                    }
+
                     if let Ok(content) = borrowed.get(name) {
                         match content {
                             EObjectContent::ExpressionRef(entry) => {
-                                if let Ok(field_type) = &entry.borrow().field_type {
-                                    set_prop(&js_object, name, &field_type.to_js()?)
-                                        .map_err(RuntimeError::eval_error)?;
-                                }
-                            }
-                            EObjectContent::UserFunctionRef(entry) => {
                                 if let Ok(field_type) = &entry.borrow().field_type {
                                     set_prop(&js_object, name, &field_type.to_js()?)
                                         .map_err(RuntimeError::eval_error)?;
@@ -41,26 +38,12 @@ impl ToJs for ValueType {
                                 let child_type = ValueType::ObjectType(child);
                                 set_prop(&js_object, name, &child_type.to_js()?).map_err(RuntimeError::eval_error)?;
                             }
+                            EObjectContent::Definition(vt) => {
+                                set_prop(&js_object, name, &vt.to_js()?).map_err(RuntimeError::eval_error)?;
+                            }
                             _ => {}
                         }
                     }
-                }
-
-                for (name, body) in borrowed.defined_types.iter() {
-                    let type_js = match body {
-                        UserTypeBody::TypeRef(tref) => {
-                            let resolved_type = borrowed
-                                .resolve_type_ref(&tref)
-                                .map_err(|e| RuntimeError::eval_error(e.to_string()))?;
-                            resolved_type.to_js()?
-                        }
-                        UserTypeBody::TypeObject(ctx) => {
-                            let obj_type = ValueType::ObjectType(Rc::clone(ctx));
-                            let js_obj = obj_type.to_js()?;
-                            js_obj
-                        }
-                    };
-                    set_prop(&js_object, name, &type_js).map_err(RuntimeError::eval_error)?;
                 }
 
                 Ok(JsValue::from(js_object))
