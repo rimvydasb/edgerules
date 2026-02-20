@@ -480,7 +480,7 @@ impl LinkingError {
 
     pub fn expect_type(subject: Option<String>, expression_type: ValueType, expected: &[ValueType]) -> Link<ValueType> {
         let actual = expression_type;
-        if expected.contains(&actual) {
+        if expected.contains(&actual) || actual == ValueType::UndefinedType {
             return Ok(actual);
         }
         LinkingError::types_not_compatible(subject, actual, Some(expected.to_vec())).into()
@@ -495,15 +495,18 @@ impl LinkingError {
     }
 
     pub fn expect_single_type(subject: &str, expression_type: ValueType, expected: &ValueType) -> Link<ValueType> {
-        if &expression_type == expected {
-            return Ok(expression_type);
+        if &expression_type == expected || expression_type == ValueType::UndefinedType {
+            return Ok(expected.clone());
         }
         LinkingError::types_not_compatible(Some(subject.to_string()), expression_type, Some(vec![expected.clone()]))
             .into()
     }
 
     pub fn expect_same_types(subject: &str, left: ValueType, right: ValueType) -> Link<ValueType> {
-        if left == right {
+        if left == right || left == ValueType::UndefinedType || right == ValueType::UndefinedType {
+            if left == ValueType::UndefinedType {
+                return Ok(right);
+            }
             return Ok(left);
         }
         LinkingError::different_types(Some(subject.to_string()), left, right).into()

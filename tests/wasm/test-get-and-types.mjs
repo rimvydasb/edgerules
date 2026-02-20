@@ -178,6 +178,18 @@ describe('Type Introspection (getType) and List Operations', () => {
             assert.deepEqual(returnedModel, MIXED_PORTABLE_MODEL);
         });
 
+        it('reproducers: arrays should be arrays, not strings; no unnecessary brackets', () => {
+            const model = service.get('*');
+
+            assert.ok(Array.isArray(model.objects1List), `objects1List should be an array, but got ${typeof model.objects1List}: ${model.objects1List}`);
+            assert.deepEqual(model.objects1List, [{x: 1}, {x: 2}, {x: 3}]);
+
+            assert.ok(Array.isArray(model.variablesList), "variablesList should be an array");
+            assert.deepEqual(model.variablesList, ["xVar", "yVar", "zVar"]);
+
+            assert.strictEqual(model.main.joined, "req.strList[0] + req.strList[1] + req.strList[2]");
+        });
+
         it('throws error for non-existent path', () => {
             assert.throws(() => {
                 service.getType('nonExistentField');

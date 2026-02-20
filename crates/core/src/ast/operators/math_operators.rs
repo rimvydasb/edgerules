@@ -2,8 +2,7 @@ use crate::ast::context::context_object::ContextObject;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
 use crate::ast::operators::math_operators::MathOperatorEnum::*;
 use crate::ast::token::EToken::Unparsed;
-use crate::ast::token::ExpressionEnum::{Value, Variable};
-use crate::ast::token::{EToken, EUnparsedToken, ExpressionEnum};
+use crate::ast::token::{EPriorities, EToken, EUnparsedToken, ExpressionEnum};
 use crate::ast::Link;
 use crate::runtime::execution_context::*;
 use crate::typesystem::errors::{LinkingError, ParseErrorEnum, RuntimeError};
@@ -35,10 +34,14 @@ use time::Duration as TDuration;
 pub type BinaryNumberFunction = fn(a: NumberEnum, b: NumberEnum) -> Result<NumberEnum, RuntimeError>;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub trait Operator: Display + Debug + EvaluatableExpression {}
+pub trait Operator: Display + Debug + EvaluatableExpression {
+    fn precedence(&self) -> u32;
+}
 
 #[cfg(target_arch = "wasm32")]
-pub trait Operator: Display + EvaluatableExpression {}
+pub trait Operator: Display + EvaluatableExpression {
+    fn precedence(&self) -> u32;
+}
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(PartialEq)]
@@ -48,13 +51,38 @@ pub struct OperatorData<T: Display> {
     pub right: ExpressionEnum,
 }
 
+impl OperatorData<MathOperatorEnum> {
+    pub fn precedence(&self) -> u32 {
+        match self.operator {
+            Addition | Subtraction => EPriorities::PlusMinus as u32,
+            Multiplication | Division | Modulus => EPriorities::DivideMultiply as u32,
+            Power => EPriorities::PowerPriority as u32,
+        }
+    }
+}
+
 impl Display for OperatorData<MathOperatorEnum> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.operator {
-            Multiplication | Division | Power => {
-                write!(f, "{} {} {}", self.left, self.operator, self.right)
-            }
-            _ => write!(f, "({} {} {})", self.left, self.operator, self.right),
+        let prec = self.precedence();
+
+        // Left side: add brackets if its precedence is strictly less than ours
+        if self.left.precedence() < prec {
+            write!(f, "({})", self.left)?;
+        } else {
+            write!(f, "{}", self.left)?;
+        }
+
+        write!(f, " {} ", self.operator)?;
+
+        // Right side: add brackets if its precedence is less than or EQUAL to ours (to ensure left-associativity)
+        // Except for Addition where it's associative, but let's be safe for now.
+        // Actually, for a - (b + c), b+c (21) <= a-b (22) is true, so it gets brackets. Correct.
+        // For a + b + c, it's (a+b)+c. When printing outer +, right is c (1000), so no brackets.
+        // When printing inner +, both are 1000, no brackets. Result: a + b + c.
+        if self.right.precedence() <= prec {
+            write!(f, "({})", self.right)
+        } else {
+            write!(f, "{}", self.right)
         }
     }
 }
@@ -314,7 +342,11 @@ impl MathOperator {
     }
 }
 
-impl Operator for MathOperator {}
+impl Operator for MathOperator {
+    fn precedence(&self) -> u32 {
+        self.data.precedence()
+    }
+}
 
 fn operate_duration_values(
     operator: &MathOperatorEnum,
@@ -670,10 +702,19 @@ impl NegationOperator {
 
 impl Display for NegationOperator {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.left {
-            Value(_) | Variable(_) => write!(f, "-{}", self.left),
-            _ => write!(f, "-({})", self.left),
+        let prec = self.precedence();
+        write!(f, "-")?;
+        if self.left.precedence() < prec {
+            write!(f, "({})", self.left)
+        } else {
+            write!(f, "{}", self.left)
         }
+    }
+}
+
+impl Operator for NegationOperator {
+    fn precedence(&self) -> u32 {
+        EPriorities::UnaryPriority as u32
     }
 }
 

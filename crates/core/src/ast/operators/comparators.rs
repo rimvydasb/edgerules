@@ -2,7 +2,7 @@ use crate::ast::context::context_object::ContextObject;
 use crate::ast::expression::{EvaluatableExpression, StaticLink};
 use crate::ast::operators::comparators::ComparatorEnum::*;
 use crate::ast::operators::math_operators::{Operator, OperatorData};
-use crate::ast::token::ExpressionEnum;
+use crate::ast::token::{EPriorities, ExpressionEnum};
 use crate::ast::Link;
 use crate::runtime::execution_context::ExecutionContext;
 use crate::tokenizer::utils::CharStream;
@@ -171,7 +171,11 @@ impl StaticLink for ComparatorOperator {
     }
 }
 
-impl Operator for ComparatorOperator {}
+impl Operator for ComparatorOperator {
+    fn precedence(&self) -> u32 {
+        EPriorities::ComparatorPriority as u32
+    }
+}
 
 impl ComparatorOperator {
     pub fn build(
@@ -338,7 +342,23 @@ impl Display for ComparatorOperator {
 
 impl Display for OperatorData<ComparatorEnum> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.left, self.operator, self.right)
+        let prec = crate::ast::token::EPriorities::ComparatorPriority as u32;
+
+        // Left side: add brackets if its precedence is strictly less than ours
+        if self.left.precedence() < prec {
+            write!(f, "({})", self.left)?;
+        } else {
+            write!(f, "{}", self.left)?;
+        }
+
+        write!(f, " {} ", self.operator)?;
+
+        // Right side: add brackets if its precedence is less than or EQUAL to ours (for consistency)
+        if self.right.precedence() <= prec {
+            write!(f, "({})", self.right)
+        } else {
+            write!(f, "{}", self.right)
+        }
     }
 }
 

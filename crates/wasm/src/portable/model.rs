@@ -15,7 +15,7 @@ use edge_rules::runtime::edge_rules::{ContextQueryErrorEnum, EdgeRulesModel, Inv
 use edge_rules::tokenizer::parser;
 use edge_rules::tokenizer::utils::CharStream;
 use edge_rules::typesystem::types::number::NumberEnum;
-use edge_rules::typesystem::values::ValueEnum;
+use edge_rules::typesystem::values::{ArrayValue, ValueEnum};
 use edge_rules::utils::intern_field_name;
 use js_sys::{Array, Object};
 use rust_decimal::prelude::ToPrimitive;
@@ -666,6 +666,13 @@ fn serialize_expression(expr: &ExpressionEnum) -> Result<JsValue, PortableError>
     match expr {
         ExpressionEnum::Value(value) => serialize_value(value),
         ExpressionEnum::StaticObject(ctx) => context_to_object(&ctx.borrow()),
+        ExpressionEnum::Collection(col) => {
+            let array = Array::new();
+            for element in &col.elements {
+                array.push(&serialize_expression(element)?);
+            }
+            Ok(JsValue::from(array))
+        }
         _ => {
             if let Some(call) = expr.as_user_function_call() {
                 return serialize_invocation_call(call);
@@ -697,7 +704,24 @@ fn serialize_value(value: &ValueEnum) -> Result<JsValue, PortableError> {
             NumberEnum::SV(_) => Ok(JsValue::from_str(&value.to_string())),
         },
         ValueEnum::StringValue(_) => Ok(JsValue::from_str(&value.to_string())),
-        ValueEnum::Array(_) | ValueEnum::Reference(_) => Ok(JsValue::from_str(&value.to_string())),
+        ValueEnum::Array(col) => {
+            let array = Array::new();
+            match col {
+                ArrayValue::PrimitivesArray { values, .. } => {
+                    for element in values {
+                        array.push(&serialize_value(element)?);
+                    }
+                }
+                ArrayValue::ObjectsArray { values, .. } => {
+                    for ctx in values {
+                        array.push(&context_to_object(&ctx.borrow().object.borrow())?);
+                    }
+                }
+                ArrayValue::EmptyUntyped => {}
+            }
+            Ok(JsValue::from(array))
+        }
+        ValueEnum::Reference(_) => Ok(JsValue::from_str(&value.to_string())),
         _ => Ok(JsValue::from_str(&value.to_string())),
     }
 }

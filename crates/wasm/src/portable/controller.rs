@@ -1,3 +1,4 @@
+use crate::conversion::traits::ToJs;
 use crate::portable::error::PortableError;
 use crate::portable::model::{
     apply_portable_entry, get_portable_entry, model_from_portable, remove_portable_entry, serialize_model,
@@ -33,6 +34,14 @@ impl DecisionServiceController {
             let borrowed = model.borrow();
             serialize_model(&borrowed)?
         };
+
+        // Add @schema metadata
+        self.service.ensure_linked()?;
+        let vt = self.service.get_linked_type("*")?;
+        let schema = vt.to_js().map_err(PortableError::from)?;
+        crate::utils::set_prop(&snap, "@schema", &schema)
+            .map_err(|_| PortableError::DecisionServiceError("FailedToSetSchema".to_string()))?;
+
         Ok(snap)
     }
 
@@ -65,9 +74,20 @@ impl DecisionServiceController {
             return self.model_snapshot();
         }
         let model = self.service.get_model();
-        let borrowed = model.borrow();
+        let val = {
+            let borrowed = model.borrow();
+            get_portable_entry(&borrowed, path)?
+        };
 
-        get_portable_entry(&borrowed, path)
+        if crate::utils::is_object(&val) {
+            self.service.ensure_linked()?;
+            if let Ok(vt) = self.service.get_linked_type(path) {
+                let schema = vt.to_js().map_err(PortableError::from)?;
+                let _ = crate::utils::set_prop(&val, "@schema", &schema);
+            }
+        }
+
+        Ok(val)
     }
 
     pub fn rename_entry(&mut self, old_path: &str, new_path: &str) -> Result<(), PortableError> {

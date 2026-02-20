@@ -36,6 +36,10 @@ impl LogicalOperatorEnum {
             Xor => "xor",
         }
     }
+
+    pub fn precedence(&self) -> u32 {
+        self.clone() as u32
+    }
 }
 
 impl TryFrom<&str> for LogicalOperatorEnum {
@@ -66,7 +70,11 @@ impl Debug for LogicalOperator {
     }
 }
 
-impl Operator for LogicalOperator {}
+impl Operator for LogicalOperator {
+    fn precedence(&self) -> u32 {
+        self.data.operator.clone() as u32
+    }
+}
 
 impl TypedValue for LogicalOperator {
     fn get_type(&self) -> ValueType {
@@ -121,7 +129,34 @@ impl Display for LogicalOperator {
 
 impl Display for OperatorData<LogicalOperatorEnum> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.left, self.operator, self.right)
+        let prec = self.operator.precedence();
+
+        // Support unary 'not'
+        if self.operator == Not {
+            write!(f, "not ")?;
+            if self.left.precedence() < prec {
+                write!(f, "({})", self.left)
+            } else {
+                write!(f, "{}", self.left)
+            }
+        } else {
+            // Binary logical operators: and, or, xor
+            // Left side: add brackets if its precedence is strictly less than ours
+            if self.left.precedence() < prec {
+                write!(f, "({})", self.left)?;
+            } else {
+                write!(f, "{}", self.left)?;
+            }
+
+            write!(f, " {} ", self.operator)?;
+
+            // Right side: add brackets if its precedence is less than or EQUAL to ours (for consistency)
+            if self.right.precedence() <= prec {
+                write!(f, "({})", self.right)
+            } else {
+                write!(f, "{}", self.right)
+            }
+        }
     }
 }
 

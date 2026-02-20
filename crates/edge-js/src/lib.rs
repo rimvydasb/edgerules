@@ -173,9 +173,14 @@ fn render_math_operator(op: &MathOperator, scope: Option<&str>, fallback_scope: 
         MathOperatorEnum::Power => "**",
         MathOperatorEnum::Modulus => "%",
     };
+    let prec = op.data.precedence();
     let left = render_expression(&op.data.left, scope, fallback_scope);
     let right = render_expression(&op.data.right, scope, fallback_scope);
-    Some(format!("({} {} {})", left, symbol, right))
+
+    let left_out = if op.data.left.precedence() < prec { format!("({})", left) } else { left };
+    let right_out = if op.data.right.precedence() <= prec { format!("({})", right) } else { right };
+
+    Some(format!("{} {} {}", left_out, symbol, right_out))
 }
 
 fn render_comparator(op: &ComparatorOperator, scope: Option<&str>, fallback_scope: Option<&str>) -> Option<String> {
@@ -187,9 +192,14 @@ fn render_comparator(op: &ComparatorOperator, scope: Option<&str>, fallback_scop
         ComparatorEnum::LessEquals => "<=",
         ComparatorEnum::GreaterEquals => ">=",
     };
+    let prec = edge_rules::ast::token::EPriorities::ComparatorPriority as u32;
     let left = render_expression(&op.data.left, scope, fallback_scope);
     let right = render_expression(&op.data.right, scope, fallback_scope);
-    Some(format!("({} {} {})", left, symbol, right))
+
+    let left_out = if op.data.left.precedence() < prec { format!("({})", left) } else { left };
+    let right_out = if op.data.right.precedence() <= prec { format!("({})", right) } else { right };
+
+    Some(format!("{} {} {}", left_out, symbol, right_out))
 }
 
 fn render_logical(op: &LogicalOperator, scope: Option<&str>, fallback_scope: Option<&str>) -> Option<String> {
@@ -200,13 +210,17 @@ fn render_logical(op: &LogicalOperator, scope: Option<&str>, fallback_scope: Opt
         LogicalOperatorEnum::Not => "!",
     };
 
+    let prec = op.data.operator.precedence();
     let left = render_expression(&op.data.left, scope, fallback_scope);
     let right = render_expression(&op.data.right, scope, fallback_scope);
 
     if matches!(op.data.operator, LogicalOperatorEnum::Not) {
-        Some(format!("(!{})", right))
+        let left_out = if op.data.left.precedence() < prec { format!("({})", left) } else { left };
+        Some(format!("!{}", left_out))
     } else {
-        Some(format!("({} {} {})", left, symbol, right))
+        let left_out = if op.data.left.precedence() < prec { format!("({})", left) } else { left };
+        let right_out = if op.data.right.precedence() <= prec { format!("({})", right) } else { right };
+        Some(format!("{} {} {}", left_out, symbol, right_out))
     }
 }
 
@@ -273,8 +287,10 @@ fn render_expression(expr: &ExpressionEnum, scope: Option<&str>, fallback_scope:
             } else if let Some(logical) = any_ref.downcast_ref::<LogicalOperator>() {
                 render_logical(logical, scope, fallback_scope)
             } else if let Some(negation) = any_ref.downcast_ref::<NegationOperator>() {
+                let prec = edge_rules::ast::token::EPriorities::UnaryPriority as u32;
                 let left = render_expression(&negation.left, scope, fallback_scope);
-                Some(format!("(-{})", left))
+                let left_out = if negation.left.precedence() < prec { format!("({})", left) } else { left };
+                Some(format!("-{}", left_out))
             } else {
                 None
             }

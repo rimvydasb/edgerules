@@ -85,7 +85,7 @@ describe('Function Execution via Evaluate', () => {
         // Inline function should be expanded to standard portable format with "return" field
         assert.strictEqual(f['@type'], 'function');
         assert.deepStrictEqual(f['@parameters'], { a: null });
-        assert.strictEqual(f['return'], "(a + a)");
+        assert.strictEqual(f['return'], "a + a");
 
         // Round-trip: set it back and verify it still works
         service.set('f2', f);

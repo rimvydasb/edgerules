@@ -559,6 +559,8 @@ fn continue_browse<'a, T: Node<T>>(
                     | (ValueType::PeriodType, "totalMonths")
                     | (ValueType::PeriodType, "totalDays") => Some(ValueType::NumberType),
 
+                    (ValueType::UndefinedType, _) => Some(ValueType::UndefinedType),
+
                     _ => None,
                 };
 

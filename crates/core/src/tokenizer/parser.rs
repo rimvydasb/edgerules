@@ -91,8 +91,7 @@ pub fn tokenize(input: &str) -> VecDeque<EToken> {
 
                 // Detect unary context for '-'
                 let mut priority = match extracted {
-                    '+' => Plus,
-                    '-' => Minus,
+                    '+' | '-' => PlusMinus,
                     '*' | '×' | '÷' | '%' => DivideMultiply,
                     '^' => PowerPriority,
                     _ => ErrorPriority,

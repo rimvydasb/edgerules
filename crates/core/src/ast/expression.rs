@@ -337,7 +337,12 @@ impl StaticLink for CastCall {
 
 impl Display for CastCall {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} as {})", self.expression, self.target_ref)
+        let prec = EPriorities::CastPriority as u32;
+        if self.expression.precedence() < prec {
+            write!(f, "({}) as {}", self.expression, self.target_ref)
+        } else {
+            write!(f, "{} as {}", self.expression, self.target_ref)
+        }
     }
 }
 

@@ -41,7 +41,12 @@ pub struct ExpressionFilter {
 
 impl Display for ExpressionFilter {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}[{}]", self.source, self.method)
+        let prec = crate::ast::token::EPriorities::FilterArray as u32;
+        if self.source.precedence() < prec {
+            write!(f, "({})[{}]", self.source, self.method)
+        } else {
+            write!(f, "{}[{}]", self.source, self.method)
+        }
     }
 }
 
@@ -274,6 +279,9 @@ impl StaticLink for FieldSelection {
                 Ok(ValueType::ObjectType(source_type)) => {
                     self.return_type = self.method.link(source_type);
                 }
+                Ok(ValueType::UndefinedType) => {
+                    self.return_type = Ok(ValueType::UndefinedType);
+                }
                 Ok(ValueType::DateType) => {
                     // Supported: year, month, day, weekday
                     let name = self.method.get_name();
@@ -448,7 +456,12 @@ impl EvaluatableExpression for FieldSelection {
 
 impl Display for FieldSelection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}", self.source, self.method)
+        let prec = crate::ast::token::EPriorities::FieldSelectionPriority as u32;
+        if self.source.precedence() < prec {
+            write!(f, "({}).{}", self.source, self.method)
+        } else {
+            write!(f, "{}.{}", self.source, self.method)
+        }
     }
 }
 

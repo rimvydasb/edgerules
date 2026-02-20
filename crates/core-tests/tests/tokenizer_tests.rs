@@ -40,11 +40,11 @@ fn test_common() {
     init_test("test_common");
 
     is_equals("value : sum(1,sum(7,8),3)", "value : sum(1,sum(7,8),3)");
-    is_equals("value : 1 + 7 - 8 / 3 * 10", "value : 1+(7-8/3*10)");
+    is_equals("value : 1 + 7 - 8 / 3 * 10", "value : 1 + 7 - 8 / 3 * 10");
     is_equals("value : 1 + -2", "value : 1 + -2");
     is_equals("value : -1 + 2", "value : -1 + 2");
     is_equals("value : - (-2*10)", "value:-(-2*10)");
-    is_equals("value : (1 + 7 * (5 / 6 + (2-1))-1) - 8 / 3 * 10", "value:(1+(7*(5/6+(2-1))-1))-8/3*10");
+    is_equals("value : (1 + 7 * (5 / 6 + (2-1))-1) - 8 / 3 * 10", "value : 1 + 7 * (5 / 6 + (2 - 1)) - 1 - 8 / 3 * 10");
     is_equals("{ record : { age : 18; value : 1 + 2 }}", "{record:{age:18;value:1+2}}");
     is_equals("{ r : { a : 1 + 2} b : 3}", "{r:{a:1+2};b:3}");
     is_equals("{ r : { a : 1 + 2}; b : 3}", "{r:{a:1+2};b:3}"); // testing comma separator that should be OK
@@ -66,7 +66,7 @@ fn test_common() {
     is_equals("func myFunc(x,y,z) : {a : 1}", "myFunc(x,y,z):{a:1}");
     is_equals(
         "result : sales[month] + sales[month + 1] + sales[month + 2]",
-        "result:(sales[month]+sales[(month+1)])+sales[(month+2)]",
+        "result : sales[month] + sales[month + 1] + sales[month + 2]",
     );
 
     // constraints
@@ -107,7 +107,7 @@ fn test_common() {
     is_equals("value : [1,2,3][>1]", "value:[1,2,3][...>1]");
     is_equals("value : [1,2,3][...>1]", "value:[1,2,3][...>1]");
     is_equals("value : [1,2,3][...>=2 and ...<=3]", "value:[1,2,3][...>=2 and ...<=3]");
-    is_equals("value : [1,2,3][position-1]", "value:[1,2,3][(position-1)]");
+    is_equals("value : [1,2,3][position-1]", "value : [1,2,3][position - 1]");
     is_equals("value : application.applicant[0]", "value:application.applicant[0]");
     is_equals("value : application.applicant[0].age", "value:application.applicant[0].age");
     is_equals("value : application.applicant[<=1].age", "value:application.applicant[...<=1].age");
@@ -200,8 +200,8 @@ fn test_range() {
 
     is_equals("p : 1..5", "p : 1..5");
     is_equals("p : for number in 1..5 return number * 2", "p : for number in 1..5 return number * 2");
-    is_equals("p : for number in 1..(5+inc) return number * 3", "p : for number in 1..(5+inc) return number * 3");
-    is_equals("p : for number in 1 * 0 .. 5+inc return number * 3", "p : for number in 1*0..(5+inc) return number * 3");
+    is_equals("p : for number in 1..(5+inc) return number * 3", "p : for number in 1 .. 5 + inc return number * 3");
+    is_equals("p : for number in 1 * 0 .. 5+inc return number * 3", "p : for number in 1 * 0 .. 5 + inc return number * 3");
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn test_functions() {
 
     is_equals("p : sum(2,2 * sum(1,1))", "p : sum(2,2 * sum(1,1))");
     is_equals("p : sum(2 * sum(3,3),2 * sum(1,1))", "p : sum(2 * sum(3,3),2 * sum(1,1))");
-    is_equals("value : sum(1,2,3 + sum(2,2 * sum(0,0,0,0))) + (2 * 2)", "value:sum(1,2,(3+sum(2,2*sum(0,0,0,0))))+2*2");
+    is_equals("value : sum(1,2,3 + sum(2,2 * sum(0,0,0,0))) + (2 * 2)", "value : sum(1, 2, 3 + sum(2, 2 * sum(0, 0, 0, 0))) + 2 * 2");
     is_equals("value : [1,1*sum(9,8^3)^2,3]", "value:[1,1*sum(9,8^3)^2,3]");
 }
 
@@ -225,7 +225,7 @@ fn test_conditionals() {
     is_equals("p : 2 >= a", "p : 2 >= a");
     is_equals("p : 3 <= a", "p : 3 <= a");
     is_equals("p : 4 <> a", "p : 4 <> a");
-    is_equals("p : 4 <> a + 1", "p : 4 <> (a + 1)");
+    is_equals("p : 4 <> a + 1", "p : 4 <> a + 1");
 
     is_equals("p : a and b", "p : a and b");
     is_equals("p : a or b", "p : a or b");

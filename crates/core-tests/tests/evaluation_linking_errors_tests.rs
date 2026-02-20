@@ -52,7 +52,7 @@ fn reports_location_for_root_field_errors() {
     link_error_location(
         code,
         &["value"],
-        "(1 + 'a')",
+        "1 + 'a'",
         LinkingErrorEnum::TypesNotCompatible(
             Some("Left side of operator '+'".to_string()),
             ValueType::NumberType,
@@ -72,7 +72,7 @@ fn reports_location_for_nested_object_fields() {
     link_error_location(
         code,
         &["nested", "deeper"],
-        "(1 + 'a')",
+        "1 + 'a'",
         LinkingErrorEnum::TypesNotCompatible(
             Some("Left side of operator '+'".to_string()),
             ValueType::NumberType,
@@ -92,7 +92,7 @@ fn reports_location_for_simple_field_access_error() {
     link_error_location(
         code,
         &["value"],
-        "(date('2024-01-01') + 'a')",
+        "date('2024-01-01') + 'a'",
         LinkingErrorEnum::TypesNotCompatible(
             Some("Left side of operator '+'".to_string()),
             ValueType::DateType,
@@ -113,7 +113,7 @@ fn reports_location_for_deep_context_access() {
     link_error_location(
         code,
         &["lvl1", "lvl2", "lvl3"],
-        "(1 + 'a')",
+        "1 + 'a'",
         LinkingErrorEnum::TypesNotCompatible(
             Some("Left side of operator '+'".to_string()),
             ValueType::NumberType,
@@ -134,8 +134,7 @@ fn reports_location_for_errors_inside_array_elements() {
         code,
         // @Todo: this is not ideal, it should start with value and then bad
         &["bad"],
-        // @Todo: not idea, brackets are not necessary
-        "(1 + 'a')",
+        "1 + 'a'",
         LinkingErrorEnum::TypesNotCompatible(
             Some("Left side of operator '+'".to_string()),
             ValueType::NumberType,
@@ -177,7 +176,7 @@ fn reports_location_for_loop_body_errors() {
         code,
         // @Todo: not ideal, it should start with value
         &["_return"],
-        "(1 + 'a')",
+        "1 + 'a'",
         LinkingErrorEnum::TypesNotCompatible(
             Some("Left side of operator '+'".to_string()),
             ValueType::NumberType,

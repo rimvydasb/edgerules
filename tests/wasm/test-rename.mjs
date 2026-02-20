@@ -18,6 +18,23 @@ const portableToObject = (value) => {
     return value;
 };
 
+// filter out '@schema' recursively from the returned model for comparison
+const filterSchema = (obj) => {
+    if (Array.isArray(obj)) {
+        return obj.map(filterSchema);
+    } else if (obj && typeof obj === 'object') {
+        const newObj = {};
+        for (const key in obj) {
+            if (key !== '@schema') {
+                newObj[key] = filterSchema(obj[key]);
+            }
+        }
+        return newObj;
+    } else {
+        return obj;
+    }
+};
+
 describe('DecisionService Rename', () => {
     before(() => {
         wasm.init_panic_hook();
@@ -46,7 +63,7 @@ describe('DecisionService Rename', () => {
 
         assert.strictEqual(service.get("bar"), 10);
 
-        assert.deepEqual(service.get("*"), {
+        assert.deepEqual(filterSchema(service.get("*")), {
             "bar": 10
         });
     });
@@ -89,7 +106,7 @@ describe('DecisionService Rename', () => {
         const res2 = service.execute("calculate", 5);
         assert.strictEqual(res2.res, 10);
 
-        assert.deepEqual(service.get("*"), {
+        assert.deepEqual(filterSchema(service.get("*")), {
             "calculate": {
                 "@type": "function",
                 "@parameters": {"x": "number"},

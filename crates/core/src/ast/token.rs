@@ -47,15 +47,13 @@ pub enum EPriorities {
     GatesOr = 9,
     ComparatorPriority = 15,
     CastPriority = 16,
-    // Todo: is it really OK?
-    FilterArray = 17,
-    FieldSelectionPriority = 27,
-    Plus = 21,
-    Minus = 22,
+    FilterArray = 27,
+    FieldSelectionPriority = 28,
+    PlusMinus = 21,
     DivideMultiply = 23,
     PowerPriority = 25,
     UnaryPriority = 26,
-    FunctionCallPriority = 28,
+    FunctionCallPriority = 29,
 
     //CommaPriority = 98,
     ErrorPriority = 99,
@@ -224,6 +222,25 @@ pub enum ExpressionEnum {
     ObjectField(String, Box<ExpressionEnum>),
     /// Typed placeholder with known type, value provided externally at eval time
     TypePlaceholder(ComplexTypeRef),
+}
+
+impl ExpressionEnum {
+    pub fn precedence(&self) -> u32 {
+        match self {
+            ExpressionEnum::Value(_) => 1000,
+            ExpressionEnum::Variable(_) => 1000,
+            ExpressionEnum::ContextVariable => 1000,
+            ExpressionEnum::Operator(op) => op.precedence(),
+            ExpressionEnum::FunctionCall(_) => EPriorities::FunctionCallPriority as u32,
+            ExpressionEnum::Selection(_) => EPriorities::FieldSelectionPriority as u32,
+            ExpressionEnum::Filter(_) => EPriorities::FieldSelectionPriority as u32,
+            ExpressionEnum::Collection(_) => 1000,
+            ExpressionEnum::RangeExpression(_, _) => EPriorities::RangePriority as u32,
+            ExpressionEnum::StaticObject(_) => 1000,
+            ExpressionEnum::ObjectField(_, _) => EPriorities::Assign as u32,
+            ExpressionEnum::TypePlaceholder(_) => 1000,
+        }
+    }
 }
 
 impl StaticLink for ExpressionEnum {

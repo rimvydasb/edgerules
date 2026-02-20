@@ -87,7 +87,7 @@ describe('Unhappy Paths & Error Handling', () => {
                 expected: ['string']
             },
             location: 'value',
-            expression: "(1 + 'a')",
+            expression: "1 + 'a'",
             stage: 'linking'
         });
     });
