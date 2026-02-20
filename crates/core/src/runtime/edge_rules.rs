@@ -395,6 +395,15 @@ impl EdgeRulesModel {
         expression.ok_or_else(|| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
     }
 
+    pub fn get_content(&self, field_path: &str) -> Result<EObjectContent<ContextObject>, ContextQueryErrorEnum> {
+        let (parent, field_name) = self.resolve_parent(field_path)?;
+        let content = match parent {
+            None => self.ast_root.get(field_name),
+            Some(parent) => parent.borrow().get(field_name),
+        };
+        content.map_err(|_| ContextQueryErrorEnum::EntryNotFoundError(field_path.to_string()))
+    }
+
     pub fn get_expression_type(&mut self, field_path: &str) -> Result<ValueType, ContextQueryErrorEnum> {
         let runtime = self
             .to_runtime_snapshot()

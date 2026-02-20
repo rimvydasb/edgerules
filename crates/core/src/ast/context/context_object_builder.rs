@@ -1,5 +1,5 @@
 use crate::ast::context::context_object::{ContextObject, ExpressionEntry, MethodEntry};
-use crate::ast::context::context_object_type::FormalParameter;
+use crate::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use crate::ast::context::context_resolver::resolve_context_path;
 use crate::ast::context::duplicate_name_error::{DuplicateNameError, NameKind};
 use crate::ast::context::metadata::Metadata;
@@ -7,6 +7,7 @@ use crate::ast::metaphors::functions::UserFunctionDefinition;
 use crate::ast::token::DefinitionEnum::{InlineUserFunction, UserFunction as UserFunctionDef};
 use crate::ast::token::{DefinitionEnum, ExpressionEnum, UserTypeBody};
 use crate::link::node_data::{Node, NodeData, NodeDataEnum};
+use crate::typesystem::errors::LinkingError;
 use crate::typesystem::types::ValueType;
 use crate::utils::intern_field_name;
 use std::cell::RefCell;
@@ -226,6 +227,19 @@ impl ContextObjectBuilder {
         }
 
         Ok(self)
+    }
+
+    pub fn get(&self, name: &str) -> Result<EObjectContent<ContextObject>, LinkingError> {
+        if let Some(content) = self.fields.get(name) {
+            Ok(EObjectContent::ExpressionRef(Rc::clone(content)))
+        } else if let Some(ctx) = self.childs.get(name) {
+            Ok(EObjectContent::ObjectRef(Rc::clone(ctx)))
+        } else if let Some(content) = self.metaphors.get(name) {
+            Ok(EObjectContent::UserFunctionRef(Rc::clone(content)))
+        } else {
+            // ContextObjectBuilder node type might not be fully descriptive, use a fallback
+            LinkingError::field_not_found("Context", name).into()
+        }
     }
 
     pub fn get_child_context(&self, name: &str) -> Option<Rc<RefCell<ContextObject>>> {

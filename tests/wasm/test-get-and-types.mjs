@@ -107,12 +107,19 @@ describe('Type Introspection (getType) and List Operations', () => {
         service = new wasm.DecisionService(MIXED_PORTABLE_MODEL);
     });
 
-    describe('getType API Coverage', () => {
+    describe('getType and get API Coverage', () => {
         it('retrieves correct types for primitive fields', () => {
             assert.equal(service.getType('aString'), 'string');
             assert.equal(service.getType('aNumber'), 'number');
             assert.equal(service.getType('pi'), 'number');
             assert.equal(service.getType('aBoolean'), 'boolean');
+        });
+
+        it('retrieves correct values for primitive fields via get', () => {
+            assert.equal(service.get('aString'), "'text'");
+            assert.equal(service.get('aNumber'), 42);
+            assert.equal(service.get('pi'), 3.14159265359);
+            assert.equal(service.get('aBoolean'), true);
         });
 
         it('retrieves correct types for list fields', () => {
@@ -144,12 +151,41 @@ describe('Type Introspection (getType) and List Operations', () => {
             });
         });
 
+        it('retrieves correct values and schemas for list fields via get', () => {
+            const stringList = service.get('stringList');
+            assert.deepEqual(filterSchema(stringList), ["'a'", "'b'", "'c'"]);
+            assert.deepEqual(stringList['@schema'], {type: 'list', itemType: 'string'});
+
+            const variablesList = service.get('variablesList');
+            assert.deepEqual(filterSchema(variablesList), ["xVar", "yVar", "zVar"]);
+            assert.deepEqual(variablesList['@schema'], {type: 'list', itemType: 'number'});
+
+            const objects1List = service.get('objects1List');
+            assert.deepEqual(filterSchema(objects1List), [{x: 1}, {x: 2}, {x: 3}]);
+            assert.deepEqual(objects1List['@schema'], {
+                type: 'list',
+                itemType: {x: 'number'}
+            });
+        });
+
         it('retrieves correct types for object fields', () => {
             // Simple object
             assert.deepEqual(service.getType('simpleObject'), {x: 'number', y: 'string'});
 
             // Nested object
             assert.deepEqual(service.getType('nestedObject'), {
+                child: {grandchild: 'string', age: 'number'}
+            });
+        });
+
+        it('retrieves correct values and schemas for object fields via get', () => {
+            const simpleObject = service.get('simpleObject');
+            assert.deepEqual(filterSchema(simpleObject), {x: 1, y: "'s'"});
+            assert.deepEqual(simpleObject['@schema'], {x: 'number', y: 'string'});
+
+            const nestedObject = service.get('nestedObject');
+            assert.deepEqual(filterSchema(nestedObject), {child: {grandchild: "'value'", age: 10}});
+            assert.deepEqual(nestedObject['@schema'], {
                 child: {grandchild: 'string', age: 'number'}
             });
         });
@@ -170,6 +206,26 @@ describe('Type Introspection (getType) and List Operations', () => {
             const allTypes = service.getType("*");
             assert.deepEqual(allTypes.main, undefined);
             assert.deepEqual(allTypes.hasHiddenFields, undefined);
+        });
+
+        it('retrieves correct values and schemas for function definitions via get', () => {
+            const main = service.get('main');
+            assert.equal(main['@type'], 'function');
+            assert.deepEqual(main['@parameters'], {req: 'RequestType'});
+            assert.equal(main.joined, "req.strList[0] + req.strList[1] + req.strList[2]");
+            assert.deepEqual(main['@schema'], {
+                "elem": 'string',
+                "joined": 'string',
+                "quoteTest": 'string',
+                "sum": 'number'
+            });
+
+            const hasHiddenFields = service.get('hasHiddenFields');
+            assert.equal(hasHiddenFields['@type'], 'function');
+            assert.deepEqual(hasHiddenFields['@schema'], {
+                "joined": 'string',
+                "return": {"elem": 'string', "quoteTest": 'string', "sum": 'number'}
+            });
         });
 
         it('retrieves functions', () => {

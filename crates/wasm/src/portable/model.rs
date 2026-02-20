@@ -2,7 +2,7 @@ use crate::portable::error::{PortableError, PortableObjectKey, SchemaViolationTy
 use crate::utils::{get_prop, is_object, set_prop};
 use edge_rules::ast::context::context_object::ContextObject;
 use edge_rules::ast::context::context_object_builder::ContextObjectBuilder;
-use edge_rules::ast::context::context_object_type::FormalParameter;
+use edge_rules::ast::context::context_object_type::{EObjectContent, FormalParameter};
 use edge_rules::ast::context::function_context::RETURN_EXPRESSION;
 use edge_rules::ast::context::metadata::Metadata;
 use edge_rules::ast::metaphors::functions::{FunctionDefinition, InlineFunctionDefinition, UserFunctionDefinition};
@@ -262,25 +262,23 @@ pub fn get_portable_entry(model: &EdgeRulesModel, path: &str) -> Result<JsValue,
         }
     }
 
+    // Try user type first as they are not returned by get_content
     match model.get_user_type(path) {
         Ok(body) => return serialize_type_body(&body),
         Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
         Err(err) => return Err(PortableError::from(err)),
     }
 
-    match model.get_user_function(path) {
-        Ok(function) => return serialize_function(&function.borrow().function_definition),
-        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
-        Err(err) => return Err(PortableError::from(err)),
+    match model.get_content(path) {
+        Ok(content) => match content {
+            EObjectContent::ExpressionRef(e) => serialize_expression(&e.borrow().expression),
+            EObjectContent::ObjectRef(o) => context_to_object(&o.borrow()),
+            EObjectContent::UserFunctionRef(f) => serialize_function(&f.borrow().function_definition),
+            EObjectContent::Definition(vt) => serialize_type_body(&UserTypeBody::TypeRef(ComplexTypeRef::from_value_type(vt))),
+            EObjectContent::ConstantValue(v) => serialize_value(&v),
+        },
+        Err(err) => Err(PortableError::from(err)),
     }
-
-    match model.get_expression(path) {
-        Ok(expression) => return serialize_expression(&expression.borrow().expression),
-        Err(ContextQueryErrorEnum::EntryNotFoundError(_)) => {}
-        Err(err) => return Err(PortableError::from(err)),
-    }
-
-    Err(ContextQueryErrorEnum::EntryNotFoundError(path.to_string()).into())
 }
 
 fn join_path(context: Option<Vec<String>>, name: &str) -> String {

@@ -13,6 +13,10 @@ pub fn is_object(v: &JsValue) -> bool {
     v.is_object() && !Array::is_array(v)
 }
 
+pub fn can_have_schema(v: &JsValue) -> bool {
+    v.is_object()
+}
+
 pub fn throw_js_error(message: impl Into<String>) -> ! {
     wasm_bindgen::throw_str(&message.into());
 }

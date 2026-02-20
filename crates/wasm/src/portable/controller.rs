@@ -79,7 +79,7 @@ impl DecisionServiceController {
             get_portable_entry(&borrowed, path)?
         };
 
-        if crate::utils::is_object(&val) {
+        if crate::utils::can_have_schema(&val) {
             self.service.ensure_linked()?;
             if let Ok(vt) = self.service.get_linked_type(path) {
                 let schema = vt.to_js().map_err(PortableError::from)?;
