@@ -1,5 +1,5 @@
-import { describe, it, before } from 'node:test';
-import { strict as assert } from 'node:assert';
+import {before, describe, it} from 'node:test';
+import {strict as assert} from 'node:assert';
 import wasm from '../../target/pkg-node/edge_rules.js';
 
 const DEFAULT_VALUES_MODEL = `
@@ -37,7 +37,7 @@ describe('Type Introspection (getType) and List Operations', () => {
             aNumber: 42,
             aBoolean: true,
             pi: 3.14159265359,
-            
+
             // Quoted string tests (for getType)
             a: "'!'",
             quoted: "'\"To be or not to be!\"'",
@@ -52,23 +52,23 @@ describe('Type Introspection (getType) and List Operations', () => {
             stringList: ["'a'", "'b'", "'c'"],
             numberList: [1, 2, 3],
             boolList: [true, false, true],
-            
+
             // Edge cases for lists
             emptyList: [],
             nestedList: [[1, 2], [3, 4]],
 
             // Complex Types
-            simpleObject: { x: 1, y: "'s'" },
+            simpleObject: {x: 1, y: "'s'"},
             nestedObject: {
                 child: {
                     grandchild: "'value'",
                     age: 10
                 }
             },
-            
+
             // Lists of Objects
-            objects1List: [ { x: 1 }, { x: 2 }, { x: 3 } ],
-            
+            objects1List: [{x: 1}, {x: 2}, {x: 3}],
+
             // Type definition for function argument
             RequestType: {
                 '@type': 'type',
@@ -82,12 +82,25 @@ describe('Type Introspection (getType) and List Operations', () => {
             // Functions for execution tests
             main: {
                 '@type': 'function',
-                '@parameters': { 'req': 'RequestType' },
+                '@parameters': {'req': 'RequestType'},
                 joined: "req.strList[0] + req.strList[1] + req.strList[2]",
                 elem: "req.strList[floor(req.index)]",
                 sum: "sum(req.numList)",
                 // Concatenation test for quoted strings using parameters
                 quoteTest: "req.quoted + req.a"
+            },
+
+            // Functions for execution tests
+            hasHiddenFields: {
+                '@type': 'function',
+                '@parameters': {'req': 'RequestType'},
+                joined: "req.strList[0] + req.strList[1] + req.strList[2]",
+                return: {
+                    elem: "req.strList[floor(req.index)]",
+                    sum: "sum(req.numList)",
+                    // Concatenation test for quoted strings using parameters
+                    quoteTest: "req.quoted + req.a"
+                }
             }
         };
         service = new wasm.DecisionService(model);
@@ -103,41 +116,59 @@ describe('Type Introspection (getType) and List Operations', () => {
 
         it('retrieves correct types for list fields', () => {
             // String list
-            assert.deepEqual(service.getType('stringList'), { type: 'list', itemType: 'string' });
-            
+            assert.deepEqual(service.getType('stringList'), {type: 'list', itemType: 'string'});
+
             // Variable list (resolved to number)
-            assert.deepEqual(service.getType('variablesList'), { type: 'list', itemType: 'number' });
-            
+            assert.deepEqual(service.getType('variablesList'), {type: 'list', itemType: 'number'});
+
             // Number list
-            assert.deepEqual(service.getType('numberList'), { type: 'list', itemType: 'number' });
-            
+            assert.deepEqual(service.getType('numberList'), {type: 'list', itemType: 'number'});
+
             // Boolean list
-            assert.deepEqual(service.getType('boolList'), { type: 'list', itemType: 'boolean' });
-            
+            assert.deepEqual(service.getType('boolList'), {type: 'list', itemType: 'boolean'});
+
             // Empty list
             assert.equal(service.getType('emptyList'), '[]');
-            
+
             // Nested list
-            assert.deepEqual(service.getType('nestedList'), { 
-                type: 'list', 
-                itemType: { type: 'list', itemType: 'number' } 
+            assert.deepEqual(service.getType('nestedList'), {
+                type: 'list',
+                itemType: {type: 'list', itemType: 'number'}
             });
-            
+
             // List of objects
             assert.deepEqual(service.getType('objects1List'), {
                 type: 'list',
-                itemType: { x: 'number' }
+                itemType: {x: 'number'}
             });
         });
 
         it('retrieves correct types for object fields', () => {
             // Simple object
-            assert.deepEqual(service.getType('simpleObject'), { x: 'number', y: 'string' });
-            
+            assert.deepEqual(service.getType('simpleObject'), {x: 'number', y: 'string'});
+
             // Nested object
             assert.deepEqual(service.getType('nestedObject'), {
-                child: { grandchild: 'string', age: 'number' }
+                child: {grandchild: 'string', age: 'number'}
             });
+        });
+
+        it('retrieves correct types for function', () => {
+            assert.deepEqual(service.getType('main'), {
+                "elem": 'string',
+                "joined": 'string',
+                "quoteTest": 'string',
+                "sum": 'number'
+            });
+            assert.deepEqual(service.getType('hasHiddenFields'), {
+                "joined": 'string',
+                "return": {"elem": 'string', "quoteTest": 'string', "sum": 'number'}
+            });
+
+            // Checking with getType("*") bypasses function definitions as well as other definitions
+            const allTypes = service.getType("*");
+            assert.deepEqual(allTypes.main, undefined);
+            assert.deepEqual(allTypes.hasHiddenFields, undefined);
         });
 
         it('throws error for non-existent path', () => {
@@ -166,7 +197,7 @@ describe('Type Introspection (getType) and List Operations', () => {
             assert.strictEqual(resJoined.joined, 'abc');
 
             // Evaluate single array element
-            const reqElem = { ...testData, index: 1 };
+            const reqElem = {...testData, index: 1};
             const resElem = service.execute('main', reqElem);
             assert.strictEqual(resElem.elem, 'b');
 
@@ -226,7 +257,7 @@ describe('User Type Modification', () => {
             },
             processApplicant: {
                 '@type': 'function',
-                '@parameters': { app: 'Applicant' },
+                '@parameters': {app: 'Applicant'},
                 result: 'app.income'
             }
         };
@@ -252,7 +283,7 @@ describe('User Type Modification', () => {
         assert.equal(modifiedDef.income, '<string>');
 
         // Verify execution reflects the change
-        const res = service.execute('processApplicant', { name: 'John', income: 'High' });
+        const res = service.execute('processApplicant', {name: 'John', income: 'High'});
         assert.equal(res.result, 'High');
     });
 });
