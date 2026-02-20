@@ -52,12 +52,18 @@ export interface PortableInvocationDefinition {
 }
 
 export interface PortableObject {
+    '@schema'?: PortableObjectSchema;
+
     [key: string]:
         | PortableValue
         | PortableExpressionString
         | PortableTypeDefinition
         | PortableFunctionDefinition
         | PortableInvocationDefinition;
+}
+
+export interface PortableObjectSchema {
+    [key: string]: 'string' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' | 'period' | object | string;
 }
 
 export interface PortableContext extends PortableObject {
@@ -430,4 +436,53 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
- 
+
+# Next Steps
+
+It is necessary to implement additional `@schema` metadata in the `PortableObject` returned by 'get' from WASM API. This
+metadata will contain the same information as `getType` and will allow users to avoid additional calls to `getType` when
+they need both value and type information.
+
+- [ ] Carefully investigate `test-get-and-types.mjs` to understand what `getType` returns for different cases.
+- [ ] When calling 'get' from WASM API, then '@schema' is returned as a part of `PortableObject`. '@schema' content is
+  actually exactly the same as `getType` result. This feature will let us avoid additional calls to `getType` when we
+  need both value and type information.
+- [ ] Update 'JavaScript' tests to asset that `@schema` is returned as a part of `PortableObject` when calling 'get'
+  from WASM API.
+- [ ] LIMITATION: there's no need to return schema for in-array objects, for example:
+
+```edgerules
+{
+    arrayItems: [
+        {
+            name: "string"
+        },
+        {
+            name: "string"
+        }
+    ]
+} 
+```
+
+**Will resolve to:**
+
+```json
+{
+  "@schema": {
+    "arrayItems": {
+      "type": "list",
+      "itemType": {
+        "name": "string"
+      }
+    }
+  },
+  "arrayItems": [
+    {
+      "name": "string"
+    },
+    {
+      "name": "string"
+    }
+  ]
+}
+```
