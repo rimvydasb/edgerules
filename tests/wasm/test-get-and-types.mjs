@@ -26,84 +26,85 @@ const DEFAULT_VALUES_MODEL = `
     }
 `;
 
+const MIXED_PORTABLE_MODEL = {
+    // Primitives
+    aString: "'text'",
+    aNumber: 42,
+    aBoolean: true,
+    pi: 3.14159265359,
+
+    // Quoted string tests (for getType)
+    a: "'!'",
+    quoted: "'\"To be or not to be!\"'",
+
+    // Dependencies for variablesList
+    xVar: 11,
+    yVar: 22,
+    zVar: 33,
+
+    // Lists (Global)
+    variablesList: ["xVar", "yVar", "zVar"],
+    stringList: ["'a'", "'b'", "'c'"],
+    numberList: [1, 2, 3],
+    boolList: [true, false, true],
+
+    // Edge cases for lists
+    emptyList: [],
+    nestedList: [[1, 2], [3, 4]],
+
+    // Complex Types
+    simpleObject: {x: 1, y: "'s'"},
+    nestedObject: {
+        child: {
+            grandchild: "'value'",
+            age: 10
+        }
+    },
+
+    // Lists of Objects
+    objects1List: [{x: 1}, {x: 2}, {x: 3}],
+
+    // Type definition for function argument
+    RequestType: {
+        '@type': 'type',
+        index: '<number>',
+        strList: '<string[]>',
+        numList: '<number[]>',
+        a: '<string>',
+        quoted: '<string>'
+    },
+
+    // Functions for execution tests
+    main: {
+        '@type': 'function',
+        '@parameters': {'req': 'RequestType'},
+        joined: "req.strList[0] + req.strList[1] + req.strList[2]",
+        elem: "req.strList[floor(req.index)]",
+        sum: "sum(req.numList)",
+        // Concatenation test for quoted strings using parameters
+        quoteTest: "req.quoted + req.a"
+    },
+
+    // Functions for execution tests
+    hasHiddenFields: {
+        '@type': 'function',
+        '@parameters': {'req': 'RequestType'},
+        joined: "req.strList[0] + req.strList[1] + req.strList[2]",
+        return: {
+            elem: "req.strList[floor(req.index)]",
+            sum: "sum(req.numList)",
+            // Concatenation test for quoted strings using parameters
+            quoteTest: "req.quoted + req.a"
+        }
+    }
+}
+
 describe('Type Introspection (getType) and List Operations', () => {
     let service;
 
     before(() => {
         wasm.init_panic_hook();
-        const model = {
-            // Primitives
-            aString: "'text'",
-            aNumber: 42,
-            aBoolean: true,
-            pi: 3.14159265359,
-
-            // Quoted string tests (for getType)
-            a: "'!'",
-            quoted: "'\"To be or not to be!\"'",
-
-            // Dependencies for variablesList
-            xVar: 11,
-            yVar: 22,
-            zVar: 33,
-
-            // Lists (Global)
-            variablesList: ["xVar", "yVar", "zVar"],
-            stringList: ["'a'", "'b'", "'c'"],
-            numberList: [1, 2, 3],
-            boolList: [true, false, true],
-
-            // Edge cases for lists
-            emptyList: [],
-            nestedList: [[1, 2], [3, 4]],
-
-            // Complex Types
-            simpleObject: {x: 1, y: "'s'"},
-            nestedObject: {
-                child: {
-                    grandchild: "'value'",
-                    age: 10
-                }
-            },
-
-            // Lists of Objects
-            objects1List: [{x: 1}, {x: 2}, {x: 3}],
-
-            // Type definition for function argument
-            RequestType: {
-                '@type': 'type',
-                index: '<number>',
-                strList: '<string[]>',
-                numList: '<number[]>',
-                a: '<string>',
-                quoted: '<string>'
-            },
-
-            // Functions for execution tests
-            main: {
-                '@type': 'function',
-                '@parameters': {'req': 'RequestType'},
-                joined: "req.strList[0] + req.strList[1] + req.strList[2]",
-                elem: "req.strList[floor(req.index)]",
-                sum: "sum(req.numList)",
-                // Concatenation test for quoted strings using parameters
-                quoteTest: "req.quoted + req.a"
-            },
-
-            // Functions for execution tests
-            hasHiddenFields: {
-                '@type': 'function',
-                '@parameters': {'req': 'RequestType'},
-                joined: "req.strList[0] + req.strList[1] + req.strList[2]",
-                return: {
-                    elem: "req.strList[floor(req.index)]",
-                    sum: "sum(req.numList)",
-                    // Concatenation test for quoted strings using parameters
-                    quoteTest: "req.quoted + req.a"
-                }
-            }
-        };
-        service = new wasm.DecisionService(model);
+        service = new wasm.DecisionService(MIXED_PORTABLE_MODEL);
     });
 
     describe('getType API Coverage', () => {
@@ -169,6 +170,12 @@ describe('Type Introspection (getType) and List Operations', () => {
             const allTypes = service.getType("*");
             assert.deepEqual(allTypes.main, undefined);
             assert.deepEqual(allTypes.hasHiddenFields, undefined);
+        });
+
+        it('retrieves functions', () => {
+            let returnedModel = service.get('*');
+            returnedModel = filterSchema(returnedModel);
+            assert.deepEqual(returnedModel, MIXED_PORTABLE_MODEL);
         });
 
         it('throws error for non-existent path', () => {
@@ -287,3 +294,22 @@ describe('User Type Modification', () => {
         assert.equal(res.result, 'High');
     });
 });
+
+// Utilities:
+
+// filter out '@schema' recursively from the returned model for comparison
+const filterSchema = (obj) => {
+    if (Array.isArray(obj)) {
+        return obj.map(filterSchema);
+    } else if (obj && typeof obj === 'object') {
+        const newObj = {};
+        for (const key in obj) {
+            if (key !== '@schema') {
+                newObj[key] = filterSchema(obj[key]);
+            }
+        }
+        return newObj;
+    } else {
+        return obj;
+    }
+};
