@@ -228,10 +228,47 @@ describe('Type Introspection (getType) and List Operations', () => {
             });
         });
 
-        it('retrieves functions', () => {
-            let returnedModel = service.get('*');
-            returnedModel = filterSchema(returnedModel);
-            assert.deepEqual(returnedModel, MIXED_PORTABLE_MODEL);
+        it('retrieves full model with metadata via get("*")', () => {
+            const model = service.get('*');
+
+            // 1. Check top-level keys presence (Portable structure)
+            assert.ok(model.RequestType, "Should have RequestType");
+            assert.ok(model.main, "Should have main function");
+            assert.ok(model.simpleObject, "Should have simpleObject");
+            assert.ok(model.stringList, "Should have stringList");
+
+            // 2. Check @schema existence and content
+            assert.ok(model['@schema'], "Root should have @schema");
+            const schema = model['@schema'];
+
+            // Primitives
+            assert.equal(schema.aString, 'string');
+            assert.equal(schema.aNumber, 'number');
+
+            // Complex types in schema
+            assert.deepEqual(schema.simpleObject, {x: 'number', y: 'string'});
+            assert.deepEqual(schema.stringList, {type: 'list', itemType: 'string'});
+
+            // Functions and Types should NOT be in @schema (they are definitions, not data fields)
+            assert.equal(schema.main, undefined);
+            assert.equal(schema.RequestType, undefined);
+
+            // 3. Verify function structure in get('*')
+            assert.equal(model.main['@type'], 'function');
+            assert.deepEqual(model.main['@parameters'], {req: 'RequestType'});
+            assert.equal(model.main.sum, "sum(req.numList)");
+
+            // 4. Verify type structure in get('*')
+            assert.equal(model.RequestType['@type'], 'type');
+            assert.equal(model.RequestType.index, '<number>');
+
+            // 5. Verify nested objects and lists
+            assert.deepEqual(model.nestedObject.child, {grandchild: "'value'", age: 10});
+            assert.deepEqual(model.nestedList[0], [1, 2]);
+
+            // 6. Deep comparison with original model (filtering out @schema)
+            const filtered = filterSchema(model);
+            assert.deepEqual(filtered, MIXED_PORTABLE_MODEL);
         });
 
         it('reproducers: arrays should be arrays, not strings; no unnecessary brackets', () => {
@@ -285,6 +322,17 @@ describe('Type Introspection (getType) and List Operations', () => {
             const pi = service.get('pi');
             assert.strictEqual(pi, 3.14159265359);
         });
+
+        it('executes wildcard (*) to evaluate entire model', () => {
+            const result = service.execute('*');
+            assert.strictEqual(result.aNumber, 42);
+            assert.strictEqual(result.aString, "text");
+            assert.deepEqual(result.simpleObject, {x: 1, y: "s"});
+            // Result of wildcard execute does NOT have @schema or @type definitions, it is purely evaluated data
+            assert.equal(result['@schema'], undefined);
+            assert.equal(result.RequestType, undefined);
+            assert.equal(result.main, undefined);
+        });
     });
 });
 
@@ -322,24 +370,29 @@ describe('Default Values in Types', () => {
 describe('User Type Modification', () => {
     let service;
 
+    const SMALL_PORTABLE_MODEL = {
+        Applicant: {
+            '@type': 'type',
+            name: '<string>',
+            income: '<number>'
+        },
+        processApplicant: {
+            '@type': 'function',
+            '@parameters': {app: 'Applicant'},
+            result: 'app.income'
+        }
+    };
+
     before(() => {
         wasm.init_panic_hook();
-        const model = {
-            Applicant: {
-                '@type': 'type',
-                name: '<string>',
-                income: '<number>'
-            },
-            processApplicant: {
-                '@type': 'function',
-                '@parameters': {app: 'Applicant'},
-                result: 'app.income'
-            }
-        };
-        service = new wasm.DecisionService(model);
+        service = new wasm.DecisionService(SMALL_PORTABLE_MODEL);
     });
 
     it('modifies a user type definition by replacing it', () => {
+
+        const all = service.get('*');
+        assert.deepEqual(all, {'@schema': {}, ...SMALL_PORTABLE_MODEL});
+
         // Initial check via get() which returns the Portable definition
         const initialDef = service.get('Applicant');
         assert.equal(initialDef['@type'], 'type');
@@ -381,3 +434,47 @@ const filterSchema = (obj) => {
         return obj;
     }
 };
+
+describe('Model Metadata', () => {
+    it('retrieves model with metadata (@version, @model_name) via get("*")', () => {
+        const metadataModel = {
+            '@version': '1.2.3',
+            '@model_name': 'MetadataTest',
+            a: 1
+        };
+        const metaService = new wasm.DecisionService(metadataModel);
+        const retrieved = metaService.get('*');
+
+        assert.equal(retrieved['@version'], '1.2.3');
+        assert.equal(retrieved['@model_name'], 'MetadataTest');
+        assert.equal(retrieved.a, 1);
+        assert.ok(retrieved['@schema']);
+        assert.equal(retrieved['@schema'].a, 'number');
+    });
+
+    it('retrieves model with invocations via get("*")', () => {
+        const invocationModel = {
+            myFunc: {
+                '@type': 'function',
+                '@parameters': {x: 'number'},
+                return: 'x + 1'
+            },
+            callFunc: {
+                '@type': 'invocation',
+                '@method': 'myFunc',
+                '@arguments': [10]
+            }
+        };
+        const invService = new wasm.DecisionService(invocationModel);
+        const retrieved = invService.get('*');
+
+        assert.deepEqual(retrieved.callFunc, {
+            '@type': 'invocation',
+            '@method': 'myFunc',
+            '@arguments': [10]
+        });
+
+        // Invocation return types ARE in @schema after linking
+        assert.equal(retrieved['@schema'].callFunc, 'number');
+    });
+});

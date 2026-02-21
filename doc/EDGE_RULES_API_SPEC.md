@@ -222,12 +222,13 @@ requests.
 - `execute(method: string, args?: any | any[]): any`
     - Executes a function defined in the model or evaluates a field by path.
     - **Parameters:**
-        - `method`: The name or path of the function or field to execute/evaluate.
+        - `method`: The name or path of the function or field to execute/evaluate. Use `*` to evaluate the entire model.
         - `args`: (Optional) The input argument or an array of arguments to pass to the function.
+            - If `method` is `*`, `args` must be omitted.
             - If omitted (`null` or `undefined`), the path is evaluated as a field.
             - If an array is provided, it is treated as a list of arguments for function execution.
             - Providing an empty array `[]` indicates a function execution with no arguments.
-    - **Returns:** The result of the execution.
+    - **Returns:** The result of the execution. When `method` is `*`, it returns the fully evaluated context object.
 
 #### CRUD Operations
 
@@ -238,8 +239,14 @@ The `DecisionService` provides methods to modify the decision model at runtime.
 Retrieves the value or definition at the specified path.
 
 - **Parameters:**
-    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`) or array element (e.g., `"rules[0]"`).
-- **Returns:** The value at the path. If the path points to a context, it returns a JSON object.
+    - `path`: Dot-separated path to the field (e.g., `"rules.eligibility"`), array element (e.g., `"rules[0]"`), or `*`
+      for the entire model snapshot.
+- **Returns:** The value or object at the path.
+    - If the path points to a context object or `*`, it returns a JSON object in **Portable Format**.
+    - If a context object is returned, it automatically includes an **`@schema`** property containing the type
+      information for its fields (equivalent to what `getType` would return for that path).
+    - Wildcard (`*`) returns the complete model, including all functions, types, and data fields, along with a
+      top-level `@schema` and any global metadata (`@version`, `@model_name`).
 - **Throws:**
     - `EntryNotFoundError`: If the path does not exist.
     - `WrongFieldPathError`: If the path is invalid, empty, out of bounds for arrays, or index is negative.
@@ -436,53 +443,3 @@ Wrapper around `EdgeRulesModel` and `EdgeRulesRuntime` to facilitate service-ori
    `DecisionService` controller. Only one service instance can be active at a time per WASM module instance.
 2. **Invocation Arguments**: Arguments in `@arguments` must be resolvable expressions.
 3. **Metadata**: Only specific metadata keys (`@version`, `@model_name`) are preserved in the root context.
-
-# Next Steps
-
-It is necessary to implement additional `@schema` metadata in the `PortableObject` returned by 'get' from WASM API. This
-metadata will contain the same information as `getType` and will allow users to avoid additional calls to `getType` when
-they need both value and type information.
-
-- [ ] Carefully investigate `test-get-and-types.mjs` to understand what `getType` returns for different cases.
-- [ ] When calling 'get' from WASM API, then '@schema' is returned as a part of `PortableObject`. '@schema' content is
-  actually exactly the same as `getType` result. This feature will let us avoid additional calls to `getType` when we
-  need both value and type information.
-- [ ] Update 'JavaScript' tests to asset that `@schema` is returned as a part of `PortableObject` when calling 'get'
-  from WASM API.
-- [ ] LIMITATION: there's no need to return schema for in-array objects, for example:
-
-```edgerules
-{
-    arrayItems: [
-        {
-            name: "string"
-        },
-        {
-            name: "string"
-        }
-    ]
-} 
-```
-
-**Will resolve to:**
-
-```json
-{
-  "@schema": {
-    "arrayItems": {
-      "type": "list",
-      "itemType": {
-        "name": "string"
-      }
-    }
-  },
-  "arrayItems": [
-    {
-      "name": "string"
-    },
-    {
-      "name": "string"
-    }
-  ]
-}
-```
