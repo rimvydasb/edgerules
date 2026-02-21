@@ -52,14 +52,16 @@ export interface PortableInvocationDefinition {
 }
 
 export interface PortableObject {
-    '@schema'?: PortableObjectSchema;
-
+    '@schema'? : PortableObjectSchema; // Optional schema attached to the object
     [key: string]:
         | PortableValue
         | PortableExpressionString
         | PortableTypeDefinition
         | PortableFunctionDefinition
-        | PortableInvocationDefinition;
+        | PortableInvocationDefinition
+        | PortableObject
+        | Record<string, string | null | undefined>
+        | undefined;
 }
 
 export interface PortableObjectSchema {
